@@ -1,4 +1,4 @@
-project "LFrameApp"
+project "Luck3DApp"
     kind "ConsoleApp"
     language "C++"
     cppdialect "C++20"

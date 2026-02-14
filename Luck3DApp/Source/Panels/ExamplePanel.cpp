@@ -4,7 +4,6 @@
 #include <imgui/imgui_internal.h>
 
 #include <Lucky/Utils/PlatformUtils.h>
-#include <Lucky/Editor/EditorUtility.h>
 
 namespace Lucky
 {

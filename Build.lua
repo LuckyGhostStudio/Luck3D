@@ -1,8 +1,8 @@
 -- premake5.lua
-workspace "LFrame"      -- 解决方案名称
+workspace "Luck3D"      -- 解决方案名称
     architecture "x64"  -- 体系结构
     configurations { "Debug", "Release", "Dist" }
-    startproject "LFrameApp"
+    startproject "Luck3DApp"
 
     flags { "MultiProcessorCompile" }
 
@@ -21,4 +21,4 @@ group "Core"
     include "Lucky/Build-Lucky.lua"
 group ""
 
-include "LFrameApp/Build-LFrameApp.lua"
+include "Luck3DApp/Build-Luck3DApp.lua"
