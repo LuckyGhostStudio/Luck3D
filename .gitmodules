@@ -1,0 +1,12 @@
+[submodule "Lucky/Vendor/spdlog"]
+	path = Lucky/Vendor/spdlog
+	url = https://github.com/gabime/spdlog
+[submodule "Lucky/Vendor/GLFW"]
+	path = Lucky/Vendor/GLFW
+	url = https://github.com/TheCherno/glfw
+[submodule "Lucky/Vendor/imgui"]
+	path = Lucky/Vendor/imgui
+	url = https://github.com/LuckyGhostStudio/imgui
+[submodule "Lucky/Vendor/glm"]
+	path = Lucky/Vendor/glm
+	url = https://github.com/g-truc/glm

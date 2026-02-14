@@ -1,0 +1,23 @@
+# Binaries
+Binaries/
+bin/
+**/bin/
+bin-int/
+Intermediates/
+
+# Files
+*.log
+*.ini
+
+# Exclude
+!Vendor/Binaries
+
+# VS Files
+.vs
+**.sln
+**.vcxproj
+**.vcxproj.user
+**.vcxproj.filters
+**.csproj
+**.csproj.user
+.editorconfig
