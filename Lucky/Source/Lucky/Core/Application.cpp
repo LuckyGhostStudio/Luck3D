@@ -47,13 +47,17 @@ namespace Lucky
     {
         while (m_Running)
         {
+            float time = (float)glfwGetTime();              // 当前时间
+            DeltaTime deltaTime = time - m_LastFrameTime;   // 帧间隔 = 当前时间 - 上一帧时间
+            m_LastFrameTime = time;                         // 更新上一帧时间
+
             // 窗口未最小化
             if (!m_Minimized)
             {
                 // 更新层栈中所有层
                 for (Layer* layer : m_LayerStack)
                 {
-                    layer->OnUpdate();
+                    layer->OnUpdate(deltaTime);
                 }
 
                 // ImGui渲染

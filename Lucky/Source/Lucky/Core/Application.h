@@ -84,6 +84,8 @@ namespace Lucky
         LayerStack m_LayerStack;    // 层栈
         ImGuiLayer* m_ImGuiLayer;
 
+        float m_LastFrameTime = 0.0f;   // 上一帧时间
+
         bool m_Running = true;      // 运行
         bool m_Minimized = false;   // 最小化
     };

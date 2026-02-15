@@ -2,6 +2,7 @@
 
 #include "Lucky/Core/Base.h"
 #include "Lucky/Core/Events/Event.h"
+#include "Lucky/Core/DeltaTime.h"
 
 namespace Lucky
 {
@@ -23,9 +24,10 @@ namespace Lucky
         virtual void OnDetach() {}
 
         /// <summary>
-        /// 层更新时调用：每帧调用
+        /// 更新：每帧调用
         /// </summary>
-        virtual void OnUpdate() {}
+        /// <param name="dt">帧间隔</param>
+        virtual void OnUpdate(DeltaTime dt) {}
 
         /// <summary>
         /// 渲染ImGui

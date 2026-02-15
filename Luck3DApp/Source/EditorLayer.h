@@ -18,7 +18,7 @@ namespace Lucky
 
         virtual void OnDetach() override;
 
-        virtual void OnUpdate() override;
+        virtual void OnUpdate(DeltaTime dt) override;
 
         virtual void OnImGuiRender() override;
 

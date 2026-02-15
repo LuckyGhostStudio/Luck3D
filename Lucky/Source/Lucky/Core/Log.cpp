@@ -15,7 +15,7 @@ namespace Lucky
         s_CoreLogger = spdlog::stdout_color_mt("Lucky");
         s_CoreLogger->set_level(spdlog::level::trace);      // ÉèÖÃ²ã¼¶
 
-        s_ClientLogger = spdlog::stdout_color_mt("LuckyApp");
+        s_ClientLogger = spdlog::stdout_color_mt("Luck3DApp");
         s_ClientLogger->set_level(spdlog::level::trace);
     }
 }

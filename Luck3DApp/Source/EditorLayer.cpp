@@ -28,7 +28,7 @@ namespace Lucky
         LF_TRACE("EditorLayer::OnDetach");
     }
 
-    void EditorLayer::OnUpdate()
+    void EditorLayer::OnUpdate(DeltaTime dt)
     {
         
     }
@@ -41,8 +41,6 @@ namespace Lucky
         UI_DrawMenuBar();
 
         m_PanelManager->OnImGuiRender();
-
-        ImGui::ShowDemoWindow();
     }
 
     void EditorLayer::OnEvent(Event& event)
