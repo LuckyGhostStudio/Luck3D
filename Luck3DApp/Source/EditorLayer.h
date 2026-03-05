@@ -5,6 +5,8 @@
 #include "EditorDockSpace.h"
 #include "Lucky/Editor/PanelManager.h"
 
+#include "Lucky/Renderer/EditorCamera.h"
+
 namespace Lucky
 {
     class EditorLayer : public Layer
@@ -29,5 +31,12 @@ namespace Lucky
         EditorDockSpace m_EditorDockSpace;  // 停靠空间
 
         Scope<PanelManager> m_PanelManager; // 编辑器面板管理器
+
+        EditorCamera m_EditorCamera;    // 编辑器相机
+
+        Ref<Texture2D> m_Texture;
+        glm::vec4 m_SquareColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+        glm::vec2 m_Size = { 0, 0 };    // 视口大小
     };
 }

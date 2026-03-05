@@ -3,6 +3,7 @@
 
 #include "Events/ApplicationEvent.h"
 #include "Log.h"
+#include "Lucky/Renderer/Renderer.h"
 
 namespace Lucky
 {
@@ -17,13 +18,15 @@ namespace Lucky
         m_Window = Window::Create(WindowProps());                               // 创建窗口
         m_Window->SetEventCallback(LF_BIND_EVENT_FUNC(Application::OnEvent));   // 设置回调函数
 
+        Renderer::Init();   // 初始化渲染器
+
         m_ImGuiLayer = new ImGuiLayer();    // 创建 ImGui 层
         PushOverlay(m_ImGuiLayer);          // 添加 ImGuiLayer 到覆盖层
     }
 
     Application::~Application()
     {
-
+        Renderer::Shutdown();
     }
 
     void Application::OnEvent(Event& event)
@@ -93,6 +96,8 @@ namespace Lucky
         }
 
         m_Minimized = false;
+
+        Renderer::OnWindowResize(e.GetWidth(), e.GetHeight());
 
         return false;
     }

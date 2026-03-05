@@ -4,12 +4,16 @@
 
 #include "Panels/ExamplePanel.h"
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 namespace Lucky
 {
 #define SCENE_EXAMPLE_PANEL_ID "ExamplePanel"
 
     EditorLayer::EditorLayer()
-        : Layer("EditorLayer")
+        : Layer("EditorLayer"),
+        m_EditorCamera(30.0f, 1280.0f / 720.0f, 0.01f, 1000.0f)
     {
 
     }
@@ -30,22 +34,46 @@ namespace Lucky
 
     void EditorLayer::OnUpdate(DeltaTime dt)
     {
-        
+        if (m_Size.x > 0.0f && m_Size.y > 0.0f)
+        {
+            m_EditorCamera.SetViewportSize(m_Size.x, m_Size.y); // 重置编辑器相机视口大小
+        }
+
+        m_EditorCamera.OnUpdate(dt);    // 更新编辑器相机
+
+        RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1.0f });
+        RenderCommand::Clear();
+
+        Renderer3D::BeginScene(m_EditorCamera);
+        {
+            glm::vec3 m_Position = { 0.0f, 0.0f, 0.0f };  // 位置
+            glm::vec3 m_Scale = { 1.0f, 1.0f, 1.0f };     // 缩放
+
+            glm::mat4 transform = glm::translate(glm::mat4(1.0f), m_Position) * glm::scale(glm::mat4(1.0f), m_Scale);
+
+            Renderer3D::DrawMesh(transform, m_SquareColor);
+        }
+        Renderer3D::EndScene();
     }
 
     void EditorLayer::OnImGuiRender()
     {
-        // 渲染 DockSpace
-        m_EditorDockSpace.ImGuiRender();
+        //// 渲染 DockSpace
+        //m_EditorDockSpace.ImGuiRender();
 
-        UI_DrawMenuBar();
+        //UI_DrawMenuBar();
 
-        m_PanelManager->OnImGuiRender();
+        //m_PanelManager->OnImGuiRender();
+
+        ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();  // 当前面板大小
+        m_Size = { viewportPanelSize.x, viewportPanelSize.y };      // 视口大小
     }
 
     void EditorLayer::OnEvent(Event& event)
     {
         m_PanelManager->OnEvent(event);
+
+        m_EditorCamera.OnEvent(event);
     }
 
     void EditorLayer::UI_DrawMenuBar()

@@ -15,6 +15,7 @@
 
 // Renderer
 #include "Lucky/Renderer/Renderer.h"
+#include "Lucky/Renderer/Renderer3D.h"
 #include "Lucky/Renderer/RenderCommand.h"
 #include "Lucky/Renderer/Buffer.h"
 #include "Lucky/Renderer/Shader.h"
