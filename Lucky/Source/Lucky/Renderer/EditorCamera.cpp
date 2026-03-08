@@ -1,4 +1,4 @@
-#include "lpch.h"
+#include "lcpch.h"
 #include "EditorCamera.h"
 
 #include "Lucky/Core/Input/Input.h"

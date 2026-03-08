@@ -1,4 +1,4 @@
-#include "lpch.h"
+#include "lcpch.h"
 #include "EditorPanel.h"
 
 #include <imgui/imgui.h>

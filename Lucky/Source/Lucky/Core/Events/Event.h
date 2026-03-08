@@ -1,6 +1,6 @@
 #pragma once
 
-#include "lpch.h"
+#include "lcpch.h"
 
 namespace Lucky
 {

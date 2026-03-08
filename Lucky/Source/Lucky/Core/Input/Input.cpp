@@ -1,4 +1,4 @@
-#include "lpch.h"
+#include "lcpch.h"
 #include "Input.h"
 
 #include "Lucky/Core/Application.h"

@@ -1,4 +1,4 @@
-#include "lpch.h"
+#include "lcpch.h"
 #include "Texture.h"
 
 #include <stb_image.h>

@@ -8,8 +8,8 @@ project "Lucky"
     targetdir ("../Binaries/" .. outputdir .. "/%{prj.name}")
     objdir ("../Binaries/Intermediates/" .. outputdir .. "/%{prj.name}")
 
-    pchheader "lpch.h"
-    pchsource "Source/lpch.cpp"
+    pchheader "lcpch.h"
+    pchsource "Source/lcpch.cpp"
 
     files
     {

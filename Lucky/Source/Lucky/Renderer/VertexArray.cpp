@@ -1,4 +1,4 @@
-#include "lpch.h"
+#include "lcpch.h"
 #include "VertexArray.h"
 
 #include <glad/glad.h>

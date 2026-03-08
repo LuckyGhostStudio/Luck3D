@@ -1,4 +1,4 @@
-#include "lpch.h"
+#include "lcpch.h"
 #include "OpenGLContext.h"
 
 #include <GLFW/glfw3.h>

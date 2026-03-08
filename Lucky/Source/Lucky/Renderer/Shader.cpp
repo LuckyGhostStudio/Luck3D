@@ -1,4 +1,4 @@
-#include "lpch.h"
+#include "lcpch.h"
 #include "Shader.h"
 
 #include <glad/glad.h>
