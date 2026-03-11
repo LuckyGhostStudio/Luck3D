@@ -7,8 +7,6 @@ namespace Lucky
     /// </summary>
     class DeltaTime
     {
-    private:
-        float m_Time;   // 帧间隔时间（秒）
     public:
         /// <summary>
         /// 帧间隔
@@ -32,5 +30,7 @@ namespace Lucky
         /// </summary>
         /// <returns>毫秒</returns>
         float GetMilliseconds() const { return m_Time * 1000.0f; }
+    private:
+        float m_Time;   // 帧间隔时间（秒）
     };
 }

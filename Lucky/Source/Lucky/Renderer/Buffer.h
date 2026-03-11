@@ -53,12 +53,6 @@ namespace Lucky
     /// </summary>
     struct BufferElement
     {
-        std::string Name;       // 名字
-        ShaderDataType Type;    // 数据类型
-        uint32_t Size;          // 大小（字节）= ShaderDataTypeSize(Type)
-        uint32_t Offset;        // 在顶点中的偏移量（字节）
-        bool Normalized;        // 是否标准化
-
         BufferElement() { }
 
         /// <summary>
@@ -98,6 +92,12 @@ namespace Lucky
 
             return 0;
         }
+        
+        std::string Name;       // 名字
+        ShaderDataType Type;    // 数据类型
+        uint32_t Size;          // 大小（字节）= ShaderDataTypeSize(Type)
+        uint32_t Offset;        // 在顶点中的偏移量（字节）
+        bool Normalized;        // 是否标准化
     };
 
     /// <summary>
@@ -105,10 +105,6 @@ namespace Lucky
     /// </summary>
     class BufferLayout
     {
-    private:
-        std::vector<BufferElement> m_Elements;  // 顶点属性元素列表
-        uint32_t m_Stride = 0;                  // 步幅：顶点大小（所有顶点属性 Size 和）
-
         /// <summary>
         /// 计算顶点属性偏移量和顶点大小
         /// </summary>
@@ -141,18 +137,21 @@ namespace Lucky
         /// 返回步幅：顶点大小
         /// </summary>
         /// <returns>顶点大小</returns>
-        inline uint32_t GetStride() const { return m_Stride; }
+        uint32_t GetStride() const { return m_Stride; }
 
         /// <summary>
         /// 返回顶点属性元素列表
         /// </summary>
         /// <returns>顶点元素列表</returns>
-        inline const std::vector<BufferElement>& GetElements() const { return m_Elements; }
+        const std::vector<BufferElement>& GetElements() const { return m_Elements; }
 
         std::vector<BufferElement>::iterator begin() { return m_Elements.begin(); }
         std::vector<BufferElement>::iterator end() { return m_Elements.end(); }
         std::vector<BufferElement>::const_iterator begin() const { return m_Elements.begin(); }
         std::vector<BufferElement>::const_iterator end() const { return m_Elements.end(); }
+    private:
+        std::vector<BufferElement> m_Elements;  // 顶点属性元素列表
+        uint32_t m_Stride = 0;                  // 步幅：顶点大小（所有顶点属性 Size 和）
     };
 
     /// <summary>
@@ -160,9 +159,6 @@ namespace Lucky
     /// </summary>
     class VertexBuffer
     {
-    private:
-        uint32_t m_RendererID;  // 顶点缓冲 ID
-        BufferLayout m_Layout;  // 顶点缓冲区布局
     public:
         /// <summary>
         /// 创建顶点缓冲区
@@ -211,6 +207,9 @@ namespace Lucky
         /// </summary>
         /// <param name="layout">顶点缓存布局</param>
         void SetLayout(const BufferLayout& layout) { m_Layout = layout; }
+    private:
+        uint32_t m_RendererID;  // 顶点缓冲 ID
+        BufferLayout m_Layout;  // 顶点缓冲区布局
     };
 
     /// <summary>
@@ -218,14 +217,11 @@ namespace Lucky
     /// </summary>
     class IndexBuffer
     {
-    private:
-        uint32_t m_RendererID;  // 索引缓冲 ID
-        uint32_t m_Count;       // 索引个数
     public:
         /// <summary>
         /// 创建索引缓冲区
         /// </summary>
-        /// <param name="vertices">索引数据</param>
+        /// <param name="indices">索引数据</param>
         /// <param name="count">索引个数</param>
         static Ref<IndexBuffer> Create(uint32_t* indices, uint32_t count);
 
@@ -248,5 +244,8 @@ namespace Lucky
         /// </summary>
         /// <returns>索引个数</returns>
         uint32_t GetCount() const { return m_Count; }
+    private:
+        uint32_t m_RendererID;  // 索引缓冲 ID
+        uint32_t m_Count;       // 索引个数
     };
 }

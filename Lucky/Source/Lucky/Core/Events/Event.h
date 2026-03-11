@@ -80,7 +80,7 @@ namespace Lucky
         /// </summary>
         /// <param name="category">目标事件分类</param>
         /// <returns>结果</returns>
-        inline bool IsInCategory(EventCategory category)
+        bool IsInCategory(EventCategory category)
         {
             return GetCategoryFlags() & category;    // 事件类别标志和 目标事件类别 按位与
         }

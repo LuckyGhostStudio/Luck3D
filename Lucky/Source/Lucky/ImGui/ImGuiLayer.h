@@ -19,18 +19,18 @@ namespace Lucky
         /// <summary>
         /// 将该层添加到层栈时调用
         /// </summary>
-        virtual void OnAttach() override;
+        void OnAttach() override;
 
         /// <summary>
         /// 将该层从层栈移除时调用
         /// </summary>
-        virtual void OnDetach() override;
+        void OnDetach() override;
 
         /// <summary>
         /// 事件回调函数
         /// </summary>
         /// <param name="event">事件</param>
-        virtual void OnEvent(Event& event) override;
+        void OnEvent(Event& event) override;
 
         void Begin();
 

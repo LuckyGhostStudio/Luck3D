@@ -15,25 +15,6 @@ namespace Lucky
     class EditorCamera : public Camera
     {
     private:
-        float m_FOV = 45.0f;                    // 垂直张角
-        float m_Near = 0.01f;                   // 近裁剪平面
-        float m_Far = 1000.0f;                  // 远裁剪平面
-        float m_AspectRatio = 1280.0f / 720.0f; // 屏幕宽高比
-
-        glm::mat4 m_ViewMatrix;                 // 视图矩阵
-
-        glm::vec3 m_Position = { 0.0f, 0.0f, 0.0f };    // 相机位置
-        glm::vec3 m_FocalPoint = { 0.0f, 0.0f, 0.0f };  // 焦点位置
-
-        glm::vec2 m_InitialMousePosition = { 0.0f, 0.0f };  // 鼠标初始位置
-
-        float m_Distance = 5.0f;            // 相机与焦点距离
-        float m_Pitch = 0.0f;
-        float m_Yaw = 0.0f;
-
-        float m_ViewportWidth = 1280.0f;    // 视口宽
-        float m_ViewportHeight = 720;       // 视口高
-    private:
         /// <summary>
         /// 更新投影矩阵
         /// </summary>
@@ -88,10 +69,10 @@ namespace Lucky
         /// <param name="e">事件</param>
         void OnEvent(Event& e);
 
-        inline void SetViewportSize(float width, float height) { m_ViewportWidth = width; m_ViewportHeight = height; UpdateProjection(); }
+        void SetViewportSize(float width, float height) { m_ViewportWidth = width; m_ViewportHeight = height; UpdateProjection(); }
 
-        inline float GetDistance() const { return m_Distance; }
-        inline void SetDistance(float distance) { m_Distance = distance; }
+        float GetDistance() const { return m_Distance; }
+        void SetDistance(float distance) { m_Distance = distance; }
 
         const glm::mat4& GetViewMatrix() const { return m_ViewMatrix; }
         glm::mat4 GetViewProjectionMatrix() const { return m_ProjectionMatrix * m_ViewMatrix; }
@@ -104,5 +85,24 @@ namespace Lucky
 
         float GetPitch() const { return m_Pitch; }
         float GetYaw() const { return m_Yaw; }
+    private:
+        float m_FOV = 45.0f;                    // 垂直张角
+        float m_Near = 0.01f;                   // 近裁剪平面
+        float m_Far = 1000.0f;                  // 远裁剪平面
+        float m_AspectRatio = 1280.0f / 720.0f; // 屏幕宽高比
+
+        glm::mat4 m_ViewMatrix;                 // 视图矩阵
+
+        glm::vec3 m_Position = { 0.0f, 0.0f, 0.0f };    // 相机位置
+        glm::vec3 m_FocalPoint = { 0.0f, 0.0f, 0.0f };  // 焦点位置
+
+        glm::vec2 m_InitialMousePosition = { 0.0f, 0.0f };  // 鼠标初始位置
+
+        float m_Distance = 5.0f;            // 相机与焦点距离
+        float m_Pitch = 0.0f;
+        float m_Yaw = 0.0f;
+
+        float m_ViewportWidth = 1280.0f;    // 视口宽
+        float m_ViewportHeight = 720;       // 视口高
     };
 }

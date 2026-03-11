@@ -35,7 +35,7 @@ namespace Lucky
     /// </summary>
     /// <typeparam name="T">类型</typeparam>
     /// <typeparam name="...Args">参数类型列表</typeparam>
-    /// <param name="...args">参数列表</param>
+    /// <param name="args">参数列表</param>
     /// <returns></returns>
     template<typename T, typename ... Args>
     constexpr Scope<T> CreateScope(Args&& ... args)
@@ -55,7 +55,7 @@ namespace Lucky
     /// </summary>
     /// <typeparam name="T">类型</typeparam>
     /// <typeparam name="...Args">参数类型列表</typeparam>
-    /// <param name="...args">参数列表</param>
+    /// <param name="args">参数列表</param>
     /// <returns></returns>
     template<typename T, typename ... Args>
     constexpr Ref<T> CreateRef(Args&& ... args)

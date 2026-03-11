@@ -21,13 +21,13 @@ namespace Lucky
         /// 返回内核日志
         /// </summary>
         /// <returns>内核日志</returns>
-        inline static Ref<spdlog::logger>& GetCoreLogger() { return s_CoreLogger; }
+        static Ref<spdlog::logger>& GetCoreLogger() { return s_CoreLogger; }
 
         /// <summary>
         /// 返回客户端日志
         /// </summary>
         /// <returns>客户端日志</returns>
-        inline static Ref<spdlog::logger>& GetClientLogger() { return s_ClientLogger; }
+        static Ref<spdlog::logger>& GetClientLogger() { return s_ClientLogger; }
     private:
         static Ref<spdlog::logger> s_CoreLogger;    // 内核日志
         static Ref<spdlog::logger> s_ClientLogger;  // 客户端日志

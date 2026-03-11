@@ -7,7 +7,6 @@ class Luck3DApplication : public Lucky::Application
 {
 public:
     Luck3DApplication()
-        : Lucky::Application()
     {
         PushLayer(new Lucky::EditorLayer());
     }

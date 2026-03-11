@@ -2,7 +2,6 @@
 #include "ImGuiLayer.h"
 
 // Temp
-#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <imgui_internal.h>

@@ -11,10 +11,6 @@ namespace Lucky
     /// </summary>
     class Shader
     {
-    private:
-        uint32_t m_RendererID;  // 着色器 ID
-        std::string m_Name;     // 着色器名字
-
         /// <summary>
         /// 读文件
         /// </summary>
@@ -113,6 +109,9 @@ namespace Lucky
 
         void UploadUniformMat3(const std::string& name, const glm::mat3& matrix);
         void UploadUniformMat4(const std::string& name, const glm::mat4& matrix);
+    private:
+        uint32_t m_RendererID;  // 着色器 ID
+        std::string m_Name;     // 着色器名字
     };
 
     /// <summary>
@@ -120,8 +119,6 @@ namespace Lucky
     /// </summary>
     class ShaderLibrary
     {
-    private:
-        std::unordered_map<std::string, Ref<Shader>> m_Shaders;        // 着色器 map：着色器名 - 着色器
     public:
         /// <summary>
         /// 添加着色器
@@ -164,5 +161,7 @@ namespace Lucky
         /// <param name="name">着色器名</param>
         /// <returns>是否存在</returns>
         bool Exists(const std::string& name) const;
+    private:
+        std::unordered_map<std::string, Ref<Shader>> m_Shaders;        // 着色器 map：着色器名 - 着色器
     };
 }

@@ -9,8 +9,6 @@ namespace Lucky
     /// </summary>
     class UniformBuffer
     {
-    private:
-        uint32_t m_RendererID = 0;
     public:
         /// <summary>
         /// 创建 Uniform 缓冲区
@@ -31,5 +29,7 @@ namespace Lucky
         /// <param name="size">大小（字节）</param>
         /// <param name="offset">偏移量</param>
         void SetData(const void* data, uint32_t size, uint32_t offset = 0);
+    private:
+        uint32_t m_RendererID = 0;
     };
 }

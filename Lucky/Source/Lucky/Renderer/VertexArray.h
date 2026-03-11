@@ -10,10 +10,6 @@ namespace Lucky
     /// </summary>
     class VertexArray
     {
-    private:
-        uint32_t m_RendererID;                          // 顶点数组 ID
-        std::vector<Ref<VertexBuffer>> m_VertexBuffers; // 绑定在顶点数组的 VertexBuffer 列表
-        Ref<IndexBuffer> m_IndexBuffer;                 // 绑定在顶点数组的 IndexBuffer
     public:
         static Ref<VertexArray> Create();
 
@@ -54,5 +50,9 @@ namespace Lucky
         /// </summary>
         /// <returns>索引缓冲</returns>
         const Ref<IndexBuffer>& GetIndexBuffer() const { return m_IndexBuffer; }
+    private:
+        uint32_t m_RendererID;                          // 顶点数组 ID
+        std::vector<Ref<VertexBuffer>> m_VertexBuffers; // 绑定在顶点数组的 VertexBuffer 列表
+        Ref<IndexBuffer> m_IndexBuffer;                 // 绑定在顶点数组的 IndexBuffer
     };
 }

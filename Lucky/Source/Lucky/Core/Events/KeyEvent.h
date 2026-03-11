@@ -15,9 +15,9 @@ namespace Lucky
         /// 返回事件种类标志
         /// </summary>
         /// <returns>EventCategoryKeyboard | EventCategoryInput 事件</returns>
-        virtual int GetCategoryFlags() const override { return EventCategoryKeyboard | EventCategoryInput; }
+        int GetCategoryFlags() const override { return EventCategoryKeyboard | EventCategoryInput; }
 
-        inline int GetKeyCode() const { return m_KeyCode; }
+        int GetKeyCode() const { return m_KeyCode; }
     protected:
         KeyEvent(int keycode) : m_KeyCode(keycode) {}
 
@@ -51,13 +51,13 @@ namespace Lucky
         /// 返回该事件类型
         /// </summary>
         /// <returns>事件类型</returns>
-        virtual EventType GetEventType() const override { return GetStaticType(); }
+        EventType GetEventType() const override { return GetStaticType(); }
 
         /// <summary>
         /// 返回该事件名
         /// </summary>
         /// <returns>"KeyPressed"</returns>
-        virtual const char* GetName() const override { return "KeyPressed"; }
+        const char* GetName() const override { return "KeyPressed"; }
     private:
         bool m_IsRepeat;    // 按键重复
     };
@@ -87,13 +87,13 @@ namespace Lucky
         /// 返回该事件类型
         /// </summary>
         /// <returns>事件类型</returns>
-        virtual EventType GetEventType() const override { return GetStaticType(); }
+        EventType GetEventType() const override { return GetStaticType(); }
 
         /// <summary>
         /// 返回该事件名
         /// </summary>
         /// <returns>"KeyReleased"</returns>
-        virtual const char* GetName() const override { return "KeyReleased"; }
+        const char* GetName() const override { return "KeyReleased"; }
     };
 
     /// <summary>
@@ -121,12 +121,12 @@ namespace Lucky
         /// 返回该事件类型
         /// </summary>
         /// <returns>事件类型</returns>
-        virtual EventType GetEventType() const override { return GetStaticType(); }
+        EventType GetEventType() const override { return GetStaticType(); }
 
         /// <summary>
         /// 返回该事件名
         /// </summary>
         /// <returns>"KeyTyped"</returns>
-        virtual const char* GetName() const override { return "KeyTyped"; }
+        const char* GetName() const override { return "KeyTyped"; }
     };
 }

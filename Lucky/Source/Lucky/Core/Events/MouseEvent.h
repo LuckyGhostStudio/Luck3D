@@ -13,8 +13,8 @@ namespace Lucky
     public:
         MouseMovedEvent(float x, float y) : m_MouseX(x), m_MouseY(y) {}
 
-        inline float GetX() const { return m_MouseX; }
-        inline float GetY() const { return m_MouseY; }
+        float GetX() const { return m_MouseX; }
+        float GetY() const { return m_MouseY; }
 
         std::string ToString() const override
         {
@@ -33,19 +33,19 @@ namespace Lucky
         /// 返回该事件类型
         /// </summary>
         /// <returns>事件类型</returns>
-        virtual EventType GetEventType() const override { return GetStaticType(); }
+        EventType GetEventType() const override { return GetStaticType(); }
 
         /// <summary>
         /// 返回该事件名
         /// </summary>
         /// <returns>"MouseMoved"</returns>
-        virtual const char* GetName() const override { return "MouseMoved"; }
+        const char* GetName() const override { return "MouseMoved"; }
 
         /// <summary>
         /// 返回事件种类标志
         /// </summary>
         /// <returns>EventCategoryMouse | EventCategoryInput 事件</returns>
-        virtual int GetCategoryFlags() const override { return EventCategoryMouse | EventCategoryInput; }
+        int GetCategoryFlags() const override { return EventCategoryMouse | EventCategoryInput; }
     private:
         float m_MouseX;     // 鼠标 x 坐标
         float m_MouseY;     // 鼠标 y 坐标
@@ -59,8 +59,8 @@ namespace Lucky
     public:
         MouseScrolledEvent(float xOffset, float yOffset) : m_XOffset(xOffset), m_YOffset(yOffset) {}
 
-        inline float GetXOffset() const { return m_XOffset; }
-        inline float GetYOffset() const { return m_YOffset; }
+        float GetXOffset() const { return m_XOffset; }
+        float GetYOffset() const { return m_YOffset; }
 
         std::string ToString() const override
         {
@@ -79,19 +79,19 @@ namespace Lucky
         /// 返回该事件类型
         /// </summary>
         /// <returns>事件类型</returns>
-        virtual EventType GetEventType() const override { return GetStaticType(); }
+        EventType GetEventType() const override { return GetStaticType(); }
 
         /// <summary>
         /// 返回该事件名
         /// </summary>
         /// <returns>"MouseScrolled"</returns>
-        virtual const char* GetName() const override { return "MouseScrolled"; }
+        const char* GetName() const override { return "MouseScrolled"; }
 
         /// <summary>
         /// 返回事件种类标志
         /// </summary>
         /// <returns>EventCategoryMouse | EventCategoryInput事件</returns>
-        virtual int GetCategoryFlags() const override { return EventCategoryMouse | EventCategoryInput; }
+        int GetCategoryFlags() const override { return EventCategoryMouse | EventCategoryInput; }
     private:
         float m_XOffset;    // 鼠标水平滚动偏移量
         float m_YOffset;    // 鼠标竖直滚动偏移量
@@ -103,13 +103,13 @@ namespace Lucky
     class MouseButtonEvent : public Event
     {
     public:
-        inline int GetMouseButton() const { return m_Button; }
+        int GetMouseButton() const { return m_Button; }
 
         /// <summary>
         /// 返回事件种类标志
         /// </summary>
         /// <returns>EventCategoryMouse | EventCategoryInput | EventCategoryMouseButton 事件</returns>
-        virtual int GetCategoryFlags() const override { return EventCategoryMouse | EventCategoryInput | EventCategoryMouseButton; }
+        int GetCategoryFlags() const override { return EventCategoryMouse | EventCategoryInput | EventCategoryMouseButton; }
     protected:
         MouseButtonEvent(int button) :m_Button(button) {}
 
@@ -141,13 +141,13 @@ namespace Lucky
         /// 返回该事件类型
         /// </summary>
         /// <returns>事件类型</returns>
-        virtual EventType GetEventType() const override { return GetStaticType(); }
+        EventType GetEventType() const override { return GetStaticType(); }
 
         /// <summary>
         /// 返回该事件名
         /// </summary>
         /// <returns>"MouseButtonPressed"</returns>
-        virtual const char* GetName() const override { return "MouseButtonPressed"; }
+        const char* GetName() const override { return "MouseButtonPressed"; }
     };
 
     /// <summary>
@@ -175,12 +175,12 @@ namespace Lucky
         /// 返回该事件类型
         /// </summary>
         /// <returns>事件类型</returns>
-        virtual EventType GetEventType() const override { return GetStaticType(); }
+        EventType GetEventType() const override { return GetStaticType(); }
 
         /// <summary>
         /// 返回该事件名
         /// </summary>
         /// <returns>"MouseButtonReleased"</returns>
-        virtual const char* GetName() const override { return "MouseButtonReleased"; }
+        const char* GetName() const override { return "MouseButtonReleased"; }
     };
 }

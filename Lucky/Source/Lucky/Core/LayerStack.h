@@ -2,7 +2,6 @@
 
 #include <vector>
 
-#include "Lucky/Core/Base.h"
 #include "Layer.h"
 
 namespace Lucky

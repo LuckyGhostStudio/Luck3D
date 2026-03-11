@@ -2,7 +2,7 @@
 
 extern Lucky::Application* Lucky::CreateApplication();
 
-int main(int argc, char** argv)
+inline int main(int argc, char** argv)
 {
     Lucky::Log::Init();    // 初始化日志系统
 

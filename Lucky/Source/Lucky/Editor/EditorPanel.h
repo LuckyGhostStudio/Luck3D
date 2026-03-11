@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Lucky/Core/Base.h"
 #include "Lucky/Core/Events/Event.h"
 
 namespace Lucky

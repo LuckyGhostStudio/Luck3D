@@ -21,3 +21,6 @@ Intermediates/
 **.csproj
 **.csproj.user
 .editorconfig
+
+# Rider Files
+.idea

@@ -5,8 +5,6 @@
 #include "Lucky/Core/Input/KeyCodes.h"
 #include "Lucky/Core/Input/MouseButtonCodes.h"
 
-#include <glfw/glfw3.h>
-
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
 

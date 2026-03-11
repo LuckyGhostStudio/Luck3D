@@ -13,15 +13,15 @@ namespace Lucky
     /// </summary>
     struct WindowProps
     {
-        std::string Title;      // 标题
-        unsigned int Width;     // 宽
-        unsigned int Height;    // 高
-
         WindowProps(const std::string& title = "Luck3D", unsigned int width = 1280, unsigned int height = 720)
             : Title(title), Width(width), Height(height)
         {
 
         }
+        
+        std::string Title;      // 标题
+        unsigned int Width;     // 宽
+        unsigned int Height;    // 高
     };
 
     /// <summary>
@@ -52,14 +52,14 @@ namespace Lucky
         /// </summary>
         void OnUpdate();
 
-        inline unsigned int GetWidth() const { return m_Data.Width; }
-        inline unsigned int GetHeight() const { return m_Data.Height; }
+        unsigned int GetWidth() const { return m_Data.Width; }
+        unsigned int GetHeight() const { return m_Data.Height; }
 
         /// <summary>
         /// 设置事件回调函数：从Application设置
         /// </summary>
         /// <param name="callback">回调函数</param>
-        inline void SetEventCallback(const EventCallbackFn& callback) { m_Data.EventCallback = callback; }
+        void SetEventCallback(const EventCallbackFn& callback) { m_Data.EventCallback = callback; }
 
         /// <summary>
         /// 设置垂直同步
@@ -84,7 +84,7 @@ namespace Lucky
         /// 返回 GLFW 窗口
         /// </summary>
         /// <returns>窗口指针</returns>
-        inline virtual void* GetNativeWindow() const { return m_Window; }
+        virtual void* GetNativeWindow() const { return m_Window; }
     private:
         /// <summary>
         /// 初始化窗口

@@ -19,8 +19,8 @@ namespace Lucky
             return ss.str();
         }
 
-        inline unsigned int GetWidth() const { return m_Width; }
-        inline unsigned int GetHeight() const { return m_Height; }
+        unsigned int GetWidth() const { return m_Width; }
+        unsigned int GetHeight() const { return m_Height; }
 
         /// <summary>
         /// 返回该事件的类型
@@ -32,19 +32,19 @@ namespace Lucky
         /// 返回该事件类型
         /// </summary>
         /// <returns>事件类型</returns>
-        virtual EventType GetEventType() const override { return GetStaticType(); }
+        EventType GetEventType() const override { return GetStaticType(); }
 
         /// <summary>
         /// 返回该事件名
         /// </summary>
         /// <returns>"WindowResize"</returns>
-        virtual const char* GetName() const override { return "WindowResize"; }
+        const char* GetName() const override { return "WindowResize"; }
 
         /// <summary>
         /// 返回事件种类标志
         /// </summary>
         /// <returns>EventCategoryApplication 事件</returns>
-        virtual int GetCategoryFlags() const override { return EventCategoryApplication; }
+        int GetCategoryFlags() const override { return EventCategoryApplication; }
     private:
         unsigned int m_Width;   // 被调整到的窗口宽
         unsigned int m_Height;  // 被调整到的窗口高
@@ -68,19 +68,19 @@ namespace Lucky
         /// 返回该事件类型
         /// </summary>
         /// <returns>事件类型</returns>
-        virtual EventType GetEventType() const override { return GetStaticType(); }
+        EventType GetEventType() const override { return GetStaticType(); }
 
         /// <summary>
         /// 返回该事件名
         /// </summary>
         /// <returns>"WindowClose"</returns>
-        virtual const char* GetName() const override { return "WindowClose"; }
+        const char* GetName() const override { return "WindowClose"; }
 
         /// <summary>
         /// 返回事件种类标志
         /// </summary>
         /// <returns>EventCategoryApplication 事件</returns>
-        virtual int GetCategoryFlags() const override { return EventCategoryApplication; }
+        int GetCategoryFlags() const override { return EventCategoryApplication; }
     };
 
     /// <summary>
@@ -101,19 +101,19 @@ namespace Lucky
         /// 返回该事件类型
         /// </summary>
         /// <returns>事件类型</returns>
-        virtual EventType GetEventType() const override { return GetStaticType(); }
+        EventType GetEventType() const override { return GetStaticType(); }
 
         /// <summary>
         /// 返回该事件名
         /// </summary>
         /// <returns>"AppTick"</returns>
-        virtual const char* GetName() const override { return "AppTick"; }
+        const char* GetName() const override { return "AppTick"; }
 
         /// <summary>
         /// 返回事件种类标志
         /// </summary>
         /// <returns>EventCategoryApplication 事件</returns>
-        virtual int GetCategoryFlags() const override { return EventCategoryApplication; }
+        int GetCategoryFlags() const override { return EventCategoryApplication; }
     };
 
     /// <summary>
@@ -134,19 +134,19 @@ namespace Lucky
         /// 返回该事件类型
         /// </summary>
         /// <returns>事件类型</returns>
-        virtual EventType GetEventType() const override { return GetStaticType(); }
+        EventType GetEventType() const override { return GetStaticType(); }
 
         /// <summary>
         /// 返回该事件名
         /// </summary>
         /// <returns>"AppUpdate"</returns>
-        virtual const char* GetName() const override { return "AppUpdate"; }
+        const char* GetName() const override { return "AppUpdate"; }
 
         /// <summary>
         /// 返回事件种类标志
         /// </summary>
         /// <returns>EventCategoryApplication 事件</returns>
-        virtual int GetCategoryFlags() const override { return EventCategoryApplication; }
+        int GetCategoryFlags() const override { return EventCategoryApplication; }
     };
 
     /// <summary>
@@ -167,18 +167,18 @@ namespace Lucky
         /// 返回该事件类型
         /// </summary>
         /// <returns>事件类型</returns>
-        virtual EventType GetEventType() const override { return GetStaticType(); }
+        EventType GetEventType() const override { return GetStaticType(); }
 
         /// <summary>
         /// 返回该事件名
         /// </summary>
         /// <returns>"AppRender"</returns>
-        virtual const char* GetName() const override { return "AppRender"; }
+        const char* GetName() const override { return "AppRender"; }
 
         /// <summary>
         /// 返回事件种类标志
         /// </summary>
         /// <returns>EventCategoryApplication 事件</returns>
-        virtual int GetCategoryFlags() const override { return EventCategoryApplication; }
+        int GetCategoryFlags() const override { return EventCategoryApplication; }
     };
 }

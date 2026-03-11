@@ -8,7 +8,7 @@ namespace Lucky
     /// <summary>
     /// ShaderDataType 转换为 OpenGL 基本类型
     /// </summary>
-    /// <param name="">ShaderDataType</param>
+    /// <param name="type">ShaderDataType</param>
     /// <returns>OpenGL 基本类型</returns>
     static GLenum ShaderDataTypeToOpenGLBaseType(ShaderDataType type)
     {

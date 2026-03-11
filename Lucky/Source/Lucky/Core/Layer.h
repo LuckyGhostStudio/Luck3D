@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Lucky/Core/Base.h"
 #include "Lucky/Core/Events/Event.h"
 #include "Lucky/Core/DeltaTime.h"
 
@@ -40,7 +39,7 @@ namespace Lucky
         /// <param name="event">事件</param>
         virtual void OnEvent(Event& event) {}
 
-        inline const std::string& GetName() const { return m_DebugName; }
+        const std::string& GetName() const { return m_DebugName; }
     protected:
         std::string m_DebugName;    // Layer 在 Debug 模式中的名字
     };
