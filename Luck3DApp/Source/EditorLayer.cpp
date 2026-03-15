@@ -21,6 +21,20 @@ namespace Lucky
     void EditorLayer::OnAttach()
     {
         LF_TRACE("EditorLayer::OnAttach");
+        
+        FramebufferSpecification fbSpec; // 帧缓冲区规范
+
+        fbSpec.Attachments =
+        {
+            FramebufferTextureFormat::RGBA8,        // 颜色缓冲区 0
+            FramebufferTextureFormat::RED_INTEGER,  // 颜色缓冲区 1：作为 id 实现鼠标点击拾取
+            FramebufferTextureFormat::Depth         // 深度缓冲区
+        };
+
+        fbSpec.Width = 1280;
+        fbSpec.Height = 720;
+
+        m_Framebuffer = Framebuffer::Create(fbSpec);   // 创建帧缓冲区
 
         m_PanelManager = CreateScope<PanelManager>();
 
@@ -34,12 +48,17 @@ namespace Lucky
 
     void EditorLayer::OnUpdate(DeltaTime dt)
     {
-        if (m_Size.x > 0.0f && m_Size.y > 0.0f)
+        if (FramebufferSpecification spec = m_Framebuffer->GetSpecification();
+            m_Size.x > 0.0f && m_Size.y > 0.0f &&
+            (spec.Width != m_Size.x || spec.Height != m_Size.y))
         {
-            m_EditorCamera.SetViewportSize(m_Size.x, m_Size.y); // 重置编辑器相机视口大小
+            m_Framebuffer->Resize((uint32_t)m_Size.x, (uint32_t)m_Size.y);  // 重置帧缓冲区大小
+            m_EditorCamera.SetViewportSize(m_Size.x, m_Size.y);             // 重置编辑器相机视口大小
         }
 
         m_EditorCamera.OnUpdate(dt);    // 更新编辑器相机
+        
+        m_Framebuffer->Bind();          // 绑定帧缓冲区
 
         RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1.0f });
         RenderCommand::Clear();
@@ -54,19 +73,31 @@ namespace Lucky
             Renderer3D::DrawMesh(transform, m_SquareColor);
         }
         Renderer3D::EndScene();
+        
+        m_Framebuffer->Unbind();    // 解除绑定帧缓冲区
     }
 
     void EditorLayer::OnImGuiRender()
     {
-        //// 渲染 DockSpace
-        //m_EditorDockSpace.ImGuiRender();
+        // 渲染 DockSpace
+        m_EditorDockSpace.ImGuiRender();
 
-        //UI_DrawMenuBar();
+        UI_DrawMenuBar();
 
         //m_PanelManager->OnImGuiRender();
 
-        ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();  // 当前面板大小
-        m_Size = { viewportPanelSize.x, viewportPanelSize.y };      // 视口大小
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(1, 0)); // 设置 Gui 窗口样式：边界 = 0
+        ImGui::Begin("Scene");
+        {
+            ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();  // 当前面板大小
+            m_Size = { viewportPanelSize.x, viewportPanelSize.y };      // 视口大小
+            
+            uint32_t textureID = m_Framebuffer->GetColorAttachmentRendererID(); // 颜色缓冲区 0 ID
+
+            ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_Size.x, m_Size.y }, ImVec2(0, 1), ImVec2(1, 0));   // 场景视口图像
+        }
+        ImGui::End();
+        ImGui::PopStyleVar();
     }
 
     void EditorLayer::OnEvent(Event& event)

@@ -6,6 +6,7 @@
 #include "Lucky/Editor/PanelManager.h"
 
 #include "Lucky/Renderer/EditorCamera.h"
+#include "Lucky/Renderer/Framebuffer.h"
 
 namespace Lucky
 {
@@ -14,17 +15,17 @@ namespace Lucky
     public:
         EditorLayer();
 
-        virtual ~EditorLayer() override = default;
+        ~EditorLayer() override = default;
 
-        virtual void OnAttach() override;
+        void OnAttach() override;
 
-        virtual void OnDetach() override;
+        void OnDetach() override;
 
-        virtual void OnUpdate(DeltaTime dt) override;
+        void OnUpdate(DeltaTime dt) override;
 
-        virtual void OnImGuiRender() override;
+        void OnImGuiRender() override;
 
-        virtual void OnEvent(Event& event) override;
+        void OnEvent(Event& event) override;
 
         void UI_DrawMenuBar();
     private:
@@ -32,7 +33,8 @@ namespace Lucky
 
         Scope<PanelManager> m_PanelManager; // ±à¼­Æ÷Ãæ°å¹ÜÀíÆ÷
 
-        EditorCamera m_EditorCamera;    // ±à¼­Æ÷Ïà»ú
+        EditorCamera m_EditorCamera;        // ±à¼­Æ÷Ïà»ú
+        Ref<Framebuffer> m_Framebuffer;     // Ö¡»º³åÇø
 
         Ref<Texture2D> m_Texture;
         glm::vec4 m_SquareColor = { 1.0f, 1.0f, 1.0f, 1.0f };
