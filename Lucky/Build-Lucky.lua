@@ -31,6 +31,7 @@ project "Lucky"
         "%{IncludeDir.ImGui}",
         "%{IncludeDir.stb_image}",
         "%{IncludeDir.glm}",
+        "%{IncludeDir.entt}",
     }
 
     links

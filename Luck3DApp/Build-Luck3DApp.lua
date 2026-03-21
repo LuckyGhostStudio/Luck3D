@@ -22,6 +22,7 @@ project "Luck3DApp"
         "%{wks.location}/Lucky/Vendor",
         "%{IncludeDir.GLFW}",
         "%{IncludeDir.glm}",
+        "%{IncludeDir.entt}",
     }
 
     links
