@@ -32,6 +32,7 @@ namespace Lucky
         struct CameraData
         {
             glm::mat4 ViewProjectionMatrix; // VP 矩阵
+            glm::vec3 Position;             // 相机位置
         };
 
         CameraData CameraBuffer;
@@ -47,6 +48,8 @@ namespace Lucky
         s_Data.WhiteTexture->SetData(&whitTextureData, sizeof(uint32_t));   // 设置纹理数据 size = 1 * 1 * 4 == sizeof(uint32_t)
         s_Data.TextureSlots[0] = s_Data.WhiteTexture;                       // 0 号纹理槽为白色纹理（默认）
         
+        s_Data.TextureSlots[1] = Texture2D::Create("Assets/Textures/Texture_Gloss.png");  // 测试纹理
+        
         s_Data.MeshShader = CreateRef<Shader>("Assets/Shaders/TextureShader");  // 创建着色器
 
         s_Data.CameraUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::CameraData), 0);  // 创建相机 Uniform 缓冲区
@@ -59,8 +62,20 @@ namespace Lucky
 
     void Renderer3D::BeginScene(const EditorCamera& camera)
     {
-        s_Data.CameraBuffer.ViewProjectionMatrix = camera.GetViewProjectionMatrix();                    // 设置 VP 矩阵
+        s_Data.CameraBuffer.ViewProjectionMatrix = camera.GetViewProjectionMatrix();
+        s_Data.CameraBuffer.Position = camera.GetPosition();
         s_Data.CameraUniformBuffer->SetData(&s_Data.CameraBuffer, sizeof(Renderer3DData::CameraData));  // 设置 Uniform 缓冲区数据
+        
+        // 设置光照 Uniform
+        s_Data.MeshShader->SetFloat3("u_LightDirection", glm::vec3(-0.8f, -1.0f, -0.5f));
+        s_Data.MeshShader->SetFloat3("u_LightColor", glm::vec3(1.0f, 1.0f, 1.0f));
+        s_Data.MeshShader->SetFloat("u_LightIntensity", 1.0f);
+      
+        // 设置材质默认值
+        s_Data.MeshShader->SetFloat3("u_AmbientCoeff", glm::vec3(0.1f));
+        s_Data.MeshShader->SetFloat3("u_DiffuseCoeff", glm::vec3(0.8f));
+        s_Data.MeshShader->SetFloat3("u_SpecularCoeff", glm::vec3(0.5f));
+        s_Data.MeshShader->SetFloat("u_Shininess", 32.0f);
     }
 
     void Renderer3D::EndScene()
@@ -70,14 +85,14 @@ namespace Lucky
 
     void Renderer3D::DrawMesh(const glm::mat4& transform, Ref<Mesh>& mesh)
     {
-        glm::mat3 normalMatrix = glm::mat3(glm::transpose(glm::inverse(transform)));    // 法向量做 M 变换 M 取逆矩阵的转置 防止 normal 在缩放时被拉伸
-
+        // glm::mat3 normalMatrix = glm::mat3(glm::transpose(glm::inverse(transform)));    // 法向量做 M 变换 M 取逆矩阵的转置 防止 normal 在缩放时被拉伸
+        
         s_Data.MeshVertexBufferData.clear();
         for (const Vertex& vertex : mesh->GetVertices())
         {
             Vertex v = vertex;
-            v.Position = transform * glm::vec4(v.Position, 1.0f);
-            v.Normal = normalMatrix * v.Normal;
+            // v.Position = transform * glm::vec4(v.Position, 1.0f);
+            // v.Normal = normalMatrix * v.Normal;
             
             s_Data.MeshVertexBufferData.push_back(v);   // 添加顶点缓冲区数据
         }
@@ -91,6 +106,12 @@ namespace Lucky
         {
             SubMesh sm = mesh->GetSubMesh(i);
 
+            // 设置纹理索引（假设每个子网格有纹理）
+            s_Data.MeshShader->SetInt("u_TextureIndex", 1); // 设置纹理索引
+
+            s_Data.TextureSlots[1]->Bind(1);
+            
+            s_Data.MeshShader->SetMat4("u_ObjectToWorldMatrix", transform); // 设置变换矩阵
             s_Data.MeshShader->Bind();  // 绑定着色器 TODO 绑定每个子网格对应材质的着色器
             
             RenderCommand::DrawIndexed(mesh->GetVertexArray(), sm.IndexOffset, sm.IndexCount);

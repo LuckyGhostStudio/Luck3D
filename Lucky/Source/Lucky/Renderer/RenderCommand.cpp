@@ -15,7 +15,7 @@ namespace Lucky
         glEnable(GL_LINE_SMOOTH);   // 平滑直线
 
         // 开启线框模式 TODO Temp 用于调试
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     }
 
     void RenderCommand::SetClearColor(const glm::vec4& color)
