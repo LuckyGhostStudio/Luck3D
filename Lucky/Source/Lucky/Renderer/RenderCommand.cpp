@@ -41,6 +41,15 @@ namespace Lucky
         glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);  // 顶点数组索引绘制三角形
     }
 
+    void RenderCommand::DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexOffset, uint32_t indexCount)
+    {
+        vertexArray->Bind();
+        
+        void* byteOffset = (void*)(indexOffset * sizeof(uint32_t));   // 计算字节偏移：indexOffset 是索引单位，乘以 sizeof(uint32_t) 得到字节偏移
+        
+        glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, byteOffset);
+    }
+
     void RenderCommand::DrawLines(const Ref<VertexArray>& vertexArray, uint32_t vertexCount)
     {
         vertexArray->Bind();

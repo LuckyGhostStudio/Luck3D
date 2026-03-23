@@ -43,6 +43,14 @@ namespace Lucky
         /// <param name="vertexArray">待绘制的顶点数组</param>
         /// <param name="indexCount">索引个数</param>
         static void DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount = 0);
+        
+        /// <summary>
+        /// 绘制索引缓冲区：指定索引偏移和索引个数
+        /// </summary>
+        /// <param name="vertexArray">待绘制的顶点数组</param>
+        /// <param name="indexOffset">索引偏移</param>
+        /// <param name="indexCount">索引个数</param>
+        static void DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexOffset = 0, uint32_t indexCount = 0);
 
         /// <summary>
         /// 绘制直线

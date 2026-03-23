@@ -2,6 +2,7 @@
 
 #include "Camera.h"
 #include "Texture.h"
+#include "Mesh.h"
 #include "EditorCamera.h"
 
 namespace Lucky
@@ -33,33 +34,28 @@ namespace Lucky
         /// 结束渲染场景
         /// </summary>
         static void EndScene();
-
-        /// <summary>
-        /// 绘制网格
-        /// </summary>
-        /// <param name="transform">Transform</param>
-        /// <param name="color">颜色</param>
-        static void DrawMesh(const glm::mat4& transform, const glm::vec4& color);
+        
+        static void DrawMesh(const glm::mat4& transform, Ref<Mesh>& mesh);
 
         /// <summary>
         /// 统计数据
         /// </summary>
         struct Statistics
         {
-            uint32_t DrawCalls = 0; // 绘制调用次数
-            uint32_t QuadCount = 0; // 四边形个数
+            uint32_t DrawCalls = 0;     // 绘制调用次数
+            uint32_t TriangleCount = 0; // 三角形个数
 
             /// <summary>
             /// 返回总顶点个数
             /// </summary>
             /// <returns></returns>
-            uint32_t GetTotalVertexCount() { return QuadCount * 4; }
+            uint32_t GetTotalVertexCount() { return TriangleCount * 3; }
 
             /// <summary>
             /// 返回总索引个数
             /// </summary>
             /// <returns></returns>
-            uint32_t GetTotalIndexCount() { return QuadCount * 6; }
+            uint32_t GetTotalIndexCount() { return TriangleCount * 6; }
         };
 
         static Statistics GetStats();

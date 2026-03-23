@@ -7,6 +7,7 @@
 #include "Components/IDComponent.h"
 #include "Components/NameComponent.h"
 #include "Components/TransformComponent.h"
+#include "Components/MeshFilterComponent.h"
 
 #include "Entity.h"
 
@@ -53,7 +54,19 @@ namespace Lucky
     
     void Scene::OnUpdate(DeltaTime dt, EditorCamera& camera)
     {
-        
+        Renderer3D::BeginScene(camera);
+        {
+            // TODO 添加 MeshRenderer
+            auto meshGroup = m_Registry.group<TransformComponent>(entt::get<MeshFilterComponent>);
+
+            for (auto entity : meshGroup)
+            {
+                auto [transform, meshFilter] = meshGroup.get<TransformComponent, MeshFilterComponent>(entity);
+
+                Renderer3D::DrawMesh(transform.GetTransform(), meshFilter.Mesh);
+            }
+        }
+        Renderer3D::EndScene();
     }
 
     void Scene::OnViewportResize(uint32_t width, uint32_t height)
@@ -92,6 +105,12 @@ namespace Lucky
     
     template<>
     void Scene::OnComponentAdded<TransformComponent>(Entity entity, TransformComponent& component)
+    {
+
+    }
+    
+    template<>
+    void Scene::OnComponentAdded<MeshFilterComponent>(Entity entity, MeshFilterComponent& component)
     {
 
     }

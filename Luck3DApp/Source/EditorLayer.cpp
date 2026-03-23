@@ -7,6 +7,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "Lucky/Scene/Entity.h"
+#include "Lucky/Scene/Components/MeshFilterComponent.h"
+
 namespace Lucky
 {
 #define SCENE_EXAMPLE_PANEL_ID "ExamplePanel"
@@ -39,6 +42,61 @@ namespace Lucky
         m_PanelManager = CreateScope<PanelManager>();
 
         m_PanelManager->AddPanel<ExamplePanel>(SCENE_EXAMPLE_PANEL_ID, "Example", true);
+        
+        std::vector<Vertex> cubeVertices =
+        {
+            // 右面 (X+)
+            {{0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+            {{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+            {{0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+            {{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
+            
+            // 左面 (X-)
+            {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+            {{-0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+            {{-0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+            {{-0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
+            
+            // 上面 (Y+)
+            {{-0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}},
+            {{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},
+            {{0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+            {{-0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+            
+            // 下面 (Y-)
+            {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},
+            {{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},
+            {{0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f}},
+            {{-0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}},
+            
+            // 前面 (Z+)
+            {{-0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+            {{0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+            {{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+            {{-0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+            
+            // 后面 (Z-)
+            {{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}},
+            {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}},
+            {{-0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}},
+            {{0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}}
+        };
+        
+        std::vector<uint32_t> cubeIndices =
+        {
+            0, 1, 2, 0, 2, 3,        // 右面
+            4, 5, 6, 4, 6, 7,        // 左面
+            8, 9, 10, 8, 10, 11,     // 上面
+            12, 13, 14, 12, 14, 15,  // 下面
+            16, 17, 18, 16, 18, 19,  // 前面
+            20, 21, 22, 20, 22, 23   // 后面
+        };
+        
+        Ref<Mesh> cubeMesh = CreateRef<Mesh>(cubeVertices, cubeIndices);
+        
+        m_Scene = CreateRef<Scene>("New Scene");
+        Entity cubeEntity = m_Scene->CreateEntity("TestCube");
+        cubeEntity.AddComponent<MeshFilterComponent>(cubeMesh);
     }
 
     void EditorLayer::OnDetach()
@@ -54,6 +112,7 @@ namespace Lucky
         {
             m_Framebuffer->Resize((uint32_t)m_Size.x, (uint32_t)m_Size.y);  // 重置帧缓冲区大小
             m_EditorCamera.SetViewportSize(m_Size.x, m_Size.y);             // 重置编辑器相机视口大小
+            
         }
 
         m_EditorCamera.OnUpdate(dt);    // 更新编辑器相机
@@ -63,16 +122,7 @@ namespace Lucky
         RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1.0f });
         RenderCommand::Clear();
 
-        Renderer3D::BeginScene(m_EditorCamera);
-        {
-            glm::vec3 m_Position = { 0.0f, 0.0f, 0.0f };  // 位置
-            glm::vec3 m_Scale = { 1.0f, 1.0f, 1.0f };     // 缩放
-
-            glm::mat4 transform = glm::translate(glm::mat4(1.0f), m_Position) * glm::scale(glm::mat4(1.0f), m_Scale);
-
-            Renderer3D::DrawMesh(transform, m_SquareColor);
-        }
-        Renderer3D::EndScene();
+        m_Scene->OnUpdate(dt, m_EditorCamera);   // 更新场景
         
         m_Framebuffer->Unbind();    // 解除绑定帧缓冲区
     }

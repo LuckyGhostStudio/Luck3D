@@ -7,6 +7,7 @@
 
 #include "Lucky/Renderer/EditorCamera.h"
 #include "Lucky/Renderer/Framebuffer.h"
+#include "Lucky/Scene/Scene.h"
 
 namespace Lucky
 {
@@ -35,6 +36,8 @@ namespace Lucky
 
         EditorCamera m_EditorCamera;        // ±à¼­Æ÷Ïà»ú
         Ref<Framebuffer> m_Framebuffer;     // Ö¡»º³åÇø
+        
+        Ref<Scene> m_Scene;
 
         Ref<Texture2D> m_Texture;
         glm::vec4 m_SquareColor = { 1.0f, 1.0f, 1.0f, 1.0f };
