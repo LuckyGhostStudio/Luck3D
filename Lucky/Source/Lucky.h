@@ -11,14 +11,26 @@
 #include "Lucky/Core/Input/KeyCodes.h"
 #include "Lucky/Core/Input/MouseButtonCodes.h"
 
-#include "Lucky/ImGui/ImGuiLayer.h"
+#include "Lucky/Core/Events/Event.h"
+#include "Lucky/Core/Events/ApplicationEvent.h"
+#include "Lucky/Core/Events/KeyEvent.h"
+#include "Lucky/Core/Events/MouseEvent.h"
 
-// Renderer
+// Renderer API
 #include "Lucky/Renderer/Renderer.h"
 #include "Lucky/Renderer/Renderer3D.h"
 #include "Lucky/Renderer/RenderCommand.h"
+#include "Lucky/Renderer/Framebuffer.h"
 #include "Lucky/Renderer/Buffer.h"
 #include "Lucky/Renderer/Shader.h"
 #include "Lucky/Renderer/Texture.h"
 #include "Lucky/Renderer/VertexArray.h"
 #include "Lucky/Renderer/Camera.h"
+#include "Lucky/Renderer/Mesh.h"
+
+// Scenes
+#include "Lucky/Scene/Scene.h"
+#include "Lucky/Scene/Components/IDComponent.h"
+#include "Lucky/Scene/Components/NameComponent.h"
+#include "Lucky/Scene/Components/TransformComponent.h"
+#include "Lucky/Scene/Components/MeshFilterComponent.h"

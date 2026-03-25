@@ -29,6 +29,8 @@ namespace Lucky
 
         void RemovePanel(const char* strID);
 
+        void OnUpdate(DeltaTime dt);
+        
         void OnImGuiRender();
 
         void OnEvent(Event& e);

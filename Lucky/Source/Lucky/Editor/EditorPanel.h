@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Lucky/Core/DeltaTime.h"
 #include "Lucky/Core/Events/Event.h"
 
 namespace Lucky
@@ -12,6 +13,12 @@ namespace Lucky
     public:
         virtual ~EditorPanel() = default;
 
+        /// <summary>
+        /// 更新：每帧调用
+        /// </summary>
+        /// <param name="dt">帧间隔</param>
+        virtual void OnUpdate(DeltaTime dt) = 0;
+        
         /// <summary>
         /// 渲染 ImGui 时调用
         /// </summary>
@@ -26,7 +33,7 @@ namespace Lucky
         virtual void OnEvent(Event& event) {}
     protected:
         virtual void OnBegin(const char* name);
-        virtual void OnGUI() = 0;
         virtual void OnEnd();
+        virtual void OnGUI() = 0;
     };
 }

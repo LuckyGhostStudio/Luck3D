@@ -29,6 +29,17 @@ namespace Lucky
         m_Panels.erase(id);
     }
 
+    void PanelManager::OnUpdate(DeltaTime dt)
+    {
+        for (auto& [id, panelData] : m_Panels)
+        {
+            if (panelData.IsOpen)
+            {
+                panelData.Panel->OnUpdate(dt);
+            }
+        }
+    }
+    
     void PanelManager::OnImGuiRender()
     {
         for (auto& [id, panelData] : m_Panels)
