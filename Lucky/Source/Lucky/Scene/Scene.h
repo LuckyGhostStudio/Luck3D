@@ -55,9 +55,9 @@ namespace Lucky
         /// <summary>
         /// 获取 Entity
         /// </summary>
-        /// <param name="uuid">UUID</param>
+        /// <param name="id">UUID</param>
         /// <returns></returns>
-        Entity GetEntityByUUID(UUID uuid);
+        Entity GetEntityWithUUID(UUID id);
 
         /// <summary>
         /// 返回具有 TComponents 类型组件的所有 Entt
@@ -83,7 +83,7 @@ namespace Lucky
         friend class SceneHierarchyPanel;   // 友元类 SceneHierarchyPanel
         friend class SceneSerializer;       // 友元类 SceneSerializer
 
-        std::unordered_map<UUID, entt::entity> m_EnttMap;   // UUID - entt 映射表
+        std::unordered_map<UUID, Entity> m_EntityIDMap; // UUID - entt 映射表
 
         entt::registry m_Registry;          // 实体集合：实体 id 集合（unsigned int 集合）
         std::string m_Name;                 // 场景名

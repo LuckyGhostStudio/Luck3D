@@ -4,6 +4,7 @@
 
 #include "Panels/SceneHierarchyPanel.h"
 #include "Panels/SceneViewportPanel.h"
+#include "Panels/InspectorPanel.h"
 
 #include "Lucky/Renderer/MeshFactory.h"
 
@@ -14,6 +15,7 @@ namespace Lucky
 {
 #define SCENE_HIERARCHY_PANEL_ID "SceneHierarchyPanel"
 #define SCENE_VIEWPORT_PANEL_ID "SceneViewportPanel"
+#define INSPECTOR_PANEL_ID "InspectorPanel"
     
     EditorLayer::EditorLayer()
         : Layer("EditorLayer")
@@ -31,8 +33,10 @@ namespace Lucky
 
         m_PanelManager->AddPanel<SceneHierarchyPanel>(SCENE_HIERARCHY_PANEL_ID, "Hierarchy", true, m_Scene);
         m_PanelManager->AddPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID, "Scene", true, m_Scene);
+        m_PanelManager->AddPanel<InspectorPanel>(INSPECTOR_PANEL_ID, "Inspector", true, m_Scene);
         
         Ref<Mesh> cubeMesh = MeshFactory::CreateCube();
+        cubeMesh->SetName("Cube");  // Temp
         Entity cubeEntity = m_Scene->CreateEntity("TestCube");
         cubeEntity.AddComponent<MeshFilterComponent>(cubeMesh);
     }
@@ -90,6 +94,13 @@ namespace Lucky
                 if (ImGui::MenuItem("Scene"))
                 {
                     uint32_t panelID = Hash::GenerateFNVHash(SCENE_VIEWPORT_PANEL_ID);
+                    PanelData* panelData = m_PanelManager->GetPanelData(panelID);
+                    panelData->IsOpen = true;
+                }
+                
+                if (ImGui::MenuItem("Inspector"))
+                {
+                    uint32_t panelID = Hash::GenerateFNVHash(INSPECTOR_PANEL_ID);
                     PanelData* panelData = m_PanelManager->GetPanelData(panelID);
                     panelData->IsOpen = true;
                 }

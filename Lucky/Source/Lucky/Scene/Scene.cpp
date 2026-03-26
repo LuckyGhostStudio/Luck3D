@@ -37,7 +37,7 @@ namespace Lucky
         entity.AddComponent<NameComponent>(name);   // 添加 Name 组件（默认组件）
         entity.AddComponent<TransformComponent>();  // 添加 Transform 组件（默认组件）
 
-        m_EnttMap[uuid] = entity;   // 添加到 EnttMap
+        m_EntityIDMap[uuid] = entity;   // 添加到 m_EntityIDMap
 
         LF_TRACE("Created Entity: [ENTT = {0}, UUID {1}, Name {2}]", (uint32_t)entity, uuid, name);
 
@@ -51,7 +51,7 @@ namespace Lucky
         LF_TRACE("Removed Entity: [ENTT = {0}, UUID {1}, Name {2}]", (uint32_t)entity, id, entity.GetName());
         
         m_Registry.destroy(entity);
-        m_EnttMap.erase(id);  // 从 EnttMap 移除
+        m_EntityIDMap.erase(id);    // 从 m_EntityIDMap 移除
     }
     
     void Scene::OnUpdate(DeltaTime dt, EditorCamera& camera)
@@ -76,15 +76,10 @@ namespace Lucky
         
     }
 
-    Entity Scene::GetEntityByUUID(UUID uuid)
+    Entity Scene::GetEntityWithUUID(UUID id)
     {
-        // TODO Assert
-        if (m_EnttMap.find(uuid) != m_EnttMap.end())
-        {
-            return { m_EnttMap.at(uuid), this };
-        }
-
-        return {};
+        LF_CORE_ASSERT(m_EntityIDMap.find(id) != m_EntityIDMap.end(), "Invalid entity ID or entity doesn't exist in scene!");
+        return m_EntityIDMap.at(id);
     }
     
     template<typename TComponent>

@@ -6,6 +6,8 @@
 
 #include "Lucky/Renderer/MeshFactory.h"
 
+#include "Lucky/Scene/SelectionManager.h"
+
 #include "imgui/imgui.h"
 
 namespace Lucky
@@ -48,6 +50,12 @@ namespace Lucky
 
         ImGui::PopID();
         
+        // 点击鼠标 && 鼠标悬停在该窗口（点击空白位置）
+        if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered())
+        {
+            SelectionManager::Deselect();   // 取消选中
+        }
+        
         // 创建物体 右键点击窗口白区域弹出菜单：- 右键 不在物体项上
         if (ImGui::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
         {
@@ -60,7 +68,9 @@ namespace Lucky
             if (ImGui::MenuItem("Cube"))
             {
                 Entity newEntity = m_Scene->CreateEntity("Cube");
-                newEntity.AddComponent<MeshFilterComponent>(MeshFactory::CreateCube());
+                Ref<Mesh> cubeMesh = MeshFactory::CreateCube();
+                cubeMesh->SetName("Cube");  // Temp
+                newEntity.AddComponent<MeshFilterComponent>(cubeMesh);
             }
             
             ImGui::EndPopup();
@@ -70,16 +80,24 @@ namespace Lucky
     void SceneHierarchyPanel::DrawEntityNode(Entity entity)
     {
         std::string& name = entity.GetComponent<NameComponent>().Name;  // 物体名
+        UUID id = entity.GetUUID();
 
         // 树结点标志
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_SpanAvailWidth;
         
+        if (SelectionManager::IsSelected(entity.GetUUID()))
+        {
+            flags |= ImGuiTreeNodeFlags_Selected;
+        }
+        
         bool opened = ImGui::TreeNodeEx((void*)(uint64_t)(uint32_t)entity, flags, name.c_str());
-
+        
         // 树结点被点击
         if (ImGui::IsItemClicked())
         {
-            LF_TRACE("Selected Entity: [ENTT = {0}, UUID {1}, Name {2}]", (uint32_t)entity, entity.GetUUID(), entity.GetName());
+            SelectionManager::Select(id);   // 选中物体
+            
+            LF_TRACE("Selected Entity: [ENTT = {0}, UUID {1}, Name {2}]", (uint32_t)entity, id, entity.GetName());
         }
 
         // 删除物体
@@ -108,6 +126,12 @@ namespace Lucky
         if (entityDeleted)
         {
             m_Scene->DestroyEntity(entity); // 销毁物体
+            
+            // 删除的物体为已选中物体
+            if (SelectionManager::IsSelected(id))
+            {
+                SelectionManager::Deselect();   // 清空选中项
+            }
         }
     }
 

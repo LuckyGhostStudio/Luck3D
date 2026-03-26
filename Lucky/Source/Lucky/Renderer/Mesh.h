@@ -88,6 +88,9 @@ namespace Lucky
         
         const std::vector<SubMesh>& GetSubMeshes() const { return m_SubMeshes; }
         std::vector<SubMesh>& GetSubMeshes() { return m_SubMeshes; }
+        
+        const std::string& GetName() const { return m_Name; }
+        void SetName(const std::string& name) { m_Name = name; }
     private:
         std::vector<Vertex> m_Vertices;			// 顶点列表
         std::vector<uint32_t> m_VertexIndices;	// 顶点索引列表 
@@ -101,5 +104,7 @@ namespace Lucky
         uint32_t m_SubMeshCount = 0;		// 子网格数
         
         std::vector<SubMesh> m_SubMeshes;   // 子网格列表
+        
+        std::string m_Name; // Temp
     };
 }
