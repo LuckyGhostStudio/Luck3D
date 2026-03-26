@@ -2,6 +2,7 @@
 
 #include "Components/IDComponent.h"
 #include "Components/NameComponent.h"
+#include "Components/RelationshipComponent.h"
 
 #include "Scene.h"
 
@@ -64,6 +65,14 @@ namespace Lucky
 
             return m_Scene->m_Registry.get<T>(m_EntityID);  // 从 m_Scene 场景的实体注册表获得 T 类型组件
         }
+        
+        template<typename T>
+        const T& GetComponent() const
+        {
+            LF_CORE_ASSERT(HasComponent<T>(), "Entity dose not have component!");   // 该组件不存在
+
+            return m_Scene->m_Registry.get<T>(m_EntityID);  // 从 m_Scene 场景的实体注册表获得 T 类型组件
+        }
 
         /// <summary>
         /// 查询是否拥有 T 类型组件
@@ -72,6 +81,12 @@ namespace Lucky
         /// <returns>查询结果</returns>
         template<typename T>
         bool HasComponent()
+        {
+            return m_Scene->m_Registry.has<T>(m_EntityID);  // 查找 m_Scene 场景中 m_EntityID 的 T 类型组件
+        }
+        
+        template<typename T>
+        bool HasComponent() const
         {
             return m_Scene->m_Registry.has<T>(m_EntityID);  // 查找 m_Scene 场景中 m_EntityID 的 T 类型组件
         }
@@ -105,6 +120,17 @@ namespace Lucky
             return !(*this == other);
         }
         
+        Entity GetParent() const;
+        void SetParent(Entity parent);
+
+        void SetParentUUID(UUID parent) { GetComponent<RelationshipComponent>().Parent = parent; }
+        UUID GetParentUUID() const { return GetComponent<RelationshipComponent>().Parent; }
+
+        std::vector<UUID>& GetChildren() { return GetComponent<RelationshipComponent>().Children; }
+        const std::vector<UUID>& GetChildren() const { return GetComponent<RelationshipComponent>().Children; }
+
+        bool RemoveChild(Entity child);
+
     private:
         entt::entity m_EntityID{ entt::null };  // 实体 ID
         Scene* m_Scene = nullptr;               // 实体所属场景

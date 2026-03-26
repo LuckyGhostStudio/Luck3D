@@ -4,9 +4,6 @@
 
 namespace Lucky
 {
-    /// <summary>
-    /// 选中项管理器
-    /// </summary>
     struct SelectionManager
     {
     private:

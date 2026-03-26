@@ -36,7 +36,8 @@ namespace Lucky
         /// 销毁实体
         /// </summary>
         /// <param name="entity">实体</param>
-        void DestroyEntity(Entity entity);
+        /// <param name="destroyChildren">销毁子节点</param>
+        void DestroyEntity(Entity entity, bool destroyChildren = true);
 
         /// <summary>
         /// 更新：每帧调用
@@ -58,6 +59,13 @@ namespace Lucky
         /// <param name="id">UUID</param>
         /// <returns></returns>
         Entity GetEntityWithUUID(UUID id);
+        
+        /// <summary>
+        /// 尝试获取 Entity
+        /// </summary>
+        /// <param name="id">UUID</param>
+        /// <returns></returns>
+        Entity TryGetEntityWithUUID(UUID id);
 
         /// <summary>
         /// 返回具有 TComponents 类型组件的所有 Entt

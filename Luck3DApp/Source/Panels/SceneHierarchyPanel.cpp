@@ -26,8 +26,7 @@ namespace Lucky
     void SceneHierarchyPanel::OnGUI()
     {
         std::string sceneName = m_Scene->GetName();
-        ImGui::PushID(sceneName.c_str());
-
+        
         // 树结点标志
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth;
         flags |= ImGuiTreeNodeFlags_DefaultOpen;
@@ -42,13 +41,15 @@ namespace Lucky
             {
                 Entity entity{ entityID, m_Scene.get() };
 
-                DrawEntityNode(entity); // 绘制物体结点
+                // 绘制没有父节点的实体
+                if (entity.GetParentUUID() == 0)
+                {
+                    DrawEntityNode(entity);
+                }
             });
             
             ImGui::TreePop();
         }
-
-        ImGui::PopID();
         
         // 点击鼠标 && 鼠标悬停在该窗口（点击空白位置）
         if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered())
@@ -59,19 +60,7 @@ namespace Lucky
         // 创建物体 右键点击窗口白区域弹出菜单：- 右键 不在物体项上
         if (ImGui::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
         {
-            // 创建空物体
-            if (ImGui::MenuItem("Create Empty"))
-            {
-                m_Scene->CreateEntity("Entity");
-            }
-            // 创建 Cube
-            if (ImGui::MenuItem("Cube"))
-            {
-                Entity newEntity = m_Scene->CreateEntity("Cube");
-                Ref<Mesh> cubeMesh = MeshFactory::CreateCube();
-                cubeMesh->SetName("Cube");  // Temp
-                newEntity.AddComponent<MeshFilterComponent>(cubeMesh);
-            }
+            DrawEntityCreateMenu({});   // 绘制创建物体菜单
             
             ImGui::EndPopup();
         }
@@ -81,7 +70,10 @@ namespace Lucky
     {
         std::string& name = entity.GetComponent<NameComponent>().Name;  // 物体名
         UUID id = entity.GetUUID();
+        const std::string strID = std::format("{0}{1}", name, (uint64_t)entity.GetUUID());
 
+        bool isLeaf = entity.GetChildren().empty(); // 是叶节点
+        
         // 树结点标志
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_SpanAvailWidth;
         
@@ -90,7 +82,12 @@ namespace Lucky
             flags |= ImGuiTreeNodeFlags_Selected;
         }
         
-        bool opened = ImGui::TreeNodeEx((void*)(uint64_t)(uint32_t)entity, flags, name.c_str());
+        if (isLeaf)
+        {
+            flags |= ImGuiTreeNodeFlags_Leaf;   // 叶结点没有箭头
+        }
+        
+        bool opened = ImGui::TreeNodeEx(strID.c_str(), flags, name.c_str());
         
         // 树结点被点击
         if (ImGui::IsItemClicked())
@@ -100,11 +97,15 @@ namespace Lucky
             LF_TRACE("Selected Entity: [ENTT = {0}, UUID {1}, Name {2}]", (uint32_t)entity, id, entity.GetName());
         }
 
+        const std::string rightClickPopupID = std::format("{0}-ContextMenu", strID);
+        
         // 删除物体
         bool entityDeleted = false;
         // 右键点击该物体结点
-        if (ImGui::BeginPopupContextItem())
+        if (ImGui::BeginPopupContextItem(rightClickPopupID.c_str()))
         {
+            DrawEntityCreateMenu(entity);   // 绘制创建物体菜单
+            
             // 菜单项：删除物体
             if (ImGui::MenuItem("Delete"))
             {
@@ -117,12 +118,15 @@ namespace Lucky
         // 树结点已打开
         if (opened)
         {
-            // TODO 子节点
-            
+            // 子节点
+            for (UUID childID : entity.GetChildren())
+            {
+                DrawEntityNode(m_Scene->GetEntityWithUUID(childID));
+            }
 
             ImGui::TreePop();
         }
-
+        
         if (entityDeleted)
         {
             m_Scene->DestroyEntity(entity); // 销毁物体
@@ -133,6 +137,43 @@ namespace Lucky
                 SelectionManager::Deselect();   // 清空选中项
             }
         }
+    }
+
+    void SceneHierarchyPanel::DrawEntityCreateMenu(Entity parent)
+    {
+        if (!ImGui::BeginMenu("Create"))
+        {
+            return;
+        }
+        
+        Entity newEntity;
+        
+        // 创建空物体
+        if (ImGui::MenuItem("Create Empty"))
+        {
+            newEntity = m_Scene->CreateEntity("Entity");
+        }
+        // 创建 Cube
+        if (ImGui::MenuItem("Cube"))
+        {
+            newEntity = m_Scene->CreateEntity("Cube");
+            Ref<Mesh> cubeMesh = MeshFactory::CreateCube();
+            cubeMesh->SetName("Cube");  // Temp
+            newEntity.AddComponent<MeshFilterComponent>(cubeMesh);
+        }
+        
+        if (newEntity)
+        {
+            if (parent)
+            {
+                newEntity.SetParent(parent);
+            }
+
+            SelectionManager::Deselect();
+            SelectionManager::Select(newEntity.GetUUID());
+        }
+        
+        ImGui::EndMenu();
     }
 
     void SceneHierarchyPanel::OnEvent(Event& event)

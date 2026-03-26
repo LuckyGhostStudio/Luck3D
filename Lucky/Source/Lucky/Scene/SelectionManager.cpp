@@ -15,7 +15,7 @@ namespace Lucky
 
     void SelectionManager::Deselect()
     {
-        s_SelectionID = 0;  // ÎÞÐ§ID
+        s_SelectionID = 0;
     }
 
     UUID SelectionManager::GetSelection()
