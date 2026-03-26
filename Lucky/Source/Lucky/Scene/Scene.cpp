@@ -39,17 +39,19 @@ namespace Lucky
 
         m_EnttMap[uuid] = entity;   // 添加到 EnttMap
 
-        LF_TRACE("Created Entity：[ENTT = {0}, UUID {1}, Name {2}]", (uint32_t)entity, uuid, name);
+        LF_TRACE("Created Entity: [ENTT = {0}, UUID {1}, Name {2}]", (uint32_t)entity, uuid, name);
 
         return entity;
     }
 
-    void Scene::DeleteEntity(Entity entity)
+    void Scene::DestroyEntity(Entity entity)
     {
-        LF_TRACE("Removed Entity：[ENTT = {0}, UUID {1}, Name {2}]", (uint32_t)entity, entity.GetUUID(), entity.GetName());
-
+        UUID id = entity.GetUUID();
+        
+        LF_TRACE("Removed Entity: [ENTT = {0}, UUID {1}, Name {2}]", (uint32_t)entity, id, entity.GetName());
+        
         m_Registry.destroy(entity);
-        m_EnttMap.erase(entity.GetUUID());  // 从 EnttMap 移除
+        m_EnttMap.erase(id);  // 从 EnttMap 移除
     }
     
     void Scene::OnUpdate(DeltaTime dt, EditorCamera& camera)

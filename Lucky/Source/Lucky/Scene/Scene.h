@@ -33,10 +33,10 @@ namespace Lucky
         Entity CreateEntity(UUID uuid, const std::string& name = "Entity");
 
         /// <summary>
-        /// 删除实体
+        /// 销毁实体
         /// </summary>
         /// <param name="entity">实体</param>
-        void DeleteEntity(Entity entity);
+        void DestroyEntity(Entity entity);
 
         /// <summary>
         /// 更新：每帧调用

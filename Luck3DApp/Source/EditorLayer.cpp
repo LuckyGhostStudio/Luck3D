@@ -2,6 +2,7 @@
 
 #include <imgui/imgui.h>
 
+#include "Panels/SceneHierarchyPanel.h"
 #include "Panels/SceneViewportPanel.h"
 
 #include "Lucky/Renderer/MeshFactory.h"
@@ -11,6 +12,7 @@
 
 namespace Lucky
 {
+#define SCENE_HIERARCHY_PANEL_ID "SceneHierarchyPanel"
 #define SCENE_VIEWPORT_PANEL_ID "SceneViewportPanel"
     
     EditorLayer::EditorLayer()
@@ -27,6 +29,7 @@ namespace Lucky
         
         m_PanelManager = CreateScope<PanelManager>();
 
+        m_PanelManager->AddPanel<SceneHierarchyPanel>(SCENE_HIERARCHY_PANEL_ID, "Hierarchy", true, m_Scene);
         m_PanelManager->AddPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID, "Scene", true, m_Scene);
         
         Ref<Mesh> cubeMesh = MeshFactory::CreateCube();
@@ -77,6 +80,13 @@ namespace Lucky
 
             if (ImGui::BeginMenu("Window"))
             {
+                if (ImGui::MenuItem("Hierarchy"))
+                {
+                    uint32_t panelID = Hash::GenerateFNVHash(SCENE_HIERARCHY_PANEL_ID);
+                    PanelData* panelData = m_PanelManager->GetPanelData(panelID);
+                    panelData->IsOpen = true;
+                }
+                
                 if (ImGui::MenuItem("Scene"))
                 {
                     uint32_t panelID = Hash::GenerateFNVHash(SCENE_VIEWPORT_PANEL_ID);
