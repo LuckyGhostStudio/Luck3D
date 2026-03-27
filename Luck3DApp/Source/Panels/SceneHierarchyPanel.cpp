@@ -2,6 +2,7 @@
 
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/Components/NameComponent.h"
+#include "Lucky/Scene/Components/RelationshipComponent.h"
 #include "Lucky/Scene/Components/MeshFilterComponent.h"
 
 #include "Lucky/Renderer/MeshFactory.h"
@@ -69,14 +70,14 @@ namespace Lucky
     {
         std::string& name = entity.GetComponent<NameComponent>().Name;  // 物体名
         UUID id = entity.GetUUID();
-        const std::string strID = std::format("{0}{1}", name, (uint64_t)entity.GetUUID());
+        const std::string strID = std::format("{0}{1}", name, (uint64_t)id);
 
         bool isLeaf = entity.GetChildren().empty(); // 是叶节点
         
         // 树结点标志
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_SpanAvailWidth;
         
-        if (SelectionManager::IsSelected(entity.GetUUID()))
+        if (SelectionManager::IsSelected(id))
         {
             flags |= ImGuiTreeNodeFlags_Selected;
         }
@@ -101,8 +102,10 @@ namespace Lucky
         // 删除物体
         bool entityDeleted = false;
         // 右键点击该物体结点
-        if (ImGui::BeginPopupContextItem(rightClickPopupID.c_str()))
+        if (ImGui::BeginPopupContextItem(rightClickPopupID.c_str(), ImGuiPopupFlags_MouseButtonRight))
         {
+            SelectionManager::Select(id);   // 选中物体
+
             DrawEntityCreateMenu(entity);   // 绘制创建物体菜单
             
             // 菜单项：删除物体
@@ -150,12 +153,14 @@ namespace Lucky
         // 创建空物体
         if (ImGui::MenuItem("Create Empty"))
         {
-            newEntity = m_Scene->CreateEntity("Entity");
+            std::string uniqueName = GenerateUniqueName("Entity", parent);
+            newEntity = m_Scene->CreateEntity(uniqueName);
         }
         // 创建 Cube
         if (ImGui::MenuItem("Cube"))
         {
-            newEntity = m_Scene->CreateEntity("Cube");
+            std::string uniqueName = GenerateUniqueName("Cube", parent);
+            newEntity = m_Scene->CreateEntity(uniqueName);
             Ref<Mesh> cubeMesh = MeshFactory::CreateCube();
             cubeMesh->SetName("Cube");  // Temp
             newEntity.AddComponent<MeshFilterComponent>(cubeMesh);
@@ -178,5 +183,57 @@ namespace Lucky
     void SceneHierarchyPanel::OnEvent(Event& event)
     {
         
+    }
+
+    std::string SceneHierarchyPanel::GenerateUniqueName(const std::string& baseName, Entity parent)
+    {
+        // 收集同层级下所有兄弟节点的名称
+        std::vector<std::string> siblingNames;
+
+        if (parent)
+        {
+            // 有父节点：遍历父节点的所有子节点
+            for (UUID childID : parent.GetChildren())
+            {
+                Entity child = m_Scene->GetEntityWithUUID(childID);
+                siblingNames.push_back(child.GetName());
+            }
+        }
+        else
+        {
+            // 无父节点：遍历所有根节点（Parent == 0）
+            auto view = m_Scene->GetAllEntitiesWith<NameComponent, RelationshipComponent>();
+            for (auto entityID : view)
+            {
+                Entity entity{ entityID, m_Scene.get() };
+                if (entity.GetParentUUID() == 0)
+                {
+                    siblingNames.push_back(entity.GetName());
+                }
+            }
+        }
+
+        // 检查名称是否已存在
+        auto nameExists = [&siblingNames](const std::string& name) -> bool
+        {
+            return std::find(siblingNames.begin(), siblingNames.end(), name) != siblingNames.end();
+        };
+
+        // baseName 不重复则直接返回
+        if (!nameExists(baseName))
+        {
+            return baseName;
+        }
+
+        // 从 (1) 开始递增直到找到不重复的名称
+        int suffix = 1;
+        std::string candidateName;
+        do
+        {
+            candidateName = std::format("{} ({})", baseName, suffix);
+            suffix++;
+        } while (nameExists(candidateName));
+
+        return candidateName;
     }
 }

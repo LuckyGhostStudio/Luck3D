@@ -25,6 +25,14 @@ namespace Lucky
         
         void OnEvent(Event& event) override;
     private:
+        /// <summary>
+        /// 生成在兄弟节点中不重复的名称（仅用于 Hierarchy 创建时的视觉区分）
+        /// </summary>
+        /// <param name="baseName">基础名称</param>
+        /// <param name="parent">父实体（无效则检查根层级）</param>
+        /// <returns>不重复的名称</returns>
+        std::string GenerateUniqueName(const std::string& baseName, Entity parent);
+
         Ref<Scene> m_Scene;
     };
 }

@@ -100,6 +100,12 @@ namespace Lucky
 
     Entity Scene::GetEntityWithUUID(UUID id)
     {
+        // Temp Debug
+        if (m_EntityIDMap.find(id) == m_EntityIDMap.end())
+        {
+	        LF_CORE_ERROR("Invalid entity ID {0} or entity doesn't exist in scene", id);
+        }
+
         // TODO fix 创建实体时可能会有无效id
         LF_CORE_ASSERT(m_EntityIDMap.find(id) != m_EntityIDMap.end(), "Invalid entity ID or entity doesn't exist in scene!");
         return m_EntityIDMap.at(id);
