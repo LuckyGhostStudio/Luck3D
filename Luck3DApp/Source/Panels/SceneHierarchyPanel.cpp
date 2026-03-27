@@ -36,8 +36,7 @@ namespace Lucky
         
         if (opened)
         {
-            // 遍历场景所有实体，并调用 each 内的函数
-            m_Scene->m_Registry.each([&](auto entityID)
+            for (auto entityID : m_Scene->GetAllEntitiesWith<IDComponent, RelationshipComponent>())
             {
                 Entity entity{ entityID, m_Scene.get() };
 
@@ -46,7 +45,7 @@ namespace Lucky
                 {
                     DrawEntityNode(entity);
                 }
-            });
+            }
             
             ImGui::TreePop();
         }

@@ -36,8 +36,7 @@ namespace Lucky
         /// 销毁实体
         /// </summary>
         /// <param name="entity">实体</param>
-        /// <param name="destroyChildren">销毁子节点</param>
-        void DestroyEntity(Entity entity, bool destroyChildren = true);
+        void DestroyEntity(Entity entity);
 
         /// <summary>
         /// 更新：每帧调用

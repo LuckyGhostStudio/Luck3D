@@ -46,22 +46,19 @@ namespace Lucky
         return entity;
     }
 
-    void Scene::DestroyEntity(Entity entity, bool destroyChildren)
+    void Scene::DestroyEntity(Entity entity)
     {
         if (!entity)
         {
             return;
         }
 
-        // 销毁子节点
-        if (destroyChildren)
+        // 拷贝子节点列表后再遍历：避免遍历过程中原始列表被修改导致跳过子节点
+        std::vector<UUID> children = entity.GetChildren();
+        for (UUID childID : children)
         {
-            for (size_t i = 0; i < entity.GetChildren().size(); i++)
-            {
-                UUID childID = entity.GetChildren()[i];
-                Entity child = GetEntityWithUUID(childID);
-                DestroyEntity(child, true);
-            }
+            Entity child = GetEntityWithUUID(childID);
+            DestroyEntity(child);
         }
         
         // 将当前节点从父节点移除
