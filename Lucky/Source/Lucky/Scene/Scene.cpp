@@ -9,6 +9,7 @@
 #include "Components/TransformComponent.h"
 #include "Components/RelationshipComponent.h"
 #include "Components/MeshFilterComponent.h"
+#include "Components/MeshRendererComponent.h"
 
 #include "Entity.h"
 
@@ -155,5 +156,12 @@ namespace Lucky
     {
 
     }
+    
+    template<>
+    void Scene::OnComponentAdded<MeshRendererComponent>(Entity entity, MeshRendererComponent& component)
+    {
+
+    }
+    
     // TODO 添加新组件
 }

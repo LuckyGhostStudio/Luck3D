@@ -6,6 +6,29 @@
 
 namespace Lucky
 {
+    /// <summary>
+    /// 将 OpenGL uniform 类型转换为 ShaderUniformType
+    /// </summary>
+    /// <param name="type">OpenGL 类型枚举</param>
+    /// <returns>对应的 ShaderUniformType</returns>
+    static ShaderUniformType GLUniformTypeToShaderUniformType(GLenum type)
+    {
+        switch (type)
+        {
+            case GL_FLOAT:          return ShaderUniformType::Float;
+            case GL_FLOAT_VEC2:     return ShaderUniformType::Float2;
+            case GL_FLOAT_VEC3:     return ShaderUniformType::Float3;
+            case GL_FLOAT_VEC4:     return ShaderUniformType::Float4;
+            case GL_INT:            return ShaderUniformType::Int;
+            case GL_FLOAT_MAT3:     return ShaderUniformType::Mat3;
+            case GL_FLOAT_MAT4:     return ShaderUniformType::Mat4;
+            case GL_SAMPLER_2D:     return ShaderUniformType::Sampler2D;
+            default:
+                LF_CORE_WARN("Unsupported GL uniform type: {0}", type);
+                return ShaderUniformType::None;
+        }
+    }
+    
     Ref<Shader> Shader::Create(const std::string& filepath)
     {
         return CreateRef<Shader>(filepath);
@@ -33,6 +56,106 @@ namespace Lucky
     Shader::~Shader()
     {
         glDeleteProgram(m_RendererID);    // 删除着色器程序
+    }
+
+    void Shader::Bind() const
+    {
+        glUseProgram(m_RendererID);     // 使用着色器程序
+    }
+
+    void Shader::UnBind() const
+    {
+        glUseProgram(0);
+    }
+
+    void Shader::SetInt(const std::string& name, int value)
+    {
+        UploadUniformInt(name, value);
+    }
+
+    void Shader::SetIntArray(const std::string& name, int* values, uint32_t count)
+    {
+        UploadUniformIntArray(name, values, count);
+    }
+
+    void Shader::SetFloat(const std::string& name, float value)
+    {
+        UploadUniformFloat(name, value);
+    }
+
+    void Shader::SetFloat2(const std::string& name, const glm::vec2& value)
+    {
+        UploadUniformFloat2(name, value);
+    }
+
+    void Shader::SetFloat3(const std::string& name, const glm::vec3& value)
+    {
+        UploadUniformFloat3(name, value);
+    }
+
+    void Shader::SetFloat4(const std::string& name, const glm::vec4& value)
+    {
+        UploadUniformFloat4(name, value);
+    }
+
+    void Shader::SetMat3(const std::string& name, const glm::mat3& value)
+    {
+        UploadUniformMat3(name, value);
+    }
+
+    void Shader::SetMat4(const std::string& name, const glm::mat4& value)
+    {
+        UploadUniformMat4(name, value);
+    }
+
+    // ---- 下列方法：上传 Uniform 变量到 Shader ----
+
+    void Shader::UploadUniformInt(const std::string& name, int value)
+    {
+        int location = glGetUniformLocation(m_RendererID, name.c_str());    // 获取 Uniform 变量位置
+        glUniform1i(location, value);                                       // 设置 Uniform 变量（位置，变量个数，是否转置，变量地址）
+    }
+
+    void Shader::UploadUniformIntArray(const std::string& name, int* values, uint32_t count)
+    {
+        int location = glGetUniformLocation(m_RendererID, name.c_str());
+        glUniform1iv(location, count, values);
+    }
+
+    void Shader::UploadUniformFloat(const std::string& name, float value)
+    {
+        int location = glGetUniformLocation(m_RendererID, name.c_str());
+        glUniform1f(location, value);
+    }
+
+    void Shader::UploadUniformFloat2(const std::string& name, const glm::vec2& value)
+    {
+        int location = glGetUniformLocation(m_RendererID, name.c_str());
+        glUniform2f(location, value.x, value.y);
+    }
+
+    void Shader::UploadUniformFloat3(const std::string& name, const glm::vec3& value)
+    {
+        int location = glGetUniformLocation(m_RendererID, name.c_str());
+        glUniform3f(location, value.x, value.y, value.z);
+    }
+
+    void Shader::UploadUniformFloat4(const std::string& name, const glm::vec4& value)
+    {
+        int location = glGetUniformLocation(m_RendererID, name.c_str());
+        glUniform4f(location, value.x, value.y, value.z, value.w);
+    }
+
+    void Shader::UploadUniformMat3(const std::string& name, const glm::mat3& matrix)
+    {
+        int location = glGetUniformLocation(m_RendererID, name.c_str());
+        glUniformMatrix3fv(location, 1, GL_FALSE, glm::value_ptr(matrix));
+    }
+
+    void Shader::UploadUniformMat4(const std::string& name, const glm::mat4& matrix)
+    {
+        int location = glGetUniformLocation(m_RendererID, name.c_str());
+        glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(matrix));
     }
 
     std::string Shader::ReadFile(const std::string& filepath)
@@ -137,102 +260,56 @@ namespace Lucky
         }
 
         m_RendererID = program;
+        
+        Introspect();  // 内省：获取所有 active uniform 信息
     }
-
-    void Shader::Bind() const
+    
+    void Shader::Introspect()
     {
-        glUseProgram(m_RendererID);     // 使用着色器程序
-    }
+        m_Uniforms.clear();
 
-    void Shader::UnBind() const
-    {
-        glUseProgram(0);
-    }
+        int uniformCount = 0;
+        glGetProgramiv(m_RendererID, GL_ACTIVE_UNIFORMS, &uniformCount);    // 获取 active uniform 变量数量
 
-    void Shader::SetInt(const std::string& name, int value)
-    {
-        UploadUniformInt(name, value);
-    }
+        for (int i = 0; i < uniformCount; i++)
+        {
+            char name[256];
+            int length = 0;
+            int size = 0;
+            GLenum type = 0;
 
-    void Shader::SetIntArray(const std::string& name, int* values, uint32_t count)
-    {
-        UploadUniformIntArray(name, values, count);
-    }
+            // 获取第 i 个 active uniform 信息（名称大小，实际名称长度，uniform 数组大小，uniform 类型，名称）
+            glGetActiveUniform(m_RendererID, (GLuint)i, sizeof(name), &length, &size, &type, name);
 
-    void Shader::SetFloat(const std::string& name, float value)
-    {
-        UploadUniformFloat(name, value);
-    }
+            int location = glGetUniformLocation(m_RendererID, name);
 
-    void Shader::SetFloat2(const std::string& name, const glm::vec2& value)
-    {
-        UploadUniformFloat2(name, value);
-    }
+            // location == -1 表示该 uniform 属于 Uniform Block（UBO），跳过
+            if (location == -1)
+            {
+                continue;
+            }
 
-    void Shader::SetFloat3(const std::string& name, const glm::vec3& value)
-    {
-        UploadUniformFloat3(name, value);
-    }
+            ShaderUniformType dataType = GLUniformTypeToShaderUniformType(type);
+            if (dataType == ShaderUniformType::None)
+            {
+                continue;  // 不支持的类型，跳过
+            }
 
-    void Shader::SetFloat4(const std::string& name, const glm::vec4& value)
-    {
-        UploadUniformFloat4(name, value);
-    }
+            ShaderUniform uniform;
+            uniform.Name = std::string(name);
+            uniform.Type = dataType;
+            uniform.Location = location;
+            uniform.Size = size;
 
-    void Shader::SetMat4(const std::string& name, const glm::mat4& value)
-    {
-        UploadUniformMat4(name, value);
-    }
+            m_Uniforms.push_back(uniform);  // 添加 uniform 到列表
 
-    // ---- 下列方法：上传 Uniform 变量到 Shader ----
+            LF_CORE_TRACE("  Uniform #{0}: name = '{1}', type = {2}, location = {3}, size = {4}", i, uniform.Name, (int)uniform.Type, uniform.Location, uniform.Size);
+        }
 
-    void Shader::UploadUniformInt(const std::string& name, int value)
-    {
-        int location = glGetUniformLocation(m_RendererID, name.c_str());    // 获取 Uniform 变量位置
-        glUniform1i(location, value);                                       // 设置 Uniform 变量（位置，变量个数，是否转置，变量地址）
+        LF_CORE_INFO("Shader '{0}' introspection complete: {1} active uniforms", m_Name, m_Uniforms.size());
     }
-
-    void Shader::UploadUniformIntArray(const std::string& name, int* values, uint32_t count)
-    {
-        int location = glGetUniformLocation(m_RendererID, name.c_str());
-        glUniform1iv(location, count, values);
-    }
-
-    void Shader::UploadUniformFloat(const std::string& name, float value)
-    {
-        int location = glGetUniformLocation(m_RendererID, name.c_str());
-        glUniform1f(location, value);
-    }
-
-    void Shader::UploadUniformFloat2(const std::string& name, const glm::vec2& value)
-    {
-        int location = glGetUniformLocation(m_RendererID, name.c_str());
-        glUniform2f(location, value.x, value.y);
-    }
-
-    void Shader::UploadUniformFloat3(const std::string& name, const glm::vec3& value)
-    {
-        int location = glGetUniformLocation(m_RendererID, name.c_str());
-        glUniform3f(location, value.x, value.y, value.z);
-    }
-
-    void Shader::UploadUniformFloat4(const std::string& name, const glm::vec4& value)
-    {
-        int location = glGetUniformLocation(m_RendererID, name.c_str());
-        glUniform4f(location, value.x, value.y, value.z, value.w);
-    }
-
-    void Shader::UploadUniformMat3(const std::string& name, const glm::mat3& matrix)
-    {
-        int location = glGetUniformLocation(m_RendererID, name.c_str());
-        glUniformMatrix3fv(location, 1, GL_FALSE, glm::value_ptr(matrix));
-    }
-
-    void Shader::UploadUniformMat4(const std::string& name, const glm::mat4& matrix)
-    {
-        int location = glGetUniformLocation(m_RendererID, name.c_str());
-        glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(matrix));
-    }
+    
+    // ---- ShaderLibrary ----
 
     void ShaderLibrary::Add(const std::string& name, const Ref<Shader>& shader)
     {

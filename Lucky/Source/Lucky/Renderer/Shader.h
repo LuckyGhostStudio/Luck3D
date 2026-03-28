@@ -4,25 +4,38 @@
 
 #include <glm/glm.hpp>
 
+#include "Buffer.h"
+
 namespace Lucky
 {
+    /// <summary>
+    /// Shader Uniform 类型
+    /// </summary>
+    enum class ShaderUniformType
+    {
+        None = 0,
+        Float, Float2, Float3, Float4,
+        Int,
+        Mat3, Mat4,
+        Sampler2D
+    };
+    
+    /// <summary>
+    /// Shader Uniform 参数信息
+    /// </summary>
+    struct ShaderUniform
+    {
+        std::string Name;           // uniform 变量名
+        ShaderUniformType Type;     // 数据类型
+        int Location;               // uniform location（glGetUniformLocation 返回值）
+        int Size;                   // 数组大小（非数组为 1）
+    };
+    
     /// <summary>
     /// 着色器
     /// </summary>
     class Shader
     {
-        /// <summary>
-        /// 读文件
-        /// </summary>
-        /// <param name="filepath">文件路径</param>
-        /// <returns>文件内容</returns>
-        std::string ReadFile(const std::string& filepath);
-
-        /// <summary>
-        /// 编译着色器
-        /// </summary>
-        /// <param name="shaderSources">着色器类型 - 着色器源码 map</param>
-        void Compile(std::unordered_map<unsigned int, std::string>& shaderSources);
     public:
         /// <summary>
         /// 创建着色器
@@ -89,13 +102,22 @@ namespace Lucky
         void SetFloat4(const std::string& name, const glm::vec4& value);
 
         /// <summary>
+        /// 设置 uniform Matrix3 变量
+        /// </summary>
+        /// <param name="name">变量名</param>
+        /// <param name="value">变量值</param>
+        void SetMat3(const std::string& name, const glm::mat3& value);
+        
+        /// <summary>
         /// 设置 uniform Matrix4 变量
         /// </summary>
         /// <param name="name">变量名</param>
         /// <param name="value">变量值</param>
         void SetMat4(const std::string& name, const glm::mat4& value);
 
+        uint32_t GetRendererID() const { return m_RendererID; }
         const std::string GetName() const { return m_Name; }
+        const std::vector<ShaderUniform>& GetUniforms() const { return m_Uniforms; }
 
         // ---- 下列方法：上传 Uniform 变量到 Shader ---- |（变量在 Shader 中的变量名，变量值）
 
@@ -110,8 +132,28 @@ namespace Lucky
         void UploadUniformMat3(const std::string& name, const glm::mat3& matrix);
         void UploadUniformMat4(const std::string& name, const glm::mat4& matrix);
     private:
-        uint32_t m_RendererID;  // 着色器 ID
-        std::string m_Name;     // 着色器名字
+        /// <summary>
+        /// 读文件
+        /// </summary>
+        /// <param name="filepath">文件路径</param>
+        /// <returns>文件内容</returns>
+        std::string ReadFile(const std::string& filepath);
+
+        /// <summary>
+        /// 编译着色器
+        /// </summary>
+        /// <param name="shaderSources">着色器类型 - 着色器源码 map</param>
+        void Compile(std::unordered_map<unsigned int, std::string>& shaderSources);
+        
+        /// <summary>
+        /// 内省：查询 Shader 程序中所有 active uniform 参数
+        /// 在 Compile() 成功后调用
+        /// </summary>
+        void Introspect();
+    private:
+        uint32_t m_RendererID;                  // 着色器 ID
+        std::string m_Name;                     // 着色器名字
+        std::vector<ShaderUniform> m_Uniforms;  // uniform 参数列表
     };
 
     /// <summary>

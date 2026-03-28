@@ -2,6 +2,7 @@
 #include "Renderer3D.h"
 
 #include "Shader.h"
+#include "Material.h"
 #include "UniformBuffer.h"
 #include "RenderCommand.h"
 
@@ -53,6 +54,14 @@ namespace Lucky
         s_Data.MeshShader = CreateRef<Shader>("Assets/Shaders/TextureShader");  // 创建着色器
 
         s_Data.CameraUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::CameraData), 0);  // 创建相机 Uniform 缓冲区
+        
+        // 测试材质
+        Ref<Material> testMaterial = Material::Create(s_Data.MeshShader);
+        const auto& props = testMaterial->GetProperties();
+        for (const auto& p : props)
+        {
+            LF_CORE_INFO("Material Property: {0}, Type: {1}", p.Name, (int)p.Type);
+        }
     }
 
     void Renderer3D::Shutdown()
