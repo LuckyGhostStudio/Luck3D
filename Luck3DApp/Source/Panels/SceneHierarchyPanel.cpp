@@ -168,13 +168,13 @@ namespace Lucky
             newEntity.AddComponent<MeshFilterComponent>(cubeMesh);
             
             // Temp ≤‚ ‘
-            Ref<Material> defaultMaterial = CreateRef<Material>("Default Material", Renderer3D::GetShaderLibrary()->Get("TextureShader"));
+            Ref<Material> defaultMaterial = CreateRef<Material>("Default-Material", Renderer3D::GetShaderLibrary()->Get("Standard"));
         
             defaultMaterial->SetFloat3("u_AmbientCoeff", glm::vec3(0.2f));
             defaultMaterial->SetFloat3("u_DiffuseCoeff", glm::vec3(0.8f));
             defaultMaterial->SetFloat3("u_SpecularCoeff", glm::vec3(0.5f));
             defaultMaterial->SetFloat("u_Shininess", 32.0f);
-            defaultMaterial->SetInt("u_TextureIndex", 0);
+            defaultMaterial->SetTexture("u_MainTexture", Texture2D::Create("Assets/Textures/Texture_Gloss.png"));
             
             MeshRendererComponent& meshRenderer = newEntity.AddComponent<MeshRendererComponent>();
             meshRenderer.SetMaterial(0, defaultMaterial);

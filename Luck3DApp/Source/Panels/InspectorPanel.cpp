@@ -6,6 +6,7 @@
 #include "Lucky/Scene/Components/TransformComponent.h"
 #include "Lucky/Scene/Components/MeshFilterComponent.h"
 #include "Lucky/Scene/Components/MeshRendererComponent.h"
+#include "Lucky/Utils/PlatformUtils.h"
 
 namespace Lucky
 {
@@ -48,23 +49,15 @@ namespace Lucky
         // Transform 组件
         DrawComponent<TransformComponent>("Transform", entity, [](TransformComponent& transform)
         {
-            float translation[3] = { transform.Translation.x, transform.Translation.y, transform.Translation.z };
-            if (ImGui::DragFloat3("Position", translation, 0.1f))
-            {
-                transform.Translation = { translation[0], translation[1], translation[2] };
-            }
+            ImGui::DragFloat3("Position", &transform.Translation.x, 0.1f);
             
-            float rotation[3] = { transform.GetRotationEuler().x, transform.GetRotationEuler().y, transform.GetRotationEuler().z };
-            if (ImGui::DragFloat3("Rotation", rotation, 0.1f))
+            glm::vec3 rotationEuler = transform.GetRotationEuler();
+            if (ImGui::DragFloat3("Rotation", &rotationEuler.x, 0.1f))
             {
-                transform.SetRotationEuler({ rotation[0], rotation[1], rotation[2] });
+                transform.SetRotationEuler(rotationEuler);
             }
-            
-            float scale[3] = { transform.Scale.x, transform.Scale.y, transform.Scale.z };
-            if (ImGui::DragFloat3("Scale", scale, 0.1f))
-            {
-                transform.Scale = { scale[0], scale[1], scale[2] };
-            }
+
+            ImGui::DragFloat3("Scale", &transform.Scale.x, 0.1f);
         });
         
         // MeshFilter 组件
@@ -80,8 +73,11 @@ namespace Lucky
             ImGui::InputText("Mesh", buffer, sizeof(buffer));
         });
         
+        static std::vector<Ref<Material>> materials;    // 当前 MeshRenderer 的材质列表
         DrawComponent<MeshRendererComponent>("Mesh Renderer", entity, [](MeshRendererComponent& meshRenderer)
         {
+            materials = meshRenderer.Materials;
+            
             for (int i = 0; i < meshRenderer.Materials.size(); i++)
             {
                 const std::string& label = std::format("Element {0}", i);
@@ -94,10 +90,117 @@ namespace Lucky
                 ImGui::InputText(label.c_str(), buffer, sizeof(buffer));
             }
         });
+        
+        // 绘制所有材质的参数
+        for (Ref<Material>& material : materials)
+        {
+            DrawMaterialEditor(material);
+        }
     }
 
     void InspectorPanel::OnEvent(Event& event)
     {
         
+    }
+
+    void InspectorPanel::DrawMaterialEditor(Ref<Material>& material)
+    {
+        if (!material)
+        {
+            return;
+        }
+        
+        // 树节点标志：打开|框架|延伸到右边|允许重叠|框架边框
+        const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth;
+        
+        const std::string name = std::format("{0} (Material)", material->GetName());
+        
+        bool opened = ImGui::TreeNodeEx(name.c_str(), flags);
+        
+        if (opened)
+        {
+            const std::string shaderName = material->GetShader()->GetName();
+            
+            // 显示 Shader 名字 TODO Shader下拉选择框
+            char buffer[256];
+            memset(buffer, 0, sizeof(buffer));
+            strcpy_s(buffer, sizeof(buffer), shaderName.c_str());
+                
+            ImGui::InputText("Shader", buffer, sizeof(buffer));
+            
+            // 绘制材质属性
+            for (const MaterialProperty& prop : material->GetProperties())
+            {
+                switch (prop.Type)
+                {
+                case ShaderUniformType::Float:
+                {
+                    float value = std::get<float>(prop.Value);
+                    if (ImGui::DragFloat(prop.Name.c_str(), &value, 0.1f))
+                    {
+                        material->SetFloat(prop.Name, value);
+                    }
+                    break;
+                }
+                case ShaderUniformType::Float2:
+                {
+                    glm::vec2 value = std::get<glm::vec2>(prop.Value);
+                    if (ImGui::DragFloat2(prop.Name.c_str(), &value.x, 0.1f))
+                    {
+                        material->SetFloat2(prop.Name, value);
+                    }
+                    break;
+                }
+                case ShaderUniformType::Float3:
+                {
+                    glm::vec3 value = std::get<glm::vec3>(prop.Value);
+                    if (ImGui::DragFloat3(prop.Name.c_str(), &value.x, 0.1f))
+                    {
+                        material->SetFloat3(prop.Name, value);
+                    }
+                    break;
+                }
+                case ShaderUniformType::Float4:
+                {
+                    glm::vec4 value = std::get<glm::vec4>(prop.Value);
+                    if (ImGui::DragFloat4(prop.Name.c_str(), &value.x, 0.1f))
+                    {
+                        material->SetFloat4(prop.Name, value);
+                    }
+                    break;
+                }
+                case ShaderUniformType::Int:
+                {
+                    int value = std::get<int>(prop.Value);
+                    if (ImGui::DragInt(prop.Name.c_str(), &value, 0.1f))
+                    {
+                        material->SetInt(prop.Name, value);
+                    }
+                    break;
+                }
+                case ShaderUniformType::Sampler2D:
+                {
+                    Ref<Texture2D> texture = std::get<Ref<Texture2D>>(prop.Value);
+                    if (texture)
+                    {
+                        uint32_t textureID = texture->GetRendererID();
+                        if (ImGui::ImageButton((ImTextureID)textureID, { 64, 64 }, { 0, 1 }, { 1, 0 }))
+                        {
+                            std::string filepath = FileDialogs::OpenFile("Albedo Texture(*.png;*.jpg)\0*.png;*.jpg\0");
+                            if (!filepath.empty())
+                            {
+                                material->SetTexture(prop.Name, Texture2D::Create(filepath));
+                            }
+                        }
+                    }
+                    break;
+                }
+                default:
+                    break;  // TODO 其他类型
+                }
+            }
+
+            ImGui::TreePop();       // 展开结点
+        }
     }
 }

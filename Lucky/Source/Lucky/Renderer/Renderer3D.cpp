@@ -20,7 +20,7 @@ namespace Lucky
         
         Ref<ShaderLibrary> ShaderLibrary;  // 着色器库
         
-        Ref<Shader> DefaultShader;      // 默认着色器
+        Ref<Shader> StandardShader;     // 默认着色器
         Ref<Material> DefaultMaterial;  // 默认材质
         
         Ref<Texture2D> WhiteTexture;    // 白色纹理 0 号
@@ -67,7 +67,7 @@ namespace Lucky
     void Renderer3D::Init()
     {
         s_Data.ShaderLibrary = CreateRef<ShaderLibrary>();  // 创建着色器库
-        s_Data.DefaultShader = s_Data.ShaderLibrary->Load("Assets/Shaders/TextureShader");  // 加载默认着色器
+        s_Data.StandardShader = s_Data.ShaderLibrary->Load("Assets/Shaders/Standard");   // 加载默认着色器
         
         s_Data.WhiteTexture = Texture2D::Create(1, 1);                      // 创建宽高为 1 的纹理
         uint32_t whitTextureData = 0xffffffff;                              // 255 白色
@@ -79,13 +79,13 @@ namespace Lucky
         s_Data.CameraUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::CameraData), 0);  // 创建相机 Uniform 缓冲区
         s_Data.LightUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::LightData), 1);    // 创建光照 Uniform 缓冲区
         
-        s_Data.DefaultMaterial = CreateRef<Material>("Default Material", s_Data.DefaultShader);  // 创建默认材质
+        s_Data.DefaultMaterial = CreateRef<Material>("Default Material", s_Data.StandardShader);  // 创建默认材质
         
         s_Data.DefaultMaterial->SetFloat3("u_AmbientCoeff", glm::vec3(0.2f));
         s_Data.DefaultMaterial->SetFloat3("u_DiffuseCoeff", glm::vec3(0.8f));
         s_Data.DefaultMaterial->SetFloat3("u_SpecularCoeff", glm::vec3(0.5f));
         s_Data.DefaultMaterial->SetFloat("u_Shininess", 32.0f);
-        s_Data.DefaultMaterial->SetInt("u_TextureIndex", 0);
+        s_Data.DefaultMaterial->SetTexture("u_MainTexture", Texture2D::Create("Assets/Textures/Texture_Gloss.png"));
     }
 
     void Renderer3D::Shutdown()

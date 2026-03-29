@@ -28,14 +28,13 @@ struct VertexOutput
 
 layout(location = 0) in VertexOutput v_Input;
 
-layout(binding = 0) uniform sampler2D u_Textures[32];   // 纹理采样器 0 - 31
-uniform int u_TextureIndex;  // 当前使用的纹理索引
-
 // 材质 Uniform
 uniform vec3 u_AmbientCoeff;      // 环境光系数
 uniform vec3 u_DiffuseCoeff;      // 漫反射系数
 uniform vec3 u_SpecularCoeff;     // 镜面反射系数
 uniform float u_Shininess;        // 镜面指数
+
+uniform sampler2D u_MainTexture;    // 测试纹理
 
 void main()
 {
@@ -65,9 +64,9 @@ void main()
     // 总光照
     vec3 lighting = ambient + diffuse + specular;
 
-    // 采样纹理
-    vec4 texColor = texture(u_Textures[u_TextureIndex], v_Input.TexCoord);
+    // 采样主纹理颜色
+    vec4 mainColor = texture(u_MainTexture, v_Input.TexCoord);
 
     // 最终颜色：纹理 * 顶点颜色 * 光照
-    o_Color = texColor * v_Input.Color * vec4(lighting, 1.0);
+    o_Color = mainColor * v_Input.Color * vec4(lighting, 1.0);
 }

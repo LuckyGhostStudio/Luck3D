@@ -99,8 +99,8 @@ namespace Lucky
         glm::vec2 m_InitialMousePosition = { 0.0f, 0.0f };  // 鼠标初始位置
 
         float m_Distance = 5.0f;            // 相机与焦点距离
-        float m_Pitch = 0.0f;
-        float m_Yaw = 0.0f;
+        float m_Pitch = 0.44f;
+        float m_Yaw = -0.62f;
 
         float m_ViewportWidth = 1280.0f;    // 视口宽
         float m_ViewportHeight = 720;       // 视口高

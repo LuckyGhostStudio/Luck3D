@@ -3,6 +3,7 @@
 #include "Lucky/Editor/EditorPanel.h"
 #include "Lucky/Scene/Scene.h"
 #include "Lucky/Scene/Entity.h"
+#include "Lucky/Renderer/Material.h"
 
 #include "imgui/imgui.h"
 
@@ -33,6 +34,8 @@ namespace Lucky
         /// <param name="OnOpened">组件打开时调用</param>
         template<typename TComponent, typename UIFunction>
         void DrawComponent(const std::string& name, Entity entity, UIFunction OnOpened);
+        
+        void DrawMaterialEditor(Ref<Material>& material);
     private:
         Ref<Scene> m_Scene;
     };

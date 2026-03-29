@@ -11,7 +11,6 @@ namespace Lucky
         // 引擎内部管理的 uniform 黑名单 TODO 持续更新
         static const std::unordered_set<std::string> s_InternalUniforms = {
             "u_ObjectToWorldMatrix",    // 模型变换矩阵（由引擎每帧设置）
-            "u_Textures[0]",            // 纹理数组（由引擎纹理槽系统管理）
         };
 
         return s_InternalUniforms.find(name) != s_InternalUniforms.end();
@@ -271,7 +270,7 @@ namespace Lucky
                     {
                         texture->Bind(textureSlot);                 // 绑定纹理槽位
                         m_Shader->SetInt(prop.Name, textureSlot);   // 设置纹理槽位索引
-                        textureSlot++;  // TODO 限制最大值
+                        textureSlot++;  // TODO 限制最大值32
                     }
                     break;
                 }
