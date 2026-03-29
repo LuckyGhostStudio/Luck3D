@@ -8,9 +8,17 @@ layout(location = 3) in vec2 a_TexCoord;    // 纹理坐标
 // 相机 Uniform 缓冲区
 layout(std140, binding = 0) uniform Camera
 {
-    mat4 u_ViewProjectionMatrix;
-    vec3 u_CameraPos;   // 相机位置（用于计算视线向量）
-};
+    mat4 ViewProjectionMatrix;
+    vec3 Position;  // 相机位置（用于计算视线向量）
+} u_Camera;
+
+// 光照 Uniform 缓冲区
+layout(std140, binding = 1) uniform Light
+{
+    float Intensity;
+    vec3 Direction;
+    vec3 Color;
+} u_Light;
 
 // 模型矩阵（用于变换法向量）
 uniform mat4 u_ObjectToWorldMatrix;
@@ -38,5 +46,5 @@ void main()
     vec4 worldPos = u_ObjectToWorldMatrix * vec4(a_Position, 1.0);
     v_Output.WorldPos = worldPos.xyz;
 
-    gl_Position = u_ViewProjectionMatrix * worldPos;
+    gl_Position = u_Camera.ViewProjectionMatrix * worldPos;
 }

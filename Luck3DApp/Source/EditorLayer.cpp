@@ -10,6 +10,7 @@
 
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/Components/MeshFilterComponent.h"
+#include "Lucky/Scene/Components/MeshRendererComponent.h"
 
 namespace Lucky
 {
@@ -37,8 +38,20 @@ namespace Lucky
         
         Ref<Mesh> cubeMesh = MeshFactory::CreateCube();
         cubeMesh->SetName("Cube");  // Temp
-        Entity cubeEntity = m_Scene->CreateEntity("TestCube");
+        Entity cubeEntity = m_Scene->CreateEntity("Cube");
         cubeEntity.AddComponent<MeshFilterComponent>(cubeMesh);
+        
+        // Temp ≤‚ ‘
+        Ref<Material> defaultMaterial = CreateRef<Material>("Default Material", Renderer3D::GetShaderLibrary()->Get("TextureShader"));
+        
+        defaultMaterial->SetFloat3("u_AmbientCoeff", glm::vec3(0.2f));
+        defaultMaterial->SetFloat3("u_DiffuseCoeff", glm::vec3(0.8f));
+        defaultMaterial->SetFloat3("u_SpecularCoeff", glm::vec3(0.5f));
+        defaultMaterial->SetFloat("u_Shininess", 32.0f);
+        defaultMaterial->SetInt("u_TextureIndex", 0);
+            
+        MeshRendererComponent& meshRenderer = cubeEntity.AddComponent<MeshRendererComponent>();
+        meshRenderer.SetMaterial(0, defaultMaterial);
     }
 
     void EditorLayer::OnDetach()

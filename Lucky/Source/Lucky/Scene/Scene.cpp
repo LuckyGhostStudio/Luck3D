@@ -81,14 +81,14 @@ namespace Lucky
     {
         Renderer3D::BeginScene(camera);
         {
-            // TODO 添加 MeshRenderer
-            auto meshGroup = m_Registry.group<TransformComponent>(entt::get<MeshFilterComponent>);
+            // 获取同时拥有 TransformComponent MeshFilterComponent MeshRendererComponent 的实体
+            auto meshGroup = m_Registry.group<TransformComponent>(entt::get<MeshFilterComponent, MeshRendererComponent>);
 
             for (auto entity : meshGroup)
             {
-                auto [transform, meshFilter] = meshGroup.get<TransformComponent, MeshFilterComponent>(entity);
+                auto [transform, meshFilter, meshRenderer] = meshGroup.get<TransformComponent, MeshFilterComponent, MeshRendererComponent>(entity);
 
-                Renderer3D::DrawMesh(transform.GetTransform(), meshFilter.Mesh);
+                Renderer3D::DrawMesh(transform.GetTransform(), meshFilter.Mesh, meshRenderer.Materials);    // 绘制网格
             }
         }
         Renderer3D::EndScene();

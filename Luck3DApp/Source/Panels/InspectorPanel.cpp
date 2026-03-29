@@ -5,6 +5,7 @@
 #include "Lucky/Scene/Components/NameComponent.h"
 #include "Lucky/Scene/Components/TransformComponent.h"
 #include "Lucky/Scene/Components/MeshFilterComponent.h"
+#include "Lucky/Scene/Components/MeshRendererComponent.h"
 
 namespace Lucky
 {
@@ -77,6 +78,21 @@ namespace Lucky
             strcpy_s(buffer, sizeof(buffer), meshName.c_str()); // buffer = name
             
             ImGui::InputText("Mesh", buffer, sizeof(buffer));
+        });
+        
+        DrawComponent<MeshRendererComponent>("Mesh Renderer", entity, [](MeshRendererComponent& meshRenderer)
+        {
+            for (int i = 0; i < meshRenderer.Materials.size(); i++)
+            {
+                const std::string& label = std::format("Element {0}", i);
+                const std::string& materialName = meshRenderer.Materials[i]->GetName();
+                
+                char buffer[256];                                   //  ‰»ÎøÚƒ⁄»› buffer
+                memset(buffer, 0, sizeof(buffer));                  // Ω´ buffer ÷√¡„
+                strcpy_s(buffer, sizeof(buffer), materialName.c_str()); // buffer = name
+                
+                ImGui::InputText(label.c_str(), buffer, sizeof(buffer));
+            }
         });
     }
 

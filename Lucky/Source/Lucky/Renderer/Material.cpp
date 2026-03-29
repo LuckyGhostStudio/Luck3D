@@ -236,8 +236,6 @@ namespace Lucky
             return;
         }
 
-        m_Shader->Bind();
-
         int textureSlot = 1;  // 0 号槽位保留给引擎白色纹理 TODO 获取第一个可用槽位
 
         // 设置 Shader uniform

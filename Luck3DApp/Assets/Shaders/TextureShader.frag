@@ -2,11 +2,20 @@
 
 layout(location = 0) out vec4 o_Color;  // 颜色缓冲区 0 输出颜色
 
+// 相机 Uniform 缓冲区
 layout(std140, binding = 0) uniform Camera
 {
-    mat4 u_ViewProjectionMatrix;
-    vec3 u_CameraPos;   // 相机位置
-};
+    mat4 ViewProjectionMatrix;
+    vec3 Position;  // 相机位置（用于计算视线向量）
+} u_Camera;
+
+// 光照 Uniform 缓冲区
+layout(std140, binding = 1) uniform Light
+{
+    float Intensity;
+    vec3 Direction;
+    vec3 Color;
+} u_Light;
 
 // 顶点着色器输出数据
 struct VertexOutput
@@ -22,11 +31,6 @@ layout(location = 0) in VertexOutput v_Input;
 layout(binding = 0) uniform sampler2D u_Textures[32];   // 纹理采样器 0 - 31
 uniform int u_TextureIndex;  // 当前使用的纹理索引
 
-// 光照 Uniform
-uniform vec3 u_LightDirection;    // 方向光方向（世界空间）
-uniform vec3 u_LightColor;        // 光颜色
-uniform float u_LightIntensity;   // 光强度
-
 // 材质 Uniform
 uniform vec3 u_AmbientCoeff;      // 环境光系数
 uniform vec3 u_DiffuseCoeff;      // 漫反射系数
@@ -39,24 +43,24 @@ void main()
     vec3 N = normalize(v_Input.Normal);
 
     // 光向量（方向光，反向）
-    vec3 L = normalize(-u_LightDirection);
+    vec3 L = normalize(-u_Light.Direction);
 
     // 视图向量
-    vec3 V = normalize(u_CameraPos - v_Input.WorldPos);
+    vec3 V = normalize(u_Camera.Position - v_Input.WorldPos);
 
     // 反射向量
     vec3 R = reflect(-L, N);
-
+    
     // 环境光
-    vec3 ambient = u_AmbientCoeff * u_LightColor * u_LightIntensity;
+    vec3 ambient = u_AmbientCoeff * u_Light.Color * u_Light.Intensity;
 
     // 漫反射
     float diff = max(dot(N, L), 0.0);
-    vec3 diffuse = diff * u_DiffuseCoeff * u_LightColor * u_LightIntensity;
+    vec3 diffuse = diff * u_DiffuseCoeff * u_Light.Color * u_Light.Intensity;
 
     // 镜面反射
     float spec = pow(max(dot(R, V), 0.0), u_Shininess);
-    vec3 specular = spec * u_SpecularCoeff * u_LightColor * u_LightIntensity;
+    vec3 specular = spec * u_SpecularCoeff * u_Light.Color * u_Light.Intensity;
 
     // 总光照
     vec3 lighting = ambient + diffuse + specular;

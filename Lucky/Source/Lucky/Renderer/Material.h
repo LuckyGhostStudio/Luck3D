@@ -80,7 +80,7 @@ namespace Lucky
         Ref<Texture2D> GetTexture(const std::string& name) const;
 
         /// <summary>
-        /// 应用材质：绑定 Shader 并将所有属性值上传到 GPU TODO 修改一下注释
+        /// 应用材质：将所有属性值（用户可编辑的 uniform）上传到 GPU
         /// </summary>
         void Apply() const;
 

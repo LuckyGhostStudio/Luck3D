@@ -13,6 +13,8 @@ namespace Lucky
 
         MeshRendererComponent() = default;
         MeshRendererComponent(const MeshRendererComponent& other) = default;
+        MeshRendererComponent(const std::vector<Ref<Material>>& materials)
+            : Materials(materials) {}
 
         /// <summary>
         /// 获取指定索引的材质，索引越界返回 nullptr

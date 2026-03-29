@@ -1,9 +1,11 @@
 #pragma once
 
 #include "Camera.h"
+#include "EditorCamera.h"
+
 #include "Texture.h"
 #include "Mesh.h"
-#include "EditorCamera.h"
+#include "Material.h"
 
 namespace Lucky
 {
@@ -35,7 +37,14 @@ namespace Lucky
         /// </summary>
         static void EndScene();
         
-        static void DrawMesh(const glm::mat4& transform, Ref<Mesh>& mesh);
+        /// <summary>
+        /// 绘制网格（使用指定材质列表）
+        /// 材质列表的索引对应 SubMesh 的 MaterialIndex
+        /// </summary>
+        /// <param name="transform">模型变换矩阵</param>
+        /// <param name="mesh">网格</param>
+        /// <param name="materials">材质列表</param>
+        static void DrawMesh(const glm::mat4& transform, Ref<Mesh>& mesh, const std::vector<Ref<Material>>& materials);
 
         /// <summary>
         /// 统计数据
@@ -64,5 +73,7 @@ namespace Lucky
         /// 重置统计数据
         /// </summary>
         static void ResetStats();
+        
+        static Ref<ShaderLibrary> GetShaderLibrary();
     };
 }
