@@ -351,4 +351,17 @@ namespace Lucky
     {
         return m_Shaders.find(name) != m_Shaders.end();
     }
+
+    std::vector<std::string> ShaderLibrary::GetShaderNameList() const
+    {
+        std::vector<std::string> names;
+        names.reserve(m_Shaders.size());
+        
+        for (const auto& [name, shader] : m_Shaders)
+        {
+            names.push_back(name);
+        }
+        
+        return names;
+    }
 }

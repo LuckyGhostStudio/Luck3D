@@ -160,7 +160,30 @@ namespace Lucky
     template<>
     void Scene::OnComponentAdded<MeshRendererComponent>(Entity entity, MeshRendererComponent& component)
     {
+        // 根据 SubMesh 数量初始化材质列表
+        if (entity.HasComponent<MeshFilterComponent>())
+        {
+            auto& meshFilter = entity.GetComponent<MeshFilterComponent>();
+            if (meshFilter.Mesh)
+            {
+                // 查找最大的 MaterialIndex
+                uint32_t requiredCount = 0;
+                for (const SubMesh& sm : meshFilter.Mesh->GetSubMeshes())
+                {
+                    requiredCount = std::max(requiredCount, sm.MaterialIndex + 1);
+                }
 
+                // 不存在的材质使用默认材质
+                component.Materials.resize(requiredCount);
+                for (auto& mat : component.Materials)
+                {
+                    if (!mat)
+                    {
+                        mat = Renderer3D::GetDefaultMaterial();
+                    }
+                }
+            }
+        }
     }
     
     // TODO 添加新组件

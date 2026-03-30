@@ -203,6 +203,16 @@ namespace Lucky
         /// <param name="name">着色器名</param>
         /// <returns>是否存在</returns>
         bool Exists(const std::string& name) const;
+        
+        /// <summary>
+        /// 获取所有着色器名称列表
+        /// </summary>
+        std::vector<std::string> GetShaderNameList() const;
+
+        /// <summary>
+        /// 获取所有着色器
+        /// </summary>
+        const std::unordered_map<std::string, Ref<Shader>>& GetShaders() const { return m_Shaders; }
     private:
         std::unordered_map<std::string, Ref<Shader>> m_Shaders;        // 着色器 map：着色器名 - 着色器
     };

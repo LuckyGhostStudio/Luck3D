@@ -6,6 +6,9 @@
 #include "Lucky/Scene/Components/TransformComponent.h"
 #include "Lucky/Scene/Components/MeshFilterComponent.h"
 #include "Lucky/Scene/Components/MeshRendererComponent.h"
+
+#include "Lucky/Renderer/Renderer3D.h"
+
 #include "Lucky/Utils/PlatformUtils.h"
 
 namespace Lucky
@@ -74,20 +77,33 @@ namespace Lucky
         });
         
         static std::vector<Ref<Material>> materials;    // 当前 MeshRenderer 的材质列表
-        DrawComponent<MeshRendererComponent>("Mesh Renderer", entity, [](MeshRendererComponent& meshRenderer)
+        DrawComponent<MeshRendererComponent>("Mesh Renderer", entity, [&entity](MeshRendererComponent& meshRenderer)
         {
             materials = meshRenderer.Materials;
             
-            for (int i = 0; i < meshRenderer.Materials.size(); i++)
+            const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_SpanAvailWidth;
+            
+            const std::string& strID = std::format("Materials##{0}", entity.GetComponent<NameComponent>().Name);
+            bool opened = ImGui::TreeNodeEx(strID.c_str(), flags);
+            if (opened)
             {
-                const std::string& label = std::format("Element {0}", i);
-                const std::string& materialName = meshRenderer.Materials[i]->GetName();
+                int materialSize = materials.size();
+                ImGui::InputInt("Size", &materialSize);
                 
-                char buffer[256];                                   // 输入框内容 buffer
-                memset(buffer, 0, sizeof(buffer));                  // 将 buffer 置零
-                strcpy_s(buffer, sizeof(buffer), materialName.c_str()); // buffer = name
+                // 材质列表
+                for (int i = 0; i < meshRenderer.Materials.size(); i++)
+                {
+                    const std::string& label = std::format("Element {0}", i);
+                    const std::string& materialName = meshRenderer.Materials[i]->GetName();
                 
-                ImGui::InputText(label.c_str(), buffer, sizeof(buffer));
+                    char buffer[256];                                   // 输入框内容 buffer
+                    memset(buffer, 0, sizeof(buffer));                  // 将 buffer 置零
+                    strcpy_s(buffer, sizeof(buffer), materialName.c_str()); // buffer = name
+                
+                    ImGui::InputText(label.c_str(), buffer, sizeof(buffer));
+                }
+                
+                ImGui::TreePop();
             }
         });
         
@@ -107,27 +123,76 @@ namespace Lucky
     {
         if (!material)
         {
-            return;
+            material = Renderer3D::GetInternalErrorMaterial();  // 使用内部错误材质（表示材质丢失）
         }
         
         // 树节点标志：打开|框架|延伸到右边|允许重叠|框架边框
         const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth;
         
-        const std::string name = std::format("{0} (Material)", material->GetName());
+        const std::string& name = std::format("{0} (Material)", material->GetName());
         
-        bool opened = ImGui::TreeNodeEx(name.c_str(), flags);
+        float treeNodePosY = ImGui::GetCursorPosY();
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 30)); // 增加 TreeNode 标题行高度
+        bool opened = ImGui::TreeNodeEx(std::format("##{0}", name).c_str(), flags);
+        ImGui::PopStyleVar();
+        
+        ImGui::SameLine(45);
+        ImGui::SetCursorPosY(treeNodePosY - 25);
+        ImGui::Text(name.c_str());
+        
+        // ---- Shader ----
+        
+        // 所有可用 Shader 名称
+        std::vector<std::string> shaderNames = Renderer3D::GetShaderLibrary()->GetShaderNameList();
+
+        // 当前 Shader 名称
+        std::string currentShaderName = material->GetShader()->GetName();
+
+        // 查找当前 Shader 在列表中的索引
+        int currentIndex = -1;
+        for (int i = 0; i < (int)shaderNames.size(); i++)
+        {
+            if (shaderNames[i] == currentShaderName)
+            {
+                currentIndex = i;
+                break;
+            }
+        }
+        
+        ImGui::SetCursorPos({ 45, treeNodePosY + 40 });
+        
+        // 绘制下拉选择框
+        if (ImGui::BeginCombo(std::format("Shader##{0}", currentShaderName).c_str(), currentShaderName.c_str()))
+        {
+            for (int i = 0; i < (int)shaderNames.size(); i++)
+            {
+                bool isSelected = (i == currentIndex);
+
+                if (ImGui::Selectable(shaderNames[i].c_str(), isSelected))
+                {
+                    // 选择了新的 Shader
+                    if (i != currentIndex)
+                    {
+                        auto newShader = Renderer3D::GetShaderLibrary()->Get(shaderNames[i]);
+                        material->SetShader(newShader);  // 触发属性重建
+                    }
+                }
+
+                if (isSelected)
+                {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+
+            ImGui::EndCombo();
+        }
+        
+        // -----------------
+        
+        ImGui::SetCursorPosY(treeNodePosY + 88);
         
         if (opened)
         {
-            const std::string shaderName = material->GetShader()->GetName();
-            
-            // 显示 Shader 名字 TODO Shader下拉选择框
-            char buffer[256];
-            memset(buffer, 0, sizeof(buffer));
-            strcpy_s(buffer, sizeof(buffer), shaderName.c_str());
-                
-            ImGui::InputText("Shader", buffer, sizeof(buffer));
-            
             // 绘制材质属性
             for (const MaterialProperty& prop : material->GetProperties())
             {
@@ -181,18 +246,21 @@ namespace Lucky
                 case ShaderUniformType::Sampler2D:
                 {
                     Ref<Texture2D> texture = std::get<Ref<Texture2D>>(prop.Value);
-                    if (texture)
+                    if (!texture)
                     {
-                        uint32_t textureID = texture->GetRendererID();
-                        if (ImGui::ImageButton((ImTextureID)textureID, { 64, 64 }, { 0, 1 }, { 1, 0 }))
+                        texture = Renderer3D::GetWhiteTexture();    // 默认使用白色纹理
+                    }
+                        
+                    uint32_t textureID = texture->GetRendererID();
+                    if (ImGui::ImageButton((ImTextureID)textureID, { 64, 64 }, { 0, 1 }, { 1, 0 }))
+                    {
+                        std::string filepath = FileDialogs::OpenFile("Albedo Texture(*.png;*.jpg)\0*.png;*.jpg\0");
+                        if (!filepath.empty())
                         {
-                            std::string filepath = FileDialogs::OpenFile("Albedo Texture(*.png;*.jpg)\0*.png;*.jpg\0");
-                            if (!filepath.empty())
-                            {
-                                material->SetTexture(prop.Name, Texture2D::Create(filepath));
-                            }
+                            material->SetTexture(prop.Name, Texture2D::Create(filepath));
                         }
                     }
+                        
                     break;
                 }
                 default:
@@ -200,7 +268,7 @@ namespace Lucky
                 }
             }
 
-            ImGui::TreePop();       // 展开结点
+            ImGui::TreePop();
         }
     }
 }

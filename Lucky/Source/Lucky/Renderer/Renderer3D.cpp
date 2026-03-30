@@ -1,8 +1,6 @@
 #include "lcpch.h"
 #include "Renderer3D.h"
 
-#include <backends/imgui_impl_opengl3_loader.h>
-
 #include "Shader.h"
 #include "UniformBuffer.h"
 #include "RenderCommand.h"
@@ -18,10 +16,12 @@ namespace Lucky
     {
         static const uint32_t MaxTextureSlots = 32; // 最大纹理槽数
         
-        Ref<ShaderLibrary> ShaderLibrary;  // 着色器库
+        Ref<ShaderLibrary> ShaderLib;   // 着色器库 TODO Move to Renderer.h
         
-        Ref<Shader> StandardShader;     // 默认着色器
-        Ref<Material> DefaultMaterial;  // 默认材质
+        Ref<Shader> InternalErrorShader;        // 内部错误着色器
+        Ref<Shader> StandardShader;             // 默认着色器
+        Ref<Material> InternalErrorMaterial;    // 内部错误材质（材质丢失时使用：材质被意外删除等情况）
+        Ref<Material> DefaultMaterial;          // 默认材质
         
         Ref<Texture2D> WhiteTexture;    // 白色纹理 0 号
         // TODO 其他默认纹理
@@ -66,26 +66,31 @@ namespace Lucky
 
     void Renderer3D::Init()
     {
-        s_Data.ShaderLibrary = CreateRef<ShaderLibrary>();  // 创建着色器库
-        s_Data.StandardShader = s_Data.ShaderLibrary->Load("Assets/Shaders/Standard");   // 加载默认着色器
+        s_Data.ShaderLib = CreateRef<ShaderLibrary>();  // 创建着色器库
+        
+        s_Data.ShaderLib->Load("Assets/Shaders/InternalError"); // 加载内部错误着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Standard");      // 加载默认着色器
+        
+        s_Data.InternalErrorShader = s_Data.ShaderLib->Get("InternalError");
+        s_Data.StandardShader = s_Data.ShaderLib->Get("Standard");
+        
+        s_Data.InternalErrorMaterial = CreateRef<Material>("InternalError Material", s_Data.InternalErrorShader);   // 创建内部错误材质
+        s_Data.DefaultMaterial = CreateRef<Material>("Default Material", s_Data.StandardShader);                    // 创建默认材质
         
         s_Data.WhiteTexture = Texture2D::Create(1, 1);                      // 创建宽高为 1 的纹理
         uint32_t whitTextureData = 0xffffffff;                              // 255 白色
         s_Data.WhiteTexture->SetData(&whitTextureData, sizeof(uint32_t));   // 设置纹理数据 size = 1 * 1 * 4 == sizeof(uint32_t)
         s_Data.TextureSlots[0] = s_Data.WhiteTexture;                       // 0 号纹理槽为白色纹理（默认）
         
-        s_Data.TextureSlots[1] = Texture2D::Create("Assets/Textures/Texture_Gloss.png");  // 测试纹理
-
-        s_Data.CameraUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::CameraData), 0);  // 创建相机 Uniform 缓冲区
-        s_Data.LightUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::LightData), 1);    // 创建光照 Uniform 缓冲区
-        
-        s_Data.DefaultMaterial = CreateRef<Material>("Default Material", s_Data.StandardShader);  // 创建默认材质
-        
+        // TODO 默认材质参数保存到 .mat 中
         s_Data.DefaultMaterial->SetFloat3("u_AmbientCoeff", glm::vec3(0.2f));
         s_Data.DefaultMaterial->SetFloat3("u_DiffuseCoeff", glm::vec3(0.8f));
         s_Data.DefaultMaterial->SetFloat3("u_SpecularCoeff", glm::vec3(0.5f));
         s_Data.DefaultMaterial->SetFloat("u_Shininess", 32.0f);
-        s_Data.DefaultMaterial->SetTexture("u_MainTexture", Texture2D::Create("Assets/Textures/Texture_Gloss.png"));
+        //s_Data.DefaultMaterial->SetTexture("u_MainTexture", Texture2D::Create("Assets/Textures/Texture_Gloss.png"));
+        
+        s_Data.CameraUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::CameraData), 0);  // 创建相机 Uniform 缓冲区
+        s_Data.LightUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::LightData), 1);    // 创建光照 Uniform 缓冲区
     }
 
     void Renderer3D::Shutdown()
@@ -128,10 +133,8 @@ namespace Lucky
         mesh->SetVertexBufferData(s_Data.MeshVertexBufferData.data(), dataSize);    // 设置顶点缓冲区数据
         
         // 绘制每个 SubMesh
-        for (uint32_t i = 0; i < mesh->GetSubMeshCount(); ++i)
+        for (const SubMesh& sm : mesh->GetSubMeshes())
         {
-            SubMesh sm = mesh->GetSubMesh(i);
-
             // 获取该 SubMesh 对应的材质
             Ref<Material> material = nullptr;
             if (sm.MaterialIndex < materials.size())
@@ -139,10 +142,10 @@ namespace Lucky
                 material = materials[sm.MaterialIndex];
             }
             
-            // 当前 SubMesh 材质不存在 使用默认材质
+            // 当前 SubMesh 材质不存在 使用内部错误材质（表示材质丢失）
             if (!material || !material->GetShader())
             {
-                material = s_Data.DefaultMaterial;
+                material = s_Data.InternalErrorMaterial;
             }
             
             // 绑定 Shader
@@ -175,8 +178,23 @@ namespace Lucky
         memset(&s_Data.Stats, 0, sizeof(Statistics));
     }
 
-    Ref<ShaderLibrary> Renderer3D::GetShaderLibrary()
+    Ref<ShaderLibrary>& Renderer3D::GetShaderLibrary()
     {
-        return s_Data.ShaderLibrary;
+        return s_Data.ShaderLib;
+    }
+
+    Ref<Material>& Renderer3D::GetInternalErrorMaterial()
+    {
+        return s_Data.InternalErrorMaterial;
+    }
+
+    Ref<Material>& Renderer3D::GetDefaultMaterial()
+    {
+        return s_Data.DefaultMaterial;
+    }
+
+    const Ref<Texture2D>& Renderer3D::GetWhiteTexture()
+    {
+        return s_Data.WhiteTexture;
     }
 }

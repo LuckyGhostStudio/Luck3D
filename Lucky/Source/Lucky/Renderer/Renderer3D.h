@@ -74,6 +74,9 @@ namespace Lucky
         /// </summary>
         static void ResetStats();
         
-        static Ref<ShaderLibrary> GetShaderLibrary();
+        static Ref<ShaderLibrary>& GetShaderLibrary();
+        static Ref<Material>& GetInternalErrorMaterial();
+        static Ref<Material>& GetDefaultMaterial();
+        static const Ref<Texture2D>& GetWhiteTexture();
     };
 }

@@ -37,35 +37,16 @@ namespace Lucky
         m_PanelManager->AddPanel<InspectorPanel>(INSPECTOR_PANEL_ID, "Inspector", true, m_Scene);
         
         // Temp 测试
+        Entity cubeEntity = m_Scene->CreateEntity("Cube");
         
+        // MeshFilter
         Ref<Mesh> cubeMesh = MeshFactory::CreateCube();
         cubeMesh->SetName("Cube");  // Temp
-        
-        cubeMesh->UpdateSubMesh(0, { 0, 18, 12, 0 });   // 子网格 0
-        cubeMesh->AddSubMesh(18, 18, 12, 1);    // 子网格 1
-        
-        Entity cubeEntity = m_Scene->CreateEntity("Cube");
         cubeEntity.AddComponent<MeshFilterComponent>(cubeMesh);
         
-        // 材质 0
-        Ref<Material> testMaterial0 = CreateRef<Material>("Test_Material0", Renderer3D::GetShaderLibrary()->Get("Standard"));
-        testMaterial0->SetFloat3("u_AmbientCoeff", glm::vec3(0.2f));
-        testMaterial0->SetFloat3("u_DiffuseCoeff", glm::vec3(0.8f));
-        testMaterial0->SetFloat3("u_SpecularCoeff", glm::vec3(0.5f));
-        testMaterial0->SetFloat("u_Shininess", 32.0f);
-        testMaterial0->SetTexture("u_MainTexture", Texture2D::Create("Assets/Textures/Texture_Gloss.png"));
-        
-        // 材质 1
-        Ref<Material> testMaterial1 = CreateRef<Material>("Test_Material1", Renderer3D::GetShaderLibrary()->Get("Standard"));
-        testMaterial1->SetFloat3("u_AmbientCoeff", glm::vec3(0.2f));
-        testMaterial1->SetFloat3("u_DiffuseCoeff", glm::vec3(1.0f));
-        testMaterial1->SetFloat3("u_SpecularCoeff", glm::vec3(0.9f));
-        testMaterial1->SetFloat("u_Shininess", 32.0f);
-        testMaterial1->SetTexture("u_MainTexture", Texture2D::Create("Assets/Textures/Lucky_Logo.png"));
-            
+        // MeshRenderer
         MeshRendererComponent& meshRenderer = cubeEntity.AddComponent<MeshRendererComponent>();
-        meshRenderer.SetMaterial(0, testMaterial0);
-        meshRenderer.SetMaterial(1, testMaterial1);
+        meshRenderer.SetMaterial(0, Renderer3D::GetDefaultMaterial());  // 使用默认材质
     }
 
     void EditorLayer::OnDetach()

@@ -163,21 +163,15 @@ namespace Lucky
         {
             std::string uniqueName = GenerateUniqueName("Cube", parent);
             newEntity = m_Scene->CreateEntity(uniqueName);
+            
+            // MeshFilter
             Ref<Mesh> cubeMesh = MeshFactory::CreateCube();
             cubeMesh->SetName("Cube");  // Temp
             newEntity.AddComponent<MeshFilterComponent>(cubeMesh);
             
-            // Temp 测试
-            Ref<Material> defaultMaterial = CreateRef<Material>("Default-Material", Renderer3D::GetShaderLibrary()->Get("Standard"));
-        
-            defaultMaterial->SetFloat3("u_AmbientCoeff", glm::vec3(0.2f));
-            defaultMaterial->SetFloat3("u_DiffuseCoeff", glm::vec3(0.8f));
-            defaultMaterial->SetFloat3("u_SpecularCoeff", glm::vec3(0.5f));
-            defaultMaterial->SetFloat("u_Shininess", 32.0f);
-            defaultMaterial->SetTexture("u_MainTexture", Texture2D::Create("Assets/Textures/Texture_Gloss.png"));
-            
+            // MeshRenderer
             MeshRendererComponent& meshRenderer = newEntity.AddComponent<MeshRendererComponent>();
-            meshRenderer.SetMaterial(0, defaultMaterial);
+            meshRenderer.SetMaterial(0, Renderer3D::GetDefaultMaterial());  // 使用默认材质
         }
         
         if (newEntity)
