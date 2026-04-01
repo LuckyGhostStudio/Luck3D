@@ -5,6 +5,20 @@
 namespace Lucky
 {
     /// <summary>
+    /// 图元类型
+    /// </summary>
+    enum class PrimitiveType
+    {
+        None = 0,
+        
+        Cube,
+        Plane,
+        Sphere,
+        Cylinder,
+        Capsule,
+    };
+    
+    /// <summary>
     /// 网格工厂：用于创建网格
     /// </summary>
     class MeshFactory

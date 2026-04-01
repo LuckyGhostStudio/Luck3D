@@ -15,6 +15,8 @@ namespace Lucky
         InspectorPanel() = default;
         InspectorPanel(const Ref<Scene>& scene);
         ~InspectorPanel() override = default;
+        
+        void SetScene(const Ref<Scene>& scene);
 
         void OnUpdate(DeltaTime dt) override;
         

@@ -12,6 +12,8 @@ namespace Lucky
         SceneViewportPanel() = default;
         SceneViewportPanel(const Ref<Scene>& scene);
         ~SceneViewportPanel() override = default;
+        
+        void SetScene(const Ref<Scene>& scene);
 
         void OnUpdate(DeltaTime dt) override;
         

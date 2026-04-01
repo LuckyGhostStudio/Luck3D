@@ -23,6 +23,11 @@ namespace Lucky
         
     }
 
+    void SceneHierarchyPanel::SetScene(const Ref<Scene>& scene)
+    {
+        m_Scene = scene;
+    }
+
     void SceneHierarchyPanel::OnUpdate(DeltaTime dt)
     {
         
@@ -167,9 +172,7 @@ namespace Lucky
             newEntity = m_Scene->CreateEntity(uniqueName);
             
             // MeshFilter
-            Ref<Mesh> cubeMesh = MeshFactory::CreateCube();
-            cubeMesh->SetName("Cube");  // Temp
-            newEntity.AddComponent<MeshFilterComponent>(cubeMesh);
+            newEntity.AddComponent<MeshFilterComponent>(PrimitiveType::Cube);
             
             // MeshRenderer
             MeshRendererComponent& meshRenderer = newEntity.AddComponent<MeshRendererComponent>();

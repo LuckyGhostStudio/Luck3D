@@ -25,6 +25,11 @@ namespace Lucky
         m_Framebuffer = Framebuffer::Create(fbSpec);   // ´´½¨Ö¡»º³åÇø
     }
 
+    void SceneViewportPanel::SetScene(const Ref<Scene>& scene)
+    {
+        m_Scene = scene;
+    }
+
     void SceneViewportPanel::OnUpdate(DeltaTime dt)
     {
         if (FramebufferSpecification spec = m_Framebuffer->GetSpecification();

@@ -9,6 +9,8 @@
 #include "Lucky/Renderer/MeshFactory.h"
 
 #include "Lucky/Scene/Entity.h"
+#include "Lucky/Utils/PlatformUtils.h"
+#include "Lucky/Scene/SceneSerializer.h"
 
 namespace Lucky
 {
@@ -38,9 +40,7 @@ namespace Lucky
         Entity cubeEntity = m_Scene->CreateEntity("Cube");
         
         // MeshFilter
-        Ref<Mesh> cubeMesh = MeshFactory::CreateCube();
-        cubeMesh->SetName("Cube");  // Temp
-        cubeEntity.AddComponent<MeshFilterComponent>(cubeMesh);
+        cubeEntity.AddComponent<MeshFilterComponent>(PrimitiveType::Cube);
         
         // MeshRenderer
         cubeEntity.AddComponent<MeshRendererComponent>();
@@ -88,6 +88,26 @@ namespace Lucky
             // File
             if (ImGui::BeginMenu("File"))
             {
+                if (ImGui::MenuItem("New"))
+                {
+                    NewScene();
+                }
+                
+                if (ImGui::MenuItem("Open..."))
+                {
+                    OpenScene();
+                }
+                
+                if (ImGui::MenuItem("Save"))
+                {
+                    SaveScene();
+                }
+                
+                if (ImGui::MenuItem("Save As..."))
+                {
+                    SaveSceneAs();
+                }
+                
                 // 退出
                 if (ImGui::MenuItem("Quit", "Ctrl Q"))
                 {
@@ -135,5 +155,86 @@ namespace Lucky
 
             ImGui::EndMainMenuBar();
         }
+    }
+
+    void EditorLayer::NewScene()
+    {
+        // TODO 清空当前场景
+        
+        m_Scene = CreateRef<Scene>();               // 创建新场景
+        m_SceneFilePath = std::filesystem::path();  // 场景路径
+
+        // 设置所有面板的场景上下文
+        m_PanelManager->GetPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID)->SetScene(m_Scene);
+        m_PanelManager->GetPanel<SceneHierarchyPanel>(SCENE_HIERARCHY_PANEL_ID)->SetScene(m_Scene);
+        m_PanelManager->GetPanel<InspectorPanel>(INSPECTOR_PANEL_ID)->SetScene(m_Scene);
+    }
+
+    void EditorLayer::OpenScene()
+    {
+        // 打开文件对话框（文件类型名\0 文件类型.luck3d）
+        std::string filepath = FileDialogs::OpenFile("Luck3D Scene(*.luck3d)\0*.luck3d\0");
+
+        // 路径不为空
+        if (!filepath.empty())
+        {
+            OpenScene(filepath);    // 打开场景
+        }
+    }
+
+    void EditorLayer::OpenScene(const std::filesystem::path& filepath)
+    {
+        // 不是场景文件
+        if (filepath.extension().string() != ".luck3d")
+        {
+            LF_WARN("Can not Load {0} - Not a Scene File.", filepath.filename().string());
+            return;
+        }
+
+        Ref<Scene> newScene = CreateRef<Scene>();   // 创建新场景
+        SceneSerializer serializer(newScene);       // 场景序列化器
+        
+        // 反序列化：加载文件场景到新场景
+        if (serializer.Deserialize(filepath.string()))
+        {
+            m_Scene = newScene;
+            m_SceneFilePath = filepath;     // 当前场景路径
+
+            // 设置所有面板的场景上下文
+            m_PanelManager->GetPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID)->SetScene(m_Scene);
+            m_PanelManager->GetPanel<SceneHierarchyPanel>(SCENE_HIERARCHY_PANEL_ID)->SetScene(m_Scene);
+            m_PanelManager->GetPanel<InspectorPanel>(INSPECTOR_PANEL_ID)->SetScene(m_Scene);
+        }
+    }
+
+    void EditorLayer::SaveScene()
+    {
+        if (!m_SceneFilePath.empty())
+        {
+            SerializeScene(m_Scene, m_SceneFilePath);   // 序列化场景到当前场景
+        }
+        else
+        {
+            SaveSceneAs();  // 场景另存为
+        }
+    }
+
+    void EditorLayer::SaveSceneAs()
+    {
+        // 保存文件对话框（文件类型名\0 文件类型.luck3d）
+        std::string filepath = FileDialogs::SaveFile("Luck3D Scene(*.luck3d)\0*.luck3d\0");
+
+        // 路径不为空
+        if (!filepath.empty())
+        {
+            SerializeScene(m_Scene, filepath);    // 序列化场景
+            m_SceneFilePath = filepath;             // 记录当前场景路径
+        }
+    }
+
+    void EditorLayer::SerializeScene(Ref<Scene> scene, const std::filesystem::path& filepath)
+    {
+        SceneSerializer serializer(scene);          // 场景序列化器
+        serializer.Serialize(filepath.string());    // 序列化：保存场景
     }
 }

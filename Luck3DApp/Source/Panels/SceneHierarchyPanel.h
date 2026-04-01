@@ -11,6 +11,8 @@ namespace Lucky
         SceneHierarchyPanel() = default;
         SceneHierarchyPanel(const Ref<Scene>& scene);
         ~SceneHierarchyPanel() override = default;
+        
+        void SetScene(const Ref<Scene>& scene);
 
         void OnUpdate(DeltaTime dt) override;
         

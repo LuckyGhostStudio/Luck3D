@@ -109,16 +109,6 @@ namespace Lucky
 
         UUID GetUUID() { return GetComponent<IDComponent>().ID; }
         const std::string& GetName() { return GetComponent<NameComponent>().Name; }
-
-        bool operator==(const Entity& other)
-        {
-            return m_EntityID == other.m_EntityID && m_Scene == other.m_Scene;  // 物体 id 相同 && 所属场景相同
-        }
-
-        bool operator!=(const Entity& other)
-        {
-            return !(*this == other);
-        }
         
         Entity GetParent() const;
         void SetParent(Entity parent);
@@ -130,7 +120,16 @@ namespace Lucky
         const std::vector<UUID>& GetChildren() const { return GetComponent<RelationshipComponent>().Children; }
 
         bool RemoveChild(Entity child);
+        
+        bool operator==(const Entity& other)
+        {
+            return m_EntityID == other.m_EntityID && m_Scene == other.m_Scene;  // 物体 id 相同 && 所属场景相同
+        }
 
+        bool operator!=(const Entity& other)
+        {
+            return !(*this == other);
+        }
     private:
         entt::entity m_EntityID{ entt::null };  // 实体 ID
         Scene* m_Scene = nullptr;               // 实体所属场景

@@ -20,6 +20,11 @@ namespace Lucky
         
     }
 
+    void InspectorPanel::SetScene(const Ref<Scene>& scene)
+    {
+        m_Scene = scene;
+    }
+
     void InspectorPanel::OnUpdate(DeltaTime dt)
     {
         
