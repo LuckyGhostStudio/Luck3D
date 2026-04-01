@@ -1,0 +1,1020 @@
+
+# Phase 6：DirectionalLightComponent 方向光组件
+
+## 1. 概述
+
+### 1.1 目标
+
+将当前渲染器中**硬编码**的方向光参数提取为 ECS 组件 `DirectionalLightComponent`，使光照成为场景中可编辑的实体属性。
+
+### 1.2 当前问题
+
+在 `Renderer3D::BeginScene` 中，光照参数完全写死：
+
+```cpp
+// Renderer3D.cpp - BeginScene
+s_Data.LightBuffer.Direction = glm::vec3(-0.8f, -1.0f, -0.5f);  // 硬编码
+s_Data.LightBuffer.Color = glm::vec3(1.0f, 1.0f, 1.0f);         // 硬编码
+s_Data.LightBuffer.Intensity = 1.0f;                              // 硬编码
+s_Data.LightUniformBuffer->SetData(&s_Data.LightBuffer, sizeof(Renderer3DData::LightData));
+```
+
+**问题**：
+- 无法在编辑器中调整光照参数
+- 光照与场景实体无关，不符合 ECS 架构
+- 无法通过旋转实体来改变光照方向
+
+### 1.3 改造后的效果
+
+- 场景中存在一个挂载了 `DirectionalLightComponent` 的实体（如 "Directional Light"）
+- 光照方向由该实体的 `TransformComponent` 旋转推导
+- 光照颜色和强度可在 Inspector 中实时编辑
+- Shader 和 UBO 结构**不需要任何改动**
+
+### 1.4 设计原则
+
+- **最小改动**：不改 Shader、不改 UBO 结构、不引入多光源
+- **符合 ECS**：灯光是组件，挂在实体上
+- **与主流引擎一致**：Unity、Unreal、Godot 均将方向光的方向由 Transform 旋转推导
+
+---
+
+## 2. 涉及的文件
+
+### 需要新增的文件
+
+| 文件路径 | 说明 |
+|---------|------|
+| `Lucky/Source/Lucky/Scene/Components/DirectionalLightComponent.h` | 方向光组件定义 |
+
+### 需要修改的文件
+
+| 文件路径 | 说明 |
+|---------|------|
+| `Lucky/Source/Lucky/Renderer/Renderer3D.h` | `BeginScene` 接口变更（传入光照数据） |
+| `Lucky/Source/Lucky/Renderer/Renderer3D.cpp` | 移除硬编码光照，接收外部光照数据 |
+| `Lucky/Source/Lucky/Scene/Scene.cpp` | 在 `OnUpdate` 中查询灯光实体，传递给渲染器 |
+| `Luck3DApp/Source/Panels/InspectorPanel.cpp` | 绘制 `DirectionalLightComponent` 的 Inspector UI |
+| `Luck3DApp/Source/Panels/SceneHierarchyPanel.cpp` | 在创建菜单中添加 "Directional Light" 选项 |
+| `Luck3DApp/Source/EditorLayer.cpp` | 初始场景中创建默认方向光实体 |
+
+---
+
+## 3. DirectionalLightComponent 定义
+
+### 3.1 组件结构
+
+```cpp
+// Lucky/Source/Lucky/Scene/Components/DirectionalLightComponent.h
+#pragma once
+
+#include <glm/glm.hpp>
+
+namespace Lucky
+{
+    /// <summary>
+    /// 方向光组件：表示一个平行光源
+    /// 光照方向由实体的 TransformComponent 旋转推导（取 forward 向量）
+    /// </summary>
+    struct DirectionalLightComponent
+    {
+        glm::vec3 Color = glm::vec3(1.0f, 1.0f, 1.0f);    // 光照颜色
+        float Intensity = 1.0f;                              // 光照强度
+
+        DirectionalLightComponent() = default;
+        DirectionalLightComponent(const DirectionalLightComponent& other) = default;
+        DirectionalLightComponent(const glm::vec3& color, float intensity)
+            : Color(color), Intensity(intensity) {}
+    };
+}
+```
+
+### 3.2 设计说明
+
+#### 为什么不存储 Direction？
+
+**方向由 `TransformComponent` 的旋转推导**，不在组件中冗余存储。
+
+理由：
+1. **与主流引擎一致**：Unity 的 `Light` 组件不存储方向，方向由 `Transform.forward` 决定；Unreal 的 `DirectionalLightComponent` 同理
+2. **避免数据不一致**：如果同时存储 Direction 和 Rotation，两者可能不同步
+3. **直觉操作**：用户在编辑器中旋转灯光实体，光照方向自然跟随变化
+
+#### 如何从 TransformComponent 推导方向
+
+方向光的方向 = 实体的 **forward 向量**（即局部 -Z 轴经旋转后的方向）：
+
+```cpp
+glm::vec3 GetLightDirection(const TransformComponent& transform)
+{
+    glm::quat rotation = transform.GetRotation();
+    glm::vec3 forward = rotation * glm::vec3(0.0f, 0.0f, -1.0f);  // 局部 -Z 轴
+    return forward;
+}
+```
+
+> **注意**：这里使用 `-Z` 作为 forward 方向，与 OpenGL 的右手坐标系一致。如果项目约定不同，需要调整。
+
+---
+
+## 4. TransformComponent 扩展
+
+### 4.1 问题
+
+当前 `TransformComponent` 没有提供获取方向向量的方法（如 `GetForward()`），需要在外部手动计算。
+
+### 4.2 方案对比
+
+#### 方案 A：在 TransformComponent 中添加 GetForward() 方法（推荐 ?）
+
+```cpp
+// TransformComponent.h 中添加
+glm::vec3 GetForward() const
+{
+    return Rotation * glm::vec3(0.0f, 0.0f, -1.0f);
+}
+
+glm::vec3 GetUp() const
+{
+    return Rotation * glm::vec3(0.0f, 1.0f, 0.0f);
+}
+
+glm::vec3 GetRight() const
+{
+    return Rotation * glm::vec3(1.0f, 0.0f, 0.0f);
+}
+```
+
+**优点**：
+- 方向向量是 Transform 的基本能力，属于 TransformComponent 的职责
+- 复用性高，未来相机、角色控制等都需要
+- 代码简洁，调用方只需 `transform.GetForward()`
+
+**缺点**：
+- 修改了 TransformComponent 头文件（但这是合理的扩展）
+
+#### 方案 B：在使用处手动计算方向
+
+```cpp
+// 在 Scene::OnUpdate 中
+glm::quat rotation = transform.GetRotation();
+glm::vec3 direction = rotation * glm::vec3(0.0f, 0.0f, -1.0f);
+```
+
+**优点**：
+- 不修改 TransformComponent
+
+**缺点**：
+- 代码重复，每个需要方向向量的地方都要写一遍
+- 如果 forward 方向约定变更，需要修改多处
+
+#### 方案 C：创建一个工具函数
+
+```cpp
+// 在某个工具头文件中
+namespace TransformUtils
+{
+    glm::vec3 GetForward(const TransformComponent& transform);
+}
+```
+
+**优点**：
+- 不修改 TransformComponent
+
+**缺点**：
+- 增加了不必要的间接层
+- 方向向量本就是 Transform 的固有属性，放在外部不自然
+
+**推荐方案 A**。`GetForward()` / `GetUp()` / `GetRight()` 是 Transform 的基本能力，所有主流引擎的 Transform 都提供这些方法。这不仅服务于灯光，未来相机、角色控制、物理等都会用到。
+
+### 4.3 方案 A 的具体改动
+
+在 `TransformComponent.h` 的 `public` 区域添加：
+
+```cpp
+/// <summary>
+/// 获取前方向量（局部 -Z 轴经旋转后的方向）
+/// </summary>
+glm::vec3 GetForward() const
+{
+    return Rotation * glm::vec3(0.0f, 0.0f, -1.0f);
+}
+
+/// <summary>
+/// 获取上方向量（局部 +Y 轴经旋转后的方向）
+/// </summary>
+glm::vec3 GetUp() const
+{
+    return Rotation * glm::vec3(0.0f, 1.0f, 0.0f);
+}
+
+/// <summary>
+/// 获取右方向量（局部 +X 轴经旋转后的方向）
+/// </summary>
+glm::vec3 GetRight() const
+{
+    return Rotation * glm::vec3(1.0f, 0.0f, 0.0f);
+}
+```
+
+> **注意**：`Rotation` 是 `TransformComponent` 的私有成员（`glm::quat`），但这些方法作为成员函数可以直接访问。
+
+---
+
+## 5. 光照数据传递：Scene → Renderer3D
+
+### 5.1 问题
+
+当前 `Renderer3D::BeginScene` 只接收相机参数，光照数据在内部硬编码。引入灯光组件后，光照数据需要从 `Scene` 传递给 `Renderer3D`。
+
+### 5.2 方案对比
+
+#### 方案 A：修改 BeginScene 签名，传入光照参数（推荐 ?）
+
+```cpp
+// Renderer3D.h
+struct DirectionalLightData
+{
+    glm::vec3 Direction = glm::vec3(-0.8f, -1.0f, -0.5f);
+    glm::vec3 Color = glm::vec3(1.0f, 1.0f, 1.0f);
+    float Intensity = 1.0f;
+};
+
+static void BeginScene(const EditorCamera& camera, const DirectionalLightData& lightData);
+```
+
+```cpp
+// Scene.cpp - OnUpdate
+DirectionalLightData lightData;
+// ... 从灯光实体查询填充 lightData ...
+Renderer3D::BeginScene(camera, lightData);
+```
+
+**优点**：
+- 接口清晰，BeginScene 的参数明确表达了渲染所需的输入
+- 渲染器不依赖 Scene 或 ECS，保持解耦
+- 容易测试（可以传入任意光照数据）
+
+**缺点**：
+- 修改了 BeginScene 的签名，所有调用处需要更新
+- 如果未来增加更多全局渲染参数（如雾效、环境光），参数列表会变长
+
+#### 方案 B：创建 SceneRenderData 结构体，打包所有场景渲染数据
+
+```cpp
+// Renderer3D.h
+struct SceneRenderData
+{
+    // 相机
+    glm::mat4 ViewProjectionMatrix;
+    glm::vec3 CameraPosition;
+    
+    // 方向光
+    glm::vec3 LightDirection = glm::vec3(-0.8f, -1.0f, -0.5f);
+    glm::vec3 LightColor = glm::vec3(1.0f, 1.0f, 1.0f);
+    float LightIntensity = 1.0f;
+};
+
+static void BeginScene(const SceneRenderData& sceneData);
+```
+
+**优点**：
+- 未来扩展方便，新增全局参数只需在结构体中添加字段
+- BeginScene 签名稳定，不会因为新增参数而变化
+
+**缺点**：
+- 需要在 Scene 中手动填充 SceneRenderData，包括相机数据
+- 破坏了当前 `BeginScene(const EditorCamera& camera)` 的简洁接口
+- 过度设计：当前只有相机和一个方向光，打包的收益不大
+
+#### 方案 C：Renderer3D 提供 SetLight 方法，在 BeginScene 之前/之后调用
+
+```cpp
+// Renderer3D.h
+static void SetDirectionalLight(const glm::vec3& direction, const glm::vec3& color, float intensity);
+static void BeginScene(const EditorCamera& camera);  // 签名不变
+```
+
+```cpp
+// Scene.cpp - OnUpdate
+Renderer3D::SetDirectionalLight(direction, color, intensity);
+Renderer3D::BeginScene(camera);
+```
+
+**优点**：
+- BeginScene 签名不变，向后兼容
+- 灵活，可以在任意时机设置光照
+
+**缺点**：
+- 调用顺序依赖：必须在 BeginScene 之前调用 SetDirectionalLight
+- 状态管理不清晰：光照数据作为 Renderer3D 的隐式状态存在
+- 如果忘记调用 SetDirectionalLight，会使用上一帧的旧数据（或默认值）
+
+#### 方案 D：在 BeginScene 中新增一个重载
+
+```cpp
+// Renderer3D.h
+static void BeginScene(const EditorCamera& camera);  // 原有签名保留（使用默认光照）
+static void BeginScene(const EditorCamera& camera, const DirectionalLightData& lightData);  // 新增重载
+```
+
+**优点**：
+- 完全向后兼容，原有调用不需要修改
+- 新代码使用新重载，旧代码继续使用旧重载
+
+**缺点**：
+- 两个重载可能造成混淆：哪个是"正确"的用法？
+- 旧重载内部仍然需要硬编码默认光照值
+
+**推荐方案 A**。理由：
+
+1. 当前 `BeginScene` 的调用处只有 `Scene::OnUpdate` 一处（编辑器相机版本），改动范围可控
+2. 接口语义清晰：渲染一个场景需要相机 + 光照，这是自然的
+3. 保持渲染器与 ECS 解耦：`Renderer3D` 不需要知道 `DirectionalLightComponent` 的存在
+4. 方案 B 过度设计，方案 C 有隐式状态问题，方案 D 有接口歧义
+
+### 5.3 方案 A 的具体改动
+
+#### 5.3.1 Renderer3D.h 改动
+
+```cpp
+// 在 Renderer3D 类定义之前添加
+/// <summary>
+/// 方向光数据：从 Scene 传递给 Renderer3D 的光照参数
+/// </summary>
+struct DirectionalLightData
+{
+    glm::vec3 Direction = glm::vec3(-0.8f, -1.0f, -0.5f);  // 光照方向（世界空间）
+    glm::vec3 Color = glm::vec3(1.0f, 1.0f, 1.0f);         // 光照颜色
+    float Intensity = 1.0f;                                   // 光照强度
+};
+```
+
+修改 `BeginScene` 签名：
+
+```cpp
+/// <summary>
+/// 开始渲染场景
+/// </summary>
+/// <param name="camera">编辑器相机</param>
+/// <param name="lightData">方向光数据</param>
+static void BeginScene(const EditorCamera& camera, const DirectionalLightData& lightData);
+```
+
+#### 5.3.2 Renderer3D.cpp 改动
+
+```cpp
+void Renderer3D::BeginScene(const EditorCamera& camera, const DirectionalLightData& lightData)
+{
+    // 设置 Camera Uniform 缓冲区数据
+    s_Data.CameraBuffer.ViewProjectionMatrix = camera.GetViewProjectionMatrix();
+    s_Data.CameraBuffer.Position = camera.GetPosition();
+    s_Data.CameraUniformBuffer->SetData(&s_Data.CameraBuffer, sizeof(Renderer3DData::CameraData));
+    
+    // 设置 Light Uniform 缓冲区数据（从外部传入，不再硬编码）
+    s_Data.LightBuffer.Direction = lightData.Direction;
+    s_Data.LightBuffer.Color = lightData.Color;
+    s_Data.LightBuffer.Intensity = lightData.Intensity;
+    s_Data.LightUniformBuffer->SetData(&s_Data.LightBuffer, sizeof(Renderer3DData::LightData));
+}
+```
+
+---
+
+## 6. Scene::OnUpdate 中查询灯光实体
+
+### 6.1 问题
+
+`Scene::OnUpdate` 需要从 ECS 注册表中查询拥有 `DirectionalLightComponent` 的实体，提取光照数据传递给渲染器。
+
+### 6.2 方案对比
+
+#### 方案 A：使用 entt::view 查询，取第一个灯光实体（推荐 ?）
+
+```cpp
+void Scene::OnUpdate(DeltaTime dt, EditorCamera& camera)
+{
+    // 查询方向光
+    DirectionalLightData lightData;  // 使用默认值
+    {
+        auto lightView = m_Registry.view<TransformComponent, DirectionalLightComponent>();
+        for (auto entity : lightView)
+        {
+            auto [transform, light] = lightView.get<TransformComponent, DirectionalLightComponent>(entity);
+            
+            lightData.Direction = transform.GetForward();
+            lightData.Color = light.Color;
+            lightData.Intensity = light.Intensity;
+            break;  // 当前只支持一个方向光，取第一个
+        }
+    }
+    
+    Renderer3D::BeginScene(camera, lightData);
+    {
+        // ... 现有的网格渲染逻辑 ...
+    }
+    Renderer3D::EndScene();
+}
+```
+
+**优点**：
+- 简单直接
+- 如果场景中没有灯光实体，使用 `DirectionalLightData` 的默认值，不会崩溃
+- `break` 语义清晰：当前只支持一个方向光
+
+**缺点**：
+- 如果场景中有多个方向光实体，只会使用第一个（但当前阶段这是合理的限制）
+
+#### 方案 B：缓存灯光实体引用
+
+在 `Scene` 中缓存一个灯光实体的引用/ID，避免每帧查询。
+
+```cpp
+// Scene.h
+private:
+    entt::entity m_DirectionalLightEntity = entt::null;
+```
+
+**优点**：
+- 避免每帧遍历查询
+
+**缺点**：
+- 需要在灯光实体创建/销毁时维护缓存
+- 增加了状态管理的复杂度
+- 对于当前场景规模（< 100 实体），`entt::view` 的查询性能完全不是问题
+
+#### 方案 C：在 Scene 中维护一个灯光列表
+
+```cpp
+// Scene.h
+private:
+    std::vector<entt::entity> m_Lights;
+```
+
+**优点**：
+- 为未来多光源做准备
+
+**缺点**：
+- 过度设计：当前只需要一个方向光
+- 需要在实体创建/销毁时维护列表
+
+**推荐方案 A**。理由：
+
+1. `entt::view` 查询非常高效（内部是稀疏集合遍历），对于当前场景规模完全没有性能问题
+2. 代码最简单，不需要额外的状态管理
+3. 如果未来需要多光源，再改为方案 C 也很容易
+
+### 6.3 方案 A 的具体改动
+
+#### Scene.cpp 头文件新增
+
+```cpp
+#include "Components/DirectionalLightComponent.h"
+```
+
+#### Scene::OnUpdate 改动
+
+```cpp
+void Scene::OnUpdate(DeltaTime dt, EditorCamera& camera)
+{
+    // ---- 查询方向光数据 ----
+    DirectionalLightData lightData;  // 默认值：Direction(-0.8, -1.0, -0.5), Color(1,1,1), Intensity(1.0)
+    {
+        auto lightView = m_Registry.view<TransformComponent, DirectionalLightComponent>();
+        for (auto entity : lightView)
+        {
+            auto [transform, light] = lightView.get<TransformComponent, DirectionalLightComponent>(entity);
+            
+            lightData.Direction = transform.GetForward();
+            lightData.Color = light.Color;
+            lightData.Intensity = light.Intensity;
+            break;  // 当前只支持一个方向光
+        }
+    }
+
+    // ---- 渲染 ----
+    Renderer3D::BeginScene(camera, lightData);
+    {
+        // 获取同时拥有 TransformComponent MeshFilterComponent MeshRendererComponent 的实体
+        auto meshGroup = m_Registry.group<TransformComponent>(entt::get<MeshFilterComponent, MeshRendererComponent>);
+
+        for (auto entity : meshGroup)
+        {
+            auto [transform, meshFilter, meshRenderer] = meshGroup.get<TransformComponent, MeshFilterComponent, MeshRendererComponent>(entity);
+
+            Renderer3D::DrawMesh(transform.GetTransform(), meshFilter.Mesh, meshRenderer.Materials);    // 绘制网格
+        }
+    }
+    Renderer3D::EndScene();
+}
+```
+
+---
+
+## 7. Scene 组件注册
+
+### 7.1 OnComponentAdded 特化
+
+在 `Scene.cpp` 末尾添加 `DirectionalLightComponent` 的 `OnComponentAdded` 模板特化：
+
+```cpp
+template<>
+void Scene::OnComponentAdded<DirectionalLightComponent>(Entity entity, DirectionalLightComponent& component)
+{
+    // 方向光组件添加时无需特殊处理
+}
+```
+
+> **重要**：如果不添加此特化，`Entity::AddComponent<DirectionalLightComponent>()` 会触发 `static_assert` 编译错误（因为通用模板中有 `static_assert(sizeof(TComponent) == 0)`）。
+
+---
+
+## 8. Inspector UI 绘制
+
+### 8.1 问题
+
+需要在 Inspector 面板中绘制 `DirectionalLightComponent` 的属性，使用户可以编辑光照颜色和强度。
+
+### 8.2 方案对比
+
+#### 方案 A：在 DrawComponents 中直接添加 DrawComponent 调用（推荐 ?）
+
+```cpp
+// InspectorPanel.cpp - DrawComponents 方法末尾
+DrawComponent<DirectionalLightComponent>("Directional Light", entity, [](DirectionalLightComponent& light)
+{
+    ImGui::ColorEdit3("Color", &light.Color.x);
+    ImGui::DragFloat("Intensity", &light.Intensity, 0.01f, 0.0f, 10.0f);
+});
+```
+
+**优点**：
+- 与现有组件绘制模式完全一致
+- 代码简洁
+- 颜色使用 `ColorEdit3`，提供颜色选择器
+
+**缺点**：
+- 无
+
+#### 方案 B：为灯光组件创建独立的绘制函数
+
+```cpp
+static void DrawDirectionalLightUI(DirectionalLightComponent& light)
+{
+    ImGui::ColorEdit3("Color", &light.Color.x);
+    ImGui::DragFloat("Intensity", &light.Intensity, 0.01f, 0.0f, 10.0f);
+}
+```
+
+**优点**：
+- 如果 UI 逻辑复杂，可以独立维护
+
+**缺点**：
+- 当前 UI 很简单（只有颜色和强度），不需要独立函数
+- 增加了不必要的间接层
+
+**推荐方案 A**。灯光组件的 UI 非常简单，直接在 `DrawComponent` 的 lambda 中实现即可，与现有的 `TransformComponent`、`MeshFilterComponent` 等组件的绘制方式保持一致。
+
+### 8.3 方案 A 的具体改动
+
+#### InspectorPanel.cpp 头文件新增
+
+```cpp
+#include "Lucky/Scene/Components/DirectionalLightComponent.h"
+```
+
+#### DrawComponents 方法中添加
+
+在 `DrawComponents` 方法中，`MeshRendererComponent` 的绘制之前（或之后）添加：
+
+```cpp
+// DirectionalLight 组件
+DrawComponent<DirectionalLightComponent>("Directional Light", entity, [](DirectionalLightComponent& light)
+{
+    // 光照颜色
+    ImGui::ColorEdit3("Color", &light.Color.x);
+    
+    // 光照强度
+    ImGui::DragFloat("Intensity", &light.Intensity, 0.01f, 0.0f, 10.0f);
+});
+```
+
+### 8.4 光照方向的显示
+
+#### 方案 A：不单独显示方向，用户通过 Transform 的 Rotation 控制（推荐 ?）
+
+光照方向完全由 `TransformComponent` 的 Rotation 决定，用户在 Transform 组件中调整旋转即可改变光照方向。
+
+**优点**：
+- 不需要额外的 UI
+- 与主流引擎行为一致（Unity 中调整 Directional Light 的旋转即可改变光照方向）
+
+**缺点**：
+- 用户可能不直觉地知道"旋转灯光实体 = 改变光照方向"
+
+#### 方案 B：在 DirectionalLight 组件 UI 中显示当前方向（只读）
+
+```cpp
+DrawComponent<DirectionalLightComponent>("Directional Light", entity, [&entity](DirectionalLightComponent& light)
+{
+    // 显示当前光照方向（只读）
+    if (entity.HasComponent<TransformComponent>())
+    {
+        glm::vec3 direction = entity.GetComponent<TransformComponent>().GetForward();
+        ImGui::InputFloat3("Direction", &direction.x, "%.2f", ImGuiInputTextFlags_ReadOnly);
+    }
+    
+    ImGui::ColorEdit3("Color", &light.Color.x);
+    ImGui::DragFloat("Intensity", &light.Intensity, 0.01f, 0.0f, 10.0f);
+});
+```
+
+**优点**：
+- 用户可以直观看到当前光照方向
+- 只读显示，不会与 Transform 冲突
+
+**缺点**：
+- 需要在 lambda 中捕获 entity 引用
+- 增加了少量 UI 复杂度
+
+**推荐方案 B**。虽然方案 A 更简单，但显示一个只读的方向向量可以帮助用户理解"旋转 → 方向"的关系，提升编辑体验。
+
+---
+
+## 9. SceneHierarchyPanel 创建菜单
+
+### 9.1 问题
+
+需要在 Hierarchy 面板的右键创建菜单中添加 "Directional Light" 选项，方便用户创建灯光实体。
+
+### 9.2 方案对比
+
+#### 方案 A：在现有 Create 菜单中直接添加（推荐 ?）
+
+```cpp
+// SceneHierarchyPanel.cpp - DrawEntityCreateMenu
+if (ImGui::MenuItem("Directional Light"))
+{
+    std::string uniqueName = GenerateUniqueName("Directional Light", parent);
+    newEntity = m_Scene->CreateEntity(uniqueName);
+    newEntity.AddComponent<DirectionalLightComponent>();
+}
+```
+
+**优点**：
+- 最简单，与现有 "Create Empty" 和 "Cube" 菜单项风格一致
+
+**缺点**：
+- 如果未来灯光类型增多，菜单会变长
+
+#### 方案 B：创建 "Light" 子菜单
+
+```cpp
+if (ImGui::BeginMenu("Light"))
+{
+    if (ImGui::MenuItem("Directional Light"))
+    {
+        // ...
+    }
+    // 未来：Point Light, Spot Light
+    ImGui::EndMenu();
+}
+```
+
+**优点**：
+- 为未来多种灯光类型做准备
+- 菜单结构更清晰
+
+**缺点**：
+- 当前只有一种灯光，子菜单显得多余
+- 多了一层菜单嵌套，操作步骤增加
+
+**推荐方案 A**。当前只有一种灯光类型，直接添加菜单项最简单。未来增加点光源/聚光灯时再改为子菜单也很容易。
+
+### 9.3 方案 A 的具体改动
+
+#### SceneHierarchyPanel.cpp 头文件新增
+
+```cpp
+#include "Lucky/Scene/Components/DirectionalLightComponent.h"
+```
+
+#### DrawEntityCreateMenu 方法中添加
+
+在 "Cube" 菜单项之后添加：
+
+```cpp
+// 创建方向光
+if (ImGui::MenuItem("Directional Light"))
+{
+    std::string uniqueName = GenerateUniqueName("Directional Light", parent);
+    newEntity = m_Scene->CreateEntity(uniqueName);
+    newEntity.AddComponent<DirectionalLightComponent>();
+}
+```
+
+### 9.4 默认旋转
+
+#### 方案 A：使用默认旋转（0, 0, 0），即光照方向为 (0, 0, -1)
+
+**优点**：简单
+**缺点**：光照方向为 -Z，可能不是最直观的默认方向
+
+#### 方案 B：设置一个倾斜的默认旋转，使光照方向接近当前硬编码值（推荐 ?）
+
+当前硬编码的方向是 `(-0.8, -1.0, -0.5)`（归一化后约为从左上方照射下来）。可以设置一个默认旋转使 forward 向量接近此方向：
+
+```cpp
+if (ImGui::MenuItem("Directional Light"))
+{
+    std::string uniqueName = GenerateUniqueName("Directional Light", parent);
+    newEntity = m_Scene->CreateEntity(uniqueName);
+    
+    // 设置默认旋转，使光照方向接近 (-0.8, -1.0, -0.5)
+    // 对应的欧拉角约为 (50°, -32°, 0°) 即 (0.87rad, -0.56rad, 0)
+    auto& transform = newEntity.GetComponent<TransformComponent>();
+    transform.SetRotationEuler(glm::vec3(glm::radians(50.0f), glm::radians(-32.0f), 0.0f));
+    
+    newEntity.AddComponent<DirectionalLightComponent>();
+}
+```
+
+**优点**：
+- 创建后的光照效果与当前硬编码一致，用户不会感到突变
+- 直觉上"从左上方照射"是合理的默认光照方向
+
+**缺点**：
+- 默认旋转值不是整数，看起来不够"干净"
+
+**推荐方案 B**。保持与当前硬编码光照方向一致的默认值，确保引入灯光组件后视觉效果不变。
+
+---
+
+## 10. EditorLayer 初始场景
+
+### 10.1 问题
+
+当前 `EditorLayer::OnAttach` 中创建了一个 Cube 实体作为测试场景。引入灯光组件后，需要同时创建一个默认的方向光实体。
+
+### 10.2 具体改动
+
+```cpp
+// EditorLayer.cpp - OnAttach
+
+#include "Lucky/Scene/Components/DirectionalLightComponent.h"
+
+// ... 现有的 Cube 创建代码 ...
+
+// 创建默认方向光
+Entity lightEntity = m_Scene->CreateEntity("Directional Light");
+auto& lightTransform = lightEntity.GetComponent<TransformComponent>();
+lightTransform.SetRotationEuler(glm::vec3(glm::radians(50.0f), glm::radians(-32.0f), 0.0f));
+lightEntity.AddComponent<DirectionalLightComponent>();
+```
+
+---
+
+## 11. Shader 和 UBO 的影响
+
+### 11.1 结论：不需要任何改动
+
+当前的 Shader（`Standard.vert` / `Standard.frag`）和 UBO 结构已经完美支持方向光：
+
+**Standard.frag 中的 Light UBO：**
+```glsl
+layout(std140, binding = 1) uniform Light
+{
+    float Intensity;
+    vec3 Direction;
+    vec3 Color;
+} u_Light;
+```
+
+**Renderer3D.cpp 中的 LightData 结构体：**
+```cpp
+struct LightData
+{
+    float Intensity;
+    char padding3[12];
+    glm::vec3 Direction;
+    char padding1[4];
+    glm::vec3 Color;
+    char padding2[4];
+};
+```
+
+这两者的内存布局完全匹配。我们只是改变了 `LightData` 的**数据来源**（从硬编码改为从灯光实体查询），数据格式和传输方式完全不变。
+
+---
+
+## 12. 完整的文件修改清单
+
+### 12.1 新增文件
+
+#### `Lucky/Source/Lucky/Scene/Components/DirectionalLightComponent.h`
+
+```cpp
+#pragma once
+
+#include <glm/glm.hpp>
+
+namespace Lucky
+{
+    /// <summary>
+    /// 方向光组件：表示一个平行光源
+    /// 光照方向由实体的 TransformComponent 旋转推导（取 forward 向量）
+    /// </summary>
+    struct DirectionalLightComponent
+    {
+        glm::vec3 Color = glm::vec3(1.0f, 1.0f, 1.0f);    // 光照颜色
+        float Intensity = 1.0f;                              // 光照强度
+
+        DirectionalLightComponent() = default;
+        DirectionalLightComponent(const DirectionalLightComponent& other) = default;
+        DirectionalLightComponent(const glm::vec3& color, float intensity)
+            : Color(color), Intensity(intensity) {}
+    };
+}
+```
+
+### 12.2 修改文件
+
+#### `Lucky/Source/Lucky/Scene/Components/TransformComponent.h`
+
+在 `public` 区域（`GetTransform()` 方法之后）添加：
+
+```cpp
+glm::vec3 GetForward() const
+{
+    return Rotation * glm::vec3(0.0f, 0.0f, -1.0f);
+}
+
+glm::vec3 GetUp() const
+{
+    return Rotation * glm::vec3(0.0f, 1.0f, 0.0f);
+}
+
+glm::vec3 GetRight() const
+{
+    return Rotation * glm::vec3(1.0f, 0.0f, 0.0f);
+}
+```
+
+#### `Lucky/Source/Lucky/Renderer/Renderer3D.h`
+
+1. 在 `Renderer3D` 类定义之前添加 `DirectionalLightData` 结构体
+2. 修改 `BeginScene(const EditorCamera& camera)` 签名为 `BeginScene(const EditorCamera& camera, const DirectionalLightData& lightData)`
+
+#### `Lucky/Source/Lucky/Renderer/Renderer3D.cpp`
+
+1. 修改 `BeginScene` 实现，使用传入的 `lightData` 替代硬编码值
+
+#### `Lucky/Source/Lucky/Scene/Scene.cpp`
+
+1. 添加 `#include "Components/DirectionalLightComponent.h"`
+2. 修改 `OnUpdate`：在 `BeginScene` 之前查询灯光实体
+3. 添加 `OnComponentAdded<DirectionalLightComponent>` 模板特化
+
+#### `Luck3DApp/Source/Panels/InspectorPanel.cpp`
+
+1. 添加 `#include "Lucky/Scene/Components/DirectionalLightComponent.h"`
+2. 在 `DrawComponents` 中添加 `DirectionalLightComponent` 的绘制
+
+#### `Luck3DApp/Source/Panels/SceneHierarchyPanel.cpp`
+
+1. 添加 `#include "Lucky/Scene/Components/DirectionalLightComponent.h"`
+2. 在 `DrawEntityCreateMenu` 中添加 "Directional Light" 菜单项
+
+#### `Luck3DApp/Source/EditorLayer.cpp`
+
+1. 添加 `#include "Lucky/Scene/Components/DirectionalLightComponent.h"`
+2. 在 `OnAttach` 中创建默认方向光实体
+
+---
+
+## 13. 实现步骤
+
+按以下顺序实现：
+
+### Step 1：创建 DirectionalLightComponent.h
+- 新建文件 `Lucky/Source/Lucky/Scene/Components/DirectionalLightComponent.h`
+- 定义 `DirectionalLightComponent` 结构体
+
+### Step 2：修改 TransformComponent.h
+- 添加 `GetForward()`、`GetUp()`、`GetRight()` 方法
+
+### Step 3：修改 Renderer3D.h / Renderer3D.cpp
+- 添加 `DirectionalLightData` 结构体
+- 修改 `BeginScene` 签名和实现
+
+### Step 4：修改 Scene.cpp
+- 添加头文件包含
+- 修改 `OnUpdate`：查询灯光实体，传递光照数据
+- 添加 `OnComponentAdded<DirectionalLightComponent>` 特化
+
+### Step 5：修改 EditorLayer.cpp
+- 创建默认方向光实体
+
+### Step 6：修改 InspectorPanel.cpp
+- 添加 `DirectionalLightComponent` 的 Inspector UI 绘制
+
+### Step 7：修改 SceneHierarchyPanel.cpp
+- 在创建菜单中添加 "Directional Light" 选项
+
+### Step 8：编译并测试
+
+---
+
+## 14. 验证清单
+
+| # | 验证项 | 预期结果 |
+|---|--------|---------|
+| 1 | 编译通过 | 无编译错误 |
+| 2 | 启动后场景中有 "Directional Light" 实体 | Hierarchy 面板中可见 |
+| 3 | 选中灯光实体，Inspector 显示 DirectionalLight 组件 | 显示 Color 和 Intensity 属性 |
+| 4 | 初始光照效果与改造前一致 | 视觉上无变化（默认旋转产生的方向接近原硬编码值） |
+| 5 | 修改灯光颜色 | 场景中物体的光照颜色实时变化 |
+| 6 | 修改灯光强度 | 场景中物体的亮度实时变化 |
+| 7 | 旋转灯光实体 | 光照方向跟随变化，阴影/高光位置改变 |
+| 8 | 删除灯光实体 | 使用默认光照值，不崩溃 |
+| 9 | 右键创建 "Directional Light" | 新灯光实体创建成功，光照生效 |
+| 10 | 场景中没有灯光实体 | 使用 `DirectionalLightData` 默认值渲染，不崩溃 |
+
+---
+
+## 15. 方案决策汇总
+
+| # | 决策点 | 推荐方案 | 原因 |
+|---|--------|---------|------|
+| 1 | 光照方向存储 | 不存储，由 Transform 旋转推导 | 与主流引擎一致，避免数据不一致 |
+| 2 | TransformComponent 扩展 | 方案 A：添加 GetForward/Up/Right | 基本能力，复用性高 |
+| 3 | 光照数据传递方式 | 方案 A：修改 BeginScene 签名 | 接口清晰，保持渲染器与 ECS 解耦 |
+| 4 | Scene 中查询灯光 | 方案 A：entt::view 每帧查询 | 简单高效，无需额外状态管理 |
+| 5 | Inspector UI | 方案 A + B：DrawComponent + 只读方向显示 | 与现有模式一致，方向显示提升体验 |
+| 6 | 创建菜单 | 方案 A：直接添加菜单项 | 当前只有一种灯光，无需子菜单 |
+| 7 | 默认旋转 | 方案 B：设置倾斜旋转匹配原硬编码方向 | 保持视觉一致性 |
+
+---
+
+## 16. 数据流图
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                          Scene::OnUpdate                            │
+│                                                                     │
+│  ┌──────────────────────────────────────────┐                       │
+│  │ 1. 查询灯光实体                           │                       │
+│  │    view<TransformComponent,              │                       │
+│  │         DirectionalLightComponent>       │                       │
+│  │                                          │                       │
+│  │    ┌─────────────────┐  ┌──────────────┐ │                       │
+│  │    │TransformComponent│  │DirectionalLight│                       │
+│  │    │                 │  │Component     │ │                       │
+│  │    │ Rotation ───────┼──┼→ GetForward()│ │                       │
+│  │    │                 │  │ Color        │ │                       │
+│  │    │                 │  │ Intensity    │ │                       │
+│  │    └─────────────────┘  └──────┬───────┘ │                       │
+│  │                                │         │                       │
+│  └────────────────────────────────┼─────────┘                       │
+│                                   │                                 │
+│                                   ▼                                 │
+│                    ┌──────────────────────────┐                     │
+│                    │  DirectionalLightData     │                     │
+│                    │  - Direction (from forward)│                    │
+│                    │  - Color                  │                     │
+│                    │  - Intensity              │                     │
+│                    └────────────┬─────────────┘                     │
+│                                 │                                   │
+│                                 ▼                                   │
+│              Renderer3D::BeginScene(camera, lightData)              │
+│                                 │                                   │
+│                                 ▼                                   │
+│                    ┌──────────────────────────┐                     │
+│                    │  LightData UBO (binding=1)│                    │
+│                    │  - Intensity              │                     │
+│                    │  - Direction              │                     │
+│                    │  - Color                  │                     │
+│                    └────────────┬─────────────┘                     │
+│                                 │                                   │
+│                                 ▼                                   │
+│                    ┌──────────────────────────┐                     │
+│                    │  Standard.frag            │                     │
+│                    │  u_Light.Intensity        │                     │
+│                    │  u_Light.Direction        │                     │
+│                    │  u_Light.Color            │                     │
+│                    └──────────────────────────┘                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 17. 未来扩展方向（不在本次范围内）
+
+| 扩展 | 说明 | 前置条件 |
+|------|------|---------|
+| 多方向光 | 支持场景中多个方向光 | 需要改 Shader 为灯光数组或 SSBO |
+| 点光源 PointLightComponent | 支持点光源 | 需要新的衰减计算 Shader |
+| 聚光灯 SpotLightComponent | 支持聚光灯 | 需要锥形计算 Shader |
+| 灯光基类 | 抽象 LightComponent 基类 | 当有 2 种以上灯光类型时 |
+| 阴影映射 | 方向光产生阴影 | 需要 Shadow Map 渲染管线 |
+| 灯光 Gizmo | 在场景中显示灯光图标和方向线 | 需要 Gizmo 渲染系统 |
