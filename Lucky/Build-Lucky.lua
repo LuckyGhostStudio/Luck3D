@@ -32,6 +32,7 @@ project "Lucky"
         "%{IncludeDir.stb_image}",
         "%{IncludeDir.glm}",
         "%{IncludeDir.entt}",
+        "%{IncludeDir.yaml_cpp}",
     }
 
     links
@@ -39,6 +40,7 @@ project "Lucky"
         "GLFW",
         "GLAD",
         "ImGui",
+        "yaml-cpp",
         "opengl32.lib",
     }
 

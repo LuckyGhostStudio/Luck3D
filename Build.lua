@@ -10,9 +10,10 @@ outputdir = "%{cfg.system}-%{cfg.architecture}/%{cfg.buildcfg}"     -- 输出目
 
 -- 依赖
 group "Dependencies"
-    include "Lucky/Vendor/GLFW"  -- 包含 GLFW 目录
-    include "Lucky/Vendor/GLAD"  -- 包含 GLAD 目录
-    include "Lucky/Vendor/imgui" -- 包含 imgui 目录
+    include "Lucky/Vendor/GLFW"     -- 包含 GLFW 目录
+    include "Lucky/Vendor/GLAD"     -- 包含 GLAD 目录
+    include "Lucky/Vendor/imgui"    -- 包含 imgui 目录
+    include "Lucky/Vendor/yaml-cpp" -- 包含 yaml-cpp 目录
 group ""
 
 include "Dependencies.lua"
