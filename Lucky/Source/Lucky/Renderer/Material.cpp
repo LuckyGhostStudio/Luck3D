@@ -228,6 +228,16 @@ namespace Lucky
     
     // ---- 获取属性方法 End ----
 
+    MaterialProperty* Material::GetProperty(const std::string& name)
+    {
+        return FindProperty(name);
+    }
+
+    const MaterialProperty* Material::GetProperty(const std::string& name) const
+    {
+        return FindProperty(name);
+    }
+    
     void Material::Apply() const
     {
         if (!m_Shader)
@@ -237,9 +247,17 @@ namespace Lucky
 
         int textureSlot = 1;  // 0 号槽位保留给引擎白色纹理 TODO 获取第一个可用槽位
 
-        // 设置 Shader uniform
-        for (const MaterialProperty& prop : m_Properties)
+        // 按声明顺序遍历属性，设置 Shader uniform
+        for (const std::string& name : m_PropertyOrder)
         {
+            auto it = m_PropertyMap.find(name);
+            if (it == m_PropertyMap.end())
+            {
+                continue;
+            }
+
+            const MaterialProperty& prop = it->second;  // 当前属性
+            
             switch (prop.Type)
             {
                 case ShaderUniformType::Float:
@@ -286,8 +304,11 @@ namespace Lucky
 
     void Material::RebuildProperties()
     {
-        std::vector<MaterialProperty> oldProperties = m_Properties;  // 保存旧属性
-        m_Properties.clear();
+        // 保存旧属性 Map
+        std::unordered_map<std::string, MaterialProperty> oldPropertyMap = std::move(m_PropertyMap);
+
+        m_PropertyMap.clear();
+        m_PropertyOrder.clear();
 
         if (!m_Shader)
         {
@@ -311,43 +332,37 @@ namespace Lucky
             prop.Value = GetMaterialPropertyDefaultValue(uniform.Type);
 
             // 尝试从旧属性中恢复同名同类型的值
-            for (const MaterialProperty& oldProp : oldProperties)
+            auto oldIt = oldPropertyMap.find(uniform.Name);
+            if (oldIt != oldPropertyMap.end() && oldIt->second.Type == prop.Type)
             {
-                if (oldProp.Name == prop.Name && oldProp.Type == prop.Type)
-                {
-                    prop.Value = oldProp.Value;
-                    break;
-                }
+                prop.Value = oldIt->second.Value;
             }
 
-            m_Properties.push_back(prop);   // 添加到属性列表
+            m_PropertyMap[uniform.Name] = std::move(prop);  // 添加到属性 Map
+            m_PropertyOrder.push_back(uniform.Name);        // 记录声明顺序
         }
 
-        LF_CORE_INFO("Material '{0}' properties rebuilt: {1} properties", m_Name, m_Properties.size());
+        LF_CORE_INFO("Material '{0}' properties rebuilt: {1} properties", m_Name, m_PropertyMap.size());
     }
 
     // ---- FindProperty ----
 
     MaterialProperty* Material::FindProperty(const std::string& name)
     {
-        for (MaterialProperty& prop : m_Properties)
+        auto it = m_PropertyMap.find(name);
+        if (it != m_PropertyMap.end())
         {
-            if (prop.Name == name)
-            {
-                return &prop;
-            }
+            return &it->second;
         }
         return nullptr;
     }
 
     const MaterialProperty* Material::FindProperty(const std::string& name) const
     {
-        for (const MaterialProperty& prop : m_Properties)
+        auto it = m_PropertyMap.find(name);
+        if (it != m_PropertyMap.end())
         {
-            if (prop.Name == name)
-            {
-                return &prop;
-            }
+            return &it->second;
         }
         return nullptr;
     }

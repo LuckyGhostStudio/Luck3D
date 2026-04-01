@@ -195,9 +195,18 @@ namespace Lucky
         
         if (opened)
         {
-            // 绘制材质属性
-            for (const MaterialProperty& prop : material->GetProperties())
+            // 绘制材质属性（按 Shader uniform 声明顺序遍历）
+            const auto& propertyMap = material->GetPropertyMap();
+            for (const std::string& propName : material->GetPropertyOrder())
             {
+                auto it = propertyMap.find(propName);
+                if (it == propertyMap.end())
+                {
+                    continue;
+                }
+
+                const MaterialProperty& prop = it->second;  // 当前属性
+                
                 switch (prop.Type)
                 {
                 case ShaderUniformType::Float:

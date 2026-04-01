@@ -80,15 +80,25 @@ namespace Lucky
         Ref<Texture2D> GetTexture(const std::string& name) const;
 
         /// <summary>
+        /// 按名获取属性指针（未找到返回 nullptr）
+        /// </summary>
+        MaterialProperty* GetProperty(const std::string& name);
+        const MaterialProperty* GetProperty(const std::string& name) const;
+        
+        /// <summary>
         /// 应用材质：将所有属性值（用户可编辑的 uniform）上传到 GPU
         /// </summary>
         void Apply() const;
+        
+        /// <summary>
+        /// 获取属性的有序名称列表（按 Shader uniform 声明顺序）
+        /// </summary>
+        const std::vector<std::string>& GetPropertyOrder() const { return m_PropertyOrder; }
 
         /// <summary>
-        /// 获取所有材质属性
+        /// 获取属性 Map（按名索引）
         /// </summary>
-        std::vector<MaterialProperty>& GetProperties() { return m_Properties; }
-        const std::vector<MaterialProperty>& GetProperties() const { return m_Properties; }
+        const std::unordered_map<std::string, MaterialProperty>& GetPropertyMap() const { return m_PropertyMap; }
         
         const std::string& GetName() const { return m_Name; }
         void SetName(const std::string& name) { m_Name = name; }
@@ -105,8 +115,9 @@ namespace Lucky
         MaterialProperty* FindProperty(const std::string& name);
         const MaterialProperty* FindProperty(const std::string& name) const;
     private:
-        Ref<Shader> m_Shader;                       // 着色器
-        std::vector<MaterialProperty> m_Properties; // 材质属性列表
-        std::string m_Name;                         // 材质名称
+        Ref<Shader> m_Shader;                                               // 着色器
+        std::unordered_map<std::string, MaterialProperty> m_PropertyMap;    // 材质属性 Map：属性名 - 属性
+        std::vector<std::string> m_PropertyOrder;                           // 属性名有序列表（按 Shader uniform 声明顺序）
+        std::string m_Name;                                                 // 材质名称
     };
 }
