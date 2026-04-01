@@ -75,20 +75,18 @@ namespace Lucky
             
             ImGui::InputText("Mesh", buffer, sizeof(buffer));
         });
-        
-        static std::vector<Ref<Material>> materials;    // 当前 MeshRenderer 的材质列表
+
         DrawComponent<MeshRendererComponent>("Mesh Renderer", entity, [&entity](MeshRendererComponent& meshRenderer)
         {
-            materials = meshRenderer.Materials;
-            
             const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_SpanAvailWidth;
             
             const std::string& strID = std::format("Materials##{0}", entity.GetComponent<NameComponent>().Name);
             bool opened = ImGui::TreeNodeEx(strID.c_str(), flags);
             if (opened)
             {
-                int materialSize = materials.size();
-                ImGui::InputInt("Size", &materialSize);
+                // 材质数量 TODO: 可编辑
+                int materialSize = meshRenderer.Materials.size();
+                ImGui::InputInt("Size", &materialSize, 0, 0, ImGuiInputTextFlags_ReadOnly);
                 
                 // 材质列表
                 for (int i = 0; i < meshRenderer.Materials.size(); i++)
@@ -106,11 +104,15 @@ namespace Lucky
                 ImGui::TreePop();
             }
         });
-        
-        // 绘制所有材质的参数
-        for (Ref<Material>& material : materials)
+
+        if (entity.HasComponent<MeshRendererComponent>())
         {
-            DrawMaterialEditor(material);
+			// 绘制材质编辑器
+            MeshRendererComponent& meshRenderer = entity.GetComponent<MeshRendererComponent>();
+            for (Ref<Material>& material : meshRenderer.Materials)
+            {
+                DrawMaterialEditor(material);
+            }
         }
     }
 

@@ -272,6 +272,10 @@ namespace Lucky
                         m_Shader->SetInt(prop.Name, textureSlot);   // 设置纹理槽位索引
                         textureSlot++;  // TODO 限制最大值32
                     }
+                    else
+                    {
+                        m_Shader->SetInt(prop.Name, 0);   // 纹理为空时 设置纹理槽位索引为 0
+                    }
                     break;
                 }
                 default:

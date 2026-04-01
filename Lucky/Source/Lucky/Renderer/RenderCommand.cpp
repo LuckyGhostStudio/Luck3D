@@ -41,7 +41,7 @@ namespace Lucky
         glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);  // 顶点数组索引绘制三角形
     }
 
-    void RenderCommand::DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexOffset, uint32_t indexCount)
+    void RenderCommand::DrawIndexedRange(const Ref<VertexArray>& vertexArray, uint32_t indexOffset, uint32_t indexCount)
     {
         vertexArray->Bind();
         

@@ -225,6 +225,8 @@ namespace Lucky
 
             glAttachShader(program, shader);        // 将着色器添加到程序
             glShaderIDs[shaderIDIndex] = shader;    // 着色器 ID 添加到列表
+
+            shaderIDIndex++;
         }
 
         glLinkProgram(program);     // 链接程序

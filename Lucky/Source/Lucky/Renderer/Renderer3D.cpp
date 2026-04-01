@@ -161,7 +161,7 @@ namespace Lucky
             material->Apply();
             
             // 绘制索引
-            RenderCommand::DrawIndexed(mesh->GetVertexArray(), sm.IndexOffset, sm.IndexCount);
+            RenderCommand::DrawIndexedRange(mesh->GetVertexArray(), sm.IndexOffset, sm.IndexCount);
             
             s_Data.Stats.DrawCalls++;                           // 记录 DC 数量
             s_Data.Stats.TriangleCount += sm.IndexCount / 3;    // 记录三角形数量
