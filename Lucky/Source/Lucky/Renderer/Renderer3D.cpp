@@ -98,7 +98,7 @@ namespace Lucky
         
     }
 
-    void Renderer3D::BeginScene(const EditorCamera& camera)
+    void Renderer3D::BeginScene(const EditorCamera& camera, const DirectionalLightData& lightData)
     {
         // 设置 Camera Uniform 缓冲区数据
         s_Data.CameraBuffer.ViewProjectionMatrix = camera.GetViewProjectionMatrix();
@@ -106,9 +106,9 @@ namespace Lucky
         s_Data.CameraUniformBuffer->SetData(&s_Data.CameraBuffer, sizeof(Renderer3DData::CameraData));
         
         // 设置 Light Uniform 缓冲区数据
-        s_Data.LightBuffer.Direction = glm::vec3(-0.8f, -1.0f, -0.5f);
-        s_Data.LightBuffer.Color = glm::vec3(1.0f, 1.0f, 1.0f);
-        s_Data.LightBuffer.Intensity = 1.0f;
+        s_Data.LightBuffer.Direction = lightData.Direction;
+        s_Data.LightBuffer.Color = lightData.Color;
+        s_Data.LightBuffer.Intensity = lightData.Intensity;
         s_Data.LightUniformBuffer->SetData(&s_Data.LightBuffer, sizeof(Renderer3DData::LightData));
     }
 

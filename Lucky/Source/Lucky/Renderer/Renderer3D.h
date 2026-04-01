@@ -9,6 +9,16 @@
 
 namespace Lucky
 {
+    /// <summary>
+    /// 方向光数据：从 Scene 传递给 Renderer3D 的光照参数
+    /// </summary>
+    struct DirectionalLightData
+    {
+        glm::vec3 Direction = glm::vec3(-0.8f, -1.0f, -0.5f);   // 光照方向（世界空间）
+        glm::vec3 Color = glm::vec3(1.0f, 1.0f, 1.0f);          // 光照颜色
+        float Intensity = 1.0f;                                 // 光照强度
+    };
+    
     class Renderer3D
     {
     public:
@@ -23,7 +33,8 @@ namespace Lucky
         /// 开始渲染场景
         /// </summary>
         /// <param name="camera">编辑器相机</param>
-        static void BeginScene(const EditorCamera& camera);
+        /// <param name="lightData">方向光数据</param>
+        static void BeginScene(const EditorCamera& camera, const DirectionalLightData& lightData);
 
         /// <summary>
         /// 开始渲染场景：设置场景参数

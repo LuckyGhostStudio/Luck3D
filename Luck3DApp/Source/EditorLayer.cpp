@@ -9,8 +9,6 @@
 #include "Lucky/Renderer/MeshFactory.h"
 
 #include "Lucky/Scene/Entity.h"
-#include "Lucky/Scene/Components/MeshFilterComponent.h"
-#include "Lucky/Scene/Components/MeshRendererComponent.h"
 
 namespace Lucky
 {
@@ -36,7 +34,7 @@ namespace Lucky
         m_PanelManager->AddPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID, "Scene", true, m_Scene);
         m_PanelManager->AddPanel<InspectorPanel>(INSPECTOR_PANEL_ID, "Inspector", true, m_Scene);
         
-        // Temp 测试
+        // Temp 测试 Cube
         Entity cubeEntity = m_Scene->CreateEntity("Cube");
         
         // MeshFilter
@@ -45,8 +43,17 @@ namespace Lucky
         cubeEntity.AddComponent<MeshFilterComponent>(cubeMesh);
         
         // MeshRenderer
-        MeshRendererComponent& meshRenderer = cubeEntity.AddComponent<MeshRendererComponent>();
-        meshRenderer.SetMaterial(0, Renderer3D::GetDefaultMaterial());  // 使用默认材质
+        cubeEntity.AddComponent<MeshRendererComponent>();
+        
+        // 测试 DirLight
+        Entity lightEntity = m_Scene->CreateEntity("Directional Light");
+        
+        // DirectionalLight
+        lightEntity.AddComponent<DirectionalLightComponent>();
+        
+        // 设置初始方向斜向下
+        TransformComponent& transform = lightEntity.GetComponent<TransformComponent>();
+        transform.SetRotationEuler(glm::vec3(glm::radians(50.0f), glm::radians(-32.0f), 0.0f));
     }
 
     void EditorLayer::OnDetach()

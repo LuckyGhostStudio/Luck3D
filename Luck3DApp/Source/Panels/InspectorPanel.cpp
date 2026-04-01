@@ -6,6 +6,7 @@
 #include "Lucky/Scene/Components/TransformComponent.h"
 #include "Lucky/Scene/Components/MeshFilterComponent.h"
 #include "Lucky/Scene/Components/MeshRendererComponent.h"
+#include "Lucky/Scene/Components/DirectionalLightComponent.h"
 
 #include "Lucky/Renderer/Renderer3D.h"
 
@@ -63,6 +64,13 @@ namespace Lucky
             ImGui::DragFloat3("Scale", &transform.Scale.x, 0.1f);
         });
         
+        // DirectionalLight 组件
+        DrawComponent<DirectionalLightComponent>("Directional Light", entity, [](DirectionalLightComponent& light)
+        {
+            ImGui::ColorEdit3("Color", &light.Color.x);
+            ImGui::DragFloat("Intensity", &light.Intensity, 0.01f, 0.0f, 10.0f);
+        });
+        
         // MeshFilter 组件
         static std::string meshName;
         DrawComponent<MeshFilterComponent>(meshName + " (Mesh Filter)", entity, [](MeshFilterComponent& meshFilter)
@@ -76,6 +84,7 @@ namespace Lucky
             ImGui::InputText("Mesh", buffer, sizeof(buffer));
         });
 
+        // MeshRenderer 组件
         DrawComponent<MeshRendererComponent>("Mesh Renderer", entity, [&entity](MeshRendererComponent& meshRenderer)
         {
             const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_SpanAvailWidth;

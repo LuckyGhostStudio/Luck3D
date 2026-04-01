@@ -35,6 +35,7 @@ namespace Lucky
         template<typename TComponent, typename UIFunction>
         void DrawComponent(const std::string& name, Entity entity, UIFunction OnOpened);
         
+        // TODO Move to MaterialEditor class
         void DrawMaterialEditor(Ref<Material>& material);
     private:
         Ref<Scene> m_Scene;

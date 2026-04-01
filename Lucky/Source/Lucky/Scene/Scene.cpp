@@ -10,6 +10,7 @@
 #include "Components/RelationshipComponent.h"
 #include "Components/MeshFilterComponent.h"
 #include "Components/MeshRendererComponent.h"
+#include "Components/DirectionalLightComponent.h"
 
 #include "Entity.h"
 
@@ -79,7 +80,22 @@ namespace Lucky
     
     void Scene::OnUpdate(DeltaTime dt, EditorCamera& camera)
     {
-        Renderer3D::BeginScene(camera);
+        // 查询方向光实体 TODO 无灯光则不计算光照
+        DirectionalLightData lightData;
+        {
+            auto lightView = m_Registry.view<TransformComponent, DirectionalLightComponent>();
+            for (auto entity : lightView)
+            {
+                auto [transform, light] = lightView.get<TransformComponent, DirectionalLightComponent>(entity);
+            
+                lightData.Direction = transform.GetForward();
+                lightData.Color = light.Color;
+                lightData.Intensity = light.Intensity;
+                break;  // 目前仅支持一个方向光
+            }
+        }
+        
+        Renderer3D::BeginScene(camera, lightData);
         {
             // 获取同时拥有 TransformComponent MeshFilterComponent MeshRendererComponent 的实体
             auto meshGroup = m_Registry.group<TransformComponent>(entt::get<MeshFilterComponent, MeshRendererComponent>);
@@ -184,6 +200,12 @@ namespace Lucky
                 }
             }
         }
+    }
+    
+    template<>
+    void Scene::OnComponentAdded<DirectionalLightComponent>(Entity entity, DirectionalLightComponent& component)
+    {
+        
     }
     
     // TODO 添加新组件
