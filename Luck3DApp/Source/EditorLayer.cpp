@@ -11,6 +11,7 @@
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Utils/PlatformUtils.h"
 #include "Lucky/Scene/SceneSerializer.h"
+#include "Lucky/Scene/SelectionManager.h"
 
 namespace Lucky
 {
@@ -159,7 +160,7 @@ namespace Lucky
 
     void EditorLayer::NewScene()
     {
-        // TODO 清空当前场景
+        SelectionManager::Deselect();               // 清空选中项 防止创建新场景后当前选中的 UUID 无效
         
         m_Scene = CreateRef<Scene>();               // 创建新场景
         m_SceneFilePath = std::filesystem::path();  // 场景路径

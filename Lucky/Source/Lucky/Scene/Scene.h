@@ -76,6 +76,8 @@ namespace Lucky
         {
             return m_Registry.view<TComponents...>();
         }
+        
+        void ClearAllEntities();
     private:
         /// <summary>
         /// entity 添加 TComponent 组件时调用

@@ -129,10 +129,12 @@ namespace Lucky
         // 树结点已打开
         if (opened)
         {
-            // 子节点
-            for (UUID childID : entity.GetChildren())
+            // 拷贝子节点列表后再遍历：避免遍历过程中原始列表被修改导致跳过子节点
+            std::vector<UUID> children = entity.GetChildren();
+            for (UUID childID : children)
             {
-                DrawEntityNode(m_Scene->GetEntityWithUUID(childID));
+                Entity child = m_Scene->GetEntityWithUUID(childID);
+                DrawEntityNode(child);
             }
 
             ImGui::TreePop();
@@ -196,7 +198,8 @@ namespace Lucky
         {
             if (parent)
             {
-                newEntity.SetParent(parent);
+                newEntity.SetParentUUID(parent.GetUUID());
+                parent.GetChildren().push_back(newEntity.GetUUID());
             }
 
             SelectionManager::Deselect();

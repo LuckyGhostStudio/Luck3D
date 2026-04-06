@@ -29,7 +29,7 @@ namespace Lucky
 
     Entity Scene::CreateEntity(const std::string& name)
     {
-        return CreateEntity(UUID(), name);
+        return CreateEntity({}, name);
     }
 
     Entity Scene::CreateEntity(UUID uuid, const std::string& name)
@@ -122,8 +122,7 @@ namespace Lucky
         {
 	        LF_CORE_ERROR("Invalid entity ID {0} or entity doesn't exist in scene", id);
         }
-
-        // TODO fix 创建实体时可能会有无效id
+        
         LF_CORE_ASSERT(m_EntityIDMap.find(id) != m_EntityIDMap.end(), "Invalid entity ID or entity doesn't exist in scene!");
         return m_EntityIDMap.at(id);
     }
@@ -136,7 +135,15 @@ namespace Lucky
         }
         return Entity{};
     }
-    
+
+    void Scene::ClearAllEntities()
+    {
+        for (auto& [uuid, entity] : m_EntityIDMap)
+        {
+            DestroyEntity(entity);
+        }
+    }
+
     template<typename TComponent>
     void Scene::OnComponentAdded(Entity entity, TComponent& component)
     {

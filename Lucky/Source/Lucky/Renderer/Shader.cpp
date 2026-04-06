@@ -45,12 +45,12 @@ namespace Lucky
         shaderSources[GL_VERTEX_SHADER] = vertexSrc;            // 顶点着色器
         shaderSources[GL_FRAGMENT_SHADER] = fragmentSrc;        // 片元着色器
 
-        Compile(shaderSources);                                 // 编译着色器源码
-
         // 计算着色器名
         auto lastSlash = filepath.find_last_of("/\\");                      // 最后一个 / 的索引
         lastSlash = lastSlash == std::string::npos ? 0 : lastSlash + 1;     // 最后一个 / 不存在 最后一个 / 存在
         m_Name = filepath.substr(lastSlash, filepath.size() - lastSlash);   // 着色器名称
+        
+        Compile(shaderSources);                             // 编译着色器源码
     }
 
     Shader::~Shader()

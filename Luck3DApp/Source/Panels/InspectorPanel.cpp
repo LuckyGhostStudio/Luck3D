@@ -32,9 +32,10 @@ namespace Lucky
 
     void InspectorPanel::OnGUI()
     {
-        if (SelectionManager::GetSelection() != 0)
+        UUID selectionID = SelectionManager::GetSelection();
+        if (selectionID != 0)
         {
-            DrawComponents(m_Scene->GetEntityWithUUID(SelectionManager::GetSelection()));
+            DrawComponents(m_Scene->GetEntityWithUUID(selectionID));
         }
     }
 
