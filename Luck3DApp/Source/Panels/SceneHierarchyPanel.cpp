@@ -114,14 +114,16 @@ namespace Lucky
         if (ImGui::BeginPopupContextItem(rightClickPopupID.c_str(), ImGuiPopupFlags_MouseButtonRight))
         {
             SelectionManager::Select(id);   // 选中物体
-
-            DrawEntityCreateMenu(entity);   // 绘制创建物体菜单
             
             // 菜单项：删除物体
             if (ImGui::MenuItem("Delete"))
             {
                 entityDeleted = true;   // 标记为已删除：渲染结束后面的 UI 再删除该物体
             }
+            
+            ImGui::Separator();
+            
+            DrawEntityCreateMenu(entity);   // 绘制创建物体菜单
 
             ImGui::EndPopup();
         }
@@ -167,19 +169,67 @@ namespace Lucky
             std::string uniqueName = GenerateUniqueName("Entity", parent);
             newEntity = m_Scene->CreateEntity(uniqueName);
         }
-        // 创建 Cube
-        if (ImGui::MenuItem("Cube"))
+        
+        // 创建 3D Object
+        if (ImGui::BeginMenu("3D Object"))
         {
-            std::string uniqueName = GenerateUniqueName("Cube", parent);
-            newEntity = m_Scene->CreateEntity(uniqueName);
+            // 创建 Cube
+            if (ImGui::MenuItem("Cube"))
+            {
+                std::string uniqueName = GenerateUniqueName("Cube", parent);
+                newEntity = m_Scene->CreateEntity(uniqueName);
             
-            // MeshFilter
-            newEntity.AddComponent<MeshFilterComponent>(PrimitiveType::Cube);
+                // MeshFilter
+                newEntity.AddComponent<MeshFilterComponent>(PrimitiveType::Cube);
             
-            // MeshRenderer
-            MeshRendererComponent& meshRenderer = newEntity.AddComponent<MeshRendererComponent>();
-            meshRenderer.SetMaterial(0, Renderer3D::GetDefaultMaterial());  // 使用默认材质
+                // MeshRenderer
+                MeshRendererComponent& meshRenderer = newEntity.AddComponent<MeshRendererComponent>();
+                meshRenderer.SetMaterial(0, Renderer3D::GetDefaultMaterial());  // 使用默认材质
+            }
+            
+            // 创建 Plane
+            if (ImGui::MenuItem("Plane"))
+            {
+                std::string uniqueName = GenerateUniqueName("Plane", parent);
+                newEntity = m_Scene->CreateEntity(uniqueName);
+                newEntity.AddComponent<MeshFilterComponent>(PrimitiveType::Plane);
+                MeshRendererComponent& meshRenderer = newEntity.AddComponent<MeshRendererComponent>();
+                meshRenderer.SetMaterial(0, Renderer3D::GetDefaultMaterial());
+            }
+            
+            // 创建 Sphere
+            if (ImGui::MenuItem("Sphere"))
+            {
+                std::string uniqueName = GenerateUniqueName("Sphere", parent);
+                newEntity = m_Scene->CreateEntity(uniqueName);
+                newEntity.AddComponent<MeshFilterComponent>(PrimitiveType::Sphere);
+                MeshRendererComponent& meshRenderer = newEntity.AddComponent<MeshRendererComponent>();
+                meshRenderer.SetMaterial(0, Renderer3D::GetDefaultMaterial());
+            }
+            
+            // 创建 Cylinder
+            if (ImGui::MenuItem("Cylinder"))
+            {
+                std::string uniqueName = GenerateUniqueName("Cylinder", parent);
+                newEntity = m_Scene->CreateEntity(uniqueName);
+                newEntity.AddComponent<MeshFilterComponent>(PrimitiveType::Cylinder);
+                MeshRendererComponent& meshRenderer = newEntity.AddComponent<MeshRendererComponent>();
+                meshRenderer.SetMaterial(0, Renderer3D::GetDefaultMaterial());
+            }
+            
+            // 创建 Capsule
+            if (ImGui::MenuItem("Capsule"))
+            {
+                std::string uniqueName = GenerateUniqueName("Capsule", parent);
+                newEntity = m_Scene->CreateEntity(uniqueName);
+                newEntity.AddComponent<MeshFilterComponent>(PrimitiveType::Capsule);
+                MeshRendererComponent& meshRenderer = newEntity.AddComponent<MeshRendererComponent>();
+                meshRenderer.SetMaterial(0, Renderer3D::GetDefaultMaterial());
+            }
+            
+            ImGui::EndMenu();
         }
+
         // 创建 Directional Light
         if (ImGui::MenuItem("Directional Light"))
         {

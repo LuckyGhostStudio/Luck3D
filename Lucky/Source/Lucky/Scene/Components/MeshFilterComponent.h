@@ -17,20 +17,10 @@ namespace Lucky
         MeshFilterComponent(const MeshRef& mesh)
             : Mesh(mesh) {}
         
-        MeshFilterComponent(PrimitiveType primitive)
-            : Primitive(primitive)
+        MeshFilterComponent(PrimitiveType primitiveType)
+            : Primitive(primitiveType)
         {
-            switch (primitive)
-            {
-                case PrimitiveType::Cube:
-                {
-                    Mesh = MeshFactory::CreateCube();
-                    Mesh->SetName("Cube");
-                    break;
-                }
-                default:
-                    break;
-            }
+            Mesh = MeshFactory::CreatePrimitive(primitiveType);
         }
     };
 }
