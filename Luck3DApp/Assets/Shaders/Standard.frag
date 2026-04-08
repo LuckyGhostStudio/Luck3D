@@ -24,6 +24,7 @@ struct VertexOutput
     vec3 Normal;
     vec2 TexCoord;
     vec3 WorldPos;
+    mat3 TBN;
 };
 
 layout(location = 0) in VertexOutput v_Input;

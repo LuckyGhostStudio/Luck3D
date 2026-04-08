@@ -33,41 +33,47 @@ namespace Lucky
     {
         std::vector<Vertex> vertices =
         {
-            // 右面 (X+)
-            {{0.5f, -0.5f, 0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},  // 0: 右下前
-            {{0.5f, 0.5f, 0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},   // 3: 右上前
-            {{0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},  // 2: 右上后
-            {{0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}}, // 1: 右下后
-            
-            // 左面 (X-)
-            {{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // 4: 左下后
-            {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},  // 7: 左上后
-            {{-0.5f, 0.5f, 0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},   // 6: 左上前
-            {{-0.5f, -0.5f, 0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},  // 5: 左下前
-            
-            // 上面 (Y+)
-            {{-0.5f, 0.5f, 0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}},
-            {{0.5f, 0.5f, 0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},
-            {{0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-            {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-            
-            // 下面 (Y-)
-            {{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},
-            {{0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},
-            {{0.5f, -0.5f, 0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f}},
-            {{-0.5f, -0.5f, 0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}},
-            
-            // 前面 (Z+)
-            {{-0.5f, -0.5f, 0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-            {{0.5f, -0.5f, 0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
-            {{0.5f, 0.5f, 0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-            {{-0.5f, 0.5f, 0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-            
-            // 后面 (Z-)
-            {{0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}},
-            {{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}},
-            {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}},
-            {{0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}}
+            // 右面 (X+)：Normal=(1, 0, 0), UV 的 U 方向沿 -Z
+            // Tangent = (0, 0, -1, 1.0)
+            { { 0.5f, -0.5f,  0.5f }, { 1, 1, 1, 1 }, { 1, 0, 0 }, { 1, 0 }, { 0, 0, -1, 1.0f } },
+            { { 0.5f,  0.5f,  0.5f }, { 1, 1, 1, 1 }, { 1, 0, 0 }, { 1, 1 }, { 0, 0, -1, 1.0f } },
+            { { 0.5f,  0.5f, -0.5f }, { 1, 1, 1, 1 }, { 1, 0, 0 }, { 0, 1 }, { 0, 0, -1, 1.0f } },
+            { { 0.5f, -0.5f, -0.5f }, { 1, 1, 1, 1 }, { 1, 0, 0 }, { 0, 0 }, { 0, 0, -1, 1.0f } },
+
+            // 左面 (X-)：Normal=(-1, 0, 0), UV 的 U 方向沿 +Z
+            // Tangent = (0, 0, 1, 1.0)
+            { { -0.5f, -0.5f, -0.5f }, { 1, 1, 1, 1 }, { -1, 0, 0 }, { 1, 0 }, { 0, 0, 1, 1.0f } },
+            { { -0.5f,  0.5f, -0.5f }, { 1, 1, 1, 1 }, { -1, 0, 0 }, { 1, 1 }, { 0, 0, 1, 1.0f } },
+            { { -0.5f,  0.5f,  0.5f }, { 1, 1, 1, 1 }, { -1, 0, 0 }, { 0, 1 }, { 0, 0, 1, 1.0f } },
+            { { -0.5f, -0.5f,  0.5f }, { 1, 1, 1, 1 }, { -1, 0, 0 }, { 0, 0 }, { 0, 0, 1, 1.0f } },
+
+            // 上面 (Y+)：Normal=(0, 1, 0), UV 的 U 方向沿 +X
+            // Tangent = (1, 0, 0, 1.0)
+            { { -0.5f, 0.5f,  0.5f }, { 1, 1, 1, 1 }, { 0, 1, 0 }, { 0, 0 }, { 1, 0, 0, 1.0f } },
+            { {  0.5f, 0.5f,  0.5f }, { 1, 1, 1, 1 }, { 0, 1, 0 }, { 1, 0 }, { 1, 0, 0, 1.0f } },
+            { {  0.5f, 0.5f, -0.5f }, { 1, 1, 1, 1 }, { 0, 1, 0 }, { 1, 1 }, { 1, 0, 0, 1.0f } },
+            { { -0.5f, 0.5f, -0.5f }, { 1, 1, 1, 1 }, { 0, 1, 0 }, { 0, 1 }, { 1, 0, 0, 1.0f } },
+
+            // 下面 (Y-)：Normal=(0, -1, 0), UV 的 U 方向沿 +X
+            // Tangent = (1, 0, 0, 1.0)
+            { { -0.5f, -0.5f, -0.5f }, { 1, 1, 1, 1 }, { 0, -1, 0 }, { 0, 0 }, { 1, 0, 0, 1.0f } },
+            { {  0.5f, -0.5f, -0.5f }, { 1, 1, 1, 1 }, { 0, -1, 0 }, { 1, 0 }, { 1, 0, 0, 1.0f } },
+            { {  0.5f, -0.5f,  0.5f }, { 1, 1, 1, 1 }, { 0, -1, 0 }, { 1, 1 }, { 1, 0, 0, 1.0f } },
+            { { -0.5f, -0.5f,  0.5f }, { 1, 1, 1, 1 }, { 0, -1, 0 }, { 0, 1 }, { 1, 0, 0, 1.0f } },
+
+            // 前面 (Z+)：Normal=(0, 0, 1), UV 的 U 方向沿 +X
+            // Tangent = (1, 0, 0, 1.0)
+            { { -0.5f, -0.5f, 0.5f }, { 1, 1, 1, 1 }, { 0, 0, 1 }, { 0, 0 }, { 1, 0, 0, 1.0f } },
+            { {  0.5f, -0.5f, 0.5f }, { 1, 1, 1, 1 }, { 0, 0, 1 }, { 1, 0 }, { 1, 0, 0, 1.0f } },
+            { {  0.5f,  0.5f, 0.5f }, { 1, 1, 1, 1 }, { 0, 0, 1 }, { 1, 1 }, { 1, 0, 0, 1.0f } },
+            { { -0.5f,  0.5f, 0.5f }, { 1, 1, 1, 1 }, { 0, 0, 1 }, { 0, 1 }, { 1, 0, 0, 1.0f } },
+
+            // 后面 (Z-)：Normal=(0, 0, -1), UV 的 U 方向沿 -X
+            // Tangent = (-1, 0, 0, 1.0)
+            { {  0.5f, -0.5f, -0.5f }, { 1, 1, 1, 1 }, { 0, 0, -1 }, { 0, 0 }, { -1, 0, 0, 1.0f } },
+            { { -0.5f, -0.5f, -0.5f }, { 1, 1, 1, 1 }, { 0, 0, -1 }, { 1, 0 }, { -1, 0, 0, 1.0f } },
+            { { -0.5f,  0.5f, -0.5f }, { 1, 1, 1, 1 }, { 0, 0, -1 }, { 1, 1 }, { -1, 0, 0, 1.0f } },
+            { {  0.5f,  0.5f, -0.5f }, { 1, 1, 1, 1 }, { 0, 0, -1 }, { 0, 1 }, { -1, 0, 0, 1.0f } },
         };
         
         std::vector<uint32_t> indices =
@@ -112,7 +118,8 @@ namespace Lucky
                     { x, 0.0f, z },             // Position
                     { 1.0f, 1.0f, 1.0f, 1.0f }, // Color（白色）
                     { 0.0f, 1.0f, 0.0f },       // Normal（朝上）
-                    { u, v }                    // TexCoord
+                    { u, v },                   // TexCoord
+                    { 1.0f, 0.0f, 0.0f, 1.0f }  // Tangent（U 方向沿 X 轴，handedness = 1）
                 });
             }
         }
@@ -179,11 +186,17 @@ namespace Lucky
                 float u = static_cast<float>(seg) / static_cast<float>(segments);
                 float v = static_cast<float>(ring) / static_cast<float>(rings);
                 
+                // Tangent 方向 = PI/theta 的归一化
+                float tangentX = -sin(theta);
+                float tangentZ = cos(theta);
+                glm::vec3 tangentDir = glm::normalize(glm::vec3(tangentX, 0.0f, tangentZ));
+                
                 vertices.push_back({
                     { x, y, z },                // Position
                     { 1.0f, 1.0f, 1.0f, 1.0f }, // Color
                     normal,                     // Normal
-                    { u, v }                    // TexCoord
+                    { u, v },                    // TexCoord
+                    { tangentDir.x, tangentDir.y, tangentDir.z, 1.0f }  // Tangent
                 });
             }
         }
@@ -241,12 +254,15 @@ namespace Lucky
             
             float u = static_cast<float>(seg) / static_cast<float>(segments);
             
+            glm::vec3 tangentDir = glm::normalize(glm::vec3(-sinTheta, 0.0f, cosTheta));
+            
             // 上圈顶点
             vertices.push_back({
                 { x, halfHeight, z },
                 { 1.0f, 1.0f, 1.0f, 1.0f },
                 normal,
-                { u, 1.0f }
+                { u, 1.0f },
+                { tangentDir.x, tangentDir.y, tangentDir.z, 1.0f }
             });
             
             // 下圈顶点
@@ -254,7 +270,8 @@ namespace Lucky
                 { x, -halfHeight, z },
                 { 1.0f, 1.0f, 1.0f, 1.0f },
                 normal,
-                { u, 0.0f }
+                { u, 0.0f },
+                { tangentDir.x, tangentDir.y, tangentDir.z, 1.0f }
             });
         }
         
@@ -284,8 +301,9 @@ namespace Lucky
         vertices.push_back({
             { 0.0f, halfHeight, 0.0f },
             { 1.0f, 1.0f, 1.0f, 1.0f },
-            { 0.0f, 1.0f, 0.0f },       // 法线朝上
-            { 0.5f, 0.5f }              // UV 中心
+            { 0.0f, 1.0f, 0.0f },           // 法线朝上
+            { 0.5f, 0.5f },                 // UV 中心
+            { 1.0f, 0.0f, 0.0f, 1.0f }
         });
         
         // 圆周顶点
@@ -299,7 +317,8 @@ namespace Lucky
                 { radius * cosTheta, halfHeight, radius * sinTheta },
                 { 1.0f, 1.0f, 1.0f, 1.0f },
                 { 0.0f, 1.0f, 0.0f },                               // 法线朝上
-                { cosTheta * 0.5f + 0.5f, sinTheta * 0.5f + 0.5f }  // 圆形 UV 映射
+                { cosTheta * 0.5f + 0.5f, sinTheta * 0.5f + 0.5f }, // 圆形 UV 映射
+                { 1.0f, 0.0f, 0.0f, 1.0f }
             });
         }
         
@@ -319,7 +338,8 @@ namespace Lucky
             { 0.0f, -halfHeight, 0.0f },
             { 1.0f, 1.0f, 1.0f, 1.0f },
             { 0.0f, -1.0f, 0.0f },      // 法线朝下
-            { 0.5f, 0.5f }              // UV 中心
+            { 0.5f, 0.5f },             // UV 中心
+            { 1.0f, 0.0f, 0.0f, 1.0f }
         });
         
         // 圆周顶点
@@ -333,7 +353,8 @@ namespace Lucky
                 { radius * cosTheta, -halfHeight, radius * sinTheta },
                 { 1.0f, 1.0f, 1.0f, 1.0f },
                 { 0.0f, -1.0f, 0.0f },                              // 法线朝下
-                { cosTheta * 0.5f + 0.5f, sinTheta * 0.5f + 0.5f }  // 圆形 UV 映射
+                { cosTheta * 0.5f + 0.5f, sinTheta * 0.5f + 0.5f }, // 圆形 UV 映射
+                { 1.0f, 0.0f, 0.0f, 1.0f }
             });
         }
         
@@ -384,11 +405,16 @@ namespace Lucky
                 // V 映射：北极 = 1.0，赤道 = 0.75（上半球占 UV 的上 1/4）
                 float v = 1.0f - (static_cast<float>(ring) / static_cast<float>(rings)) * 0.25f;
                 
+                float tangentX = -sin(theta);
+                float tangentZ = cos(theta);
+                glm::vec3 tangentDir = glm::normalize(glm::vec3(tangentX, 0.0f, tangentZ));
+                
                 vertices.push_back({
                     { x, y, z },
                     { 1.0f, 1.0f, 1.0f, 1.0f },
                     normal,
-                    { u, v }
+                    { u, v },
+                    { tangentDir.x, tangentDir.y, tangentDir.z, 1.0f }
                 });
             }
         }
@@ -416,11 +442,16 @@ namespace Lucky
                 // V 映射：赤道 = 0.25，南极 = 0.0（下半球占 UV 的下 1/4）
                 float v = 0.25f - (static_cast<float>(ring) / static_cast<float>(rings)) * 0.25f;
                 
+                float tangentX = -sin(theta);
+                float tangentZ = cos(theta);
+                glm::vec3 tangentDir = glm::normalize(glm::vec3(tangentX, 0.0f, tangentZ));
+                
                 vertices.push_back({
                     { x, y, z },
                     { 1.0f, 1.0f, 1.0f, 1.0f },
                     normal,
-                    { u, v }
+                    { u, v },
+                    { tangentDir.x, tangentDir.y, tangentDir.z, 1.0f }
                 });
             }
         }

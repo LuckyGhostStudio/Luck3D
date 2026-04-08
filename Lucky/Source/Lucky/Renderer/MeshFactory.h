@@ -11,11 +11,11 @@ namespace Lucky
     {
         None = 0,
         
-        Cube,
-        Plane,
-        Sphere,
-        Cylinder,
-        Capsule,
+        Cube,       // 立方体
+        Plane,      // 平面
+        Sphere,     // 经纬球
+        Cylinder,   // 圆柱体
+        Capsule,    // 胶囊体
     };
     
     /// <summary>

@@ -13,16 +13,8 @@ namespace Lucky
         glm::vec4 Color;    // 颜色
         glm::vec3 Normal;   // 法线
         glm::vec2 TexCoord; // 纹理坐标
+        glm::vec4 Tangent;  // 切线 + 手性: xyz = tangent方向, w = handedness(±1)
     };
-    
-    // struct Vertex
-    // {
-    //     glm::vec3 Position;
-    //     glm::vec3 Normal;
-    //     glm::vec3 Tangent;
-    //     glm::vec3 Binormal;
-    //     glm::vec2 Texcoord;
-    // };
     
     struct SubMesh
     {
@@ -39,6 +31,11 @@ namespace Lucky
         Mesh(const Mesh&) = default;
         Mesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
         Mesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const std::vector<SubMesh>& subMeshes);
+        
+        /// <summary>
+        /// 重新计算所有顶点的切线空间（Tangent + Handedness）基于顶点位置、法线和纹理坐标计算
+        /// </summary>
+        void RecalculateTangents();
         
         /// <summary>
         /// 添加子网格

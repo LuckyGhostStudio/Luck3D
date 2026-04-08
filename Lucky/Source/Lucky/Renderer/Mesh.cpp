@@ -1,6 +1,8 @@
 #include "lcpch.h"
 #include "Mesh.h"
 
+#include "MeshTangentCalculator.h"
+
 namespace Lucky
 {
     Mesh::Mesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) 
@@ -21,12 +23,13 @@ namespace Lucky
         m_VertexArray = VertexArray::Create();                                  // 创建顶点数组 VAO
         m_VertexBuffer = VertexBuffer::Create(m_VertexCount * sizeof(Vertex));  // 创建顶点缓冲 VBO
 
-        //设置顶点缓冲区布局
+        // 设置顶点缓冲区布局
         m_VertexBuffer->SetLayout({
             { ShaderDataType::Float3, "a_Position" },   // 位置
             { ShaderDataType::Float4, "a_Color" },      // 颜色
             { ShaderDataType::Float3, "a_Normal" },     // 法线
             { ShaderDataType::Float2, "a_TexCoord" },   // 纹理坐标
+            { ShaderDataType::Float4, "a_Tangent" },    // 切线 + 手性
         });
         m_VertexArray->AddVertexBuffer(m_VertexBuffer);    // 添加 VBO 到 VAO
 
@@ -46,17 +49,32 @@ namespace Lucky
         m_VertexArray = VertexArray::Create();                                  // 创建顶点数组 VAO
         m_VertexBuffer = VertexBuffer::Create(m_VertexCount * sizeof(Vertex));  // 创建顶点缓冲 VBO
 
-        //设置顶点缓冲区布局
+        // 设置顶点缓冲区布局
         m_VertexBuffer->SetLayout({
-            { ShaderDataType::Float3, "a_Position" },   // 位置
-            { ShaderDataType::Float4, "a_Color" },      // 颜色
-            { ShaderDataType::Float3, "a_Normal" },     // 法线
-            { ShaderDataType::Float2, "a_TexCoord" },   // 纹理坐标
+            { ShaderDataType::Float3, "a_Position" },   // location 0 位置
+            { ShaderDataType::Float4, "a_Color" },      // location 1 颜色
+            { ShaderDataType::Float3, "a_Normal" },     // location 2 法线
+            { ShaderDataType::Float2, "a_TexCoord" },   // location 3 纹理坐标
+            { ShaderDataType::Float4, "a_Tangent" },    // location 4 切线 + 手性
         });
         m_VertexArray->AddVertexBuffer(m_VertexBuffer); // 添加 VBO 到 VAO
 
         m_IndexBuffer = IndexBuffer::Create(m_VertexIndices.data(), m_VertexIndexCount);    // 创建索引缓冲 EBO
         m_VertexArray->SetIndexBuffer(m_IndexBuffer);                                       // 设置 EBO 到 VAO
+    }
+
+    void Mesh::RecalculateTangents()
+    {
+        if (m_Vertices.empty() || m_VertexIndices.empty())
+        {
+            return;
+        }
+    
+        MeshTangentCalculator::Calculate(m_Vertices, m_VertexIndices);
+    
+        // 更新 GPU 缓冲区
+        uint32_t dataSize = m_VertexCount * sizeof(Vertex);
+        m_VertexBuffer->SetData(m_Vertices.data(), dataSize);
     }
 
     uint32_t Mesh::AddSubMesh(const SubMesh& subMesh)
@@ -127,14 +145,14 @@ namespace Lucky
         if (subMesh.IndexOffset + subMesh.IndexCount > m_VertexIndexCount)
         {
             LF_CORE_WARN("AddSubMesh: Index out of range! IndexOffset = {0}, IndexCount = {1}, TotalIndexCount = {2}", subMesh.IndexOffset, subMesh.IndexCount, m_VertexIndexCount);
-            return UINT32_MAX;  // 返回无效索引
+            return false;  // 返回无效索引
         }
 
         // 顶点个数为 0
         if (subMesh.VertexCount == 0)
         {
             LF_CORE_WARN("AddSubMesh: VertexCount = 0");
-            return UINT32_MAX;
+            return false;
         }
 
         m_SubMeshes[index] = subMesh;
