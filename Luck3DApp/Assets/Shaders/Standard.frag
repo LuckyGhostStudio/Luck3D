@@ -29,45 +29,172 @@ struct VertexOutput
 
 layout(location = 0) in VertexOutput v_Input;
 
-// 材质 Uniform
-uniform vec3 u_AmbientCoeff;      // 环境光系数
-uniform vec3 u_DiffuseCoeff;      // 漫反射系数
-uniform vec3 u_SpecularCoeff;     // 镜面反射系数
-uniform float u_Shininess;        // 镜面指数
+// ---- PBR 材质参数 ----
+uniform vec4  u_Albedo;             // 基础颜色
+uniform float u_Metallic;           // 金属度
+uniform float u_Roughness;          // 粗糙度
+uniform float u_AO;                 // 环境光遮蔽
+uniform vec3  u_Emission;           // 自发光颜色
+uniform float u_EmissionIntensity;  // 自发光强度
 
-uniform sampler2D u_MainTexture;    // 测试纹理
+// ---- PBR 纹理 ----
+uniform sampler2D u_AlbedoMap;
+uniform sampler2D u_NormalMap;
+uniform sampler2D u_MetallicMap;
+uniform sampler2D u_RoughnessMap;
+uniform sampler2D u_AOMap;
+uniform sampler2D u_EmissionMap;
+
+// ---- 纹理开关 ----
+uniform int u_UseAlbedoMap;
+uniform int u_UseNormalMap;
+uniform int u_UseMetallicMap;
+uniform int u_UseRoughnessMap;
+uniform int u_UseAOMap;
+uniform int u_UseEmissionMap;
+
+// ---- 常量 ----
+const float PI = 3.14159265359;
+const float AMBIENT_STRENGTH = 0.03;  // 常量环境光强度（无 IBL 时的替代方案）
+
+// ==================== PBR 核心函数 ====================
+
+// ---- GGX/Trowbridge-Reitz 法线分布函数 ----
+float DistributionGGX(vec3 N, vec3 H, float roughness)
+{
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float NdotH = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH * NdotH;
+
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = PI * denom * denom;
+
+    return a2 / max(denom, 0.0000001);  // 防止除以零
+}
+
+// ---- Fresnel-Schlick 近似 ----
+vec3 FresnelSchlick(float cosTheta, vec3 F0)
+{
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}
+
+// ---- Smith's Schlick-GGX 几何遮蔽（单方向） ----
+float GeometrySchlickGGX(float NdotV, float roughness)
+{
+    float r = (roughness + 1.0);
+    float k = (r * r) / 8.0;
+
+    return NdotV / (NdotV * (1.0 - k) + k);
+}
+
+// ---- Smith's 几何遮蔽（双方向） ----
+float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
+{
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+
+    float ggx1 = GeometrySchlickGGX(NdotV, roughness);
+    float ggx2 = GeometrySchlickGGX(NdotL, roughness);
+
+    return ggx1 * ggx2;
+}
+
+// ==================== 法线获取 ====================
+
+vec3 GetNormal()
+{
+    if (u_UseNormalMap == 1)
+    {
+        // 从法线贴图采样
+        vec3 normalMapSample = texture(u_NormalMap, v_Input.TexCoord).rgb;
+        // [0,1] → [-1,1]
+        normalMapSample = normalMapSample * 2.0 - 1.0;
+        // 转换到世界空间
+        return normalize(v_Input.TBN * normalMapSample);
+    }
+    else
+    {
+        return normalize(v_Input.Normal);
+    }
+}
 
 void main()
 {
-    // 归一化法向量
-    vec3 N = normalize(v_Input.Normal);
+    // ---- 采样材质参数 ----
+    vec4 albedo4 = u_Albedo;
+    if (u_UseAlbedoMap == 1)
+        albedo4 *= texture(u_AlbedoMap, v_Input.TexCoord);
+    vec3 albedo = albedo4.rgb;
+    float alpha = albedo4.a;
 
-    // 光向量（方向光，反向）
-    vec3 L = normalize(-u_Light.Direction);
+    float metallic = u_Metallic;
+    if (u_UseMetallicMap == 1)
+        metallic *= texture(u_MetallicMap, v_Input.TexCoord).r;
 
-    // 视图向量
+    float roughness = u_Roughness;
+    if (u_UseRoughnessMap == 1)
+        roughness *= texture(u_RoughnessMap, v_Input.TexCoord).r;
+    // 限制最小粗糙度，避免除以零
+    roughness = max(roughness, 0.04);
+
+    float ao = u_AO;
+    if (u_UseAOMap == 1)
+        ao *= texture(u_AOMap, v_Input.TexCoord).r;
+
+    vec3 emission = u_Emission * u_EmissionIntensity;
+    if (u_UseEmissionMap == 1)
+        emission *= texture(u_EmissionMap, v_Input.TexCoord).rgb;
+
+    // ---- 获取法线 ----
+    vec3 N = GetNormal();
+
+    // ---- 视线方向 ----
     vec3 V = normalize(u_Camera.Position - v_Input.WorldPos);
 
-    // 反射向量
-    vec3 R = reflect(-L, N);
-    
-    // 环境光
-    vec3 ambient = u_AmbientCoeff * u_Light.Color * u_Light.Intensity;
+    // ---- 计算 F0（基础反射率） ----
+    // 非金属：F0 ≈ 0.04，金属：F0 = albedo
+    vec3 F0 = vec3(0.04);
+    F0 = mix(F0, albedo, metallic);
 
-    // 漫反射
-    float diff = max(dot(N, L), 0.0);
-    vec3 diffuse = diff * u_DiffuseCoeff * u_Light.Color * u_Light.Intensity;
+    // ---- 光照计算（目前仅方向光） ----
+    vec3 Lo = vec3(0.0);
 
-    // 镜面反射
-    float spec = pow(max(dot(R, V), 0.0), u_Shininess);
-    vec3 specular = spec * u_SpecularCoeff * u_Light.Color * u_Light.Intensity;
+    // 方向光
+    {
+        vec3 L = normalize(-u_Light.Direction);
+        vec3 H = normalize(V + L);
 
-    // 总光照
-    vec3 lighting = ambient + diffuse + specular;
+        // 光照辐射度
+        vec3 radiance = u_Light.Color * u_Light.Intensity;
 
-    // 采样主纹理颜色
-    vec4 mainColor = texture(u_MainTexture, v_Input.TexCoord);
+        // Cook-Torrance BRDF
+        float D = DistributionGGX(N, H, roughness);
+        vec3  F = FresnelSchlick(max(dot(H, V), 0.0), F0);
+        float G = GeometrySmith(N, V, L, roughness);
 
-    // 最终颜色：纹理 * 顶点颜色 * 光照
-    o_Color = mainColor * v_Input.Color * vec4(lighting, 1.0);
+        // 镜面反射
+        vec3 numerator = D * F * G;
+        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+        vec3 specular = numerator / denominator;
+
+        // 漫反射
+        vec3 kS = F;                            // 镜面反射比例 = Fresnel
+        vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);  // 漫反射比例（金属无漫反射）
+
+        float NdotL = max(dot(N, L), 0.0);
+
+        Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+    }
+
+    // ---- 环境光（简单常量，无 IBL） ----
+    vec3 ambient = vec3(AMBIENT_STRENGTH) * albedo * ao;
+
+    // ---- 最终颜色 ----
+    vec3 color = ambient + Lo + emission;
+
+    // ---- Gamma 校正（线性空间 → sRGB） ----
+    color = pow(color, vec3(1.0 / 2.2));
+
+    o_Color = vec4(color, alpha);
 }

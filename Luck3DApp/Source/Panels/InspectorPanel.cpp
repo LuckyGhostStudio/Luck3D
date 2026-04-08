@@ -278,14 +278,24 @@ namespace Lucky
                     }
                         
                     uint32_t textureID = texture->GetRendererID();
+                    std::string strID = std::format("##{0}{1}", prop.Name, textureID);
+                        
+                    ImGui::PushID(strID.c_str());
+                        
                     if (ImGui::ImageButton((ImTextureID)textureID, { 64, 64 }, { 0, 1 }, { 1, 0 }))
                     {
-                        std::string filepath = FileDialogs::OpenFile("Albedo Texture(*.png;*.jpg)\0*.png;*.jpg\0");
+                        std::string filepath = FileDialogs::OpenFile("Texture(*.png;*.jpg)\0*.png;*.jpg\0");
                         if (!filepath.empty())
                         {
                             material->SetTexture(prop.Name, Texture2D::Create(filepath));
                         }
                     }
+                        
+                    ImGui::SameLine();
+                        
+                    ImGui::Text(prop.Name.c_str());
+                        
+                    ImGui::PopID();
                         
                     break;
                 }

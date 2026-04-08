@@ -83,11 +83,22 @@ namespace Lucky
         s_Data.TextureSlots[0] = s_Data.WhiteTexture;                       // 0 号纹理槽为白色纹理（默认）
         
         // TODO 默认材质参数保存到 .mat 中
-        s_Data.DefaultMaterial->SetFloat3("u_AmbientCoeff", glm::vec3(0.2f));
-        s_Data.DefaultMaterial->SetFloat3("u_DiffuseCoeff", glm::vec3(0.8f));
-        s_Data.DefaultMaterial->SetFloat3("u_SpecularCoeff", glm::vec3(0.5f));
-        s_Data.DefaultMaterial->SetFloat("u_Shininess", 32.0f);
-        //s_Data.DefaultMaterial->SetTexture("u_MainTexture", Texture2D::Create("Assets/Textures/Texture_Gloss.png"));
+        
+        // PBR 默认参数
+        s_Data.DefaultMaterial->SetFloat4("u_Albedo", glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
+        s_Data.DefaultMaterial->SetFloat("u_Metallic", 0.0f);
+        s_Data.DefaultMaterial->SetFloat("u_Roughness", 0.5f);
+        s_Data.DefaultMaterial->SetFloat("u_AO", 1.0f);
+        s_Data.DefaultMaterial->SetFloat3("u_Emission", glm::vec3(0.0f));
+        s_Data.DefaultMaterial->SetFloat("u_EmissionIntensity", 1.0f);
+    
+        // 纹理开关默认关闭
+        s_Data.DefaultMaterial->SetInt("u_UseAlbedoMap", 0);
+        s_Data.DefaultMaterial->SetInt("u_UseNormalMap", 0);
+        s_Data.DefaultMaterial->SetInt("u_UseMetallicMap", 0);
+        s_Data.DefaultMaterial->SetInt("u_UseRoughnessMap", 0);
+        s_Data.DefaultMaterial->SetInt("u_UseAOMap", 0);
+        s_Data.DefaultMaterial->SetInt("u_UseEmissionMap", 0);
         
         s_Data.CameraUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::CameraData), 0);  // 创建相机 Uniform 缓冲区
         s_Data.LightUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::LightData), 1);    // 创建光照 Uniform 缓冲区
