@@ -127,7 +127,7 @@ namespace Lucky
         void SetMat4(const std::string& name, const glm::mat4& value);
 
         uint32_t GetRendererID() const { return m_RendererID; }
-        const std::string GetName() const { return m_Name; }
+        const std::string& GetName() const { return m_Name; }
         const std::vector<ShaderUniform>& GetUniforms() const { return m_Uniforms; }
 
         // ---- 下列方法：上传 Uniform 变量到 Shader ---- |（变量在 Shader 中的变量名，变量值）
