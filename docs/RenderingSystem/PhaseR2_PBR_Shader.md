@@ -21,7 +21,8 @@
 - [五、PBR 材质参数设计](#五pbr-材质参数设计)
   - [5.1 Uniform 参数列表](#51-uniform-参数列表)
   - [5.2 纹理槽位分配](#52-纹理槽位分配)
-  - [5.3 与当前 Blinn-Phong 参数的映射](#53-与当前-blinn-phong-参数的映射)
+  - [5.3 默认纹理策略](#53-默认纹理策略)
+  - [5.4 与当前 Blinn-Phong 参数的映射](#54-与当前-blinn-phong-参数的映射)
 - [六、Standard.vert 完整代码](#六standardvert-完整代码)
 - [七、Standard.frag 完整代码](#七standardfrag-完整代码)
   - [7.1 PBR 核心函数](#71-pbr-核心函数)
@@ -183,33 +184,69 @@ G_sub(n, x) = (n·x) / ((n·x) · (1 - k) + k)
 | `u_AO` | float | 1.0 | 环境光遮蔽 [0, 1] |
 | `u_Emission` | vec3 | (0, 0, 0) | 自发光颜色 |
 | `u_EmissionIntensity` | float | 1.0 | 自发光强度 |
-| `u_AlbedoMap` | sampler2D | 白色纹理 | 基础颜色贴图 |
-| `u_NormalMap` | sampler2D | 默认法线纹理 | 法线贴图 |
-| `u_MetallicMap` | sampler2D | 白色纹理 | 金属度贴图 |
-| `u_RoughnessMap` | sampler2D | 白色纹理 | 粗糙度贴图 |
-| `u_AOMap` | sampler2D | 白色纹理 | 环境光遮蔽贴图 |
-| `u_EmissionMap` | sampler2D | 黑色纹理 | 自发光贴图 |
-| `u_UseAlbedoMap` | int | 0 | 是否使用基础颜色贴图 |
-| `u_UseNormalMap` | int | 0 | 是否使用法线贴图 |
-| `u_UseMetallicMap` | int | 0 | 是否使用金属度贴图 |
-| `u_UseRoughnessMap` | int | 0 | 是否使用粗糙度贴图 |
-| `u_UseAOMap` | int | 0 | 是否使用 AO 贴图 |
-| `u_UseEmissionMap` | int | 0 | 是否使用自发光贴图 |
+| `u_AlbedoMap` | sampler2D | 白色 1×1 纹理 | 基础颜色贴图（无贴图时绑定默认白色纹理） |
+| `u_NormalMap` | sampler2D | 法线蓝 1×1 纹理 | 法线贴图（无贴图时绑定默认法线纹理 (128,128,255)） |
+| `u_MetallicMap` | sampler2D | 白色 1×1 纹理 | 金属度贴图（无贴图时绑定默认白色纹理） |
+| `u_RoughnessMap` | sampler2D | 白色 1×1 纹理 | 粗糙度贴图（无贴图时绑定默认白色纹理） |
+| `u_AOMap` | sampler2D | 白色 1×1 纹理 | 环境光遮蔽贴图（无贴图时绑定默认白色纹理） |
+| `u_EmissionMap` | sampler2D | 白色 1×1 纹理 | 自发光贴图（无贴图时绑定默认白色纹理） |
+
+> **注意**：不再使用 `u_UseXxxMap` 纹理开关。当材质未设置某个贴图时，引擎自动绑定对应的默认 1×1 纹理，Shader 无条件采样。详见 [5.3 默认纹理策略](#53-默认纹理策略)。
 
 ### 5.2 纹理槽位分配
 
-| 槽位 | 纹理 | 说明 |
-|------|------|------|
-| 0 | u_AlbedoMap | 基础颜色贴图（默认白色） |
-| 1 | u_NormalMap | 法线贴图（默认 (0.5, 0.5, 1.0) 蓝色） |
-| 2 | u_MetallicMap | 金属度贴图 |
-| 3 | u_RoughnessMap | 粗糙度贴图 |
-| 4 | u_AOMap | 环境光遮蔽贴图 |
-| 5 | u_EmissionMap | 自发光贴图 |
+| 槽位 | 纹理 | 默认纹理 | 说明 |
+|------|------|----------|------|
+| 0 | u_AlbedoMap | 白色 (1,1,1,1) | 乘以 u_Albedo 后 = u_Albedo 本身 |
+| 1 | u_NormalMap | 法线蓝 (0.5, 0.5, 1.0) | 解码后 = (0,0,1)，即"不扰动法线" |
+| 2 | u_MetallicMap | 白色 (1,1,1,1) | .r = 1.0，乘以 u_Metallic 后 = u_Metallic 本身 |
+| 3 | u_RoughnessMap | 白色 (1,1,1,1) | .r = 1.0，乘以 u_Roughness 后 = u_Roughness 本身 |
+| 4 | u_AOMap | 白色 (1,1,1,1) | .r = 1.0，乘以 u_AO 后 = u_AO 本身 |
+| 5 | u_EmissionMap | 白色 (1,1,1,1) | 乘以 u_Emission 后 = u_Emission 本身 |
 
 > **注意**：当前 `MaxTextureSlots = 32`，6 个纹理槽位完全足够。
 
-### 5.3 与当前 Blinn-Phong 参数的映射
+### 5.3 默认纹理策略
+
+采用**默认纹理方案**替代纹理开关（`u_UseXxxMap`），这是参考 Unity/Godot 等主流引擎的做法。
+
+#### 方案对比
+
+| 方案 | 运行时分支 | GPU 开销 | 实现复杂度 | 代码简洁度 |
+|------|-----------|---------|-----------|-----------|
+| 显式开关（`u_UseXxxMap`） | 有（每帧 if 判断） | 中等（分支可能导致 warp divergence） | 低 | ? 冗余 |
+| **默认纹理（本方案）** | **无** | **低（1×1 纹理采样几乎免费）** | **低** | **? 简洁** |
+| Shader Variant（Unity 做法） | 无 | 最低（编译期消除） | 高（需要变体管理系统） | ? 简洁 |
+
+#### 核心原理
+
+当材质未设置某个贴图时，引擎绑定对应的 1×1 默认纹理。由于默认纹理的值为 `1.0`（白色），采样结果参与乘法运算时不影响标量参数：
+
+```
+参数 × texture(默认白色纹理) = 参数 × 1.0 = 参数本身
+```
+
+这样 Shader 中无需任何 `if` 分支，无条件对所有纹理进行采样即可。
+
+#### 各贴图类型的默认纹理
+
+| 贴图类型 | 默认纹理颜色 | RGBA 值 | 原因 |
+|---------|------------|---------|------|
+| Albedo | 白色 | (1, 1, 1, 1) | 乘以 u_Albedo 后 = u_Albedo 本身 |
+| Normal | 法线蓝 | (0.5, 0.5, 1.0, 1.0) | 解码后 = (0,0,1)，即"不扰动法线" |
+| Metallic | 白色 | (1, 1, 1, 1) | .r = 1.0，乘以 u_Metallic 后 = u_Metallic 本身 |
+| Roughness | 白色 | (1, 1, 1, 1) | .r = 1.0，乘以 u_Roughness 后 = u_Roughness 本身 |
+| AO | 白色 | (1, 1, 1, 1) | .r = 1.0，乘以 u_AO 后 = u_AO 本身 |
+| Emission | 白色 | (1, 1, 1, 1) | 乘以 u_Emission 后 = u_Emission 本身 |
+
+#### 优势
+
+1. **消除 6 个 `uniform int` 和 6 个 `if` 分支**：Shader 更简洁，GPU 无分支开销
+2. **1×1 纹理采样零开销**：整个纹理只有一个 texel，永远命中 GPU 纹理缓存
+3. **代码一致性**：所有纹理统一处理，无特殊路径
+4. **后续可升级**：未来如需极致性能优化，可引入 Shader Variant 系统（编译期消除采样）
+
+### 5.4 与当前 Blinn-Phong 参数的映射
 
 | 旧参数 (Blinn-Phong) | 新参数 (PBR) | 说明 |
 |----------------------|-------------|------|
@@ -336,21 +373,16 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 ```glsl
 vec3 GetNormal()
 {
-    if (u_UseNormalMap == 1)
-    {
-        // 从法线贴图采样
-        vec3 normalMapSample = texture(u_NormalMap, v_Input.TexCoord).rgb;
-        // [0,1] → [-1,1]
-        normalMapSample = normalMapSample * 2.0 - 1.0;
-        // 转换到世界空间
-        return normalize(v_Input.TBN * normalMapSample);
-    }
-    else
-    {
-        return normalize(v_Input.Normal);
-    }
+    // 无条件采样法线贴图（无贴图时绑定默认法线纹理 (0.5, 0.5, 1.0)，解码后为 (0,0,1)）
+    vec3 normalMapSample = texture(u_NormalMap, v_Input.TexCoord).rgb;
+    // [0,1] → [-1,1]
+    normalMapSample = normalMapSample * 2.0 - 1.0;
+    // 转换到世界空间
+    return normalize(v_Input.TBN * normalMapSample);
 }
 ```
+
+> **说明**：不再需要 `u_UseNormalMap` 开关。当未设置法线贴图时，引擎绑定默认法线纹理 `(128, 128, 255)`，解码后为 `(0, 0, 1)`，经 TBN 变换后等价于原始顶点法线。TBN 矩阵乘法开销极小，保持代码一致性更重要。
 
 ### 7.3 完整 Fragment Shader
 
@@ -394,21 +426,13 @@ uniform float u_AO;                 // 环境光遮蔽
 uniform vec3  u_Emission;           // 自发光颜色
 uniform float u_EmissionIntensity;  // 自发光强度
 
-// ---- PBR 纹理 ----
-uniform sampler2D u_AlbedoMap;
-uniform sampler2D u_NormalMap;
-uniform sampler2D u_MetallicMap;
-uniform sampler2D u_RoughnessMap;
-uniform sampler2D u_AOMap;
-uniform sampler2D u_EmissionMap;
-
-// ---- 纹理开关 ----
-uniform int u_UseAlbedoMap;
-uniform int u_UseNormalMap;
-uniform int u_UseMetallicMap;
-uniform int u_UseRoughnessMap;
-uniform int u_UseAOMap;
-uniform int u_UseEmissionMap;
+// ---- PBR 纹理（无贴图时引擎绑定默认纹理，无需开关） ----
+uniform sampler2D u_AlbedoMap;     // 默认：白色 1×1
+uniform sampler2D u_NormalMap;     // 默认：法线蓝 1×1 (128,128,255)
+uniform sampler2D u_MetallicMap;   // 默认：白色 1×1
+uniform sampler2D u_RoughnessMap;  // 默认：白色 1×1
+uniform sampler2D u_AOMap;         // 默认：白色 1×1
+uniform sampler2D u_EmissionMap;   // 默认：白色 1×1
 
 // ---- 常量 ----
 const float PI = 3.14159265359;
@@ -452,46 +476,30 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 
 vec3 GetNormal()
 {
-    if (u_UseNormalMap == 1)
-    {
-        vec3 normalMapSample = texture(u_NormalMap, v_Input.TexCoord).rgb;
-        normalMapSample = normalMapSample * 2.0 - 1.0;
-        return normalize(v_Input.TBN * normalMapSample);
-    }
-    else
-    {
-        return normalize(v_Input.Normal);
-    }
+    // 无条件采样（无贴图时绑定默认法线纹理，解码后为 (0,0,1)，等价于不扰动法线）
+    vec3 normalMapSample = texture(u_NormalMap, v_Input.TexCoord).rgb;
+    normalMapSample = normalMapSample * 2.0 - 1.0;
+    return normalize(v_Input.TBN * normalMapSample);
 }
 
 // ==================== 主函数 ====================
 
 void main()
 {
-    // ---- 采样材质参数 ----
-    vec4 albedo4 = u_Albedo;
-    if (u_UseAlbedoMap == 1)
-        albedo4 *= texture(u_AlbedoMap, v_Input.TexCoord);
+    // ---- 采样材质参数（无条件采样，无贴图时默认纹理返回 1.0，不影响标量值） ----
+    vec4 albedo4 = u_Albedo * texture(u_AlbedoMap, v_Input.TexCoord);
     vec3 albedo = albedo4.rgb;
     float alpha = albedo4.a;
     
-    float metallic = u_Metallic;
-    if (u_UseMetallicMap == 1)
-        metallic *= texture(u_MetallicMap, v_Input.TexCoord).r;
+    float metallic = u_Metallic * texture(u_MetallicMap, v_Input.TexCoord).r;
     
-    float roughness = u_Roughness;
-    if (u_UseRoughnessMap == 1)
-        roughness *= texture(u_RoughnessMap, v_Input.TexCoord).r;
+    float roughness = u_Roughness * texture(u_RoughnessMap, v_Input.TexCoord).r;
     // 限制最小粗糙度，避免除以零
     roughness = max(roughness, 0.04);
     
-    float ao = u_AO;
-    if (u_UseAOMap == 1)
-        ao *= texture(u_AOMap, v_Input.TexCoord).r;
+    float ao = u_AO * texture(u_AOMap, v_Input.TexCoord).r;
     
-    vec3 emission = u_Emission * u_EmissionIntensity;
-    if (u_UseEmissionMap == 1)
-        emission *= texture(u_EmissionMap, v_Input.TexCoord).rgb;
+    vec3 emission = u_Emission * u_EmissionIntensity * texture(u_EmissionMap, v_Input.TexCoord).rgb;
     
     // ---- 获取法线 ----
     vec3 N = GetNormal();
@@ -573,44 +581,69 @@ void Renderer3D::Init()
     s_Data.DefaultMaterial->SetFloat3("u_Emission", glm::vec3(0.0f));
     s_Data.DefaultMaterial->SetFloat("u_EmissionIntensity", 1.0f);
     
-    // 纹理开关默认关闭
-    s_Data.DefaultMaterial->SetInt("u_UseAlbedoMap", 0);
-    s_Data.DefaultMaterial->SetInt("u_UseNormalMap", 0);
-    s_Data.DefaultMaterial->SetInt("u_UseMetallicMap", 0);
-    s_Data.DefaultMaterial->SetInt("u_UseRoughnessMap", 0);
-    s_Data.DefaultMaterial->SetInt("u_UseAOMap", 0);
-    s_Data.DefaultMaterial->SetInt("u_UseEmissionMap", 0);
+    // 不再需要纹理开关（u_UseXxxMap），默认纹理方案自动处理
 }
 ```
 
 ### 8.2 默认纹理绑定
 
-在 `DrawMesh` 中，当前只绑定了白色纹理到 slot 0：
+采用默认纹理方案后，需要在 `DrawMesh` 中为所有 PBR 纹理槽位绑定默认纹理，然后由 `Material::Apply()` 覆盖已设置的纹理槽位。
+
+#### 需要新增的默认纹理
+
+在 `Renderer3D::Init()` 中创建默认法线纹理：
 
 ```cpp
-// 当前代码
-s_Data.WhiteTexture->Bind(0);
+void Renderer3D::Init()
+{
+    // ... 现有初始化代码 ...
+    
+    // 创建默认白色纹理（已存在）
+    // s_Data.WhiteTexture = ...
+    
+    // 创建默认法线纹理（1×1，颜色 (128, 128, 255, 255)，解码后为 (0,0,1)）
+    uint32_t normalData = 0xFFFF8080;  // RGBA: (128, 128, 255, 255)
+    s_Data.DefaultNormalTexture = Texture2D::Create(1, 1);
+    s_Data.DefaultNormalTexture->SetData(&normalData, sizeof(uint32_t));
+}
 ```
 
-PBR 需要为所有纹理槽位绑定默认纹理。有两种方案：
+> **注意**：需要在 `Renderer3DData` 结构体中添加 `Ref<Texture2D> DefaultNormalTexture;` 成员。
 
-#### 方案 A：在 DrawMesh 中绑定所有默认纹理（推荐）
+#### DrawMesh 中绑定默认纹理
 
 ```cpp
-// 绑定默认纹理到所有 PBR 纹理槽位
-s_Data.WhiteTexture->Bind(0);   // u_AlbedoMap
-s_Data.WhiteTexture->Bind(1);   // u_NormalMap（理想情况应该是默认法线纹理 (128,128,255)）
-s_Data.WhiteTexture->Bind(2);   // u_MetallicMap
-s_Data.WhiteTexture->Bind(3);   // u_RoughnessMap
-s_Data.WhiteTexture->Bind(4);   // u_AOMap
-s_Data.WhiteTexture->Bind(5);   // u_EmissionMap
+void Renderer3D::DrawMesh(/* ... */)
+{
+    // 绑定默认纹理到所有 PBR 纹理槽位
+    s_Data.WhiteTexture->Bind(0);          // u_AlbedoMap     → 白色，乘以 u_Albedo = u_Albedo
+    s_Data.DefaultNormalTexture->Bind(1);  // u_NormalMap      → 法线蓝，解码后 = (0,0,1)
+    s_Data.WhiteTexture->Bind(2);          // u_MetallicMap    → 白色，.r = 1.0
+    s_Data.WhiteTexture->Bind(3);          // u_RoughnessMap   → 白色，.r = 1.0
+    s_Data.WhiteTexture->Bind(4);          // u_AOMap          → 白色，.r = 1.0
+    s_Data.WhiteTexture->Bind(5);          // u_EmissionMap    → 白色，乘以 u_Emission = u_Emission
+    
+    // Material::Apply() 会覆盖已设置贴图的槽位
+    material->Apply();
+    
+    // ... 绘制调用 ...
+}
 ```
 
-#### 方案 B：依赖 Material::Apply 中的纹理绑定
+#### 工作流程
 
-如果材质中设置了纹理，`Material::Apply()` 会自动绑定。未设置的纹理使用 `u_UseXxxMap = 0` 跳过采样。
-
-**推荐方案 B**：利用纹理开关（`u_UseXxxMap`）控制，不需要绑定默认纹理。当 `u_UseXxxMap = 0` 时，Shader 直接使用标量值，不采样纹理。
+```
+DrawMesh 调用
+    │
+    ├─ 1. 绑定所有默认纹理到 slot 0~5
+    │     （白色 × 5 + 法线蓝 × 1）
+    │
+    ├─ 2. Material::Apply() 覆盖已设置的纹理
+    │     （例如材质设置了 AlbedoMap，则 slot 0 被覆盖为实际贴图）
+    │
+    └─ 3. Shader 无条件采样所有纹理
+          （未设置的贴图 → 采样默认纹理 → 返回 1.0 → 不影响标量参数）
+```
 
 ---
 
@@ -624,14 +657,12 @@ s_Data.WhiteTexture->Bind(5);   // u_EmissionMap
 | Inspector 自动显示 | ? | `InspectorPanel` 遍历 `MaterialProperty` 列表 |
 | Float 类型编辑 | ? | `u_Metallic`、`u_Roughness` 等 |
 | Vec3/Vec4 类型编辑 | ? | `u_Albedo`、`u_Emission` 等 |
-| Int 类型编辑 | ? | `u_UseAlbedoMap` 等开关 |
 | Sampler2D 纹理 | ? | `u_AlbedoMap` 等纹理 |
 | 材质序列化 | ? | 属性值会随材质保存/加载 |
 
 **结论**：不需要修改 `Material` 类或 `InspectorPanel`。
 
 > **改进建议**（非本 Phase 范围）：
-> - `u_UseXxxMap` 的 Int 类型在 Inspector 中显示为数字输入框，不够直观。未来可以改为 Checkbox。
 > - `u_Metallic` 和 `u_Roughness` 应该限制在 [0, 1] 范围内。未来可以在 Inspector 中添加 Slider。
 
 ---
@@ -684,9 +715,10 @@ s_Data.WhiteTexture->Bind(5);   // u_EmissionMap
 
 ### 11.3 法线贴图验证
 
-1. 设置 `u_UseNormalMap = 1`，加载一个法线贴图
+1. 为材质设置一个法线贴图（引擎会自动绑定到 slot 1，覆盖默认法线纹理）
 2. 确认表面有凹凸感
 3. 旋转光源，确认凹凸感随光照方向变化
+4. 移除法线贴图后，确认表面恢复平滑（默认法线纹理生效）
 
 ### 11.4 Gamma 校正验证
 
@@ -712,7 +744,7 @@ s_Data.WhiteTexture->Bind(5);   // u_EmissionMap
 | G 函数 | Smith's Schlick-GGX | 与 GGX NDF 配合最好 |
 | 环境光 | 常量 0.03 | 简单，后续可升级为 IBL |
 | Gamma 校正 | Shader 中手动 pow(1/2.2) | 最简单，后续在 Tonemapping 中统一处理 |
-| 纹理开关 | int uniform (0/1) | 利用现有材质系统，无需修改 |
+| 纹理策略 | 默认纹理方案（无开关） | 消除 Shader 分支，1×1 纹理采样零开销，代码更简洁 |
 | 默认 Albedo | (0.8, 0.8, 0.8, 1.0) | 中灰色，与 Unity 默认材质接近 |
 | 默认 Roughness | 0.5 | 中等粗糙度，视觉效果适中 |
 | 默认 Metallic | 0.0 | 非金属，最常见的材质类型 |

@@ -23,7 +23,8 @@ namespace Lucky
         Ref<Material> InternalErrorMaterial;    // 内部错误材质（材质丢失时使用：材质被意外删除等情况）
         Ref<Material> DefaultMaterial;          // 默认材质
         
-        Ref<Texture2D> WhiteTexture;    // 白色纹理 0 号
+        Ref<Texture2D> WhiteTexture;            // 白色纹理 0 号
+        Ref<Texture2D> DefaultNormalTexture;    // 默认法线纹理 1 号
         // TODO 其他默认纹理
         
         std::array<Ref<Texture2D>, MaxTextureSlots> TextureSlots;   // 纹理槽列表 存储纹理
@@ -76,11 +77,18 @@ namespace Lucky
         
         s_Data.InternalErrorMaterial = CreateRef<Material>("InternalError Material", s_Data.InternalErrorShader);   // 创建内部错误材质
         s_Data.DefaultMaterial = CreateRef<Material>("Default Material", s_Data.StandardShader);                    // 创建默认材质
-        
+
+        // 创建白色纹理
+        uint32_t whiteTextureData = 0xffffffff;                              // 255 白色
         s_Data.WhiteTexture = Texture2D::Create(1, 1);                      // 创建宽高为 1 的纹理
-        uint32_t whitTextureData = 0xffffffff;                              // 255 白色
-        s_Data.WhiteTexture->SetData(&whitTextureData, sizeof(uint32_t));   // 设置纹理数据 size = 1 * 1 * 4 == sizeof(uint32_t)
+        s_Data.WhiteTexture->SetData(&whiteTextureData, sizeof(uint32_t));   // 设置纹理数据 size = 1 * 1 * 4 == sizeof(uint32_t)
         s_Data.TextureSlots[0] = s_Data.WhiteTexture;                       // 0 号纹理槽为白色纹理（默认）
+
+        // 创建默认法线纹理（1×1，颜色 (128, 128, 255, 255)，解码后为 (0,0,1)）
+        uint32_t normalData = 0xFFFF8080;  // RGBA: (128, 128, 255, 255)
+        s_Data.DefaultNormalTexture = Texture2D::Create(1, 1);
+        s_Data.DefaultNormalTexture->SetData(&normalData, sizeof(uint32_t));
+        s_Data.TextureSlots[1] = s_Data.DefaultNormalTexture;
         
         // TODO 默认材质参数保存到 .mat 中
         
@@ -91,14 +99,6 @@ namespace Lucky
         s_Data.DefaultMaterial->SetFloat("u_AO", 1.0f);
         s_Data.DefaultMaterial->SetFloat3("u_Emission", glm::vec3(0.0f));
         s_Data.DefaultMaterial->SetFloat("u_EmissionIntensity", 1.0f);
-    
-        // 纹理开关默认关闭
-        s_Data.DefaultMaterial->SetInt("u_UseAlbedoMap", 0);
-        s_Data.DefaultMaterial->SetInt("u_UseNormalMap", 0);
-        s_Data.DefaultMaterial->SetInt("u_UseMetallicMap", 0);
-        s_Data.DefaultMaterial->SetInt("u_UseRoughnessMap", 0);
-        s_Data.DefaultMaterial->SetInt("u_UseAOMap", 0);
-        s_Data.DefaultMaterial->SetInt("u_UseEmissionMap", 0);
         
         s_Data.CameraUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::CameraData), 0);  // 创建相机 Uniform 缓冲区
         s_Data.LightUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::LightData), 1);    // 创建光照 Uniform 缓冲区
@@ -164,9 +164,14 @@ namespace Lucky
 
             // 设置引擎内部 uniform
             material->GetShader()->SetMat4("u_ObjectToWorldMatrix", transform);
-            
-            // 绑定纹理（默认白色纹理到 0 号槽位）
-            s_Data.WhiteTexture->Bind(0);
+
+            // 绑定默认纹理到所有 PBR 纹理槽位 TODO Temp
+            s_Data.WhiteTexture->Bind(0);          // u_AlbedoMap       白色，乘以 u_Albedo = u_Albedo
+            s_Data.DefaultNormalTexture->Bind(1);  // u_NormalMap       法线蓝，解码后 = (0,0,1)
+            s_Data.WhiteTexture->Bind(2);          // u_MetallicMap     白色，.r = 1.0
+            s_Data.WhiteTexture->Bind(3);          // u_RoughnessMap    白色，.r = 1.0
+            s_Data.WhiteTexture->Bind(4);          // u_AOMap           白色，.r = 1.0
+            s_Data.WhiteTexture->Bind(5);          // u_EmissionMap     白色，乘以 u_Emission = u_Emission
             
             // 应用材质属性（上传所有材质参数到 GPU）用户可编辑的 uniform
             material->Apply();
