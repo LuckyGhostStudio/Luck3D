@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Scene.h"
+#include "Lucky/Scene/Scene.h"
 
 namespace Lucky
 {

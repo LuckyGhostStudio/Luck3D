@@ -9,9 +9,11 @@
 #include "Lucky/Renderer/MeshFactory.h"
 
 #include "Lucky/Scene/Entity.h"
-#include "Lucky/Utils/PlatformUtils.h"
-#include "Lucky/Scene/SceneSerializer.h"
 #include "Lucky/Scene/SelectionManager.h"
+
+#include "Lucky/Serialization//SceneSerializer.h"
+
+#include "Lucky/Utils/PlatformUtils.h"
 
 namespace Lucky
 {
