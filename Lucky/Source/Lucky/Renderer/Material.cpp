@@ -1,6 +1,8 @@
 #include "lcpch.h"
 #include "Material.h"
 
+#include "Renderer3D.h"
+
 namespace Lucky
 {
     /// <summary>
@@ -245,7 +247,7 @@ namespace Lucky
             return;
         }
 
-        int textureSlot = 1;  // 0 号槽位保留给引擎白色纹理 TODO 获取第一个可用槽位
+        int textureSlot = 0;
 
         // 按声明顺序遍历属性，设置 Shader uniform
         for (const std::string& name : m_PropertyOrder)
@@ -283,13 +285,40 @@ namespace Lucky
                     break;
                 case ShaderUniformType::Sampler2D:
                 {
+                    // 纹理数量超出上限
+                    if (textureSlot >= 32)
+                    {
+                        LF_CORE_WARN("Texture slot count out of max 32! Texture '{0}' will be ignored", prop.Name);
+                        break;
+                    }
+
                     const Ref<Texture2D>& texture = std::get<Ref<Texture2D>>(prop.Value);
+
                     if (texture)
                     {
-                        texture->Bind(textureSlot);                 // 绑定纹理槽位
-                        m_Shader->SetInt(prop.Name, textureSlot);   // 设置纹理槽位索引
-                        textureSlot++;  // TODO 限制最大值32
+                        texture->Bind(textureSlot);
                     }
+                    else
+                    {
+                        // 未设置纹理: 从 Shader 的 uniform 元数据获取默认纹理类型
+                        TextureDefault defaultType = TextureDefault::White;  // 默认白色
+
+                        // 查找 Shader 中该 uniform 的默认纹理类型
+                        for (const auto& uniform : m_Shader->GetUniforms())
+                        {
+                            if (uniform.Name == prop.Name)
+                            {
+                                defaultType = uniform.DefaultTexture;
+                                break;
+                            }
+                        }
+
+                        Renderer3D::GetDefaultTexture(defaultType)->Bind(textureSlot);  // 绑定当前纹理的默认纹理
+                    }
+
+                    m_Shader->SetInt(prop.Name, textureSlot);  // 设置纹理槽位 index
+                    textureSlot++;
+                        
                     break;
                 }
                 default:

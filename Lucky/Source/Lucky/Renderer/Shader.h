@@ -9,6 +9,16 @@
 namespace Lucky
 {
     /// <summary>
+    /// 纹理默认类型
+    /// </summary>
+    enum class TextureDefault : uint8_t
+    {
+        White,      // 白色 (255, 255, 255, 255) 乘法中性值，大多数纹理的默认值
+        Black,      // 黑色 (0, 0, 0, 255)       加法中性值
+        Normal,     // 法线 (128, 128, 255, 255) 平坦法线，解码后为 (0, 0, 1)
+    };
+    
+    /// <summary>
     /// Shader Uniform 类型
     /// </summary>
     enum class ShaderUniformType
@@ -29,6 +39,7 @@ namespace Lucky
         ShaderUniformType Type;     // 数据类型
         int Location;               // uniform location（glGetUniformLocation 返回值）
         int Size;                   // 数组大小（非数组为 1）
+        TextureDefault DefaultTexture = TextureDefault::White;  // 默认纹理类型（仅 Sampler2D 使用）
     };
     
     /// <summary>
@@ -150,10 +161,24 @@ namespace Lucky
         /// 在 Compile() 成功后调用
         /// </summary>
         void Introspect();
+        
+        /// <summary>
+        /// 解析 Shader 源码中的 @default 注释元数据
+        /// 提取 sampler2D uniform 的默认纹理类型
+        /// </summary>
+        /// <param name="source">Shader 源码</param>
+        void ParseTextureDefaults(const std::string& source);
+
+        /// <summary>
+        /// 将解析到的默认纹理类型应用到 m_Uniforms 列表
+        /// </summary>
+        void ApplyTextureDefaults();
     private:
         uint32_t m_RendererID;                  // 着色器 ID
         std::string m_Name;                     // 着色器名字
         std::vector<ShaderUniform> m_Uniforms;  // uniform 参数列表
+        
+        std::unordered_map<std::string, TextureDefault> m_TextureDefaultMap;    // 解析缓存：uniform 名 -> 默认纹理类型
     };
 
     /// <summary>

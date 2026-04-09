@@ -69,13 +69,13 @@ namespace Lucky
             /// 返回总顶点个数
             /// </summary>
             /// <returns></returns>
-            uint32_t GetTotalVertexCount() { return TriangleCount * 3; }
+            uint32_t GetTotalVertexCount() const { return TriangleCount * 3; }
 
             /// <summary>
             /// 返回总索引个数
             /// </summary>
             /// <returns></returns>
-            uint32_t GetTotalIndexCount() { return TriangleCount * 6; }
+            uint32_t GetTotalIndexCount() const { return TriangleCount * 6; }
         };
 
         static Statistics GetStats();
@@ -88,6 +88,6 @@ namespace Lucky
         static Ref<ShaderLibrary>& GetShaderLibrary();
         static Ref<Material>& GetInternalErrorMaterial();
         static Ref<Material>& GetDefaultMaterial();
-        static const Ref<Texture2D>& GetWhiteTexture();
+        static const Ref<Texture2D>& GetDefaultTexture(TextureDefault type);
     };
 }

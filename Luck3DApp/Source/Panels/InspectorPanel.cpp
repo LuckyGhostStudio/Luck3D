@@ -274,7 +274,7 @@ namespace Lucky
                     Ref<Texture2D> texture = std::get<Ref<Texture2D>>(prop.Value);
                     if (!texture)
                     {
-                        texture = Renderer3D::GetWhiteTexture();    // 默认使用白色纹理
+                        texture = Renderer3D::GetDefaultTexture(TextureDefault::Black); // 使用黑色纹理表示贴图缺失
                     }
                         
                     uint32_t textureID = texture->GetRendererID();

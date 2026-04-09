@@ -3,6 +3,7 @@
 
 #include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
+#include <regex>
 
 namespace Lucky
 {
@@ -29,6 +30,29 @@ namespace Lucky
         }
     }
     
+    /// <summary>
+    /// 将字符串转换为 TextureDefault 枚举
+    /// </summary>
+    /// <param name="str">字符串</param>
+    /// <returns>TextureDefault 枚举</returns>
+    static TextureDefault StringToTextureDefault(const std::string& str)
+    {
+        // 转小写比较
+        std::string lower = str;
+        std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+
+        if (lower == "black")
+        {
+            return TextureDefault::Black;
+        }
+        if (lower == "normal")
+        {
+            return TextureDefault::Normal;
+        }
+
+        return TextureDefault::White;  // 默认白色
+    }
+    
     Ref<Shader> Shader::Create(const std::string& filepath)
     {
         return CreateRef<Shader>(filepath);
@@ -40,6 +64,10 @@ namespace Lucky
         std::string vertexSrc = ReadFile(filepath + ".vert");   // 读取顶点着色器文件
         std::string fragmentSrc = ReadFile(filepath + ".frag"); // 读取片元着色器文件
 
+        // 编译前解析 @default 注释元数据
+        ParseTextureDefaults(vertexSrc);
+        ParseTextureDefaults(fragmentSrc);
+        
         std::unordered_map<GLenum, std::string> shaderSources;  // 着色器类型 - 源码 map
 
         shaderSources[GL_VERTEX_SHADER] = vertexSrc;            // 顶点着色器
@@ -50,7 +78,9 @@ namespace Lucky
         lastSlash = lastSlash == std::string::npos ? 0 : lastSlash + 1;     // 最后一个 / 不存在 最后一个 / 存在
         m_Name = filepath.substr(lastSlash, filepath.size() - lastSlash);   // 着色器名称
         
-        Compile(shaderSources);                             // 编译着色器源码
+        Compile(shaderSources); // 编译着色器源码
+        
+        ApplyTextureDefaults(); // 将解析到的默认纹理类型应用到 uniform 列表
     }
 
     Shader::~Shader()
@@ -310,7 +340,49 @@ namespace Lucky
 
         LF_CORE_INFO("Shader '{0}' introspection complete: {1} active uniforms", m_Name, m_Uniforms.size());
     }
-    
+
+    void Shader::ParseTextureDefaults(const std::string& source)
+    {
+        // 正则匹配：// @default: <type> 后紧跟 uniform sampler2D <name>;
+        // 支持中间有空行或其他注释
+        static const std::regex pattern(
+            R"(//\s*@default\s*:\s*(\w+)\s*\n\s*uniform\s+sampler2D\s+(\w+)\s*;)",
+            std::regex::ECMAScript
+        );
+
+        auto begin = std::sregex_iterator(source.begin(), source.end(), pattern);
+        auto end = std::sregex_iterator();
+
+        for (auto it = begin; it != end; ++it)
+        {
+            const std::smatch& match = *it;
+            std::string type = match[1].str();  // white / black / normal
+            std::string name = match[2].str();  // uniform 名
+
+            m_TextureDefaultMap[name] = StringToTextureDefault(type);
+
+            LF_CORE_TRACE("  Texture default: '{0}' -> {1}", name, type);
+        }
+    }
+
+    void Shader::ApplyTextureDefaults()
+    {
+        for (ShaderUniform& uniform : m_Uniforms)
+        {
+            if (uniform.Type != ShaderUniformType::Sampler2D)
+            {
+                continue;
+            }
+
+            auto it = m_TextureDefaultMap.find(uniform.Name);
+            if (it != m_TextureDefaultMap.end())
+            {
+                uniform.DefaultTexture = it->second;
+            }
+            // 没有 @default 注释的 sampler2D 使用默认值 TextureDefault::White
+        }
+    }
+
     // ---- ShaderLibrary ----
 
     void ShaderLibrary::Add(const std::string& name, const Ref<Shader>& shader)

@@ -38,12 +38,23 @@ uniform vec3  u_Emission;           // 自发光颜色
 uniform float u_EmissionIntensity;  // 自发光强度
 
 // ---- PBR 纹理（无贴图时引擎绑定默认纹理） ----
-uniform sampler2D u_AlbedoMap;     // 默认：白色 1×1
-uniform sampler2D u_NormalMap;     // 默认：法线蓝 1×1 (128,128,255)
-uniform sampler2D u_MetallicMap;   // 默认：白色 1×1
-uniform sampler2D u_RoughnessMap;  // 默认：白色 1×1
-uniform sampler2D u_AOMap;         // 默认：白色 1×1
-uniform sampler2D u_EmissionMap;   // 默认：白色 1×1
+// @default: white
+uniform sampler2D u_AlbedoMap;
+
+// @default: normal
+uniform sampler2D u_NormalMap;
+
+// @default: white
+uniform sampler2D u_MetallicMap;
+
+// @default: white
+uniform sampler2D u_RoughnessMap;
+
+// @default: white
+uniform sampler2D u_AOMap;
+
+// @default: white
+uniform sampler2D u_EmissionMap;
 
 // ---- 常量 ----
 const float PI = 3.14159265359;
