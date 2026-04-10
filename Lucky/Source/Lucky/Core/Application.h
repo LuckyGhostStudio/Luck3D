@@ -9,12 +9,39 @@
 namespace Lucky
 {
     /// <summary>
+    /// Application 命令行参数
+    /// </summary>
+    struct ApplicationCommandLineArgs
+    {
+        int Count = 0;          // 参数个数
+        char** Args = nullptr;  // 参数列表
+
+        const char* operator[](int index) const
+        {
+            LF_CORE_ASSERT(index < Count, "Index out of args count range!");
+
+            return Args[index];
+        }
+    };
+
+    /// <summary>
+    /// Application 规范
+    /// </summary>
+    struct ApplicationSpecification
+    {
+        std::string Name = "Lucky Application";
+        std::string WorkingDirectory;               // 项目工作目录
+
+        ApplicationCommandLineArgs CommandLineArgs; // 命令行参数
+    };
+
+    /// <summary>
     /// 应用程序：管理应用程序的入口点和生命周期
     /// </summary>
     class Application
     {
     public:
-        Application();
+        Application(const ApplicationSpecification& specification);
         virtual ~Application();
 
         /// <summary>
@@ -44,7 +71,7 @@ namespace Lucky
         /// <summary>
         /// 事件回调函数
         /// </summary>
-        /// <param name="e">事件</param>
+        /// <param name="event">事件</param>
         void OnEvent(Event& event);
 
         /// <summary>
@@ -59,9 +86,11 @@ namespace Lucky
 
         static Application& GetInstance() { return *s_Instance; }
 
-        Window& GetWindow() { return *m_Window; }
+        const ApplicationSpecification& GetSpecification() const { return m_Specification; }
 
-        ImGuiLayer* GetImGuiLayer() { return m_ImGuiLayer; }
+        Window& GetWindow() const { return *m_Window; }
+
+        ImGuiLayer* GetImGuiLayer() const { return m_ImGuiLayer; }
     private:
         /// <summary>
         /// 窗口关闭回调函数
@@ -79,6 +108,8 @@ namespace Lucky
     private:
         static Application* s_Instance;
 
+        ApplicationSpecification m_Specification;   // App 规范
+
         Scope<Window> m_Window;     // 窗口
 
         LayerStack m_LayerStack;    // 层栈
@@ -93,6 +124,7 @@ namespace Lucky
     /// <summary>
     /// 创建 App：在 LuckyApplication 中定义
     /// </summary>
+    /// <param name="args">命令行参数</param>
     /// <returns></returns>
-    Application* CreateApplication();
+    Application* CreateApplication(ApplicationCommandLineArgs args);
 }

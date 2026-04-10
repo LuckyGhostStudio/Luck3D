@@ -13,7 +13,7 @@ namespace Lucky
     /// </summary>
     struct WindowProps
     {
-        WindowProps(const std::string& title = "Luck3D", unsigned int width = 1280, unsigned int height = 720)
+        WindowProps(const std::string& title = "Lucky", unsigned int width = 1280, unsigned int height = 720)
             : Title(title), Width(width), Height(height)
         {
 

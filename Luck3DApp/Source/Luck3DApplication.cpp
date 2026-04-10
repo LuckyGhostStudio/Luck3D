@@ -6,13 +6,18 @@
 class Luck3DApplication : public Lucky::Application
 {
 public:
-    Luck3DApplication()
+    Luck3DApplication(const Lucky::ApplicationSpecification& specification)
+        : Application(specification)
     {
         PushLayer(new Lucky::EditorLayer());
     }
 };
 
-Lucky::Application* Lucky::CreateApplication()
+Lucky::Application* Lucky::CreateApplication(ApplicationCommandLineArgs args)
 {
-    return new Luck3DApplication();
+    ApplicationSpecification spec;
+    spec.Name = "Luck3D";
+    spec.CommandLineArgs = args;
+
+    return new Luck3DApplication(spec);
 }

@@ -6,6 +6,7 @@
 
 #include "YamlHelpers.h"
 
+#include <filesystem>
 #include <yaml-cpp/yaml.h>
 
 namespace Lucky
@@ -111,9 +112,13 @@ namespace Lucky
                 // 纹理序列化为文件路径字符串，空纹理序列化为空字符串
                 const Ref<Texture2D>& texture = std::get<Ref<Texture2D>>(prop.Value);
                 std::string texturePath = "";
-                if (texture)
+                if (texture && !texture->GetPath().empty())
                 {
-                    texturePath = texture->GetPath();
+                    // 绝对路径转换为相对于工作目录的相对路径
+                    std::filesystem::path absPath(texture->GetPath());
+                    std::filesystem::path relPath = std::filesystem::relative(absPath);
+
+                    texturePath = relPath.generic_string();  // 使用正斜杠
                 }
                 out << YAML::Key << "Value" << YAML::Value << texturePath;
                 break;
@@ -196,7 +201,12 @@ namespace Lucky
                 std::string texturePath = valueNode.as<std::string>();
                 if (!texturePath.empty())
                 {
-                    Ref<Texture2D> texture = Texture2D::Create(texturePath);
+                    std::filesystem::path path(texturePath);
+
+                    // 基于工作目录解析
+                    std::string absolutePath = std::filesystem::absolute(path).string();
+
+                    Ref<Texture2D> texture = Texture2D::Create(absolutePath);
                     material->SetTexture(propName, texture);
                 }
                 break;

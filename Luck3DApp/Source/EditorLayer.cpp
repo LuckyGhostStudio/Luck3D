@@ -57,6 +57,15 @@ namespace Lucky
         // 设置初始方向斜向下
         TransformComponent& transform = lightEntity.GetComponent<TransformComponent>();
         transform.SetRotationEuler(glm::vec3(glm::radians(50.0f), glm::radians(-32.0f), 0.0f));
+
+        auto commandLineArgs = Application::GetInstance().GetSpecification().CommandLineArgs;
+        // 从命令行加载场景
+        if (commandLineArgs.Count > 1)
+        {
+            const char* sceneFilePath = commandLineArgs[1];
+
+            OpenScene(sceneFilePath);
+        }
     }
 
     void EditorLayer::OnDetach()
