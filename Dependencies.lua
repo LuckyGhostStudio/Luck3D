@@ -7,6 +7,7 @@ IncludeDir["glm"] = "%{wks.location}/Lucky/Vendor/glm"
 IncludeDir["stb_image"] = "%{wks.location}/Lucky/Vendor/stb_image"
 IncludeDir["entt"] = "%{wks.location}/Lucky/Vendor/entt/include"
 IncludeDir["yaml_cpp"] = "%{wks.location}/Lucky/Vendor/yaml-cpp/include"
+IncludeDir["ImGuizmo"] = "%{wks.location}/Lucky/Vendor/ImGuizmo"
 
 -- 库目录
 LibraryDir = {}

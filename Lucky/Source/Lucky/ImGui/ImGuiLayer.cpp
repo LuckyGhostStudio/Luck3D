@@ -10,11 +10,13 @@
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 
+#include "ImGuizmo.h"
+
 #include "Lucky/Core/Application.h"
 
 namespace Lucky
 {
-    const static float s_StandardDPI = 120.0f;  // 基准 DPI
+    constexpr static float s_StandardDPI = 120.0f;  // 基准 DPI
 
     ImGuiLayer::ImGuiLayer()
         : Layer("ImGuiLayer")
@@ -85,6 +87,7 @@ namespace Lucky
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+        ImGuizmo::BeginFrame();
     }
 
     void ImGuiLayer::End()

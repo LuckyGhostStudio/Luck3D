@@ -19,6 +19,8 @@ project "Lucky"
         "Vendor/stb_image/**.cpp",
         "Vendor/glm/glm/**.hpp",
         "Vendor/glm/glm/**.inl",
+        "Vendor/ImGuizmo/ImGuizmo.h",
+        "Vendor/ImGuizmo/ImGuizmo.cpp"
     }
 
     includedirs
@@ -33,6 +35,7 @@ project "Lucky"
         "%{IncludeDir.glm}",
         "%{IncludeDir.entt}",
         "%{IncludeDir.yaml_cpp}",
+        "%{IncludeDir.ImGuizmo}"
     }
 
     links
@@ -43,6 +46,9 @@ project "Lucky"
         "yaml-cpp",
         "opengl32.lib",
     }
+
+    filter "files:Vendor/ImGuizmo/**.cpp"
+    flags {"NoPCH"}      -- 该 cpp 文件不使用预编译头文件
 
     filter "system:windows"
         systemversion "latest"
