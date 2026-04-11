@@ -15,4 +15,4 @@
 	url = https://github.com/LuckyGhostStudio/yaml-cpp
 [submodule "Lucky/Vendor/ImGuizmo"]
 	path = Lucky/Vendor/ImGuizmo
-	url = https://github.com/TheCherno/ImGuizmo
+	url = https://github.com/CedricGuillemet/ImGuizmo
