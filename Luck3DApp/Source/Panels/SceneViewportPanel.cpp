@@ -2,7 +2,13 @@
 
 #include "Lucky/Renderer/RenderCommand.h"
 
+#include "Lucky/Core/Input/Input.h"
+#include "Lucky/Scene/SelectionManager.h"
+#include "Lucky/Scene/Components/TransformComponent.h"
+
 #include "imgui/imgui.h"
+#include "ImGuizmo.h"
+#include "glm/gtc/type_ptr.hpp"
 
 namespace Lucky
 {
@@ -66,16 +72,136 @@ namespace Lucky
 
     void SceneViewportPanel::OnGUI()
     {
+        auto viewportMinRegion = ImGui::GetWindowContentRegionMin();    // 视口可用区域最小值（视口左上角相对于视口左上角位置）
+        auto viewportMaxRegion = ImGui::GetWindowContentRegionMax();    // 视口可用区域最大值（视口右下角相对于视口左上角位置）
+        auto viewportOffset = ImGui::GetWindowPos();                    // 视口偏移量：视口面板左上角位置（相对于屏幕左上角）
+
+        m_Bounds[0] = { viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y };
+        m_Bounds[1] = { viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y };
+        
         ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();  // 当前面板大小
         m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };      // 视口大小
         
         uint32_t textureID = m_Framebuffer->GetColorAttachmentRendererID(); // 颜色缓冲区 0 ID
 
         ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, ImVec2(0, 1), ImVec2(1, 0)); // 场景视口图像
+        
+        UI_DrawGizmos();    // 绘制 Gizmo
     }
 
     void SceneViewportPanel::OnEvent(Event& event)
     {
         m_EditorCamera.OnEvent(event);
+        
+        EventDispatcher dispatcher(event);
+        dispatcher.Dispatch<KeyPressedEvent>(LF_BIND_EVENT_FUNC(SceneViewportPanel::OnKeyPressed)); // 按键按下事件
+    }
+
+    void SceneViewportPanel::UI_DrawGizmos()
+    {
+        UUID selectionID = SelectionManager::GetSelection();
+        // 选中项存在 && Gizmo 类型存在
+        if (selectionID != 0 && m_GizmoType != -1)
+        {
+            Entity entity = m_Scene->GetEntityWithUUID(selectionID);
+            TransformComponent& transformComponent = entity.GetComponent<TransformComponent>();
+            glm::mat4 transform = transformComponent.GetTransform();
+            
+            ImGuizmo::SetOrthographic(false);   // 透视投影
+            ImGuizmo::AllowAxisFlip(false);     // 禁用坐标轴翻转
+            ImGuizmo::SetDrawlist();            // 设置绘制列表
+
+            // 设置绘制区域
+            ImGuizmo::SetRect(m_Bounds[0].x, m_Bounds[0].y, m_Bounds[1].x - m_Bounds[0].x, m_Bounds[1].y - m_Bounds[0].y);
+
+            // 编辑器相机
+            glm::mat4 viewMatrix = m_EditorCamera.GetViewMatrix();              // 视图矩阵
+            glm::mat4 projectionMatrix = m_EditorCamera.GetProjectionMatrix();  // 投影矩阵
+
+            bool span = Input::IsKeyPressed(Key::LeftControl);  // Ctrl 刻度捕捉：操作时固定 delta 刻度
+            float spanValue = 0.5f;     // 平移缩放间隔：0.5m
+
+            // 旋转间隔值：5 度
+            if (m_GizmoType == ImGuizmo::OPERATION::ROTATE)
+            {
+                spanValue = 5.0f;
+            }
+
+            float spanValues[3] = { spanValue, spanValue, spanValue };  // xyz 轴刻度捕捉值
+
+            // 绘制操作
+            ImGuizmo::Manipulate(
+                glm::value_ptr(viewMatrix),         // 视图矩阵
+                glm::value_ptr(projectionMatrix),   // 投影矩阵
+                (ImGuizmo::OPERATION)m_GizmoType,       // 操作类型
+                (ImGuizmo::MODE)m_GizmoMode,            // 坐标系：本地|世界
+                glm::value_ptr(transform),          // transform 增量矩阵
+                nullptr,
+                span ? spanValues : nullptr);           // 刻度捕捉值
+
+            // Gizmo 正在使用
+            if (ImGuizmo::IsUsing())
+            {
+                glm::vec3 translation;
+                glm::quat rotation;
+                glm::vec3 scale;
+                Math::DecomposeTransform(transform, translation, rotation, scale); // 分解 transform 矩阵
+
+                switch (m_GizmoType)
+                {
+                    case ImGuizmo::OPERATION::TRANSLATE:
+                        transformComponent.Translation = translation;   // 更新位置
+                        break;
+                    case ImGuizmo::OPERATION::ROTATE:
+                        glm::vec3 originalRotationEuler = transformComponent.GetRotationEuler();
+                    
+                        glm::vec3 deltaRotationEuler = glm::eulerAngles(rotation) - originalRotationEuler;  // 计算旋转增量（弧度）
+
+                        // 避免数值精度导致的漂移
+                        if (fabs(deltaRotationEuler.x) < 0.001) deltaRotationEuler.x = 0.0f;
+                        if (fabs(deltaRotationEuler.y) < 0.001) deltaRotationEuler.y = 0.0f;
+                        if (fabs(deltaRotationEuler.z) < 0.001) deltaRotationEuler.z = 0.0f;
+                    
+                        // 累积旋转
+                        glm::vec3 newRotationEuler = transformComponent.GetRotationEuler();
+                        newRotationEuler += deltaRotationEuler;
+                    
+                        transformComponent.SetRotationEuler(newRotationEuler);    // 更新旋转
+                        break;
+                    case ImGuizmo::OPERATION::SCALE:
+                        transformComponent.Scale = scale;   // 更新缩放
+                        break;
+                }
+            }
+        }
+    }
+
+    bool SceneViewportPanel::OnKeyPressed(KeyPressedEvent& e)
+    {
+        // 按键重复
+        if (e.IsRepeat())
+        {
+            return false;
+        }
+
+        // Gizmo 不是正在使用
+        if (!ImGuizmo::IsUsing())
+        {
+            // Gizmo 快捷键
+            switch (e.GetKeyCode())
+            {
+            case Key::G:
+                m_GizmoType = ImGuizmo::OPERATION::TRANSLATE;   // 平移
+                break;
+            case Key::R:
+                m_GizmoType = ImGuizmo::OPERATION::ROTATE;      // 旋转
+                break;
+            case Key::S:
+                m_GizmoType = ImGuizmo::OPERATION::SCALE;       // 缩放
+                break;
+            }
+        }
+
+        return false;
     }
 }

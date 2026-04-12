@@ -59,15 +59,15 @@ namespace Lucky
         // Transform 组件
         DrawComponent<TransformComponent>("Transform", entity, [](TransformComponent& transform)
         {
-            ImGui::DragFloat3("Position", &transform.Translation.x, 0.1f);
+            ImGui::DragFloat3("Position", &transform.Translation.x, 0.01f);
             
-            glm::vec3 rotationEuler = transform.GetRotationEuler();
-            if (ImGui::DragFloat3("Rotation", &rotationEuler.x, 0.1f))
+            glm::vec3 rotationEuler = glm::degrees(transform.GetRotationEuler());   // 转为角度
+            if (ImGui::DragFloat3("Rotation", &rotationEuler.x, 1.0f))
             {
-                transform.SetRotationEuler(rotationEuler);
+                transform.SetRotationEuler(glm::radians(rotationEuler));
             }
 
-            ImGui::DragFloat3("Scale", &transform.Scale.x, 0.1f);
+            ImGui::DragFloat3("Scale", &transform.Scale.x, 0.01f);
         });
         
         // DirectionalLight 组件
