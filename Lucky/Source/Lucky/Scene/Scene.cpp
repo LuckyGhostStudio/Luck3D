@@ -3,14 +3,7 @@
 
 #include "Lucky/Renderer/Renderer3D.h"
 
-// 组件
-#include "Components/IDComponent.h"
-#include "Components/NameComponent.h"
-#include "Components/TransformComponent.h"
-#include "Components/RelationshipComponent.h"
-#include "Components/MeshFilterComponent.h"
-#include "Components/MeshRendererComponent.h"
-#include "Components/DirectionalLightComponent.h"
+#include "Components/Components.h"
 
 #include "Entity.h"
 
@@ -80,22 +73,78 @@ namespace Lucky
     
     void Scene::OnUpdate(DeltaTime dt, EditorCamera& camera)
     {
-        // 查询方向光实体 TODO 无灯光则不计算光照
-        DirectionalLightData lightData;
+        // 收集所有光源数据
+        SceneLightData sceneLightData;
+        
+        // 收集方向光实体
         {
             auto lightView = m_Registry.view<TransformComponent, DirectionalLightComponent>();
             for (auto entity : lightView)
             {
+                if (sceneLightData.DirectionalLightCount >= s_MaxDirectionalLights)
+                {
+                    break;
+                }
+                
                 auto [transform, light] = lightView.get<TransformComponent, DirectionalLightComponent>(entity);
-            
-                lightData.Direction = transform.GetForward();
-                lightData.Color = light.Color;
-                lightData.Intensity = light.Intensity;
-                break;  // 目前仅支持一个方向光
+                
+                DirectionalLightData& dirlight = sceneLightData.DirectionalLights[sceneLightData.DirectionalLightCount];
+                dirlight.Direction = transform.GetForward();
+                dirlight.Color = light.Color;
+                dirlight.Intensity = light.Intensity;
+                
+                sceneLightData.DirectionalLightCount++;
             }
         }
         
-        Renderer3D::BeginScene(camera, lightData);
+        // 收集点光源实体
+        {
+            auto lightView = m_Registry.view<TransformComponent, PointLightComponent>();
+            for (auto entity : lightView)
+            {
+                if (sceneLightData.PointLightCount >= s_MaxPointLights)
+                {
+                    break;
+                }
+                
+                auto [transform, light] = lightView.get<TransformComponent, PointLightComponent>(entity);
+                
+                PointLightData& pointLight = sceneLightData.PointLights[sceneLightData.PointLightCount];
+                pointLight.Position = transform.Translation;
+                pointLight.Color = light.Color;
+                pointLight.Intensity = light.Intensity;
+                pointLight.Range = light.Range;
+                
+                sceneLightData.PointLightCount++;
+            }
+        }
+        
+        // 收集聚光灯实体
+        {
+            auto lightView = m_Registry.view<TransformComponent, SpotLightComponent>();
+            for (auto entity : lightView)
+            {
+                if (sceneLightData.SpotLightCount >= s_MaxSpotLights)
+                {
+                    break;
+                }
+                
+                auto [transform, light] = lightView.get<TransformComponent, SpotLightComponent>(entity);
+                
+                SpotLightData& spotLight = sceneLightData.SpotLights[sceneLightData.SpotLightCount];
+                spotLight.Position = transform.Translation;
+                spotLight.Direction = transform.GetForward();
+                spotLight.Color = light.Color;
+                spotLight.Intensity = light.Intensity;
+                spotLight.Range = light.Range;
+                spotLight.InnerCutoff = glm::cos(glm::radians(light.InnerCutoffAngle));
+                spotLight.OuterCutoff = glm::cos(glm::radians(light.OuterCutoffAngle));
+                
+                sceneLightData.SpotLightCount++;
+            }
+        }
+        
+        Renderer3D::BeginScene(camera, sceneLightData);
         {
             // 获取同时拥有 TransformComponent MeshFilterComponent MeshRendererComponent 的实体
             auto meshGroup = m_Registry.group<TransformComponent>(entt::get<MeshFilterComponent, MeshRendererComponent>);
@@ -211,6 +260,18 @@ namespace Lucky
     
     template<>
     void Scene::OnComponentAdded<DirectionalLightComponent>(Entity entity, DirectionalLightComponent& component)
+    {
+        
+    }
+    
+    template<>
+    void Scene::OnComponentAdded<PointLightComponent>(Entity entity, PointLightComponent& component)
+    {
+        
+    }
+    
+    template<>
+    void Scene::OnComponentAdded<SpotLightComponent>(Entity entity, SpotLightComponent& component)
     {
         
     }

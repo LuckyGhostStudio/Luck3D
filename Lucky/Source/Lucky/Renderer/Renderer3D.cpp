@@ -31,30 +31,33 @@ namespace Lucky
         Renderer3D::Statistics Stats;   // 统计数据
 
         /// <summary>
-        /// 相机数据
+        /// 相机 UBO 数据
         /// </summary>
-        struct CameraData
+        struct CameraUBOData
         {
             glm::mat4 ViewProjectionMatrix; // VP 矩阵
             glm::vec3 Position;             // 相机位置
             char padding[4];                // 填充到 16 字节对齐
         };
-        
-        /// <summary>
-        /// 光照数据 目前仅支持一个方向光，后续可扩展为支持多光源
-        /// </summary>
-        struct LightData
-        {
-            float Intensity;        // 光照强度 TODO 该成员在第一位时才能正确渲染
-            char padding3[12];      // 填充到 16 字节对齐
-            glm::vec3 Direction;    // 光照方向（世界空间）
-            char padding1[4];       // 填充到 16 字节对齐
-            glm::vec3 Color;        // 光照颜色
-            char padding2[4];       // 填充到 16 字节对齐
-        };
 
-        CameraData CameraBuffer;
-        LightData LightBuffer;
+        /// <summary>
+        /// 光照 UBO 数据
+        /// </summary>
+        struct LightUBOData
+        {
+            int DirectionalLightCount;  // 方向光数量
+            int PointLightCount;        // 点光源数量
+            int SpotLightCount;         // 聚光灯数量
+            char padding[4];            // 填充到 16 字节对齐
+            
+            DirectionalLightData DirectionalLights[s_MaxDirectionalLights]; // 方向光数组
+            PointLightData PointLights[s_MaxPointLights];                   // 点光源数组
+            SpotLightData SpotLights[s_MaxSpotLights];                      // 聚光灯数组
+        };
+        
+        CameraUBOData CameraBuffer; // 相机 UBO 数据
+        LightUBOData LightBuffer;   // 光照 UBO 数据
+
         Ref<UniformBuffer> CameraUniformBuffer; // 相机 Uniform 缓冲区
         Ref<UniformBuffer> LightUniformBuffer;  // 光照 Uniform 缓冲区
     };
@@ -102,8 +105,8 @@ namespace Lucky
         s_Data.DefaultMaterial->SetFloat3("u_Emission", glm::vec3(0.0f));
         s_Data.DefaultMaterial->SetFloat("u_EmissionIntensity", 1.0f);
         
-        s_Data.CameraUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::CameraData), 0);  // 创建相机 Uniform 缓冲区
-        s_Data.LightUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::LightData), 1);    // 创建光照 Uniform 缓冲区
+        s_Data.CameraUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::CameraUBOData), 0);  // 创建相机 Uniform 缓冲区
+        s_Data.LightUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::LightUBOData), 1);    // 创建光照 Uniform 缓冲区
     }
 
     void Renderer3D::Shutdown()
@@ -111,18 +114,31 @@ namespace Lucky
         
     }
 
-    void Renderer3D::BeginScene(const EditorCamera& camera, const DirectionalLightData& lightData)
+    void Renderer3D::BeginScene(const EditorCamera& camera, const SceneLightData& lightData)
     {
         // 设置 Camera Uniform 缓冲区数据
         s_Data.CameraBuffer.ViewProjectionMatrix = camera.GetViewProjectionMatrix();
         s_Data.CameraBuffer.Position = camera.GetPosition();
-        s_Data.CameraUniformBuffer->SetData(&s_Data.CameraBuffer, sizeof(Renderer3DData::CameraData));
+        s_Data.CameraUniformBuffer->SetData(&s_Data.CameraBuffer, sizeof(Renderer3DData::CameraUBOData));
         
         // 设置 Light Uniform 缓冲区数据
-        s_Data.LightBuffer.Direction = lightData.Direction;
-        s_Data.LightBuffer.Color = lightData.Color;
-        s_Data.LightBuffer.Intensity = lightData.Intensity;
-        s_Data.LightUniformBuffer->SetData(&s_Data.LightBuffer, sizeof(Renderer3DData::LightData));
+        s_Data.LightBuffer.DirectionalLightCount = lightData.DirectionalLightCount;
+        s_Data.LightBuffer.PointLightCount = lightData.PointLightCount;
+        s_Data.LightBuffer.SpotLightCount = lightData.SpotLightCount;
+    
+        for (int i = 0; i < lightData.DirectionalLightCount; ++i)
+        {
+            s_Data.LightBuffer.DirectionalLights[i] = lightData.DirectionalLights[i];
+        }
+        for (int i = 0; i < lightData.PointLightCount; ++i)
+        {
+            s_Data.LightBuffer.PointLights[i] = lightData.PointLights[i];
+        }
+        for (int i = 0; i < lightData.SpotLightCount; ++i)
+        {
+            s_Data.LightBuffer.SpotLights[i] = lightData.SpotLights[i];
+        }
+        s_Data.LightUniformBuffer->SetData(&s_Data.LightBuffer, sizeof(Renderer3DData::LightUBOData));
     }
 
     void Renderer3D::EndScene()

@@ -1,12 +1,7 @@
 #include "SceneHierarchyPanel.h"
 
 #include "Lucky/Scene/Entity.h"
-#include "Lucky/Scene/Components/NameComponent.h"
-#include "Lucky/Scene/Components/TransformComponent.h"
-#include "Lucky/Scene/Components/RelationshipComponent.h"
-#include "Lucky/Scene/Components/MeshFilterComponent.h"
-#include "Lucky/Scene/Components/MeshRendererComponent.h"
-#include "Lucky/Scene/Components/DirectionalLightComponent.h"
+#include "Lucky/Scene/Components/Components.h"
 
 #include "Lucky/Renderer/MeshFactory.h"
 #include "Lucky/Renderer/Renderer3D.h"
@@ -230,18 +225,39 @@ namespace Lucky
             ImGui::EndMenu();
         }
 
-        // 创建 Directional Light
-        if (ImGui::MenuItem("Directional Light"))
+        if (ImGui::BeginMenu("Light"))
         {
-            std::string uniqueName = GenerateUniqueName("Directional Light", parent);
-            newEntity = m_Scene->CreateEntity(uniqueName);
+            // 创建 DirectionalLight
+            if (ImGui::MenuItem("Directional Light"))
+            {
+                std::string uniqueName = GenerateUniqueName("Directional Light", parent);
+                newEntity = m_Scene->CreateEntity(uniqueName);
             
-            // DirectionalLight
-            newEntity.AddComponent<DirectionalLightComponent>();
+                // DirectionalLight
+                newEntity.AddComponent<DirectionalLightComponent>();
             
-            // 设置初始方向斜向下
-            TransformComponent& transform = newEntity.GetComponent<TransformComponent>();
-            transform.SetRotationEuler(glm::vec3(glm::radians(50.0f), glm::radians(-32.0f), 0.0f));
+                // 设置初始方向斜向下
+                TransformComponent& transform = newEntity.GetComponent<TransformComponent>();
+                transform.SetRotationEuler(glm::vec3(glm::radians(50.0f), glm::radians(-32.0f), 0.0f));
+            }
+        
+            // 创建 PointLight
+            if (ImGui::MenuItem("Point Light"))
+            {
+                std::string uniqueName = GenerateUniqueName("Point Light", parent);
+                newEntity = m_Scene->CreateEntity(uniqueName);
+                newEntity.AddComponent<PointLightComponent>();
+            }
+
+            // 创建 SpotLight
+            if (ImGui::MenuItem("Spot Light"))
+            {
+                std::string uniqueName = GenerateUniqueName("Spot Light", parent);
+                newEntity = m_Scene->CreateEntity(uniqueName);
+                newEntity.AddComponent<SpotLightComponent>();
+            }
+            
+            ImGui::EndMenu();
         }
         
         if (newEntity)

@@ -3,13 +3,7 @@
 
 #include "Lucky/Scene/Entity.h"
 
-#include "Lucky/Scene/Components/IDComponent.h"
-#include "Lucky/Scene/Components/NameComponent.h"
-#include "Lucky/Scene/Components/TransformComponent.h"
-#include "Lucky/Scene/Components/RelationshipComponent.h"
-#include "Lucky/Scene/Components/MeshFilterComponent.h"
-#include "Lucky/Scene/Components/MeshRendererComponent.h"
-#include "Lucky/Scene/Components/DirectionalLightComponent.h"
+#include "Lucky/Scene/Components/Components.h"
 
 #include "Lucky/Serialization/MaterialSerializer.h"
 #include "Lucky/Renderer/Renderer3D.h"
@@ -40,42 +34,37 @@ namespace Lucky
         // Name 组件
         if (entity.HasComponent<NameComponent>())
         {
+            const auto& nameComponent = entity.GetComponent<NameComponent>(); // Name 组件
+            
             out << YAML::Key << "NameComponent";
             
             out << YAML::BeginMap;
-
-            const auto& nameComponent = entity.GetComponent<NameComponent>(); // Name 组件
-
             out << YAML::Key << "Name" << YAML::Value << nameComponent.Name;
-
             out << YAML::EndMap;
         }
 
         // Transform 组件
         if (entity.HasComponent<TransformComponent>())
         {
+            const auto& transformComponent = entity.GetComponent<TransformComponent>();
+            
             out << YAML::Key << "TransformComponent";
             
             out << YAML::BeginMap;
-            
-            const auto& transformComponent = entity.GetComponent<TransformComponent>();
-
             out << YAML::Key << "Position" << YAML::Value << transformComponent.Translation;
             out << YAML::Key << "Rotation" << YAML::Value << transformComponent.GetRotation();
             out << YAML::Key << "Scale" << YAML::Value << transformComponent.Scale;
-
             out << YAML::EndMap;
         }
         
         // Relationship 组件
         if (entity.HasComponent<RelationshipComponent>())
         {
+            const auto& relationshipComponent = entity.GetComponent<RelationshipComponent>();
+            
             out << YAML::Key << "RelationshipComponent";
             
             out << YAML::BeginMap;
-            
-            const auto& relationshipComponent = entity.GetComponent<RelationshipComponent>();
-            
             out << YAML::Key << "Parent" << YAML::Value << relationshipComponent.Parent;
             
             out << YAML::Key << "Children" << YAML::Value << YAML::BeginSeq;
@@ -93,41 +82,67 @@ namespace Lucky
         // DirectionalLight 组件
         if (entity.HasComponent<DirectionalLightComponent>())
         {
+            const auto& light = entity.GetComponent<DirectionalLightComponent>();
+            
             out << YAML::Key << "DirectionalLightComponent";
             
             out << YAML::BeginMap;
-            
-            const auto& directionalLightComponent = entity.GetComponent<DirectionalLightComponent>();
-            
             out << YAML::Key << "Direction" << YAML::Value << entity.GetComponent<TransformComponent>().GetRotation();
-            out << YAML::Key << "Color" << YAML::Value << directionalLightComponent.Color;
-            out << YAML::Key << "Intensity" << YAML::Value << directionalLightComponent.Intensity;
+            out << YAML::Key << "Color" << YAML::Value << light.Color;
+            out << YAML::Key << "Intensity" << YAML::Value << light.Intensity;
+            out << YAML::EndMap;
+        }
+        
+        // PointLight 组件
+        if (entity.HasComponent<PointLightComponent>())
+        {
+            const auto& light = entity.GetComponent<PointLightComponent>();
+
+            out << YAML::Key << "PointLightComponent";
             
+            out << YAML::BeginMap;
+            out << YAML::Key << "Color" << YAML::Value << light.Color;
+            out << YAML::Key << "Intensity" << YAML::Value << light.Intensity;
+            out << YAML::Key << "Range" << YAML::Value << light.Range;
+            out << YAML::EndMap;
+        }
+
+        // SpotLight 组件
+        if (entity.HasComponent<SpotLightComponent>())
+        {
+            const auto& light = entity.GetComponent<SpotLightComponent>();
+
+            out << YAML::Key << "SpotLightComponent";
+            
+            out << YAML::BeginMap;
+            out << YAML::Key << "Color" << YAML::Value << light.Color;
+            out << YAML::Key << "Intensity" << YAML::Value << light.Intensity;
+            out << YAML::Key << "Range" << YAML::Value << light.Range;
+            out << YAML::Key << "InnerCutoffAngle" << YAML::Value << light.InnerCutoffAngle;
+            out << YAML::Key << "OuterCutoffAngle" << YAML::Value << light.OuterCutoffAngle;
             out << YAML::EndMap;
         }
         
         // MeshFilter 组件
         if (entity.HasComponent<MeshFilterComponent>())
         {
+            const auto& meshFilterComponent = entity.GetComponent<MeshFilterComponent>();
+            
             out << YAML::Key << "MeshFilterComponent";
             
             out << YAML::BeginMap;
-            
-            const auto& meshFilterComponent = entity.GetComponent<MeshFilterComponent>();
-            
             out << YAML::Key << "PrimitiveType" << YAML::Value << (int)meshFilterComponent.Primitive;
-            
             out << YAML::EndMap;
         }
         
         // MeshRenderer 组件
         if (entity.HasComponent<MeshRendererComponent>())
         {
+            const auto& meshRendererComponent = entity.GetComponent<MeshRendererComponent>();
+            
             out << YAML::Key << "MeshRendererComponent";
             
             out << YAML::BeginMap;
-            
-            const auto& meshRendererComponent = entity.GetComponent<MeshRendererComponent>();
             
             // 序列化材质列表
             out << YAML::Key << "Materials" << YAML::Value << YAML::BeginSeq;
@@ -264,11 +279,35 @@ namespace Lucky
                 YAML::Node directionalLightComponentNode = entity["DirectionalLightComponent"];
                 if (directionalLightComponentNode)
                 {
-                    auto& directionalLight = deserializedEntity.AddComponent<DirectionalLightComponent>();
+                    auto& light = deserializedEntity.AddComponent<DirectionalLightComponent>();
                     
                     deserializedEntity.GetComponent<TransformComponent>().SetRotation(directionalLightComponentNode["Direction"].as<glm::quat>());
-                    directionalLight.Color = directionalLightComponentNode["Color"].as<glm::vec3>();
-                    directionalLight.Intensity = directionalLightComponentNode["Intensity"].as<float>();
+                    light.Color = directionalLightComponentNode["Color"].as<glm::vec3>();
+                    light.Intensity = directionalLightComponentNode["Intensity"].as<float>();
+                }
+                
+                // PointLight 组件
+                YAML::Node pointLightComponent = entity["PointLightComponent"];
+                if (pointLightComponent)
+                {
+                    auto& light = deserializedEntity.AddComponent<PointLightComponent>();
+                    
+                    light.Color = pointLightComponent["Color"].as<glm::vec3>();
+                    light.Intensity = pointLightComponent["Intensity"].as<float>();
+                    light.Range = pointLightComponent["Range"].as<float>();
+                }
+
+                // SpotLight 组件
+                YAML::Node spotLightComponent = entity["SpotLightComponent"];
+                if (spotLightComponent)
+                {
+                    auto& light = deserializedEntity.AddComponent<SpotLightComponent>();
+                    
+                    light.Color = spotLightComponent["Color"].as<glm::vec3>();
+                    light.Intensity = spotLightComponent["Intensity"].as<float>();
+                    light.Range = spotLightComponent["Range"].as<float>();
+                    light.InnerCutoffAngle = spotLightComponent["InnerCutoffAngle"].as<float>();
+                    light.OuterCutoffAngle = spotLightComponent["OuterCutoffAngle"].as<float>();
                 }
                 
                 // MeshFilter 组件

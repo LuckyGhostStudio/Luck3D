@@ -2,15 +2,13 @@
 
 #include "Lucky/Scene/SelectionManager.h"
 
-#include "Lucky/Scene/Components/NameComponent.h"
-#include "Lucky/Scene/Components/TransformComponent.h"
-#include "Lucky/Scene/Components/MeshFilterComponent.h"
-#include "Lucky/Scene/Components/MeshRendererComponent.h"
-#include "Lucky/Scene/Components/DirectionalLightComponent.h"
+#include "Lucky/Scene/Components/Components.h"
 
 #include "Lucky/Renderer/Renderer3D.h"
 
 #include "Lucky/Utils/PlatformUtils.h"
+
+#include "glm/gtc/type_ptr.hpp"
 
 namespace Lucky
 {
@@ -73,8 +71,26 @@ namespace Lucky
         // DirectionalLight 组件
         DrawComponent<DirectionalLightComponent>("Directional Light", entity, [](DirectionalLightComponent& light)
         {
-            ImGui::ColorEdit3("Color", &light.Color.x);
+            ImGui::ColorEdit3("Color", glm::value_ptr(light.Color));
             ImGui::DragFloat("Intensity", &light.Intensity, 0.01f, 0.0f, 10.0f);
+        });
+        
+        // PointLight 组件
+        DrawComponent<PointLightComponent>("Point Light", entity, [](PointLightComponent& light)
+        {
+            ImGui::ColorEdit3("Color", glm::value_ptr(light.Color));
+            ImGui::DragFloat("Intensity", &light.Intensity, 0.1f, 0.0f, 100.0f);
+            ImGui::DragFloat("Range", &light.Range, 0.1f, 0.1f, 1000.0f);
+        });
+
+        // SpotLight 组件
+        DrawComponent<SpotLightComponent>("Spot Light", entity, [](SpotLightComponent& light)
+        {
+            ImGui::ColorEdit3("Color", glm::value_ptr(light.Color));
+            ImGui::DragFloat("Intensity", &light.Intensity, 0.1f, 0.0f, 100.0f);
+            ImGui::DragFloat("Range", &light.Range, 0.1f, 0.1f, 1000.0f);
+            ImGui::DragFloat("Inner Cutoff", &light.InnerCutoffAngle, 0.5f, 0.0f, light.OuterCutoffAngle);
+            ImGui::DragFloat("Outer Cutoff", &light.OuterCutoffAngle, 0.5f, light.InnerCutoffAngle, 90.0f);
         });
         
         // MeshFilter 组件

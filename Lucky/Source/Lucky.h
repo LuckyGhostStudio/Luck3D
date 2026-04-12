@@ -30,9 +30,4 @@
 
 // Scenes
 #include "Lucky/Scene/Scene.h"
-#include "Lucky/Scene/Components/IDComponent.h"
-#include "Lucky/Scene/Components/NameComponent.h"
-#include "Lucky/Scene/Components/TransformComponent.h"
-#include "Lucky/Scene/Components/MeshFilterComponent.h"
-#include "Lucky/Scene/Components/MeshRendererComponent.h"
-#include "Lucky/Scene/Components/DirectionalLightComponent.h"
+#include "Lucky/Scene/Components/Components.h"

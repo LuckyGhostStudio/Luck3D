@@ -5,7 +5,7 @@
 namespace Lucky
 {
     /// <summary>
-    /// 方向光组件：表示一个平行光源 光照方向由实体的 TransformComponent 旋转推导（取 forward 向量）
+    /// 方向光组件：表示一个平行光源
     /// </summary>
     struct DirectionalLightComponent
     {

@@ -2,6 +2,38 @@
 
 layout(location = 0) out vec4 o_Color;  // 颜色缓冲区 0 输出颜色
 
+#define MAX_DIRECTIONAL_LIGHTS 4
+#define MAX_POINT_LIGHTS 8
+#define MAX_SPOT_LIGHTS 4
+
+struct DirectionalLight
+{
+    vec3 Direction;
+    float Intensity;
+    vec3 Color;
+    float _padding;
+};
+
+struct PointLight
+{
+    vec3 Position;
+    float Intensity;
+    vec3 Color;
+    float Range;
+};
+
+struct SpotLight
+{
+    vec3 Position;
+    float Intensity;
+    vec3 Direction;
+    float Range;
+    vec3 Color;
+    float InnerCutoff;  // cos(innerAngle)
+    float OuterCutoff;  // cos(outerAngle)
+    float _padding[3];  // 填充对齐到 16 字节
+};
+
 // 相机 Uniform 缓冲区
 layout(std140, binding = 0) uniform Camera
 {
@@ -10,12 +42,17 @@ layout(std140, binding = 0) uniform Camera
 } u_Camera;
 
 // 光照 Uniform 缓冲区
-layout(std140, binding = 1) uniform Light
+layout(std140, binding = 1) uniform Lights
 {
-    float Intensity;
-    vec3 Direction;
-    vec3 Color;
-} u_Light;
+    int DirectionalLightCount;
+    int PointLightCount;
+    int SpotLightCount;
+    float _padding;     // 填充对齐到 16 字节
+
+    DirectionalLight DirectionalLights[MAX_DIRECTIONAL_LIGHTS];
+    PointLight PointLights[MAX_POINT_LIGHTS];
+    SpotLight SpotLights[MAX_SPOT_LIGHTS];
+} u_Lights;
 
 // 顶点着色器输出数据
 struct VertexOutput
@@ -115,6 +152,98 @@ vec3 GetNormal()
     return normalize(v_Input.TBN * normalMapSample);
 }
 
+// 计算方向光的 PBR 贡献
+vec3 CalcDirectionalLight(DirectionalLight light, vec3 N, vec3 V, vec3 albedo, float metallic, float roughness, vec3 F0)
+{
+    vec3 L = normalize(-light.Direction);
+    vec3 H = normalize(V + L);
+
+    vec3 radiance = light.Color * light.Intensity;
+
+    float D = DistributionGGX(N, H, roughness);
+    vec3  F = FresnelSchlick(max(dot(H, V), 0.0), F0);
+    float G = GeometrySmith(N, V, L, roughness);
+
+    vec3 numerator = D * F * G;
+    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+    vec3 specular = numerator / denominator;
+
+    vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);
+    float NdotL = max(dot(N, L), 0.0);
+
+    return (kD * albedo / PI + specular) * radiance * NdotL;
+}
+
+// 计算点光源的 PBR 贡献
+vec3 CalcPointLight(PointLight light, vec3 N, vec3 V, vec3 worldPos, vec3 albedo, float metallic, float roughness, vec3 F0)
+{
+    vec3 L = light.Position - worldPos;
+    float distance = length(L);
+
+    // 超出范围则不计算
+    if (distance > light.Range)
+    return vec3(0.0);
+
+    L = normalize(L);
+    vec3 H = normalize(V + L);
+
+    // 距离衰减（平滑衰减到 Range 边界）
+    float attenuation = clamp(1.0 - (distance / light.Range), 0.0, 1.0);
+    attenuation *= attenuation;  // 二次衰减，更自然
+
+    vec3 radiance = light.Color * light.Intensity * attenuation;
+
+    float D = DistributionGGX(N, H, roughness);
+    vec3  F = FresnelSchlick(max(dot(H, V), 0.0), F0);
+    float G = GeometrySmith(N, V, L, roughness);
+
+    vec3 numerator = D * F * G;
+    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+    vec3 specular = numerator / denominator;
+
+    vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);
+    float NdotL = max(dot(N, L), 0.0);
+
+    return (kD * albedo / PI + specular) * radiance * NdotL;
+}
+
+// 计算聚光灯的 PBR 贡献
+vec3 CalcSpotLight(SpotLight light, vec3 N, vec3 V, vec3 worldPos, vec3 albedo, float metallic, float roughness, vec3 F0)
+{
+    vec3 L = light.Position - worldPos;
+    float distance = length(L);
+
+    if (distance > light.Range)
+    return vec3(0.0);
+
+    L = normalize(L);
+    vec3 H = normalize(V + L);
+
+    // 锥形衰减
+    float theta = dot(L, normalize(-light.Direction));
+    float epsilon = light.InnerCutoff - light.OuterCutoff;
+    float spotIntensity = clamp((theta - light.OuterCutoff) / epsilon, 0.0, 1.0);
+
+    // 距离衰减
+    float attenuation = clamp(1.0 - (distance / light.Range), 0.0, 1.0);
+    attenuation *= attenuation;
+
+    vec3 radiance = light.Color * light.Intensity * attenuation * spotIntensity;
+
+    float D = DistributionGGX(N, H, roughness);
+    vec3  F = FresnelSchlick(max(dot(H, V), 0.0), F0);
+    float G = GeometrySmith(N, V, L, roughness);
+
+    vec3 numerator = D * F * G;
+    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+    vec3 specular = numerator / denominator;
+
+    vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);
+    float NdotL = max(dot(N, L), 0.0);
+
+    return (kD * albedo / PI + specular) * radiance * NdotL;
+}
+
 void main()
 {
     // ---- 采样材质参数（无贴图时默认纹理返回 1.0） ----
@@ -143,40 +272,31 @@ void main()
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metallic);
     
-    // ---- 光照计算（目前仅方向光） ----
+    // ---- 光照计算 多光源循环 ----
     vec3 Lo = vec3(0.0);
 
     // 方向光
+    for (int i = 0; i < u_Lights.DirectionalLightCount; ++i)
     {
-        vec3 L = normalize(-u_Light.Direction);
-        vec3 H = normalize(V + L);
+        Lo += CalcDirectionalLight(u_Lights.DirectionalLights[i], N, V, albedo, metallic, roughness, F0);
+    }
 
-        // 光照辐射度
-        vec3 radiance = u_Light.Color * u_Light.Intensity;
+    // 点光源
+    for (int i = 0; i < u_Lights.PointLightCount; ++i)
+    {
+        Lo += CalcPointLight(u_Lights.PointLights[i], N, V, v_Input.WorldPos, albedo, metallic, roughness, F0);
+    }
 
-        // Cook-Torrance BRDF
-        float D = DistributionGGX(N, H, roughness);
-        vec3  F = FresnelSchlick(max(dot(H, V), 0.0), F0);
-        float G = GeometrySmith(N, V, L, roughness);
-
-        // 镜面反射
-        vec3 numerator = D * F * G;
-        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-        vec3 specular = numerator / denominator;
-
-        // 漫反射
-        vec3 kS = F;                                    // 镜面反射比例 = Fresnel
-        vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);  // 漫反射比例（金属无漫反射）
-
-        float NdotL = max(dot(N, L), 0.0);
-
-        Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+    // 聚光灯
+    for (int i = 0; i < u_Lights.SpotLightCount; ++i)
+    {
+        Lo += CalcSpotLight(u_Lights.SpotLights[i], N, V, v_Input.WorldPos, albedo, metallic, roughness, F0);
     }
 
     // ---- 环境光（简单常量，无 IBL） ----
     vec3 ambient = vec3(AMBIENT_STRENGTH) * albedo * ao;
 
-    // ---- 最终颜色 ----
+    // ---- 最终颜色 = 环境光 + 直接光照 + 自发光 ----
     vec3 color = ambient + Lo + emission;
 
     // ---- Gamma 校正（线性空间 → sRGB） ----
