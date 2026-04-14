@@ -1,210 +1,27 @@
 Scene: New Scene
 Entitys:
-  - Entity: 18168877512814223065
+  - Entity: 7876231698542526701
     NameComponent:
-      Name: Point Light Red
+      Name: Spot Light Red
     TransformComponent:
-      Position: [3.57938719, 0, 1.53368497]
-      Rotation: [0, 0, 0, 1]
-      Scale: [1, 1, 1]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    PointLightComponent:
-      Color: [1, 0, 0]
-      Intensity: 8.60000038
-      Range: 10
-  - Entity: 12831369083947461170
-    NameComponent:
-      Name: Cube
-    TransformComponent:
-      Position: [0, 0, 0]
-      Rotation: [0, 0, 0, 1]
-      Scale: [1.10000002, 1.10000002, 1.10000002]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    MeshFilterComponent:
-      PrimitiveType: 1
-    MeshRendererComponent:
-      Materials:
-        - Name: Default Material
-          Shader: Standard
-          Properties:
-            - Name: u_AO
-              Type: Float
-              Value: 1
-            - Name: u_AOMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_Albedo
-              Type: Float4
-              Value: [0.800000012, 0.800000012, 0.800000012, 1]
-            - Name: u_AlbedoMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_Emission
-              Type: Float3
-              Value: [0, 0, 0]
-            - Name: u_EmissionIntensity
-              Type: Float
-              Value: 1
-            - Name: u_EmissionMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_Metallic
-              Type: Float
-              Value: 0.300000012
-            - Name: u_MetallicMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_NormalMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_Roughness
-              Type: Float
-              Value: 0.5
-            - Name: u_RoughnessMap
-              Type: Sampler2D
-              Value: ""
-  - Entity: 5312698272204000237
-    NameComponent:
-      Name: Spot Light Yellow
-    TransformComponent:
-      Position: [0.815514743, 0.765944541, -1.02076733]
-      Rotation: [0.295197129, -0.258227289, -0.0855558962, 0.915891588]
+      Position: [0, 1.19369543, -0.204030782]
+      Rotation: [0.493759453, 0, 0, 0.869598508]
       Scale: [1, 1, 1]
     RelationshipComponent:
       Parent: 0
       Children:
         []
     SpotLightComponent:
-      Color: [0.752989113, 0.927953899, 0.0962718874]
-      Intensity: 10.8999996
-      Range: 11.3000002
-      InnerCutoffAngle: 18
-      OuterCutoffAngle: 22
-  - Entity: 16506467162929908253
+      Color: [1, 0.0230547786, 0.0230547786]
+      Intensity: 4.5999999
+      Range: 11.6000004
+      InnerCutoffAngle: 17.5
+      OuterCutoffAngle: 17.5
+  - Entity: 13109514308638573941
     NameComponent:
-      Name: Point Light Orange
+      Name: Cylinder
     TransformComponent:
-      Position: [-0.145608664, 0.713457763, -0.060871847]
-      Rotation: [0, 0, 0, 1]
-      Scale: [1, 1, 1]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    PointLightComponent:
-      Color: [0.99423629, 0.482812643, 0.303714871]
-      Intensity: 2.4000001
-      Range: 9.39999962
-  - Entity: 1077575231304841697
-    NameComponent:
-      Name: Point Light Blue
-    TransformComponent:
-      Position: [0.716724992, -0.015451245, -0.0753733218]
-      Rotation: [0, 0, 0, 1]
-      Scale: [1, 1, 1]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    PointLightComponent:
-      Color: [0.0720461011, 0.799433589, 1]
-      Intensity: 6.19999981
-      Range: 10
-  - Entity: 16058491241260695684
-    NameComponent:
-      Name: Directional Light Pink
-    TransformComponent:
-      Position: [0.45201835, 1.0165602, -0.723380685]
-      Rotation: [-0.713229179, -0.629193366, 0.272182047, -0.146071658]
-      Scale: [1, 1, 1]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    DirectionalLightComponent:
-      Direction: [-0.713229179, -0.629193366, 0.272182047, -0.146071658]
-      Color: [0.962535858, 0, 1]
-      Intensity: 0.949999988
-  - Entity: 1222504292915771980
-    NameComponent:
-      Name: Directional Light
-    TransformComponent:
-      Position: [-2.68203712, -0.390028894, -2.22404003]
-      Rotation: [0.331423789, 0.104354471, 0.263485879, 0.899913073]
-      Scale: [1, 1, 1]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    DirectionalLightComponent:
-      Direction: [0.331423789, 0.104354471, 0.263485879, 0.899913073]
-      Color: [0.21397078, 0.976945221, 0]
-      Intensity: 1
-  - Entity: 6195016061485854941
-    NameComponent:
-      Name: Plane
-    TransformComponent:
-      Position: [0, -0.956773758, 0]
-      Rotation: [0, 0, 0, 1]
-      Scale: [11.6981993, 11.6981993, 11.6981993]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    MeshFilterComponent:
-      PrimitiveType: 2
-    MeshRendererComponent:
-      Materials:
-        - Name: Default Material
-          Shader: Standard
-          Properties:
-            - Name: u_AO
-              Type: Float
-              Value: 1
-            - Name: u_AOMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_Albedo
-              Type: Float4
-              Value: [0.800000012, 0.800000012, 0.800000012, 1]
-            - Name: u_AlbedoMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_Emission
-              Type: Float3
-              Value: [0, 0, 0]
-            - Name: u_EmissionIntensity
-              Type: Float
-              Value: 1
-            - Name: u_EmissionMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_Metallic
-              Type: Float
-              Value: 0.300000012
-            - Name: u_MetallicMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_NormalMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_Roughness
-              Type: Float
-              Value: 0.5
-            - Name: u_RoughnessMap
-              Type: Sampler2D
-              Value: ""
-  - Entity: 4827001375379088718
-    NameComponent:
-      Name: Capsule
-    TransformComponent:
-      Position: [-1.64002204, -0.486278266, 2.43292236]
+      Position: [0, 0, 4.19286585]
       Rotation: [0, 0, 0, 1]
       Scale: [1, 1, 1]
     RelationshipComponent:
@@ -212,7 +29,7 @@ Entitys:
       Children:
         []
     MeshFilterComponent:
-      PrimitiveType: 5
+      PrimitiveType: 4
     MeshRendererComponent:
       Materials:
         - Name: Default Material
@@ -308,11 +125,11 @@ Entitys:
             - Name: u_RoughnessMap
               Type: Sampler2D
               Value: ""
-  - Entity: 13109514308638573941
+  - Entity: 4827001375379088718
     NameComponent:
-      Name: Cylinder
+      Name: Capsule
     TransformComponent:
-      Position: [0, 0, 4.19286585]
+      Position: [-1.64002204, -0.486278266, 2.43292236]
       Rotation: [0, 0, 0, 1]
       Scale: [1, 1, 1]
     RelationshipComponent:
@@ -320,7 +137,7 @@ Entitys:
       Children:
         []
     MeshFilterComponent:
-      PrimitiveType: 4
+      PrimitiveType: 5
     MeshRendererComponent:
       Materials:
         - Name: Default Material
@@ -362,3 +179,203 @@ Entitys:
             - Name: u_RoughnessMap
               Type: Sampler2D
               Value: ""
+  - Entity: 6195016061485854941
+    NameComponent:
+      Name: Plane
+    TransformComponent:
+      Position: [0, -0.956773758, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [11.6981993, 11.6981993, 11.6981993]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 2
+    MeshRendererComponent:
+      Materials:
+        - Name: Default Material
+          Shader: Standard
+          Properties:
+            - Name: u_AO
+              Type: Float
+              Value: 1
+            - Name: u_AOMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Albedo
+              Type: Float4
+              Value: [0.800000012, 0.800000012, 0.800000012, 1]
+            - Name: u_AlbedoMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Emission
+              Type: Float3
+              Value: [0, 0, 0]
+            - Name: u_EmissionIntensity
+              Type: Float
+              Value: 1
+            - Name: u_EmissionMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Metallic
+              Type: Float
+              Value: 0.300000012
+            - Name: u_MetallicMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_NormalMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Roughness
+              Type: Float
+              Value: 0.5
+            - Name: u_RoughnessMap
+              Type: Sampler2D
+              Value: ""
+  - Entity: 1222504292915771980
+    NameComponent:
+      Name: Directional Light
+    TransformComponent:
+      Position: [-2.68203712, -0.390028894, -2.22404003]
+      Rotation: [0.331423789, 0.104354471, 0.263485879, 0.899913073]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    DirectionalLightComponent:
+      Direction: [0.331423789, 0.104354471, 0.263485879, 0.899913073]
+      Color: [0.21397078, 0.976945221, 0]
+      Intensity: 1
+  - Entity: 16058491241260695684
+    NameComponent:
+      Name: Directional Light Pink
+    TransformComponent:
+      Position: [0.45201835, 1.0165602, -0.723380685]
+      Rotation: [-0.713229179, -0.629193366, 0.272182047, -0.146071658]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    DirectionalLightComponent:
+      Direction: [-0.713229179, -0.629193366, 0.272182047, -0.146071658]
+      Color: [0.962535858, 0, 1]
+      Intensity: 0.949999988
+  - Entity: 1077575231304841697
+    NameComponent:
+      Name: Point Light Blue
+    TransformComponent:
+      Position: [0.716724992, -0.015451245, -0.0753733218]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    PointLightComponent:
+      Color: [0.0720461011, 0.799433589, 1]
+      Intensity: 6.19999981
+      Range: 10
+  - Entity: 16506467162929908253
+    NameComponent:
+      Name: Point Light Orange
+    TransformComponent:
+      Position: [-0.145608664, 0.713457763, -0.060871847]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    PointLightComponent:
+      Color: [0.99423629, 0.482812643, 0.303714871]
+      Intensity: 2.4000001
+      Range: 9.39999962
+  - Entity: 5312698272204000237
+    NameComponent:
+      Name: Spot Light Yellow
+    TransformComponent:
+      Position: [0.815514743, 0.765944541, -1.02076733]
+      Rotation: [0.295197129, -0.258227289, -0.0855558962, 0.915891588]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    SpotLightComponent:
+      Color: [0.752989113, 0.927953899, 0.0962718874]
+      Intensity: 10.8999996
+      Range: 11.3000002
+      InnerCutoffAngle: 18
+      OuterCutoffAngle: 22
+  - Entity: 12831369083947461170
+    NameComponent:
+      Name: Cube
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1.10000002, 1.10000002, 1.10000002]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 1
+    MeshRendererComponent:
+      Materials:
+        - Name: Default Material
+          Shader: Standard
+          Properties:
+            - Name: u_AO
+              Type: Float
+              Value: 1
+            - Name: u_AOMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Albedo
+              Type: Float4
+              Value: [0.800000012, 0.800000012, 0.800000012, 1]
+            - Name: u_AlbedoMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Emission
+              Type: Float3
+              Value: [0, 0, 0]
+            - Name: u_EmissionIntensity
+              Type: Float
+              Value: 1
+            - Name: u_EmissionMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Metallic
+              Type: Float
+              Value: 0.300000012
+            - Name: u_MetallicMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_NormalMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Roughness
+              Type: Float
+              Value: 0.5
+            - Name: u_RoughnessMap
+              Type: Sampler2D
+              Value: ""
+  - Entity: 18168877512814223065
+    NameComponent:
+      Name: Point Light Red
+    TransformComponent:
+      Position: [3.57938719, 0, 1.53368497]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    PointLightComponent:
+      Color: [1, 0, 0]
+      Intensity: 8.60000038
+      Range: 10

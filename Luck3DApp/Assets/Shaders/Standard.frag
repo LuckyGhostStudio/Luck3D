@@ -31,7 +31,9 @@ struct SpotLight
     vec3 Color;
     float InnerCutoff;  // cos(innerAngle)
     float OuterCutoff;  // cos(outerAngle)
-    float _padding[3];  // 填充对齐到 16 字节
+    float _pading0;     // 填充对齐到 16 字节（不使用数组，避免 std140 数组元素 16 字节对齐）
+    float _pading1;
+    float _pading2;
 };
 
 // 相机 Uniform 缓冲区
