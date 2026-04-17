@@ -1,10 +1,11 @@
 # Phase R5：HDR 渲染 + Tonemapping + Gamma 校正
 
-> **文档版本**：v1.0  
+> **文档版本**：v1.1  
 > **创建日期**：2026-04-07  
+> **更新日期**：2026-04-15  
 > **优先级**：?? P1  
 > **预计工作量**：2-3 天  
-> **前置依赖**：Phase R2（PBR Shader）  
+> **前置依赖**：Phase R2（PBR Shader）? 已完成  
 > **文档说明**：本文档详细描述如何将渲染管线从 LDR（Low Dynamic Range）升级为 HDR（High Dynamic Range），并添加 Tonemapping 和统一的 Gamma 校正。所有代码可直接对照实现。
 
 ---
@@ -40,6 +41,8 @@
 
 ## 一、现状分析
 
+> **注意**：本节已根据 2026-04-15 的实际代码状态更新。
+
 ### 当前渲染管线
 
 ```
@@ -50,8 +53,16 @@
   - 颜色值被截断到 [0, 1]
   - 高亮区域（如强光照射）全部变成白色，丢失细节
   - PBR 光照计算在线性空间，但输出到 RGBA8 会丢失精度
-  - Gamma 校正在每个 Shader 中手动进行（Phase R2），不统一
+  - Gamma 校正在 Standard.frag 中手动进行，不统一
 ```
+
+### 当前已完成的前置功能
+
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| PBR Shader（Phase R2） | ? 已完成 | `Standard.frag` 完整 PBR，末尾有手动 `pow(color, vec3(1.0/2.2))` Gamma 校正 |
+| 多光源支持（Phase R3） | ? 已完成 | 方向光×4 + 点光源×8 + 聚光灯×4 |
+| 场景序列化 | ? 已完成 | YAML 格式 `.luck3d` 文件 |
 
 ### 当前 Framebuffer 格式
 
@@ -62,9 +73,11 @@ enum class FramebufferTextureFormat
     RGBA8,              // 8 位整数，[0, 255] → [0.0, 1.0]
     RED_INTEGER,
     DEFPTH24STENCIL8,
-    DEPTH_COMPONENT,    // Phase R4 新增
+    Depth = DEFPTH24STENCIL8
 };
 ```
+
+当前不支持浮点纹理格式（`RGBA16F`）和纯深度纹理（`DEPTH_COMPONENT`），这两者分别在 Phase R4（阴影）和本阶段需要新增。
 
 ---
 

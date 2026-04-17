@@ -1,7 +1,8 @@
 # Phase R8：选中项描边（Selection Outline）
 
-> **文档版本**：v1.0  
+> **文档版本**：v1.1  
 > **创建日期**：2026-04-08  
+> **更新日期**：2026-04-15  
 > **优先级**：?? P2  
 > **预计工作量**：4-5 天  
 > **前置依赖**：Phase R7（多 Pass 渲染框架）、Phase R6（后处理框架）  
@@ -50,6 +51,8 @@
 
 ## 一、现状分析
 
+> **注意**：本节已根据 2026-04-15 的实际代码状态更新。
+
 ### 当前选择系统
 
 ```cpp
@@ -63,15 +66,27 @@ struct SelectionManager
 };
 ```
 
-### 当前渲染流程（Phase R7 之后）
+### 当前渲染流程
 
 ```
-RenderPipeline::Execute()
-  → ShadowPass        // 阴影渲染
-  → OpaquePass         // 不透明物体渲染 → HDR FBO
-  → TransparentPass    // 透明物体渲染 → HDR FBO
-  → PostProcessPass    // 后处理 + Tonemapping → 最终 FBO
+当前：单 Pass Forward 渲染，无排序
+Scene::OnUpdate
+  → 收集光源数据（DirectionalLight / PointLight / SpotLight）
+  → Renderer3D::BeginScene()     // 设置 Camera UBO + Light UBO
+  → Renderer3D::DrawMesh() × N   // 立即绘制，无排序
+  → Renderer3D::EndScene()       // 当前为空实现
 ```
+
+### 当前已完成的前置功能
+
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| PBR Shader（Phase R2） | ? 已完成 | `Standard.frag` 完整 PBR |
+| 多光源支持（Phase R3） | ? 已完成 | 方向光×4 + 点光源×8 + 聚光灯×4 |
+| 场景序列化 | ? 已完成 | YAML 格式 `.luck3d` 文件 |
+| 材质系统 | ? 已完成 | Shader 内省 + `unordered_map` 属性存储 |
+| 5 种内置图元 | ? 已完成 | Cube / Plane / Sphere / Cylinder / Capsule |
+| SelectionManager | ? 已完成 | 单选支持，存储选中实体 UUID |
 
 ### 当前帧缓冲配置
 
@@ -90,7 +105,7 @@ FramebufferAttachments = {
 |------|------|------|
 | R8-01 | 选中物体无视觉反馈 | 用户无法直观看到当前选中了哪个物体 |
 | R8-02 | 缺少 ScreenQuad 工具类 | 后处理和描边都需要全屏四边形绘制 |
-| R8-03 | 无独立的描边渲染通道 | 需要在 Phase R7 的 Pass 链中插入新的 Pass |
+| R8-03 | 无独立的描边渲染通道 | 需要在 Pass 链中插入新的 Pass |
 
 ---
 

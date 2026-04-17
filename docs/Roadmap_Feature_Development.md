@@ -1,8 +1,9 @@
 # Luck3D 引擎功能发展路线图
 
-> **文档版本**：v1.0  
+> **文档版本**：v2.5  
 > **创建日期**：2026-04-01  
-> **文档说明**：本文档整理了引擎在完成方向光组件（Phase 6）之后的功能发展方向，按优先级排序。每个功能模块包含必要性分析、改动范围、前置依赖和推荐方案。可根据本文档的优先级序列逐步实施。
+> **更新日期**：2026-04-17  
+> **文档说明**：本文档整理了引擎的功能发展方向，按优先级排序。v2.5 版本更新 R10 Gizmo 渲染系统功能列表：新增坐标轴指示器（ViewManipulate）、补充聚光灯内外锥角可视化、补充网格线 Y 轴、标记 Transform 操控手柄已完成。
 
 ---
 
@@ -11,15 +12,17 @@
 - [一、当前引擎架构概览](#一当前引擎架构概览)
 - [二、已完成的功能阶段](#二已完成的功能阶段)
 - [三、功能发展路线总览](#三功能发展路线总览)
-- [四、阶段 1：基础完善](#四阶段-1基础完善)
-  - [P1-1 材质属性 Map 改造（Phase 5）](#p1-1-材质属性-map-改造phase-5)
-  - [P1-2 场景序列化（SceneSerializer）](#p1-2-场景序列化sceneserializer)
-- [五、阶段 2：渲染改进](#五阶段-2渲染改进)
-  - [P2-1 渲染排序 + 延迟提交（DrawCommand）](#p2-1-渲染排序--延迟提交drawcommand)
-  - [P2-2 Gizmo 渲染系统](#p2-2-gizmo-渲染系统)
-- [六、阶段 3：内容扩展](#六阶段-3内容扩展)
-  - [P3-1 模型导入（AssetImporter）](#p3-1-模型导入assetimporter)
-  - [P3-2 多光源支持](#p3-2-多光源支持)
+- [四、下一阶段：渲染改进](#四下一阶段渲染改进)
+  - [R9 渲染排序 + 延迟提交（DrawCommand）](#r9-渲染排序--延迟提交drawcommand)
+  - [R10 Gizmo 渲染系统](#r10-gizmo-渲染系统)
+  - [R11 模型导入（AssetImporter）](#r11-模型导入assetimporter)
+- [五、中期阶段：渲染管线演进](#五中期阶段渲染管线演进)
+  - [R4 阴影系统](#r4-阴影系统)
+  - [R5 HDR + Tonemapping](#r5-hdr--tonemapping)
+  - [R6 后处理框架](#r6-后处理框架)
+- [六、远期阶段：架构升级](#六远期阶段架构升级)
+  - [R7 多 Pass 渲染框架](#r7-多-pass-渲染框架)
+  - [R8 选中高亮描边](#r8-选中高亮描边)
 - [七、远期展望（暂不实施）](#七远期展望暂不实施)
 - [八、实施路线图时间线](#八实施路线图时间线)
 
@@ -34,6 +37,7 @@ SceneViewportPanel::OnUpdate
   → Framebuffer.Bind()
   → RenderCommand::Clear()
   → Scene::OnUpdate()
+      → 收集光源数据（DirectionalLight / PointLight / SpotLight）
       → Renderer3D::BeginScene()     // 设置 Camera UBO (binding=0) + Light UBO (binding=1)
       → Renderer3D::DrawMesh() × N   // 遍历 SubMesh → 绑定 Shader → Apply 材质 → DrawIndexedRange
       → Renderer3D::EndScene()       // 当前为空实现
@@ -49,500 +53,299 @@ SceneViewportPanel::OnUpdate
 | 物体排序 | 无排序，按 entt 注册顺序绘制 |
 | 批处理 | 无，每个 SubMesh 一次 DrawCall |
 | 离屏渲染 | 已有 Framebuffer（SceneViewportPanel 使用） |
-| 光照 | 单方向光，通过 UBO 传递（Phase 6 将改为组件驱动） |
-| 材质系统 | Shader 内省 + MaterialProperty 列表 + Inspector UI |
+| 光照 | PBR 多光源（方向光×4 + 点光源×8 + 聚光灯×4），通过 UBO 传递 |
+| 材质系统 | Shader 内省 + MaterialProperty Map + Inspector UI |
 | 场景管理 | entt ECS，支持父子层级关系 |
+| 序列化 | YAML 格式 `.luck3d` 场景文件 |
 
 ### 已有的渲染模块
 
 | 模块 | 文件 | 说明 |
 |------|------|------|
-| Renderer | `Renderer.h/cpp` | 顶层初始化入口，调用 RenderCommand::Init + Renderer3D::Init |
+| Renderer | `Renderer.h/cpp` | 顶层初始化入口 |
 | Renderer3D | `Renderer3D.h/cpp` | 3D 渲染器，BeginScene/DrawMesh/EndScene |
 | RenderCommand | `RenderCommand.h/cpp` | 最底层 OpenGL 调用封装 |
 | Shader | `Shader.h/cpp` | 着色器加载、编译、Uniform 内省与上传 |
-| Material | `Material.h/cpp` | 材质属性管理与 Apply |
+| Material | `Material.h/cpp` | 材质属性管理（unordered_map）与 Apply |
 | Framebuffer | `Framebuffer.h/cpp` | 帧缓冲区（颜色附件 + 深度附件） |
 | UniformBuffer | `UniformBuffer.h/cpp` | UBO 封装 |
 | Mesh | `Mesh.h/cpp` | 网格数据（顶点 + SubMesh） |
-| MeshFactory | `MeshFactory.h/cpp` | 内置几何体工厂（目前仅 Cube） |
+| MeshFactory | `MeshFactory.h/cpp` | 内置几何体工厂（5 种图元） |
+| MeshTangentCalculator | `MeshTangentCalculator.h/cpp` | 切线计算 |
 | Texture | `Texture.h/cpp` | 2D 纹理 |
 
 ---
 
 ## 二、已完成的功能阶段
 
+### ECS 系统
+
 | 阶段 | 名称 | 文档 | 状态 |
 |------|------|------|------|
 | ECS Phase 1 | 世界矩阵与层级更新 | `docs/ECS/Phase1_WorldMatrix_And_HierarchyUpdate.md` | ? 已完成 |
 | ECS Phase 2 | 重新设置父节点与世界 Transform 访问 | `docs/ECS/Phase2_Reparent_And_WorldTransformAccess.md` | ? 已完成 |
 | ECS Phase 3 | DirtyFlag 与 Transform 通知 | `docs/ECS/Phase3_DirtyFlag_And_TransformNotification.md` | ? 已完成 |
+| ECS Phase 4 | 组件注册与 Inspector 增强 | `docs/ECS/Phase4_ComponentRegistry_And_InspectorEnhancement.md` | ? 已完成 |
+
+### 材质系统
+
+| 阶段 | 名称 | 文档 | 状态 |
+|------|------|------|------|
 | Material Phase 1 | 材质与 Shader 内省 | `docs/MaterialSystem/Phase1_Material_And_ShaderIntrospection.md` | ? 已完成 |
 | Material Phase 2 | 渲染管线集成 | `docs/MaterialSystem/Phase2_RenderPipeline_Integration.md` | ? 已完成 |
 | Material Phase 3 | Inspector UI | `docs/MaterialSystem/Phase3_Inspector_UI.md` | ? 已完成 |
 | Material Phase 4 | Shader 切换与默认材质 | `docs/MaterialSystem/Phase4_ShaderSwitch_And_DefaultMaterial.md` | ? 已完成 |
-| Material Phase 5 | 材质属性 Map 重构 | `docs/MaterialSystem/Phase5_MaterialProperty_Map_Refactor.md` | ?? 已设计 |
-| Material Phase 6 | 方向光组件 | `docs/MaterialSystem/Phase6_DirectionalLight_Component.md` | ?? 已设计 |
+| Material Phase 5 | 材质属性 Map 重构 | `docs/MaterialSystem/Phase5_MaterialProperty_Map_Refactor.md` | ? 已完成 |
+| Material Phase 6 | 方向光组件 | `docs/MaterialSystem/Phase6_DirectionalLight_Component.md` | ? 已完成 |
+
+### 渲染系统
+
+| 阶段 | 名称 | 文档 | 状态 |
+|------|------|------|------|
+| Rendering Phase 1 | 基础图元网格完善 | `docs/RenderingSystem/Phase1_Primitive_Mesh_Completion.md` | ? 已完成 |
+| Rendering Phase 2 | MeshFactory 优化 | `docs/RenderingSystem/Phase2_MeshFactory_Optimization.md` | ? 已完成 |
+| Rendering Phase 3 | 顶点切线优化 | `docs/RenderingSystem/Phase3_Vertex_Tangent_Optimization.md` | ? 已完成 |
+| Phase R1 | 顶点升级与切线 | `docs/RenderingSystem/PhaseR1_Vertex_Upgrade_And_Tangent.md` | ? 已完成 |
+| Phase R2 | PBR Shader | `docs/RenderingSystem/PhaseR2_PBR_Shader.md` | ? 已完成 |
+| Phase R2.1 | 纹理槽自动管理 | `docs/RenderingSystem/PhaseR2.1_Texture_Slot_AutoManagement.md` | ? 已完成 |
+| Phase R2.2 | Uniform 源码顺序排序 | `docs/RenderingSystem/PhaseR2.2_Uniform_SourceOrder_Sorting.md` | ? 已完成 |
+| Phase R3 | 多光源支持 | `docs/RenderingSystem/PhaseR3_Multi_Light_Support.md` | ? 已完成 |
+
+### 序列化系统
+
+| 阶段 | 名称 | 文档 | 状态 |
+|------|------|------|------|
+| Serialization | 场景序列化增强 | `docs/Serialization/SceneSerialization_Enhancement.md` | ? 已完成 |
+
+### 当前引擎能力总结
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Luck3D 引擎当前能力                          │
+├─────────────────────────────────────────────────────────────────┤
+│  ?? 渲染系统                                                     │
+│    ? 单 Pass Forward 渲染                                       │
+│    ? PBR 材质（Metallic-Roughness 工作流）                       │
+│    ? 多光源支持（方向光 ×4 / 点光源 ×8 / 聚光灯 ×4）             │
+│    ? 法线贴图 / 金属度贴图 / 粗糙度贴图 / AO 贴图 / 自发光贴图    │
+│    ? Gamma 校正（手动，在 Standard.frag 中）                     │
+│                                                                   │
+│  ?? ECS 系统                                                     │
+│    ? 实体创建/销毁 + UUID                                        │
+│    ? 父子层级关系 + 世界矩阵                                     │
+│    ? DirtyFlag 优化                                              │
+│    ? 组件：Transform / MeshFilter / MeshRenderer /               │
+│       DirectionalLight / PointLight / SpotLight                   │
+│                                                                   │
+│  ?? 材质系统                                                      │
+│    ? Shader 内省 + 自动属性发现                                   │
+│    ? 材质属性 Map（O(1) 查找）+ 源码顺序排序                      │
+│    ? 纹理槽自动管理                                               │
+│    ? Inspector UI 编辑                                            │
+│    ? 默认材质 / 错误材质                                          │
+│                                                                   │
+│  ?? 序列化系统                                                    │
+│    ? 场景序列化/反序列化（YAML / .luck3d）                        │
+│    ? 材质序列化（内嵌在场景文件中）                                │
+│    ? File → New / Open / Save / Save As                          │
+│                                                                   │
+│  ??? 编辑器                                                       │
+│    ? Hierarchy 面板（场景层级树）                                  │
+│    ? Inspector 面板（组件属性编辑）                                │
+│    ? Scene Viewport 面板（3D 视口 + 编辑器相机）                   │
+│    ? 5 种内置图元（Cube / Plane / Sphere / Cylinder / Capsule）   │
+│    ? 鼠标点击拾取（Entity ID Framebuffer）                        │
+│                                                                   │
+│  ? 尚未实现                                                      │
+│    ? 渲染排序 + 延迟提交（DrawCommand）                           │
+│    ? Gizmo 渲染系统（灯光图标、网格线、操控手柄）                  │
+│    ? 模型导入（Assimp）                                           │
+│    ? 阴影系统                                                     │
+│    ? HDR / Tone Mapping                                           │
+│    ? 后处理框架                                                   │
+│    ? 多 Pass 渲染                                                 │
+│    ? 选中高亮描边                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## 三、功能发展路线总览
 
 ```
-阶段 1：基础完善                    阶段 2：渲染改进                阶段 3：内容扩展
+下一阶段：渲染改进              中期阶段：渲染管线演进           远期阶段：架构升级
 ┌──────────────────────┐      ┌──────────────────────┐      ┌──────────────────────┐
-│ P1-1 材质属性 Map 改造 │      │ P2-1 渲染排序+延迟提交 │      │ P3-1 模型导入 Assimp  │
-│     ?? 优先级：高      │      │    ?? 优先级：中高     │      │    ?? 优先级：中       │
+│ R9  渲染排序+延迟提交 │      │ R4  阴影系统          │      │ R7  多 Pass 渲染框架  │
+│     ?? 优先级：最高    │      │    ?? 优先级：高       │      │    ?? 优先级：中       │
 │                      │      │                      │      │                      │
-│ P1-2 场景序列化       │      │ P2-2 Gizmo 渲染系统   │      │ P3-2 多光源支持       │
-│     ?? 优先级：高      │      │    ?? 优先级：中       │      │    ?? 优先级：低       │
+│ R10 Gizmo 渲染系统   │      │ R5  HDR + Tonemapping │      │ R8  选中高亮描边      │
+│     ?? 优先级：中      │      │    ?? 优先级：高       │      │    ?? 优先级：中       │
+│                      │      │                      │      │                      │
+│ R11 模型导入 Assimp  │      │ R6  后处理框架        │      │                      │
+│     ?? 优先级：中      │      │    ?? 优先级：中       │      │                      │
 └──────────────────────┘      └──────────────────────┘      └──────────────────────┘
          ↓                             ↓                            ↓
-    无渲染管线改动                 轻量级渲染改造                 Shader 架构改造
+    轻量级改造                    渲染管线升级                   架构级重构
+    无前置依赖                    需要 R9 基础                  需要 R4-R6 基础
 ```
 
-| 编号 | 功能 | 优先级 | 涉及渲染管线改造 | 前置依赖 |
-|------|------|--------|-----------------|---------|
-| P1-1 | 材质属性 Map 改造 | ?? 高 | 否 | Phase 5 设计文档 |
-| P1-2 | 场景序列化 | ?? 高 | 否 | P1-1（材质序列化依赖 Map 结构） |
-| P2-1 | 渲染排序 + 延迟提交 | ?? 中高 | **是（轻量级）** | 无 |
-| P2-2 | Gizmo 渲染系统 | ?? 中 | 否（独立绘制路径） | 无 |
-| P3-1 | 模型导入 | ?? 中 | 否 | 无 |
-| P3-2 | 多光源支持 | ?? 低 | **是（Shader 改造）** | P2-1（排序系统） |
+| 编号 | 功能 | 优先级 | 涉及渲染管线改造 | 前置依赖 | 设计文档 |
+|------|------|--------|-----------------|---------|---------|
+| R9 | 渲染排序 + 延迟提交 | ?? 最高 | **是（轻量级）** | 无 | `PhaseR9_DrawCommand_Sorting.md` |
+| R9+ | 渲染队列（RenderQueue） | ?? 中 | **是（轻量级）** | R9 | `PhaseR9_DrawCommand_Sorting.md` 第七章 |
+| R10 | Gizmo 渲染系统 | ?? 中 | 否（独立绘制路径） | 无 | `PhaseR10_Gizmo_Rendering.md`（v1.1） |
+| R11 | 模型导入 | ?? 中 | 否 | 无 | `PhaseR11_Model_Import.md` |
+| R4 | 阴影系统 | ?? 高 | **是** | R9（复用 DrawCommand） | `PhaseR4_Shadow_System.md` |
+| R5 | HDR + Tonemapping | ?? 高 | **是** | R9 | `PhaseR5_HDR_Tonemapping.md` |
+| R6 | 后处理框架 | ?? 中 | **是** | R5 | `PhaseR6_PostProcessing_Framework.md` |
+| R7 | 多 Pass 渲染框架 | ?? 中 | **是（架构级）** | R4, R5, R6 | `PhaseR7_Multi_Pass_Rendering.md` |
+| R8 | 选中高亮描边 | ?? 中 | **是** | R7, R6 | `PhaseR8_Selection_Outline.md` |
+| R12 | 渲染器架构演进（Renderer2D / SceneRenderer） | ?? 低 | **是（架构级）** | R7, R9 | `PhaseR12_Renderer_Architecture_Evolution.md` |
+| R13 | 渲染状态（Per-Material RenderState） | ?? 中 | **是** | R9（Phase 1 依赖） | `PhaseR13_RenderState_PerMaterial.md` |
 
 ---
 
-## 四、阶段 1：基础完善
+## 四、下一阶段：渲染改进
 
-### P1-1 材质属性 Map 改造（Phase 5）
+> 这三个功能**无前置依赖**，可以立即开始实施。R10 和 R11 可以与 R9 并行开发。
 
-> **详细设计文档**：`docs/MaterialSystem/Phase5_MaterialProperty_Map_Refactor.md`
+### R9 渲染排序 + 延迟提交（DrawCommand）
 
-#### 必要性分析
+> **详细设计文档**：`docs/RenderingSystem/PhaseR9_DrawCommand_Sorting.md`
 
 | 维度 | 说明 |
 |------|------|
-| **当前问题** | 材质属性使用 `std::vector<MaterialProperty>` 存储，每次读写属性需要遍历查找，时间复杂度 O(n) |
-| **改造收益** | 改为 `std::unordered_map` 后读写 O(1)，代码更清晰，为序列化做准备 |
-| **改动范围** | `Material.h/cpp`、`InspectorPanel.cpp`（UI 遍历方式调整） |
-| **风险** | 低。纯数据结构替换，不影响外部 API |
+| **当前问题** | 物体按 entt 注册顺序绘制，没有排序；相同 Shader 的物体频繁切换状态 |
+| **改造收益** | 减少 GPU 状态切换；为后续阴影、后处理、透明排序、渲染队列打基础 |
+| **改动范围** | **仅修改 `Renderer3D.cpp` 内部**，外部 API 完全不变 |
+| **风险** | 极低。纯内部重构 |
+| **核心改动** | `DrawMesh` 改为收集 DrawCommand → `EndScene` 排序 + 批量绘制 |
+| **后续演进** | 支持 Unity 风格的 RenderQueue（详见 R9 文档第七章） |
 
-#### 核心改动
-
-- `Material` 类内部存储从 `std::vector<MaterialProperty>` 改为 `std::unordered_map<std::string, MaterialProperty>`
-- `FindProperty()` 方法简化为 map 查找
-- `RebuildProperties()` 重建逻辑适配 map
-- `Apply()` 遍历 map 上传 uniform
-- Inspector UI 遍历方式从 vector 改为 map iterator
-
-#### 为什么排在第一
-
-- 改动量小，风险低
-- 为后续场景序列化（P1-2）中的材质序列化提供更清晰的数据结构
-- 消除当前代码中的遍历查找模式
+**为什么排在第一**：
+- 是后续所有渲染管线演进（阴影、HDR、后处理、多 Pass、渲染队列）的基石
+- 改动量最小、风险最低
+- 立即改善渲染性能
+- 架构天然支持平滑演进到 Unity 风格的 RenderQueue 机制
 
 ---
 
-### P1-2 场景序列化（SceneSerializer）
+### R10 Gizmo 渲染系统
 
-#### 必要性分析
+> **详细设计文档**：`docs/RenderingSystem/PhaseR10_Gizmo_Rendering.md`
 
 | 维度 | 说明 |
 |------|------|
-| **当前问题** | 场景数据完全在代码中硬编码（`EditorLayer::OnAttach` 里手动创建 Cube），关闭程序后一切丢失 |
-| **为什么紧迫** | 没有序列化，所有编辑器功能都是"一次性"的。用户在 Inspector 中调整的光照参数、材质属性、Transform 等全部无法保存 |
-| **改动范围** | 新增 `SceneSerializer` 类 + 材质序列化 `.mat` 文件 |
-| **风险** | 中。需要为每种组件定义序列化格式，但不影响现有渲染逻辑 |
+| **当前问题** | 编辑器中没有网格线、灯光不可见、没有坐标轴指示器（Transform 操控手柄已实现） |
+| **改造收益** | 大幅提升编辑体验；灯光可视化；坐标轴指示器帮助判断相机朝向 |
+| **改动范围** | 新增 `GizmoRenderer` + 修改 `SceneViewportPanel` |
+| **风险** | 低。独立渲染路径，不影响主渲染 |
+| **核心改动** | 线段批处理渲染器 + ImGuizmo 集成 |
 
-#### 核心改动
-
-##### 1. 新增文件
-
-| 文件 | 说明 |
-|------|------|
-| `SceneSerializer.h/cpp` | 场景序列化/反序列化核心类 |
-| `MaterialSerializer.h/cpp`（可选） | 材质序列化为 `.mat` 文件 |
-
-##### 2. 序列化格式（推荐 YAML）
-
-**选择 YAML 的原因**：
-- 人类可读，方便调试和手动编辑
-- 主流引擎（Unity `.unity`/`.prefab`、Godot `.tscn`）均使用类似的文本格式
-- C++ 有成熟的 yaml-cpp 库
-
-**场景文件结构示例**（`.scene`）：
-
-```yaml
-Scene: New Scene
-Entities:
-  - Entity: 12345678901234
-    NameComponent:
-      Name: Cube
-    TransformComponent:
-      Translation: [0.0, 0.0, 0.0]
-      RotationEuler: [0.0, 0.0, 0.0]
-      Scale: [1.0, 1.0, 1.0]
-    RelationshipComponent:
-      Parent: 0
-      Children: []
-    MeshFilterComponent:
-      MeshType: Cube  # 内置几何体类型（后续支持外部模型路径）
-    MeshRendererComponent:
-      Materials:
-        - Path: "Assets/Materials/Default.mat"
-  - Entity: 12345678901235
-    NameComponent:
-      Name: Directional Light
-    TransformComponent:
-      Translation: [0.0, 3.0, 0.0]
-      RotationEuler: [-0.7854, -0.4636, 0.0]
-      Scale: [1.0, 1.0, 1.0]
-    DirectionalLightComponent:
-      Color: [1.0, 1.0, 1.0]
-      Intensity: 1.0
-```
-
-**材质文件结构示例**（`.mat`）：
-
-```yaml
-Material: Default Material
-Shader: Standard
-Properties:
-  u_AmbientCoeff:
-    Type: Float3
-    Value: [0.2, 0.2, 0.2]
-  u_DiffuseCoeff:
-    Type: Float3
-    Value: [0.8, 0.8, 0.8]
-  u_SpecularCoeff:
-    Type: Float3
-    Value: [0.5, 0.5, 0.5]
-  u_Shininess:
-    Type: Float
-    Value: 32.0
-  u_MainTexture:
-    Type: Sampler2D
-    Value: "Assets/Textures/default.png"
-```
-
-##### 3. 需要序列化的组件
-
-| 组件 | 序列化字段 | 说明 |
-|------|-----------|------|
-| IDComponent | UUID | 实体唯一标识 |
-| NameComponent | Name | 实体名称 |
-| TransformComponent | Translation, RotationEuler, Scale | 变换数据（序列化欧拉角，反序列化时同步四元数） |
-| RelationshipComponent | Parent UUID, Children UUIDs | 父子关系 |
-| MeshFilterComponent | MeshType / MeshPath | 网格来源（内置类型或外部文件路径） |
-| MeshRendererComponent | Material 路径列表 | 引用 `.mat` 文件 |
-| DirectionalLightComponent | Color, Intensity | 光照参数（方向从 Transform 推导，不单独序列化） |
-
-##### 4. 编辑器集成
-
-- **File → Save Scene**（Ctrl+S）：序列化当前场景到 `.scene` 文件
-- **File → Open Scene**（Ctrl+O）：反序列化 `.scene` 文件，重建场景
-- **File → New Scene**（Ctrl+N）：创建空场景
-
-##### 5. 第三方依赖
-
-| 库 | 用途 | 集成方式 |
-|----|------|---------|
-| yaml-cpp | YAML 解析与生成 | 作为子模块或通过包管理器引入 |
-
-#### 前置依赖
-
-- **P1-1 材质属性 Map 改造**：材质序列化时，Map 结构比 vector 更容易按 key-value 格式输出
+**功能列表**：
+| 功能 | 优先级 |
+|------|--------|
+| 场景网格线（Grid + X/Y/Z 轴高亮） | ?? 高 |
+| 方向光方向箭头 | ?? 高 |
+| 点光源范围球 | ?? 中 |
+| 聚光灯内外锥角 + 范围锥体 | ?? 中 |
+| 选中实体包围盒 | ?? 中 |
+| 坐标轴指示器（ViewManipulate） | ?? 高 |
+| ~~Transform 操控手柄（ImGuizmo）~~ | ~~?? 高~~ **? 已完成** |
 
 ---
 
-## 五、阶段 2：渲染改进
+### R11 模型导入（AssetImporter）
 
-### P2-1 渲染排序 + 延迟提交（DrawCommand）
-
-#### 必要性分析
+> **详细设计文档**：`docs/RenderingSystem/PhaseR11_Model_Import.md`
 
 | 维度 | 说明 |
 |------|------|
-| **当前问题** | 物体按 entt 注册顺序绘制，没有任何排序逻辑 |
-| **影响** | 1. 透明物体渲染错误（需要从远到近排序）<br/>2. 相同 Shader/材质的物体没有聚合，频繁切换 Shader 状态导致性能浪费 |
-| **改动范围** | 仅修改 `Renderer3D.cpp` 内部实现，外部 API 不变 |
-| **风险** | 低。内部重构，不影响 Scene、Material 等外部模块 |
-
-#### 当前问题详解
-
-```
-当前 DrawMesh 流程（立即绘制）：
-  物体 A（Shader=Standard, Material=M1）→ 绑定 Standard → Apply M1 → Draw
-  物体 B（Shader=Custom,   Material=M2）→ 绑定 Custom   → Apply M2 → Draw
-  物体 C（Shader=Standard, Material=M1）→ 绑定 Standard → Apply M1 → Draw  ← 重复绑定！
-  物体 D（Shader=Standard, Material=M3）→ 绑定 Standard → Apply M3 → Draw
-
-问题：Shader Standard 被绑定了 3 次，其中 2 次是不必要的
-```
-
-#### 核心改动
-
-##### 1. 新增 DrawCommand 结构
-
-```cpp
-/// 绘制命令：描述一次 DrawCall 所需的全部信息
-struct DrawCommand
-{
-    glm::mat4 Transform;        // 模型变换矩阵
-    Ref<Mesh> Mesh;             // 网格引用
-    const SubMesh* SubMeshPtr;  // SubMesh 指针
-    Ref<Material> Material;     // 材质
-    uint64_t SortKey;           // 排序键
-    float DistanceToCamera;     // 到相机的距离（用于透明排序）
-};
-```
-
-##### 2. 排序键设计
-
-```
-SortKey（64 位）：
-┌──────────┬──────────┬──────────────────┐
-│ 1 bit    │ 16 bit   │ 16 bit           │
-│ 不透明=0 │ ShaderID │ MaterialID       │
-│ 透明=1   │          │                  │
-└──────────┴──────────┴──────────────────┘
-
-不透明物体：按 SortKey 升序（聚合相同 Shader/Material，减少状态切换）
-透明物体：  按 DistanceToCamera 降序（从远到近绘制）
-```
-
-##### 3. 改造后的流程
-
-```
-BeginScene()
-  → 设置 Camera/Light UBO
-  → 清空 DrawCommand 列表
-
-DrawMesh() × N
-  → 不立即绘制，而是为每个 SubMesh 生成 DrawCommand 并加入列表
-
-EndScene()
-  → 分离不透明和透明命令
-  → 不透明命令按 SortKey 升序排序
-  → 透明命令按 DistanceToCamera 降序排序
-  → 遍历排序后的列表，执行实际绘制
-  → 清空 DrawCommand 列表
-```
-
-##### 4. 涉及文件
-
-| 文件 | 改动 |
-|------|------|
-| `Renderer3D.cpp` | `Renderer3DData` 新增 `std::vector<DrawCommand>`；`DrawMesh` 改为收集命令；`EndScene` 实现排序 + 绘制 |
-| `Renderer3D.h` | 外部 API 不变 |
-
-#### 为什么是"轻量级"渲染改造
-
-这个改动**不引入任何新的架构概念**（不需要 RenderPass、RenderPipeline、RenderGraph 等类），只是把 `DrawMesh` 内部从"立即执行"改为"收集 + 排序 + 批量执行"。外部调用方式完全不变。
-
-#### 为未来扩展打下的基础
-
-- **阴影映射**：后续只需在 `EndScene` 的排序绘制之前，插入一个 Shadow Pass（用深度 Shader 绘制一遍不透明物体到 Shadow Map）
-- **后处理**：在 `EndScene` 的绘制完成后，可以添加后处理步骤
-- **多 Pass**：DrawCommand 列表可以被多个 Pass 复用
-
----
-
-### P2-2 Gizmo 渲染系统
-
-#### 必要性分析
-
-| 维度 | 说明 |
-|------|------|
-| **当前问题** | 编辑器中没有任何辅助可视化（网格线、灯光图标、坐标轴、选中高亮等） |
-| **为什么需要** | 添加灯光组件后，用户在场景中看不到灯光的位置和方向，编辑体验差 |
-| **改动范围** | 新增 Gizmo 渲染模块，在 `Scene::OnUpdate` 之后额外绘制 |
-| **风险** | 低。独立的绘制路径，不影响主渲染流程 |
-
-#### 核心功能
-
-| 功能 | 优先级 | 说明 |
-|------|--------|------|
-| 方向光方向线/箭头 | ?? 高 | 显示灯光方向，让用户直观看到光照方向 |
-| 选中实体包围盒 | ?? 高 | 线框高亮选中的物体 |
-| 场景网格线（Grid） | ?? 中 | 地面参考网格，帮助判断空间位置 |
-| Transform 操控手柄 | ?? 中 | 平移/旋转/缩放 Gizmo（可集成 ImGuizmo） |
-| 相机视锥体线框 | ?? 低 | 可视化相机的视锥体范围 |
-
-#### 实现方案
-
-##### 方案 A：独立的 GizmoRenderer（推荐）
-
-新增 `GizmoRenderer` 类，提供绘制线段、圆、箭头等基础图元的 static 方法：
-
-```cpp
-class GizmoRenderer
-{
-public:
-    static void Init();
-    static void Shutdown();
-    static void BeginScene(const EditorCamera& camera);
-    static void EndScene();
-
-    static void DrawLine(const glm::vec3& start, const glm::vec3& end, const glm::vec4& color);
-    static void DrawWireBox(const glm::vec3& center, const glm::vec3& size, const glm::vec4& color);
-    static void DrawArrow(const glm::vec3& origin, const glm::vec3& direction, float length, const glm::vec4& color);
-    static void DrawGrid(float size, int divisions);
-};
-```
-
-**优点**：与主渲染流程完全解耦，独立的 Shader 和绘制逻辑  
-**缺点**：需要额外的 Shader（线段着色器）
-
-##### 方案 B：集成 ImGuizmo
-
-使用 ImGuizmo 库实现 Transform 操控手柄：
-
-**优点**：成熟的库，功能完善  
-**缺点**：只解决 Transform 操控，不解决灯光方向线、网格线等需求
-
-##### 推荐方案
-
-**A + B 结合**：用 `GizmoRenderer` 实现基础图元绘制（线段、箭头、网格线），用 ImGuizmo 实现 Transform 操控手柄。
-
-#### 涉及文件
-
-| 文件 | 说明 |
-|------|------|
-| `GizmoRenderer.h/cpp`（新增） | Gizmo 渲染器 |
-| `Gizmo.vert/frag`（新增） | 线段/图元着色器 |
-| `SceneViewportPanel.cpp` | 在场景渲染后调用 GizmoRenderer |
-
----
-
-## 六、阶段 3：内容扩展
-
-### P3-1 模型导入（AssetImporter）
-
-#### 必要性分析
-
-| 维度 | 说明 |
-|------|------|
-| **当前问题** | 只有 `MeshFactory::CreateCube()` 一个硬编码的立方体，无法导入外部模型 |
-| **为什么需要** | 没有模型导入，引擎只能渲染立方体，无法验证光照/材质在复杂模型上的效果 |
-| **改动范围** | 集成 Assimp 库，新增 `MeshImporter` 类 |
+| **当前问题** | 只有 5 种内置图元，无法导入外部模型 |
+| **改造收益** | 支持 `.obj`/`.fbx`/`.gltf` 等格式；验证 PBR 在复杂模型上的效果 |
+| **改动范围** | 集成 Assimp 库 + 新增 `MeshImporter` + 扩展 `MeshFilterComponent` |
 | **风险** | 中。Assimp 是大型第三方库，需要处理编译配置 |
-
-#### 核心功能
-
-| 功能 | 说明 |
-|------|------|
-| 支持 `.obj` 格式 | 最基础的 3D 模型格式，广泛支持 |
-| 支持 `.fbx` 格式 | 工业标准格式，支持动画（后续扩展） |
-| 支持 `.gltf`/`.glb` 格式 | 现代标准格式，Web 友好 |
-| 自动创建 SubMesh | 根据模型中的 mesh 分组创建 SubMesh |
-| 自动创建材质 | 根据模型中的材质信息创建 Material 并关联 |
-| 法线/切线计算 | 如果模型缺少法线或切线，自动计算 |
-
-#### 实现方案
-
-```cpp
-class MeshImporter
-{
-public:
-    /// 从文件导入网格
-    /// @param filepath 模型文件路径
-    /// @return 导入的 Mesh（包含所有 SubMesh）
-    static Ref<Mesh> Import(const std::string& filepath);
-
-    /// 从文件导入网格和材质
-    /// @param filepath 模型文件路径
-    /// @param outMaterials 输出的材质列表
-    /// @return 导入的 Mesh
-    static Ref<Mesh> ImportWithMaterials(const std::string& filepath, 
-                                          std::vector<Ref<Material>>& outMaterials);
-};
-```
-
-#### 第三方依赖
-
-| 库 | 用途 | 集成方式 |
-|----|------|---------|
-| Assimp | 模型文件解析 | 作为子模块或预编译库引入 |
-
-#### 编辑器集成
-
-- 拖拽模型文件到场景视口 → 自动创建实体 + MeshFilter + MeshRenderer
-- Inspector 中 MeshFilter 组件显示模型文件路径
-- 支持重新导入（模型文件修改后刷新）
+| **核心改动** | Assimp 解析 → 顶点/索引/材质转换 → 创建 Mesh + Material |
 
 ---
 
-### P3-2 多光源支持
+## 五、中期阶段：渲染管线演进
 
-#### 必要性分析
+> 这些功能需要 R9（DrawCommand）作为基础。建议在 R9 完成后按顺序实施。
+
+### R4 阴影系统
+
+> **详细设计文档**：`docs/RenderingSystem/PhaseR4_Shadow_System.md`（v1.2 已更新）
 
 | 维度 | 说明 |
 |------|------|
-| **当前问题** | 仅支持单个方向光，通过 UBO (binding=1) 传递固定结构 |
-| **为什么暂缓** | 需要 Shader 架构级改动，改动量大，当前单光源已满足基本需求 |
-| **前置条件** | P2-1 渲染排序完成后再考虑 |
-| **改动范围** | Shader 重写 + UBO/SSBO 改造 + 新增光源组件 |
+| **功能** | 方向光 Shadow Map + PCF 软阴影 |
+| **前置依赖** | R9（复用 DrawCommand 列表做 Shadow Pass） |
+| **核心改动** | Framebuffer 扩展（DEPTH_COMPONENT）+ Shadow Pass + Standard.frag 阴影采样 |
+| **预计工作量** | 5-7 天 |
 
-#### 需要支持的光源类型
+**Unity 风格阴影控制扩展**（v1.2 新增）：
 
-| 光源类型 | 组件名 | 参数 | 说明 |
-|---------|--------|------|------|
-| 方向光 | DirectionalLightComponent | Color, Intensity | 已有（Phase 6） |
-| 点光源 | PointLightComponent | Color, Intensity, Range, Attenuation | 从一个点向所有方向发光 |
-| 聚光灯 | SpotLightComponent | Color, Intensity, Range, InnerAngle, OuterAngle | 锥形光束 |
+当前设计中阴影参数（分辨率、bias）硬编码在 Renderer3D 和 Shader 中，不符合 Unity 的"阴影由 Light 组件控制"设计。R4 实施时建议同步完成以下扩展：
 
-#### Shader 改造方案
+| 扩展项 | 说明 | 实施时机 |
+|--------|------|---------|
+| Light 组件增加 `ShadowType` 枚举 | `None` / `Hard` / `Soft`，控制每个光源是否投射阴影 | R4 实施时一并添加 |
+| Light 组件增加 `ShadowBias` / `ShadowStrength` | 逐光源配置阴影质量参数，替代 Shader 硬编码 | R4 实施时一并添加 |
+| MeshRenderer 增加 `CastShadows` / `ReceiveShadows` | 逐物体控制阴影投射与接收 | R4 实施时或稍后添加 |
+| SceneLightData 扩展阴影字段 | GPU 数据结构增加 `LightSpaceMatrix` / `ShadowMapIndex` | R4 实施时一并添加 |
 
-##### 方案 A：Uniform 数组（简单，推荐初期使用）
+> 详细分析参见 R4 设计文档第十六章《向 Unity 阴影系统扩展的分析》。
 
-```glsl
-#define MAX_DIRECTIONAL_LIGHTS 4
-#define MAX_POINT_LIGHTS 16
-#define MAX_SPOT_LIGHTS 8
+### R5 HDR + Tonemapping
 
-layout(std140, binding = 1) uniform Lights
-{
-    int DirectionalLightCount;
-    int PointLightCount;
-    int SpotLightCount;
-    
-    DirectionalLight DirectionalLights[MAX_DIRECTIONAL_LIGHTS];
-    PointLight PointLights[MAX_POINT_LIGHTS];
-    SpotLight SpotLights[MAX_SPOT_LIGHTS];
-};
-```
+> **详细设计文档**：`docs/RenderingSystem/PhaseR5_HDR_Tonemapping.md`（v1.1 已更新）
 
-**优点**：实现简单，兼容性好（OpenGL 3.3+）  
-**缺点**：光源数量有上限，UBO 大小有限制（通常 16KB）
+| 维度 | 说明 |
+|------|------|
+| **功能** | RGBA16F HDR FBO + ACES Tonemapping + 统一 Gamma 校正 |
+| **前置依赖** | R9（在 EndScene 中插入 Tonemapping Pass） |
+| **核心改动** | Framebuffer 扩展（RGBA16F）+ ScreenQuad + Tonemapping Shader + 移除手动 Gamma |
+| **预计工作量** | 2-3 天 |
 
-##### 方案 B：SSBO（灵活，推荐后期使用）
+### R6 后处理框架
 
-```glsl
-layout(std430, binding = 2) buffer LightBuffer
-{
-    int LightCount;
-    Light Lights[];  // 动态大小数组
-};
-```
+> **详细设计文档**：`docs/RenderingSystem/PhaseR6_PostProcessing_Framework.md`（v1.1 已更新）
 
-**优点**：光源数量无硬编码上限，大小限制宽松（通常 128MB+）  
-**缺点**：需要 OpenGL 4.3+，实现稍复杂
+| 维度 | 说明 |
+|------|------|
+| **功能** | 可扩展的 Effect 链 + Bloom + FXAA |
+| **前置依赖** | R5（HDR FBO + ScreenQuad） |
+| **核心改动** | PostProcessEffect 基类 + PostProcessStack + FBO Ping-Pong |
+| **预计工作量** | 4-5 天 |
 
-##### 推荐策略
+---
 
-初期使用**方案 A**（Uniform 数组），满足大多数场景需求。当光源数量需求超过上限时，再迁移到**方案 B**（SSBO）。
+## 六、远期阶段：架构升级
 
-#### 渲染策略
+> 这些功能需要 R4-R6 全部完成后才有实施价值。
 
-| 策略 | 说明 | 适用场景 |
-|------|------|---------|
-| 单 Pass Forward | 所有光源在一个 Pass 中计算（当前方案的自然扩展） | 光源数量 < 20 |
-| Multi-Pass Forward | 每个光源一个 Pass，结果叠加 | 光源数量中等，但需要更多灵活性 |
-| Forward+ | 基于 Tile 的光源剔除 | 大量光源（> 100） |
-| Deferred Rendering | G-Buffer + 延迟光照计算 | 大量光源 + 复杂材质 |
+### R7 多 Pass 渲染框架
 
-**推荐**：当前阶段使用**单 Pass Forward**，在 Shader 中循环遍历所有光源。这是最简单的扩展方式，与现有架构完全兼容。
+> **详细设计文档**：`docs/RenderingSystem/PhaseR7_Multi_Pass_Rendering.md`（v1.1 已更新）
+
+| 维度 | 说明 |
+|------|------|
+| **功能** | RenderPass 抽象 + RenderPipeline + RenderQueue |
+| **前置依赖** | R4（Shadow Pass）、R5（HDR Pass）、R6（PostProcess Pass） |
+| **核心改动** | 将现有的 Shadow/Opaque/Transparent/PostProcess 流程抽象为独立 Pass |
+| **预计工作量** | 5-7 天 |
+
+### R8 选中高亮描边
+
+> **详细设计文档**：`docs/RenderingSystem/PhaseR8_Selection_Outline.md`（v1.1 已更新）
+
+| 维度 | 说明 |
+|------|------|
+| **功能** | 后处理描边（Silhouette FBO + 边缘检测） |
+| **前置依赖** | R7（RenderPass 框架）、R6（ScreenQuad + 后处理基础设施） |
+| **核心改动** | OutlinePass + Silhouette Shader + OutlineComposite Shader |
+| **预计工作量** | 4-5 天 |
 
 ---
 
@@ -552,45 +355,94 @@ layout(std430, binding = 2) buffer LightBuffer
 
 | 功能 | 说明 | 前置条件 |
 |------|------|---------|
-| **阴影映射（Shadow Mapping）** | 方向光阴影需要额外的 Shadow Pass（深度渲染到 Shadow Map） | P2-1 延迟提交（复用 DrawCommand 列表） |
-| **后处理管线（Post-Processing）** | Bloom、Tone Mapping、FXAA 等 | P2-1 延迟提交 + Framebuffer 链 |
-| **PBR 材质** | 基于物理的渲染（Metallic-Roughness 工作流） | 多光源支持 + IBL 环境光 |
-| **RenderPass 系统** | 抽象的多 Pass 渲染框架 | 阴影映射 + 后处理需求明确后 |
-| **骨骼动画** | Skinned Mesh 渲染 | 模型导入（Assimp 支持骨骼数据） |
-| **粒子系统** | GPU 粒子或 CPU 粒子 | 渲染排序（透明排序） |
+| **级联阴影（CSM）** | 大场景高精度阴影 | R4 基础阴影 |
+| **IBL 环境光** | 基于图像的光照（Image-Based Lighting） | R5 HDR |
+| **骨骼动画** | Skinned Mesh 渲染 | R11 模型导入（Assimp 支持骨骼数据） |
+| **渲染队列（RenderQueue）** | Unity 风格的渲染队列控制，材质可设置 Queue 值控制渲染顺序 | R9 DrawCommand + SortKey 基础 |
+| **粒子系统** | GPU 粒子或 CPU 粒子 | R9 渲染排序（透明排序） |
 | **场景八叉树/BVH** | 空间加速结构，用于视锥体剔除 | 场景物体数量 > 100 时 |
 | **多视口渲染** | 支持多个 Scene View | 渲染器从 static 改为实例化 |
+| **Renderer2D（2D 批处理渲染器）** | 独立的 2D 渲染器，支持 Sprite / Line / Circle 批处理渲染（类似 Unity SpriteRenderer / LineRenderer） | R9 DrawCommand（共享 Camera UBO） |
+| **SceneRenderer（统一场景渲染器）** | 实例化的场景渲染器，持有 Renderer3D + Renderer2D + DebugRenderer，管理完整渲染管线 | R7 多 Pass 框架 + Renderer2D |
+| **渲染状态（Per-Material RenderState）** | 每个材质独立控制 CullMode / ZWrite / ZTest / BlendMode / RenderingMode / RenderQueue，支持不透明/透明分区绘制 | R9 DrawCommand（Phase 0 背面剔除无依赖） |
+| **渲染器实例化重构** | 将 Renderer3D 从全 static 改为实例化对象，支持多视口、多相机独立渲染 | R7 多 Pass 框架 |
+| **Deferred Rendering** | 延迟渲染管线 | R7 多 Pass 框架 |
+| **资产管理系统** | 统一的资产导入/缓存/引用管理 | R11 模型导入 |
+| **Undo/Redo** | 编辑器撤销/重做 | 命令模式 |
+| **Play Mode** | 运行时模式（场景播放/暂停/停止） | 场景拷贝 + 物理系统 |
+
+> **渲染器架构演进详细分析**：参见 `docs/RenderingSystem/PhaseR12_Renderer_Architecture_Evolution.md`，包含当前 Renderer3D 问题分析、Hazel 引擎参考、Renderer2D / SceneRenderer 设计方案、渐进式演进路线等。
+>
+> **渲染状态（Per-Material RenderState）详细设计**：参见 `docs/RenderingSystem/PhaseR13_RenderState_PerMaterial.md`，包含渲染状态概念说明（RenderingMode / ZWrite / ZTest / CullMode / BlendMode / RenderQueue）、当前项目现状分析、Hazel 引擎对比参考、详细设计方案（枚举定义 / RenderState 结构体 / RenderCommand 扩展 / Material 集成 / 绘制流程应用 / Inspector 面板 UI / 序列化支持）、渐进式实施路线（Phase 0 ~ Phase 2）等。
 
 ---
 
 ## 八、实施路线图时间线
 
 ```
-Phase 6 (已设计)          P1-1              P1-2              P2-1              P2-2              P3-1              P3-2
-DirectionalLight    材质属性Map改造     场景序列化       渲染排序+延迟提交    Gizmo渲染系统      模型导入          多光源支持
-     │                   │                │                 │                 │                │                │
-     ▼                   ▼                ▼                 ▼                 ▼                ▼                ▼
-┌─────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐
-│ ?? 最高  │ ──→ │  ?? 高   │ ──→ │  ?? 高   │ ──→ │  ?? 中高  │ ──→ │  ?? 中   │ ──→ │  ?? 中   │ ──→ │  ?? 低   │
-│ 消除硬编码│      │ 数据结构  │      │ 持久化   │      │ 渲染质量  │      │ 编辑体验  │      │ 内容丰富  │      │ 光照丰富  │
-│ 组件化灯光│      │ 优化     │      │ 保存/加载 │      │ 透明排序  │      │ 可视化   │      │ 外部模型  │      │ 多种灯光  │
-└─────────┘      └──────────┘      └──────────┘      └──────────┘      └──────────┘      └──────────┘      └──────────┘
-                                                                                                                  │
-                                                                                                                  ▼
-                                                                                                          ┌──────────────┐
-                                                                                                          │   远期展望    │
-                                                                                                          │ 阴影/后处理   │
-                                                                                                          │ PBR/动画     │
-                                                                                                          └──────────────┘
+已完成                          下一阶段                    中期阶段                    远期阶段
+(ECS + Material + Rendering     (渲染改进)                  (渲染管线演进)              (架构升级)
+ + Serialization)
+     │                           │                           │                          │
+     ▼                           ▼                           ▼                          ▼
+┌─────────┐              ┌──────────┐              ┌──────────┐              ┌──────────┐
+│ ? 已完成 │              │ R9 排序   │              │ R4 阴影   │              │ R7 多Pass │
+│ ECS P1-4│              │ ?? 最高   │              │ ?? 高     │              │ ?? 中     │
+│ Mat P1-6│              │ 3-4 天    │              │ 5-7 天    │              │ 5-7 天    │
+│ R1-R3   │              └──────────┘              └──────────┘              └──────────┘
+│ 序列化   │                   │                         │                         │
+└─────────┘              ┌──────────┐              ┌──────────┐              ┌──────────┐
+                         │ R10 Gizmo│              │ R5 HDR   │              │ R8 描边   │
+                         │ ?? 中     │              │ ?? 高     │              │ ?? 中     │
+                         │ 4-5 天    │              │ 2-3 天    │              │ 4-5 天    │
+                         └──────────┘              └──────────┘              └──────────┘
+                              │                         │                         │
+                         ┌──────────┐              ┌──────────┐                   │
+                         │ R11 导入  │              │ R6 后处理 │                   ▼
+                         │ ?? 中     │              │ ?? 中     │              ┌──────────┐
+                         │ 5-7 天    │              │ 4-5 天    │              │ 远期展望  │
+                         └──────────┘              └──────────┘              │ CSM/IBL  │
+                                                                            │ 动画/粒子 │
+                                                                            └──────────┘
 ```
+
+### 推荐实施顺序
+
+```mermaid
+graph LR
+    R9["?? R9 DrawCommand<br/>3-4天"] --> R4["?? R4 阴影<br/>5-7天"]
+    R9 --> R5["?? R5 HDR<br/>2-3天"]
+    R5 --> R6["?? R6 后处理<br/>4-5天"]
+    R4 --> R7["?? R7 多Pass<br/>5-7天"]
+    R6 --> R7
+    R7 --> R8["?? R8 描边<br/>4-5天"]
+    
+    R10["?? R10 Gizmo<br/>4-5天"]
+    R11["?? R11 模型导入<br/>5-7天"]
+    
+    style R9 fill:#ff6b6b,color:#fff
+    style R4 fill:#ff6b6b,color:#fff
+    style R5 fill:#ff6b6b,color:#fff
+    style R6 fill:#ffd93d,color:#333
+    style R7 fill:#ffd93d,color:#333
+    style R8 fill:#ffd93d,color:#333
+    style R10 fill:#6bcb77,color:#fff
+    style R11 fill:#6bcb77,color:#fff
+```
+
+**说明**：
+- **红色（R9/R4/R5）**：关键路径，按顺序实施
+- **黄色（R6/R7/R8）**：依赖前置功能，按顺序实施
+- **绿色（R10/R11）**：无依赖，可随时并行实施
 
 ### 关于渲染管线改造的时机建议
 
 | 时机 | 触发条件 | 改造内容 |
 |------|---------|---------|
-| **P2-1 阶段** | 引入透明材质 / 场景物体增多 | DrawMesh 延迟提交 + 排序（轻量级，仅改 Renderer3D.cpp 内部） |
-| **阴影需求出现时** | 需要方向光阴影 | 引入 Shadow Pass 概念（在 EndScene 中插入深度渲染步骤） |
-| **后处理需求出现时** | 需要 Bloom / Tone Mapping | 引入 Framebuffer 链 + 后处理 Pass |
-| **多种渲染路径时** | 需要同时支持 Forward / Deferred | 引入 RenderPipeline 抽象类 |
+| **R9 阶段** | 立即实施 | DrawMesh 延迟提交 + 排序（仅改 Renderer3D.cpp 内部） |
+| **R9+ 阶段** | 需要透明物体时 | Material 加 RenderQueue 字段 + SortKey 最高位改为 Queue + 透明分区绘制 + Inspector UI |
+| **R4 阶段** | R9 完成后 | 在 EndScene 中插入 Shadow Pass |
+| **R5 阶段** | R9 完成后 | 在 EndScene 中插入 Tonemapping Pass |
+| **R7 阶段** | R4+R5+R6 完成后 | 将所有 Pass 抽象为 RenderPass 类 |
 
 **核心原则**：不要提前引入不需要的抽象。每次改造都应该由具体的功能需求驱动，而不是为了"架构完整性"。

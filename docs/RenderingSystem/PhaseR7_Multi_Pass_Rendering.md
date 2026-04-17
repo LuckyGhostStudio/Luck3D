@@ -1,10 +1,11 @@
 # Phase R7：多 Pass 渲染框架
 
-> **文档版本**：v1.0  
+> **文档版本**：v1.1  
 > **创建日期**：2026-04-07  
+> **更新日期**：2026-04-15  
 > **优先级**：?? P2  
 > **预计工作量**：5-7 天  
-> **前置依赖**：Phase R3（多光源）、Phase R4（阴影系统）  
+> **前置依赖**：Phase R3（多光源）? 已完成、Phase R4（阴影系统）  
 > **文档说明**：本文档详细描述如何将当前的单 Pass 渲染流程重构为可扩展的多 Pass 渲染管线，支持 Shadow Pass、Depth Prepass、Opaque Pass、Transparent Pass 等，参考 Unity SRP（Scriptable Render Pipeline）的设计思路。所有代码可直接对照实现。
 
 ---
@@ -52,6 +53,8 @@
 
 ## 一、现状分析
 
+> **注意**：本节已根据 2026-04-15 的实际代码状态更新。
+
 ### 当前渲染流程
 
 ```cpp
@@ -63,8 +66,18 @@ Renderer3D::BeginScene(camera, lightData);
         Renderer3D::DrawMesh(transform, mesh, materials);
     }
 }
-Renderer3D::EndScene();
+Renderer3D::EndScene();  // 当前为空实现
 ```
+
+### 当前已完成的前置功能
+
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| PBR Shader（Phase R2） | ? 已完成 | `Standard.frag` 完整 PBR |
+| 多光源支持（Phase R3） | ? 已完成 | 方向光×4 + 点光源×8 + 聚光灯×4 |
+| 场景序列化 | ? 已完成 | YAML 格式 `.luck3d` 文件 |
+| 材质系统 | ? 已完成 | Shader 内省 + `unordered_map` 属性存储 |
+| 5 种内置图元 | ? 已完成 | Cube / Plane / Sphere / Cylinder / Capsule |
 
 ### 问题
 
@@ -73,7 +86,7 @@ Renderer3D::EndScene();
 | R7-01 | 单 Pass 渲染 | 无法区分不透明和透明物体 |
 | R7-02 | 无渲染排序 | 透明物体渲染顺序错误 |
 | R7-03 | 渲染流程硬编码 | 无法灵活添加/移除 Pass |
-| R7-04 | Shadow Pass 与 Main Pass 耦合 | Phase R4 的 Shadow Pass 是临时方案 |
+| R7-04 | `EndScene()` 为空实现 | 无法在结束时执行排序绘制或后处理 |
 | R7-05 | 无 Depth Prepass | 复杂场景存在 Overdraw |
 
 ---
