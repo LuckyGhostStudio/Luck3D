@@ -10,11 +10,24 @@
 namespace Lucky
 {
     /// <summary>
+    /// 绘制命令：描述一次 DrawCall 所需的全部信息
+    /// </summary>
+    struct DrawCommand
+    {
+        glm::mat4 Transform;            // 模型变换矩阵
+        Ref<Mesh> MeshData;             // 网格引用
+        const SubMesh* SubMeshPtr;      // SubMesh 指针（指向 Mesh 内部数据，生命周期由 Mesh 保证）
+        Ref<Material> MaterialData;     // 材质引用
+        uint64_t SortKey = 0;           // 排序键
+        float DistanceToCamera = 0.0f;  // 到相机的距离
+    };
+    
+    /// <summary>
     /// 渲染器数据
     /// </summary>
     struct Renderer3DData
     {
-        static const uint32_t MaxTextureSlots = 32; // 最大纹理槽数
+        static constexpr uint32_t MaxTextureSlots = 32; // 最大纹理槽数
         
         Ref<ShaderLibrary> ShaderLib;   // 着色器库 TODO Move to Renderer.h
         
@@ -60,6 +73,9 @@ namespace Lucky
 
         Ref<UniformBuffer> CameraUniformBuffer; // 相机 Uniform 缓冲区
         Ref<UniformBuffer> LightUniformBuffer;  // 光照 Uniform 缓冲区
+        
+        std::vector<DrawCommand> OpaqueDrawCommands;    // 不透明物体绘制命令列表
+        glm::vec3 CameraPosition;                       // 缓存相机位置（用于计算距离）
     };
 
     static Renderer3DData s_Data;   // 渲染器数据
@@ -139,11 +155,54 @@ namespace Lucky
             s_Data.LightBuffer.SpotLights[i] = lightData.SpotLights[i];
         }
         s_Data.LightUniformBuffer->SetData(&s_Data.LightBuffer, sizeof(Renderer3DData::LightUBOData));
+        
+        // 清空绘制命令列表
+        s_Data.OpaqueDrawCommands.clear();
+    
+        // 缓存相机位置
+        s_Data.CameraPosition = camera.GetPosition();
     }
 
     void Renderer3D::EndScene()
     {
+        // ---- 排序不透明物体 ----
+        std::sort(s_Data.OpaqueDrawCommands.begin(), s_Data.OpaqueDrawCommands.end(), [](const DrawCommand& a, const DrawCommand& b)
+        {
+            return a.SortKey < b.SortKey;   // 按 SortKey 升序（聚合相同 Shader）
+        });
+    
+        // ---- 批量绘制不透明物体 ----
+        uint32_t lastShaderID = 0;  // 跟踪上一次绑定的 Shader
+    
+        for (const DrawCommand& cmd : s_Data.OpaqueDrawCommands)
+        {
+            // 绑定 Shader（仅在 Shader 变化时绑定）
+            uint32_t currentShaderID = cmd.MaterialData->GetShader()->GetRendererID();
+            if (currentShaderID != lastShaderID)
+            {
+                cmd.MaterialData->GetShader()->Bind();
+                lastShaderID = currentShaderID;
+            }
         
+            // 设置引擎内部 uniform
+            cmd.MaterialData->GetShader()->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
+        
+            // 应用材质属性 TODO 优化 相同材质跳过
+            cmd.MaterialData->Apply();
+        
+            // 绘制
+            RenderCommand::DrawIndexedRange(
+                cmd.MeshData->GetVertexArray(),
+                cmd.SubMeshPtr->IndexOffset,
+                cmd.SubMeshPtr->IndexCount
+            );
+        
+            s_Data.Stats.DrawCalls++;
+            s_Data.Stats.TriangleCount += cmd.SubMeshPtr->IndexCount / 3;
+        }
+    
+        // ---- 清空命令列表 ----
+        s_Data.OpaqueDrawCommands.clear();
     }
 
     void Renderer3D::DrawMesh(const glm::mat4& transform, Ref<Mesh>& mesh, const std::vector<Ref<Material>>& materials)
@@ -161,6 +220,10 @@ namespace Lucky
         
         mesh->SetVertexBufferData(s_Data.MeshVertexBufferData.data(), dataSize);    // 设置顶点缓冲区数据
         
+        // 计算物体到相机的距离
+        glm::vec3 objPos = glm::vec3(transform[3]);
+        float distToCamera = glm::length(s_Data.CameraPosition - objPos);
+        
         // 绘制每个 SubMesh
         for (const SubMesh& sm : mesh->GetSubMeshes())
         {
@@ -177,20 +240,21 @@ namespace Lucky
                 material = s_Data.InternalErrorMaterial;
             }
             
-            // 绑定 Shader
-            material->GetShader()->Bind();
-
-            // 设置引擎内部 uniform
-            material->GetShader()->SetMat4("u_ObjectToWorldMatrix", transform);
-            
-            // 应用材质属性（上传所有材质参数到 GPU）用户可编辑的 uniform
-            material->Apply();
-            
-            // 绘制索引
-            RenderCommand::DrawIndexedRange(mesh->GetVertexArray(), sm.IndexOffset, sm.IndexCount);
-            
-            s_Data.Stats.DrawCalls++;                           // 记录 DC 数量
-            s_Data.Stats.TriangleCount += sm.IndexCount / 3;    // 记录三角形数量
+            // 计算排序键
+            uint64_t shaderID = material->GetShader()->GetRendererID();
+            uint64_t sortKey = (shaderID & 0xFFFF) << 48;  // 高 16 位：Shader ID
+        
+            // 构建 DrawCommand
+            DrawCommand cmd;
+            cmd.Transform = transform;
+            cmd.MeshData = mesh;
+            cmd.SubMeshPtr = &sm;
+            cmd.MaterialData = material;
+            cmd.SortKey = sortKey;
+            cmd.DistanceToCamera = distToCamera;
+        
+            // 加入不透明绘制命令列表
+            s_Data.OpaqueDrawCommands.push_back(cmd);
         }
     }
 

@@ -202,6 +202,8 @@ namespace Lucky
             LF_WARN("Can not Load {0} - Not a Scene File.", filepath.filename().string());
             return;
         }
+        
+        SelectionManager::Deselect();               // 清空选中项 防止创建新场景后当前选中的 UUID 无效
 
         Ref<Scene> newScene = CreateRef<Scene>();   // 创建新场景
         SceneSerializer serializer(newScene);       // 场景序列化器
