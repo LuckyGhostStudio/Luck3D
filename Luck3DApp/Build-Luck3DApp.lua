@@ -23,7 +23,8 @@ project "Luck3DApp"
         "%{IncludeDir.GLFW}",
         "%{IncludeDir.glm}",
         "%{IncludeDir.entt}",
-        "%{IncludeDir.ImGuizmo}"
+        "%{IncludeDir.ImGuizmo}",
+        "%{IncludeDir.assimp}",
     }
 
     links

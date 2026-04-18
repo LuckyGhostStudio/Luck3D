@@ -35,7 +35,8 @@ project "Lucky"
         "%{IncludeDir.glm}",
         "%{IncludeDir.entt}",
         "%{IncludeDir.yaml_cpp}",
-        "%{IncludeDir.ImGuizmo}"
+        "%{IncludeDir.ImGuizmo}",
+        "%{IncludeDir.assimp}",
     }
 
     links
@@ -45,6 +46,7 @@ project "Lucky"
         "ImGui",
         "yaml-cpp",
         "opengl32.lib",
+        "assimp",
     }
 
     filter "files:Vendor/ImGuizmo/**.cpp"
