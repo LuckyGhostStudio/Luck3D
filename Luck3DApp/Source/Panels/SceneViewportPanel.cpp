@@ -4,7 +4,8 @@
 
 #include "Lucky/Core/Input/Input.h"
 #include "Lucky/Scene/SelectionManager.h"
-#include "Lucky/Scene/Components/TransformComponent.h"
+#include "Lucky/Scene/Components/Components.h"
+#include "Lucky/Renderer/GizmoRenderer.h"
 
 #include "imgui/imgui.h"
 #include "ImGuizmo.h"
@@ -55,6 +56,36 @@ namespace Lucky
 
         m_Scene->OnUpdate(dt, m_EditorCamera);   // 更新场景
         
+        // ---- Gizmo ----
+        GizmoRenderer::BeginScene(m_EditorCamera);
+        {
+            // 场景网格线 TODO 改为无限网格
+            GizmoRenderer::DrawGrid(20.0f, 20);
+        
+            // 灯光 Gizmo TODO 只绘制选中项
+            auto dirLights = m_Scene->GetAllEntitiesWith<TransformComponent, DirectionalLightComponent>();
+            for (auto entity : dirLights)
+            {
+                auto [transform, light] = dirLights.get<TransformComponent, DirectionalLightComponent>(entity);
+                GizmoRenderer::DrawDirectionalLightGizmo(transform.Translation, transform.GetForward(), light.Color);
+            }
+            
+            auto pointLights = m_Scene->GetAllEntitiesWith<TransformComponent, PointLightComponent>();
+            for (auto entity : pointLights)
+            {
+                auto [transform, light] = pointLights.get<TransformComponent, PointLightComponent>(entity);
+                GizmoRenderer::DrawPointLightGizmo(transform.Translation, light.Range, light.Color);
+            }
+            
+            auto spotLights = m_Scene->GetAllEntitiesWith<TransformComponent, SpotLightComponent>();
+            for (auto entity : spotLights)
+            {
+                auto [transform, light] = spotLights.get<TransformComponent, SpotLightComponent>(entity);
+                GizmoRenderer::DrawSpotLightGizmo(transform.Translation, transform.GetForward(), light.Range, light.InnerCutoffAngle, light.OuterCutoffAngle, light.Color);
+            }
+        }
+        GizmoRenderer::EndScene();
+        
         m_Framebuffer->Unbind();    // 解除绑定帧缓冲区
     }
 
@@ -97,8 +128,35 @@ namespace Lucky
         dispatcher.Dispatch<KeyPressedEvent>(LF_BIND_EVENT_FUNC(SceneViewportPanel::OnKeyPressed)); // 按键按下事件
     }
 
+    void SceneViewportPanel::UI_DrawViewOrientationGizmo()
+    {
+        // 坐标轴指示器位置：视口右上角
+        float viewManipulateSize = 200.0f;
+        ImVec2 viewManipulatePos = ImVec2(m_Bounds[1].x - viewManipulateSize, m_Bounds[0].y);
+    
+        // 获取可修改的视图矩阵副本
+        glm::mat4 viewMatrix = m_EditorCamera.GetViewMatrix();
+    
+        // 绘制坐标轴指示器（会修改 viewMatrix）
+        ImGuizmo::ViewManipulate(
+            glm::value_ptr(viewMatrix),
+            m_EditorCamera.GetDistance(),
+            viewManipulatePos,
+            ImVec2(viewManipulateSize, viewManipulateSize),
+            0x10101010  // 半透明背景
+        );
+    
+        // 如果 ViewManipulate 修改了视图矩阵，同步回 EditorCamera
+        if (ImGuizmo::IsUsingViewManipulate())
+        {
+            m_EditorCamera.SetViewMatrix(viewMatrix);
+        }
+    }
+
     void SceneViewportPanel::UI_DrawGizmos()
     {
+        UI_DrawViewOrientationGizmo();   // 绘制编辑器相机视图坐标轴指示器
+        
         UUID selectionID = SelectionManager::GetSelection();
         // 选中项存在 && Gizmo 类型存在
         if (selectionID != 0 && m_GizmoType != -1)
@@ -137,7 +195,8 @@ namespace Lucky
                 (ImGuizmo::MODE)m_GizmoMode,            // 坐标系：本地|世界
                 glm::value_ptr(transform),          // transform 增量矩阵
                 nullptr,
-                span ? spanValues : nullptr);           // 刻度捕捉值
+                span ? spanValues : nullptr             // 刻度捕捉值
+            );
 
             // Gizmo 正在使用
             if (ImGuizmo::IsUsing())

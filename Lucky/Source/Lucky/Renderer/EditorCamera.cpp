@@ -125,6 +125,25 @@ namespace Lucky
         }
     }
 
+    void EditorCamera::SetViewMatrix(const glm::mat4& viewMatrix)
+    {
+        m_ViewMatrix = viewMatrix;
+    
+        // 从 view 矩阵反推相机参数
+        glm::mat4 invView = glm::inverse(viewMatrix);
+    
+        // 相机位置 = 逆视图矩阵的平移列
+        m_Position = glm::vec3(invView[3]);
+    
+        // 从逆视图矩阵提取旋转，反推 pitch 和 yaw
+        glm::vec3 forward = -glm::vec3(invView[2]); // 相机前方向（-Z）
+        m_Pitch = asin(-forward.y);                 // 俯仰角
+        m_Yaw = atan2(forward.x, forward.z);        // 偏航角
+    
+        // 焦点 = 相机位置 + 前方向 × 距离
+        m_FocalPoint = m_Position + forward * m_Distance;
+    }
+
     glm::vec3 EditorCamera::GetUpDirection() const
     {
         return glm::rotate(GetOrientation(), glm::vec3(0.0f, 1.0f, 0.0f));  // 相机 up y+

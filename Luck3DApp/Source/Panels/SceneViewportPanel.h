@@ -24,6 +24,7 @@ namespace Lucky
         
         void OnEvent(Event& event) override;
     private:
+        void UI_DrawViewOrientationGizmo();
         void UI_DrawGizmos();
         
         /// <summary>

@@ -75,6 +75,13 @@ namespace Lucky
         void SetDistance(float distance) { m_Distance = distance; }
 
         const glm::mat4& GetViewMatrix() const { return m_ViewMatrix; }
+        
+        /// <summary>
+        /// 从外部修改后的视图矩阵反推内部参数（用于 ViewManipulate 集成）
+        /// </summary>
+        /// <param name="viewMatrix">被 ViewManipulate 修改后的视图矩阵</param>
+        void SetViewMatrix(const glm::mat4& viewMatrix);
+        
         glm::mat4 GetViewProjectionMatrix() const { return m_ProjectionMatrix * m_ViewMatrix; }
 
         glm::vec3 GetUpDirection() const;
