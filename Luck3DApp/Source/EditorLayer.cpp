@@ -11,9 +11,10 @@
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/SelectionManager.h"
 
-#include "Lucky/Serialization//SceneSerializer.h"
-
 #include "Lucky/Utils/PlatformUtils.h"
+
+#include "Lucky/Serialization//SceneSerializer.h"
+#include "Lucky/Asset/MeshImporter.h"
 
 namespace Lucky
 {
@@ -110,6 +111,8 @@ namespace Lucky
                     OpenScene();
                 }
                 
+                ImGui::Separator();
+                
                 if (ImGui::MenuItem("Save"))
                 {
                     SaveScene();
@@ -119,6 +122,15 @@ namespace Lucky
                 {
                     SaveSceneAs();
                 }
+                
+                ImGui::Separator();
+                
+                if (ImGui::MenuItem("Import Model..."))
+                {
+                    ImportModel();
+                }
+                
+                ImGui::Separator();
                 
                 // 退出
                 if (ImGui::MenuItem("Quit", "Ctrl Q"))
@@ -250,5 +262,48 @@ namespace Lucky
     {
         SceneSerializer serializer(scene);          // 场景序列化器
         serializer.Serialize(filepath.string());    // 序列化：保存场景
+    }
+
+    void EditorLayer::ImportModel()
+    {
+        std::string filepath = FileDialogs::OpenFile("3D Model (*.obj;*.fbx;*.gltf;*.glb)\0*.obj;*.fbx;*.gltf;*.glb\0""All Files (*.*)\0*.*\0");
+        
+        if (!filepath.empty())
+        {
+            ImportModel(filepath);
+        }
+    }
+
+    void EditorLayer::ImportModel(const std::filesystem::path& filepath)
+    {
+        // TODO 检查文件类型
+        // TODO 导入设置面板
+        
+        MeshImportResult result = MeshImporter::Import(filepath.string());
+        
+        if (result.Success)
+        {
+            // 创建实体
+            std::string name = filepath.stem().string();
+            Entity entity = m_Scene->CreateEntity(name);
+        
+            // 添加 MeshFilter
+            std::filesystem::path relPath = std::filesystem::relative(filepath);    // 存储相对路径
+            auto& meshFilterComponent = entity.AddComponent<MeshFilterComponent>();
+            meshFilterComponent.MeshFilePath = relPath.string();
+            meshFilterComponent.Mesh = result.MeshData;
+            
+            // 添加 MeshRenderer（使用导入的材质）
+            auto& meshRenderer = entity.AddComponent<MeshRendererComponent>();
+            meshRenderer.Materials = result.Materials;
+            
+            SelectionManager::Select(entity.GetUUID()); // 选中当前实体
+        
+            LF_CORE_INFO("Imported model: {0} ({1} SubMeshes, {2} Materials)", name, result.MeshData->GetSubMeshes().size(), result.Materials.size());
+        }
+        else
+        {
+            LF_CORE_ERROR("Failed to import model: {0}", result.ErrorMessage);
+        }
     }
 }

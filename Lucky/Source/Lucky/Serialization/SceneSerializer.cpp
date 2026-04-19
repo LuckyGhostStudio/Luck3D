@@ -8,10 +8,12 @@
 #include "Lucky/Serialization/MaterialSerializer.h"
 #include "Lucky/Renderer/Renderer3D.h"
 
+#include "Lucky/Asset/MeshImporter.h"
 #include "YamlHelpers.h"
 
 #include <fstream>
 #include <yaml-cpp/yaml.h>
+#include <filesystem>
 
 namespace Lucky
 {
@@ -129,9 +131,11 @@ namespace Lucky
             const auto& meshFilterComponent = entity.GetComponent<MeshFilterComponent>();
             
             out << YAML::Key << "MeshFilterComponent";
-            
             out << YAML::BeginMap;
+            
             out << YAML::Key << "PrimitiveType" << YAML::Value << (int)meshFilterComponent.Primitive;
+            out << YAML::Key << "MeshFilePath" << YAML::Value << meshFilterComponent.MeshFilePath;
+            
             out << YAML::EndMap;
         }
         
@@ -279,44 +283,56 @@ namespace Lucky
                 YAML::Node directionalLightComponentNode = entity["DirectionalLightComponent"];
                 if (directionalLightComponentNode)
                 {
-                    auto& light = deserializedEntity.AddComponent<DirectionalLightComponent>();
+                    auto& lightComponent = deserializedEntity.AddComponent<DirectionalLightComponent>();
                     
                     deserializedEntity.GetComponent<TransformComponent>().SetRotation(directionalLightComponentNode["Direction"].as<glm::quat>());
-                    light.Color = directionalLightComponentNode["Color"].as<glm::vec3>();
-                    light.Intensity = directionalLightComponentNode["Intensity"].as<float>();
+                    lightComponent.Color = directionalLightComponentNode["Color"].as<glm::vec3>();
+                    lightComponent.Intensity = directionalLightComponentNode["Intensity"].as<float>();
                 }
                 
                 // PointLight 组件
                 YAML::Node pointLightComponent = entity["PointLightComponent"];
                 if (pointLightComponent)
                 {
-                    auto& light = deserializedEntity.AddComponent<PointLightComponent>();
+                    auto& lightComponent = deserializedEntity.AddComponent<PointLightComponent>();
                     
-                    light.Color = pointLightComponent["Color"].as<glm::vec3>();
-                    light.Intensity = pointLightComponent["Intensity"].as<float>();
-                    light.Range = pointLightComponent["Range"].as<float>();
+                    lightComponent.Color = pointLightComponent["Color"].as<glm::vec3>();
+                    lightComponent.Intensity = pointLightComponent["Intensity"].as<float>();
+                    lightComponent.Range = pointLightComponent["Range"].as<float>();
                 }
 
                 // SpotLight 组件
                 YAML::Node spotLightComponent = entity["SpotLightComponent"];
                 if (spotLightComponent)
                 {
-                    auto& light = deserializedEntity.AddComponent<SpotLightComponent>();
+                    auto& lightComponent = deserializedEntity.AddComponent<SpotLightComponent>();
                     
-                    light.Color = spotLightComponent["Color"].as<glm::vec3>();
-                    light.Intensity = spotLightComponent["Intensity"].as<float>();
-                    light.Range = spotLightComponent["Range"].as<float>();
-                    light.InnerCutoffAngle = spotLightComponent["InnerCutoffAngle"].as<float>();
-                    light.OuterCutoffAngle = spotLightComponent["OuterCutoffAngle"].as<float>();
+                    lightComponent.Color = spotLightComponent["Color"].as<glm::vec3>();
+                    lightComponent.Intensity = spotLightComponent["Intensity"].as<float>();
+                    lightComponent.Range = spotLightComponent["Range"].as<float>();
+                    lightComponent.InnerCutoffAngle = spotLightComponent["InnerCutoffAngle"].as<float>();
+                    lightComponent.OuterCutoffAngle = spotLightComponent["OuterCutoffAngle"].as<float>();
                 }
                 
                 // MeshFilter 组件
                 YAML::Node meshFilterComponentNode = entity["MeshFilterComponent"];
                 if (meshFilterComponentNode)
                 {
-                    PrimitiveType primitiveType = (PrimitiveType)meshFilterComponentNode["PrimitiveType"].as<int>();
                     
+                    PrimitiveType primitiveType = (PrimitiveType)meshFilterComponentNode["PrimitiveType"].as<int>();
                     auto& meshFilterComponent = deserializedEntity.AddComponent<MeshFilterComponent>(primitiveType);
+                    
+                    std::string path = meshFilterComponentNode["MeshFilePath"].as<std::string>();
+                    if (!path.empty())
+                    {
+                        std::string absolutePath = std::filesystem::absolute(path).string();    // 绝对路径
+                        MeshImportResult result = MeshImporter::Import(absolutePath);
+                        if (result.Success)
+                        {
+                            meshFilterComponent.MeshFilePath = path;
+                            meshFilterComponent.Mesh = result.MeshData;
+                        }
+                    }
                 }
                 
                 // MeshRenderer 组件

@@ -58,8 +58,16 @@ namespace Lucky
         /// 序列化场景
         /// </summary>
         /// <param name="scene">场景</param>
-        /// <param name="path">路径</param>
+        /// <param name="filepath">路径</param>
         void SerializeScene(Ref<Scene> scene, const std::filesystem::path& filepath);
+        
+        void ImportModel();
+        
+        /// <summary>
+        /// 导入模型
+        /// </summary>
+        /// <param name="filepath">文件路径</param>
+        void ImportModel(const std::filesystem::path& filepath);
     private:
         EditorDockSpace m_EditorDockSpace;  // 停靠空间
 

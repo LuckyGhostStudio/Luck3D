@@ -1,0 +1,182 @@
+Scene: New Scene
+Entitys:
+  - Entity: 9417257587417759213
+    NameComponent:
+      Name: Directional Light
+    TransformComponent:
+      Position: [0.93595922, 2.10491085, -1.49784791]
+      Rotation: [0.406246752, -0.249812275, 0.116489381, 0.871198952]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    DirectionalLightComponent:
+      Direction: [0.406246752, -0.249812275, 0.116489381, 0.871198952]
+      Color: [1, 1, 1]
+      Intensity: 1
+  - Entity: 16350740992008322361
+    NameComponent:
+      Name: Hornet
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [0.00400000019, 0.00400000019, 0.00400000019]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 0
+      MeshFilePath: Assets\Models\Hornet.fbx
+    MeshRendererComponent:
+      Materials:
+        - Name: 03 - Default.001
+          Shader: Standard
+          Properties:
+            - Name: u_AO
+              Type: Float
+              Value: 1
+            - Name: u_AOMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Albedo
+              Type: Float4
+              Value: [0.588235319, 0.588235319, 0.588235319, 1]
+            - Name: u_AlbedoMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Emission
+              Type: Float3
+              Value: [0, 0, 0]
+            - Name: u_EmissionIntensity
+              Type: Float
+              Value: 1
+            - Name: u_EmissionMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Metallic
+              Type: Float
+              Value: 0
+            - Name: u_MetallicMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_NormalMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Roughness
+              Type: Float
+              Value: 0.899999976
+            - Name: u_RoughnessMap
+              Type: Sampler2D
+              Value: ""
+  - Entity: 13631397998811278913
+    NameComponent:
+      Name: Hornet_Track
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [0.00400000019, 0.00400000019, 0.00400000019]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 0
+      MeshFilePath: Assets\Models\Hornet_Track.fbx
+    MeshRendererComponent:
+      Materials:
+        - Name: Default
+          Shader: Standard
+          Properties:
+            - Name: u_AO
+              Type: Float
+              Value: 1
+            - Name: u_AOMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Albedo
+              Type: Float4
+              Value: [0.850980401, 0.850980401, 0.850980401, 1]
+            - Name: u_AlbedoMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Emission
+              Type: Float3
+              Value: [0, 0, 0]
+            - Name: u_EmissionIntensity
+              Type: Float
+              Value: 1
+            - Name: u_EmissionMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Metallic
+              Type: Float
+              Value: 0
+            - Name: u_MetallicMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_NormalMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Roughness
+              Type: Float
+              Value: 0.5
+            - Name: u_RoughnessMap
+              Type: Sampler2D
+              Value: ""
+  - Entity: 11762165448959509069
+    NameComponent:
+      Name: Railgun
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [0.00400000019, 0.00400000019, 0.00410000002]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 0
+      MeshFilePath: Assets\Models\Railgun.fbx
+    MeshRendererComponent:
+      Materials:
+        - Name: Default
+          Shader: Standard
+          Properties:
+            - Name: u_AO
+              Type: Float
+              Value: 1
+            - Name: u_AOMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Albedo
+              Type: Float4
+              Value: [0.850980401, 0.850980401, 0.850980401, 1]
+            - Name: u_AlbedoMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Emission
+              Type: Float3
+              Value: [0, 0, 0]
+            - Name: u_EmissionIntensity
+              Type: Float
+              Value: 1
+            - Name: u_EmissionMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Metallic
+              Type: Float
+              Value: 0
+            - Name: u_MetallicMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_NormalMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Roughness
+              Type: Float
+              Value: 0.5
+            - Name: u_RoughnessMap
+              Type: Sampler2D
+              Value: ""

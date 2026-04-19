@@ -1,212 +1,19 @@
 Scene: New Scene
 Entitys:
-  - Entity: 12457339013104273193
+  - Entity: 4811680886087154066
     NameComponent:
-      Name: Spot Light Blue
+      Name: Sphere
     TransformComponent:
-      Position: [-0.194509909, 2.29293466, -0.592154086]
-      Rotation: [0.473694146, 0, 0, 0.880689442]
-      Scale: [1, 1, 1]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    SpotLightComponent:
-      Color: [0, 0.853026152, 1]
-      Intensity: 13.8999996
-      Range: 20.2999992
-      InnerCutoffAngle: 17.5
-      OuterCutoffAngle: 17.5
-  - Entity: 4463214602186948120
-    NameComponent:
-      Name: Point Light Yellow
-    TransformComponent:
-      Position: [0, 1.15726089, 0]
+      Position: [0.800000012, 0, 0]
       Rotation: [0, 0, 0, 1]
       Scale: [1, 1, 1]
     RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    PointLightComponent:
-      Color: [1, 0.916908145, 0.00576370955]
-      Intensity: 7.19999981
-      Range: 34.5999985
-  - Entity: 453843547209107831
-    NameComponent:
-      Name: Plane
-    TransformComponent:
-      Position: [-0.600000024, -0.200000003, 1.20000005]
-      Rotation: [-0.11508099, -0.27219215, -0.372025549, 0.879923165]
-      Scale: [2.0999999, 1.70000005, 1.89999998]
-    RelationshipComponent:
-      Parent: 0
+      Parent: 3534927062877440644
       Children:
         []
     MeshFilterComponent:
-      PrimitiveType: 2
-    MeshRendererComponent:
-      Materials:
-        - Name: Default Material
-          Shader: Standard
-          Properties:
-            - Name: u_AO
-              Type: Float
-              Value: 1
-            - Name: u_AOMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_Albedo
-              Type: Float4
-              Value: [0.800000012, 0.800000012, 0.800000012, 1]
-            - Name: u_AlbedoMap
-              Type: Sampler2D
-              Value: Assets/Textures/Texture_Gloss.png
-            - Name: u_Emission
-              Type: Float3
-              Value: [1, 1, 1]
-            - Name: u_EmissionIntensity
-              Type: Float
-              Value: 0.0500000007
-            - Name: u_EmissionMap
-              Type: Sampler2D
-              Value: Assets/Textures/Palette256Gradient.png
-            - Name: u_Metallic
-              Type: Float
-              Value: 0.899999976
-            - Name: u_MetallicMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_NormalMap
-              Type: Sampler2D
-              Value: Assets/Textures/NormalMap.jpg
-            - Name: u_Roughness
-              Type: Float
-              Value: 0.5
-            - Name: u_RoughnessMap
-              Type: Sampler2D
-              Value: ""
-  - Entity: 1806928720734839789
-    NameComponent:
-      Name: Cylinder
-    TransformComponent:
-      Position: [0.600000024, 1, -1.10000002]
-      Rotation: [0, 0, 0, 1]
-      Scale: [1, 0.400000006, 1]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    MeshFilterComponent:
-      PrimitiveType: 4
-    MeshRendererComponent:
-      Materials:
-        - Name: Default Material
-          Shader: Standard
-          Properties:
-            - Name: u_AO
-              Type: Float
-              Value: 1
-            - Name: u_AOMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_Albedo
-              Type: Float4
-              Value: [0.800000012, 0.800000012, 0.800000012, 1]
-            - Name: u_AlbedoMap
-              Type: Sampler2D
-              Value: Assets/Textures/Texture_Gloss.png
-            - Name: u_Emission
-              Type: Float3
-              Value: [1, 1, 1]
-            - Name: u_EmissionIntensity
-              Type: Float
-              Value: 0.0500000007
-            - Name: u_EmissionMap
-              Type: Sampler2D
-              Value: Assets/Textures/Palette256Gradient.png
-            - Name: u_Metallic
-              Type: Float
-              Value: 0.899999976
-            - Name: u_MetallicMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_NormalMap
-              Type: Sampler2D
-              Value: Assets/Textures/NormalMap.jpg
-            - Name: u_Roughness
-              Type: Float
-              Value: 0.5
-            - Name: u_RoughnessMap
-              Type: Sampler2D
-              Value: ""
-  - Entity: 17517503588764573379
-    NameComponent:
-      Name: Capsule
-    TransformComponent:
-      Position: [0.300000012, 0.699999988, 0.600000024]
-      Rotation: [0.477090091, 0.213511199, -0.778153658, 0.348245591]
-      Scale: [0.699999988, 0.699999988, 0.699999988]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    MeshFilterComponent:
-      PrimitiveType: 5
-    MeshRendererComponent:
-      Materials:
-        - Name: Default Material
-          Shader: Standard
-          Properties:
-            - Name: u_AO
-              Type: Float
-              Value: 1
-            - Name: u_AOMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_Albedo
-              Type: Float4
-              Value: [0.800000012, 0.800000012, 0.800000012, 1]
-            - Name: u_AlbedoMap
-              Type: Sampler2D
-              Value: Assets/Textures/Texture_Gloss.png
-            - Name: u_Emission
-              Type: Float3
-              Value: [1, 1, 1]
-            - Name: u_EmissionIntensity
-              Type: Float
-              Value: 0.0500000007
-            - Name: u_EmissionMap
-              Type: Sampler2D
-              Value: Assets/Textures/Palette256Gradient.png
-            - Name: u_Metallic
-              Type: Float
-              Value: 0.899999976
-            - Name: u_MetallicMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_NormalMap
-              Type: Sampler2D
-              Value: Assets/Textures/NormalMap.jpg
-            - Name: u_Roughness
-              Type: Float
-              Value: 0.5
-            - Name: u_RoughnessMap
-              Type: Sampler2D
-              Value: ""
-  - Entity: 3534927062877440644
-    NameComponent:
-      Name: Cube
-    TransformComponent:
-      Position: [-0.899999976, 0, 0]
-      Rotation: [0, 0.0998334214, 0, 0.995004177]
-      Scale: [1, 1, 1]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        - Child: 4811680886087154066
-    MeshFilterComponent:
-      PrimitiveType: 1
+      PrimitiveType: 3
+      MeshFilePath: ""
     MeshRendererComponent:
       Materials:
         - Name: Default Material
@@ -263,19 +70,20 @@ Entitys:
       Direction: [0.406246752, -0.249812275, 0.116489381, 0.871198952]
       Color: [1, 1, 1]
       Intensity: 1
-  - Entity: 4811680886087154066
+  - Entity: 3534927062877440644
     NameComponent:
-      Name: Sphere
+      Name: Cube
     TransformComponent:
-      Position: [0.800000012, 0, 0]
-      Rotation: [0, 0, 0, 1]
+      Position: [-0.899999976, 0, 0]
+      Rotation: [0, 0.0998334214, 0, 0.995004177]
       Scale: [1, 1, 1]
     RelationshipComponent:
-      Parent: 3534927062877440644
+      Parent: 0
       Children:
-        []
+        - Child: 4811680886087154066
     MeshFilterComponent:
-      PrimitiveType: 3
+      PrimitiveType: 1
+      MeshFilePath: ""
     MeshRendererComponent:
       Materials:
         - Name: Default Material
@@ -317,3 +125,200 @@ Entitys:
             - Name: u_RoughnessMap
               Type: Sampler2D
               Value: ""
+  - Entity: 17517503588764573379
+    NameComponent:
+      Name: Capsule
+    TransformComponent:
+      Position: [0.300000012, 0.699999988, 0.600000024]
+      Rotation: [0.477090091, 0.213511199, -0.778153658, 0.348245591]
+      Scale: [0.699999988, 0.699999988, 0.699999988]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 5
+      MeshFilePath: ""
+    MeshRendererComponent:
+      Materials:
+        - Name: Default Material
+          Shader: Standard
+          Properties:
+            - Name: u_AO
+              Type: Float
+              Value: 1
+            - Name: u_AOMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Albedo
+              Type: Float4
+              Value: [0.800000012, 0.800000012, 0.800000012, 1]
+            - Name: u_AlbedoMap
+              Type: Sampler2D
+              Value: Assets/Textures/Texture_Gloss.png
+            - Name: u_Emission
+              Type: Float3
+              Value: [1, 1, 1]
+            - Name: u_EmissionIntensity
+              Type: Float
+              Value: 0.0500000007
+            - Name: u_EmissionMap
+              Type: Sampler2D
+              Value: Assets/Textures/Palette256Gradient.png
+            - Name: u_Metallic
+              Type: Float
+              Value: 0.899999976
+            - Name: u_MetallicMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_NormalMap
+              Type: Sampler2D
+              Value: Assets/Textures/NormalMap.jpg
+            - Name: u_Roughness
+              Type: Float
+              Value: 0.5
+            - Name: u_RoughnessMap
+              Type: Sampler2D
+              Value: ""
+  - Entity: 1806928720734839789
+    NameComponent:
+      Name: Cylinder
+    TransformComponent:
+      Position: [0.600000024, 1, -1.10000002]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 0.400000006, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 4
+      MeshFilePath: ""
+    MeshRendererComponent:
+      Materials:
+        - Name: Default Material
+          Shader: Standard
+          Properties:
+            - Name: u_AO
+              Type: Float
+              Value: 1
+            - Name: u_AOMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Albedo
+              Type: Float4
+              Value: [0.800000012, 0.800000012, 0.800000012, 1]
+            - Name: u_AlbedoMap
+              Type: Sampler2D
+              Value: Assets/Textures/Texture_Gloss.png
+            - Name: u_Emission
+              Type: Float3
+              Value: [1, 1, 1]
+            - Name: u_EmissionIntensity
+              Type: Float
+              Value: 0.0500000007
+            - Name: u_EmissionMap
+              Type: Sampler2D
+              Value: Assets/Textures/Palette256Gradient.png
+            - Name: u_Metallic
+              Type: Float
+              Value: 0.899999976
+            - Name: u_MetallicMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_NormalMap
+              Type: Sampler2D
+              Value: Assets/Textures/NormalMap.jpg
+            - Name: u_Roughness
+              Type: Float
+              Value: 0.5
+            - Name: u_RoughnessMap
+              Type: Sampler2D
+              Value: ""
+  - Entity: 453843547209107831
+    NameComponent:
+      Name: Plane
+    TransformComponent:
+      Position: [-0.600000024, -0.200000003, 1.20000005]
+      Rotation: [-0.11508099, -0.27219215, -0.372025549, 0.879923165]
+      Scale: [2.0999999, 1.70000005, 1.89999998]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 2
+      MeshFilePath: ""
+    MeshRendererComponent:
+      Materials:
+        - Name: Default Material
+          Shader: Standard
+          Properties:
+            - Name: u_AO
+              Type: Float
+              Value: 1
+            - Name: u_AOMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Albedo
+              Type: Float4
+              Value: [0.800000012, 0.800000012, 0.800000012, 1]
+            - Name: u_AlbedoMap
+              Type: Sampler2D
+              Value: Assets/Textures/Texture_Gloss.png
+            - Name: u_Emission
+              Type: Float3
+              Value: [1, 1, 1]
+            - Name: u_EmissionIntensity
+              Type: Float
+              Value: 0.0500000007
+            - Name: u_EmissionMap
+              Type: Sampler2D
+              Value: Assets/Textures/Palette256Gradient.png
+            - Name: u_Metallic
+              Type: Float
+              Value: 0.899999976
+            - Name: u_MetallicMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_NormalMap
+              Type: Sampler2D
+              Value: Assets/Textures/NormalMap.jpg
+            - Name: u_Roughness
+              Type: Float
+              Value: 0.5
+            - Name: u_RoughnessMap
+              Type: Sampler2D
+              Value: ""
+  - Entity: 4463214602186948120
+    NameComponent:
+      Name: Point Light Yellow
+    TransformComponent:
+      Position: [0, 1.15726089, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    PointLightComponent:
+      Color: [1, 0.916908145, 0.00576370955]
+      Intensity: 7.19999981
+      Range: 34.5999985
+  - Entity: 12457339013104273193
+    NameComponent:
+      Name: Spot Light Blue
+    TransformComponent:
+      Position: [-0.194509909, 2.29293466, -0.592154086]
+      Rotation: [0.473694146, 0, 0, 0.880689442]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    SpotLightComponent:
+      Color: [0, 0.853026152, 1]
+      Intensity: 13.8999996
+      Range: 20.2999992
+      InnerCutoffAngle: 17.5
+      OuterCutoffAngle: 17.5

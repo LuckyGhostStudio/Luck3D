@@ -46,7 +46,7 @@ project "Lucky"
         "ImGui",
         "yaml-cpp",
         "opengl32.lib",
-        "assimp",
+        "assimp-vc143-mtd.lib",
     }
 
     filter "files:Vendor/ImGuizmo/**.cpp"
@@ -69,6 +69,11 @@ project "Lucky"
         }
 
     filter "configurations:Debug"
+        libdirs
+        {
+            "%{wks.location}/Lucky/Vendor/assimp/lib/Debug",
+        }
+
         defines { "LF_DEBUG" }
         runtime "Debug"
         symbols "On"
