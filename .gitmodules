@@ -16,6 +16,3 @@
 [submodule "Lucky/Vendor/ImGuizmo"]
 	path = Lucky/Vendor/ImGuizmo
 	url = https://github.com/CedricGuillemet/ImGuizmo
-[submodule "Lucky/Vendor/assimp"]
-	path = Lucky/Vendor/assimp
-	url = https://github.com/assimp/assimp.git
