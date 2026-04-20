@@ -2,6 +2,7 @@
 Binaries/
 bin/
 **/bin/
+!Lucky/Vendor/assimp/bin
 bin-int/
 Intermediates/
 

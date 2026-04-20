@@ -41,14 +41,29 @@ project "Luck3DApp"
         runtime "Debug"
         symbols "On"
 
+        postbuildcommands
+        {
+            '{COPY} "%{wks.location}/Lucky/Vendor/assimp/bin/windows/Debug/assimp-vc143-mtd.dll" "%{cfg.targetdir}"',
+        }
+
     filter "configurations:Release"
         defines { "LF_RELEASE" }
         runtime "Release"
         optimize "On"
         symbols "On"
 
+        postbuildcommands
+        {
+            '{COPY} "%{wks.location}/Lucky/Vendor/assimp/bin/windows/Release/assimp-vc143-mt.dll" "%{cfg.targetdir}"',
+        }
+
     filter "configurations:Dist"
         defines { "LF_DIST" }
         runtime "Release"
         optimize "On"
         symbols "Off"
+
+        postbuildcommands
+        {
+            '{COPY} "%{wks.location}/Lucky/Vendor/assimp/bin/windows/Release/assimp-vc143-mt.dll" "%{cfg.targetdir}"',
+        }

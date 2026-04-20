@@ -12,9 +12,13 @@ IncludeDir["assimp"] = "%{wks.location}/Lucky/Vendor/assimp/include"
 
 -- 库目录
 LibraryDir = {}
+LibraryDir["assimp_Debug"] = "%{wks.location}/Lucky/Vendor/assimp/bin/windows/Debug"
+LibraryDir["assimp_Release"] = "%{wks.location}/Lucky/Vendor/assimp/bin/windows/Release"
 
 -- Libs
 Library = {}
+Library["assimp_Debug"] = "assimp-vc143-mtd"
+Library["assimp_Release"] = "assimp-vc143-mt"
 
 -- Windows
 Library["WinSock"] = "Ws2_32.lib"

@@ -46,7 +46,6 @@ project "Lucky"
         "ImGui",
         "yaml-cpp",
         "opengl32.lib",
-        "assimp-vc143-mtd.lib",
     }
 
     filter "files:Vendor/ImGuizmo/**.cpp"
@@ -69,22 +68,26 @@ project "Lucky"
         }
 
     filter "configurations:Debug"
-        libdirs
-        {
-            "%{wks.location}/Lucky/Vendor/assimp/lib/Debug",
-        }
+        libdirs { "%{LibraryDir.assimp_Debug}" }
+        links { "%{Library.assimp_Debug}" }
 
         defines { "LF_DEBUG" }
         runtime "Debug"
         symbols "On"
 
     filter "configurations:Release"
+        libdirs { "%{LibraryDir.assimp_Release}" }
+        links { "%{Library.assimp_Release}" }
+
         defines { "LF_RELEASE" }
         runtime "Release"
         optimize "On"
         symbols "On"
 
     filter "configurations:Dist"
+        libdirs { "%{LibraryDir.assimp_Release}" }
+        links { "%{Library.assimp_Release}" }
+
         defines { "LF_DIST" }
         runtime "Release"
         optimize "On"
