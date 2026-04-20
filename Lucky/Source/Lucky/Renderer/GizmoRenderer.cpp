@@ -6,6 +6,7 @@
 #include "RenderCommand.h"
 
 #include "glm/ext/scalar_constants.hpp"
+#include "glm/gtc/matrix_inverse.hpp"
 
 namespace Lucky
 {
@@ -32,6 +33,10 @@ namespace Lucky
         uint32_t LineVertexCount = 0;                    // 当前线段顶点数
         
         glm::vec3 CameraPosition;   // 相机位置
+        
+        // ---- 无限网格资源 ----
+        Ref<VertexArray> GridVertexArray;   // 空 VAO（用于无 VBO 绘制）
+        Ref<Shader> GridShader;             // 无限网格 Shader
     };
 
     static GizmoRendererData s_GizmoData;
@@ -52,6 +57,10 @@ namespace Lucky
         
         // 加载 Gizmo Shader
         s_GizmoData.LineShader = Shader::Create("Assets/Shaders/GizmoLine");
+        
+        // ---- 无限网格初始化 ----
+        s_GizmoData.GridVertexArray = VertexArray::Create();    // 空 VAO（顶点在 Shader 中硬编码）
+        s_GizmoData.GridShader = Shader::Create("Assets/Shaders/InfiniteGrid");
     }
 
     void GizmoRenderer::Shutdown()
@@ -202,6 +211,30 @@ namespace Lucky
     }
 
     // ---- 场景 Gizmo ----
+    
+    void GizmoRenderer::DrawInfiniteGrid(const EditorCamera& camera)
+    {
+        // 计算逆 VP 矩阵
+        glm::mat4 vpMatrix = camera.GetViewProjectionMatrix();
+        glm::mat4 inverseVP = glm::inverse(vpMatrix);
+        
+        // 绑定 Shader 并设置 Uniforms
+        s_GizmoData.GridShader->Bind();
+        s_GizmoData.GridShader->SetMat4("u_InverseVP", inverseVP);
+        
+        // 网格参数
+        s_GizmoData.GridShader->SetFloat("u_GridCellSize", 1.0f);
+        s_GizmoData.GridShader->SetFloat("u_GridMinPixels", 1.0f);
+        s_GizmoData.GridShader->SetFloat("u_GridFadeDistance", 100.0f);
+        
+        // 轴线颜色
+        s_GizmoData.GridShader->SetFloat4("u_AxisXColor", glm::vec4(1.0f, 0.2f, 0.322f, 1.0f));         // X 轴红色
+        s_GizmoData.GridShader->SetFloat4("u_AxisZColor", glm::vec4(0.157f, 0.565f, 1.0f, 1.0f));       // Z 轴蓝色
+        s_GizmoData.GridShader->SetFloat4("u_GridColor", glm::vec4(0.329f, 0.329f, 0.329f, 0.502f));    // 网格线灰色
+        
+        // 绑定空 VAO 并绘制 6 个顶点（全屏四边形，顶点在 Shader 中硬编码）
+        RenderCommand::DrawArrays(s_GizmoData.GridVertexArray, 6);
+    }
     
     void GizmoRenderer::DrawGrid(float size, int divisions, const glm::vec4& color)
     {

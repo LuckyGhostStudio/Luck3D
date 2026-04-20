@@ -60,6 +60,13 @@ namespace Lucky
         static void DrawLines(const Ref<VertexArray>& vertexArray, uint32_t vertexCount);
 
         /// <summary>
+        /// 绘制三角形（无索引）
+        /// </summary>
+        /// <param name="vertexArray">顶点数组</param>
+        /// <param name="vertexCount">顶点个数</param>
+        static void DrawArrays(const Ref<VertexArray>& vertexArray, uint32_t vertexCount);
+
+        /// <summary>
         /// 设置线宽
         /// </summary>
         /// <param name="width">宽度</param>

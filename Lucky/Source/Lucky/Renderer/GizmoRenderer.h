@@ -36,6 +36,13 @@ namespace Lucky
         // ---- 场景 Gizmo ----
         
         static void DrawGrid(float size = 10.0f, int divisions = 10, const glm::vec4& color = glm::vec4(0.329f, 0.329f, 0.329f, 0.502f));
+        
+        /// <summary>
+        /// 绘制无限网格（GPU 程序化，独立 DrawCall）
+        /// </summary>
+        /// <param name="camera">编辑器相机（用于获取逆 VP 矩阵）</param>
+        static void DrawInfiniteGrid(const EditorCamera& camera);
+        
         static void DrawDirectionalLightGizmo(const glm::vec3& position, const glm::vec3& direction, const glm::vec3& color);
         static void DrawPointLightGizmo(const glm::vec3& position, float range, const glm::vec3& color);
         static void DrawSpotLightGizmo(const glm::vec3& position, const glm::vec3& direction, float range, float innerAngle, float outerAngle, const glm::vec3& color);

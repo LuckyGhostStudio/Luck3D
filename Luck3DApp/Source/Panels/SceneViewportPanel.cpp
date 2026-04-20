@@ -59,8 +59,8 @@ namespace Lucky
         // ---- Gizmo ----
         GizmoRenderer::BeginScene(m_EditorCamera);
         {
-            // 场景网格线 TODO 改为无限网格
-            GizmoRenderer::DrawGrid(20.0f, 20);
+            // 坐标系无限网格
+            GizmoRenderer::DrawInfiniteGrid(m_EditorCamera);
         
             // 灯光 Gizmo TODO 只绘制选中项
             auto dirLights = m_Scene->GetAllEntitiesWith<TransformComponent, DirectionalLightComponent>();

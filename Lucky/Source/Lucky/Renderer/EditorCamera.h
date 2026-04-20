@@ -92,6 +92,7 @@ namespace Lucky
 
         float GetPitch() const { return m_Pitch; }
         float GetYaw() const { return m_Yaw; }
+        float GetViewportHeight() const { return m_ViewportHeight; }
     private:
         float m_FOV = 45.0f;                    // 垂直张角
         float m_Near = 0.01f;                   // 近裁剪平面

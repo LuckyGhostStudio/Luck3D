@@ -57,6 +57,13 @@ namespace Lucky
         glDrawArrays(GL_LINES, 0, vertexCount); // 绘制直线
     }
 
+    void RenderCommand::DrawArrays(const Ref<VertexArray>& vertexArray, uint32_t vertexCount)
+    {
+        vertexArray->Bind();
+
+        glDrawArrays(GL_TRIANGLES, 0, vertexCount); // 绘制三角形（无索引）
+    }
+
     void RenderCommand::SetLineWidth(float width)
     {
         glLineWidth(width);
