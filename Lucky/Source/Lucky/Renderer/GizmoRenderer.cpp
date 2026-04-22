@@ -4,6 +4,7 @@
 #include "VertexArray.h"
 #include "Shader.h"
 #include "RenderCommand.h"
+#include "Lucky/Editor/EditorPreferences.h"
 
 #include "glm/ext/scalar_constants.hpp"
 #include "glm/gtc/matrix_inverse.hpp"
@@ -228,37 +229,13 @@ namespace Lucky
         s_GizmoData.GridShader->SetFloat("u_GridFadeDistance", 100.0f);
         
         // 轴线颜色
-        s_GizmoData.GridShader->SetFloat4("u_AxisXColor", glm::vec4(1.0f, 0.2f, 0.322f, 1.0f));         // X 轴红色
-        s_GizmoData.GridShader->SetFloat4("u_AxisZColor", glm::vec4(0.157f, 0.565f, 1.0f, 1.0f));       // Z 轴蓝色
-        s_GizmoData.GridShader->SetFloat4("u_GridColor", glm::vec4(0.329f, 0.329f, 0.329f, 0.502f));    // 网格线灰色
+        const ColorSettings& colors = EditorPreferences::Get().GetColors();
+        s_GizmoData.GridShader->SetFloat4("u_AxisXColor", colors.GridAxisXColor);
+        s_GizmoData.GridShader->SetFloat4("u_AxisZColor", colors.GridAxisZColor);
+        s_GizmoData.GridShader->SetFloat4("u_GridColor", colors.GridLineColor);
         
         // 绑定空 VAO 并绘制 6 个顶点（全屏四边形，顶点在 Shader 中硬编码）
         RenderCommand::DrawArrays(s_GizmoData.GridVertexArray, 6);
-    }
-    
-    void GizmoRenderer::DrawGrid(float size, int divisions, const glm::vec4& color)
-    {
-        float step = size / divisions;
-        float halfSize = size / 2.0f;
-    
-        for (int i = 0; i <= divisions; ++i)
-        {
-            float pos = -halfSize + i * step;
-        
-            if (i == divisions / 2)
-            {
-                continue;
-            }
-            
-            // X 方向线段
-            DrawLine(glm::vec3(pos, 0.0f, -halfSize), glm::vec3(pos, 0.0f, halfSize), color);
-            // Z 方向线段
-            DrawLine(glm::vec3(-halfSize, 0.0f, pos), glm::vec3(halfSize, 0.0f, pos), color);
-        }
-    
-        // 高亮中心轴线
-        DrawLine(glm::vec3(-halfSize, 0.0f, 0.0f), glm::vec3(halfSize, 0.0f, 0.0f), glm::vec4(1.0f, 0.2f, 0.322f, 1.0f));   // X 轴红色
-        DrawLine(glm::vec3(0.0f, 0.0f, -halfSize), glm::vec3(0.0f, 0.0f, halfSize), glm::vec4(0.157f, 0.565f, 1.0f, 1.0f)); // Z 轴蓝色
     }
     
     void GizmoRenderer::DrawDirectionalLightGizmo(const glm::vec3& position, const glm::vec3& direction, const glm::vec3& color)

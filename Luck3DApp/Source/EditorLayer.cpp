@@ -87,6 +87,8 @@ namespace Lucky
         UI_DrawMenuBar();
 
         m_PanelManager->OnImGuiRender();
+        
+        m_PreferencesPanel.OnImGuiRender();
     }
 
     void EditorLayer::OnEvent(Event& event)
@@ -141,6 +143,17 @@ namespace Lucky
                 ImGui::EndMenu();
             }
 
+            // Edit 菜单（新增）
+            if (ImGui::BeginMenu("Edit"))
+            {
+                // 偏好设置
+                if (ImGui::MenuItem("Preferences..."))
+                {
+                    m_PreferencesPanel.Open();
+                }
+                ImGui::EndMenu();
+            }
+            
             if (ImGui::BeginMenu("Window"))
             {
                 if (ImGui::MenuItem("Hierarchy"))

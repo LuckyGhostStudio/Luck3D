@@ -7,6 +7,7 @@
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/Components/Components.h"
 #include "Lucky/Renderer/GizmoRenderer.h"
+#include "Lucky/Editor/EditorPreferences.h"
 
 #include "imgui/imgui.h"
 #include "ImGuizmo.h"
@@ -52,7 +53,8 @@ namespace Lucky
         
         m_Framebuffer->Bind();          // 绑定帧缓冲区
 
-        RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1.0f });
+        const ColorSettings& colors = EditorPreferences::Get().GetColors();
+        RenderCommand::SetClearColor(colors.ViewportClearColor);
         RenderCommand::Clear();
 
         m_Framebuffer->ClearAttachment(1, -1);  // 清除 Entity ID 缓冲区为 -1（无实体）

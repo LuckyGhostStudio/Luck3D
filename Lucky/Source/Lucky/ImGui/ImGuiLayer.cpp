@@ -13,6 +13,7 @@
 #include "ImGuizmo.h"
 
 #include "Lucky/Core/Application.h"
+#include "Lucky/Editor/EditorPreferences.h"
 
 namespace Lucky
 {
@@ -53,6 +54,10 @@ namespace Lucky
         {
             SetDefaultStyles();     // 设置常规样式
         }
+        
+        // 加载偏好设置并应用颜色
+        EditorPreferences::Get().Load();                // 尝试加载配置文件（失败则使用默认值）
+        EditorPreferences::Get().ApplyImGuiColors();    // 应用颜色到 ImGui 主题
 
         GLFWwindow* window = static_cast<GLFWwindow*>(app.GetWindow().GetNativeWindow());
 

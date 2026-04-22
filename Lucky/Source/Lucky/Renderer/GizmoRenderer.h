@@ -35,8 +35,6 @@ namespace Lucky
        
         // ---- 场景 Gizmo ----
         
-        static void DrawGrid(float size = 10.0f, int divisions = 10, const glm::vec4& color = glm::vec4(0.329f, 0.329f, 0.329f, 0.502f));
-        
         /// <summary>
         /// 绘制无限网格（GPU 程序化，独立 DrawCall）
         /// </summary>
