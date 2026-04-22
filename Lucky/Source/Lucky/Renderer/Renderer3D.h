@@ -101,7 +101,8 @@ namespace Lucky
         /// <param name="transform">模型变换矩阵</param>
         /// <param name="mesh">网格</param>
         /// <param name="materials">材质列表</param>
-        static void DrawMesh(const glm::mat4& transform, Ref<Mesh>& mesh, const std::vector<Ref<Material>>& materials);
+        /// <param name="entityID">实体 ID（用于鼠标拾取，-1 表示无效）</param>
+        static void DrawMesh(const glm::mat4& transform, Ref<Mesh>& mesh, const std::vector<Ref<Material>>& materials, int entityID = -1);
 
         /// <summary>
         /// 统计数据

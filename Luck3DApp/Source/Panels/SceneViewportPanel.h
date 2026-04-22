@@ -4,6 +4,7 @@
 #include "Lucky/Renderer/Framebuffer.h"
 #include "Lucky/Scene/Scene.h"
 #include "Lucky/Core/Events/KeyEvent.h"
+#include "Lucky/Core/Events/MouseEvent.h"
 
 namespace Lucky
 {
@@ -33,6 +34,13 @@ namespace Lucky
         /// <param name="e">按键按下事件</param>
         /// <returns></returns>
         bool OnKeyPressed(KeyPressedEvent& e);
+
+        /// <summary>
+        /// 鼠标按键按下时调用
+        /// </summary>
+        /// <param name="e">鼠标按键按下事件</param>
+        /// <returns></returns>
+        bool OnMouseButtonPressed(MouseButtonPressedEvent& e);
     private:
         Ref<Scene> m_Scene;
         Ref<Framebuffer> m_Framebuffer; // 帧缓冲区

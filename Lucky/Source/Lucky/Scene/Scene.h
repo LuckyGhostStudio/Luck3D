@@ -67,6 +67,13 @@ namespace Lucky
         Entity TryGetEntityWithUUID(UUID id);
 
         /// <summary>
+        /// 检查 entt::entity 是否仍然有效（未被销毁）
+        /// </summary>
+        /// <param name="entity">entt 实体句柄</param>
+        /// <returns>是否有效</returns>
+        bool IsEntityValid(entt::entity entity) const { return m_Registry.valid(entity); }
+
+        /// <summary>
         /// 返回具有 TComponents 类型组件的所有 Entt
         /// </summary>
         /// <typeparam name="...TComponents">组件类型列表</typeparam>

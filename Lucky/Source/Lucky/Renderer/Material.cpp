@@ -13,6 +13,7 @@ namespace Lucky
         // 引擎内部管理的 uniform 黑名单 TODO 持续更新
         static const std::unordered_set<std::string> s_InternalUniforms = {
             "u_ObjectToWorldMatrix",    // 模型变换矩阵（由引擎每帧设置）
+            "u_EntityID",               // Entity ID（拾取系统，由引擎每帧设置）
         };
 
         return s_InternalUniforms.find(name) != s_InternalUniforms.end();

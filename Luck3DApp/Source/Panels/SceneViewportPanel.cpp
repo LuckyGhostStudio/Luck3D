@@ -4,6 +4,7 @@
 
 #include "Lucky/Core/Input/Input.h"
 #include "Lucky/Scene/SelectionManager.h"
+#include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/Components/Components.h"
 #include "Lucky/Renderer/GizmoRenderer.h"
 
@@ -53,6 +54,8 @@ namespace Lucky
 
         RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1.0f });
         RenderCommand::Clear();
+
+        m_Framebuffer->ClearAttachment(1, -1);  // 清除 Entity ID 缓冲区为 -1（无实体）
 
         m_Scene->OnUpdate(dt, m_EditorCamera);   // 更新场景
         
@@ -126,6 +129,7 @@ namespace Lucky
         
         EventDispatcher dispatcher(event);
         dispatcher.Dispatch<KeyPressedEvent>(LF_BIND_EVENT_FUNC(SceneViewportPanel::OnKeyPressed)); // 按键按下事件
+        dispatcher.Dispatch<MouseButtonPressedEvent>(LF_BIND_EVENT_FUNC(SceneViewportPanel::OnMouseButtonPressed)); // 鼠标按键按下事件
     }
 
     void SceneViewportPanel::UI_DrawViewOrientationGizmo()
@@ -258,6 +262,61 @@ namespace Lucky
             case Key::S:
                 m_GizmoType = ImGuizmo::OPERATION::SCALE;       // 缩放
                 break;
+            }
+        }
+
+        return false;
+    }
+
+    bool SceneViewportPanel::OnMouseButtonPressed(MouseButtonPressedEvent& e)
+    {
+        if (e.GetMouseButton() != Mouse::ButtonLeft)
+        {
+            return false;
+        }
+
+        // 跳过 Alt 键（相机操作）和 ImGuizmo 操作
+        if (Input::IsKeyPressed(Key::LeftAlt) || ImGuizmo::IsOver())
+        {
+            return false;
+        }
+
+        // 获取鼠标在视口中的坐标
+        auto [mx, my] = ImGui::GetMousePos();
+        mx -= m_Bounds[0].x;
+        my -= m_Bounds[0].y;
+
+        auto viewportWidth = m_Bounds[1].x - m_Bounds[0].x;
+        auto viewportHeight = m_Bounds[1].y - m_Bounds[0].y;
+
+        // 翻转 Y 轴（ImGui Y 向下，OpenGL Y 向上）
+        my = viewportHeight - my;
+
+        int mouseX = (int)mx;
+        int mouseY = (int)my;
+
+        // 检查是否在视口范围内
+        if (mouseX >= 0 && mouseY >= 0 && mouseX < (int)viewportWidth && mouseY < (int)viewportHeight)
+        {
+            m_Framebuffer->Bind();
+            int pixelData = m_Framebuffer->GetPixel(1, mouseX, mouseY);
+            m_Framebuffer->Unbind();
+
+            if (pixelData == -1)
+            {
+                // 点击空白区域 → 取消选中
+                SelectionManager::Deselect();
+            }
+            else
+            {
+                // 通过 entt::entity 获取 Entity → 选中
+                entt::entity enttID = (entt::entity)(uint32_t)pixelData;
+
+                if (m_Scene->IsEntityValid(enttID))
+                {
+                    Entity entity = { enttID, m_Scene.get() };
+                    SelectionManager::Select(entity.GetUUID());
+                }
             }
         }
 

@@ -153,7 +153,7 @@ namespace Lucky
             {
                 auto [transform, meshFilter, meshRenderer] = meshGroup.get<TransformComponent, MeshFilterComponent, MeshRendererComponent>(entity);
 
-                Renderer3D::DrawMesh(transform.GetTransform(), meshFilter.Mesh, meshRenderer.Materials);    // 绘制网格
+                Renderer3D::DrawMesh(transform.GetTransform(), meshFilter.Mesh, meshRenderer.Materials, (int)(uint32_t)entity);    // 绘制网格
             }
         }
         Renderer3D::EndScene();

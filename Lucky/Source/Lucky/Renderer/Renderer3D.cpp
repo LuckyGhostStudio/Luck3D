@@ -5,6 +5,7 @@
 #include "UniformBuffer.h"
 #include "RenderCommand.h"
 
+#include <glad/glad.h>
 #include <glm/ext/matrix_transform.hpp>
 
 namespace Lucky
@@ -20,6 +21,7 @@ namespace Lucky
         Ref<Material> MaterialData;     // 材质引用
         uint64_t SortKey = 0;           // 排序键
         float DistanceToCamera = 0.0f;  // 到相机的距离
+        int EntityID = -1;              // Entity ID（用于鼠标拾取，-1 表示无效）
     };
     
     /// <summary>
@@ -32,6 +34,7 @@ namespace Lucky
         Ref<ShaderLibrary> ShaderLib;   // 着色器库 TODO Move to Renderer.h
         
         Ref<Shader> InternalErrorShader;        // 内部错误着色器
+        Ref<Shader> EntityIDShader;             // Entity ID 内部拾取着色器
         Ref<Shader> StandardShader;             // 默认着色器
         Ref<Material> InternalErrorMaterial;    // 内部错误材质（材质丢失时使用：材质被意外删除等情况）
         Ref<Material> DefaultMaterial;          // 默认材质
@@ -86,9 +89,11 @@ namespace Lucky
         
         // 加载内部着色器
         s_Data.ShaderLib->Load("Assets/Shaders/InternalError"); // 内部错误着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/EntityID");      // Entity ID 拾取着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Standard");      // 默认着色器
         
         s_Data.InternalErrorShader = s_Data.ShaderLib->Get("InternalError");
+        s_Data.EntityIDShader = s_Data.ShaderLib->Get("EntityID");
         s_Data.StandardShader = s_Data.ShaderLib->Get("Standard");
         
         // 创建内部材质
@@ -197,15 +202,51 @@ namespace Lucky
                 cmd.SubMeshPtr->IndexCount
             );
         
-            s_Data.Stats.DrawCalls++;
+        s_Data.Stats.DrawCalls++;
             s_Data.Stats.TriangleCount += cmd.SubMeshPtr->IndexCount / 3;
         }
+
+        // ======== Pass 2: Picking Pass（Entity ID 拾取） ========
+        
+        // 切换 glDrawBuffers：只写入 Attachment 1（Entity ID）
+        GLenum pickBuffers[] = { GL_NONE, GL_COLOR_ATTACHMENT1 };
+        glDrawBuffers(2, pickBuffers);
+        
+        // 关闭深度写入，保持深度测试（复用 Pass 1 的深度缓冲区）
+        glDepthMask(GL_FALSE);
+        glDepthFunc(GL_LEQUAL);
+        
+        // 绑定 Picking Shader
+        s_Data.EntityIDShader->Bind();
+        
+        for (const DrawCommand& cmd : s_Data.OpaqueDrawCommands)
+        {
+            // 设置模型变换矩阵
+            s_Data.EntityIDShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
+            // 设置 Entity ID
+            s_Data.EntityIDShader->SetInt("u_EntityID", cmd.EntityID);
+            
+            // 绘制
+            RenderCommand::DrawIndexedRange(
+                cmd.MeshData->GetVertexArray(),
+                cmd.SubMeshPtr->IndexOffset,
+                cmd.SubMeshPtr->IndexCount
+            );
+        }
+        
+        // 恢复 glDrawBuffers 和深度状态
+        // 只启用 Attachment 0（颜色），禁用 Attachment 1（EntityID）
+        // 防止后续 Gizmo 渲染时向 EntityID 缓冲区写入未定义数据
+        GLenum normalBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE };
+        glDrawBuffers(2, normalBuffers);
+        glDepthMask(GL_TRUE);
+        glDepthFunc(GL_LESS);
     
         // ---- 清空命令列表 ----
         s_Data.OpaqueDrawCommands.clear();
     }
 
-    void Renderer3D::DrawMesh(const glm::mat4& transform, Ref<Mesh>& mesh, const std::vector<Ref<Material>>& materials)
+    void Renderer3D::DrawMesh(const glm::mat4& transform, Ref<Mesh>& mesh, const std::vector<Ref<Material>>& materials, int entityID)
     {
         // 准备顶点数据
         s_Data.MeshVertexBufferData.clear();
@@ -252,6 +293,7 @@ namespace Lucky
             cmd.MaterialData = material;
             cmd.SortKey = sortKey;
             cmd.DistanceToCamera = distToCamera;
+            cmd.EntityID = entityID;
         
             // 加入不透明绘制命令列表
             s_Data.OpaqueDrawCommands.push_back(cmd);
