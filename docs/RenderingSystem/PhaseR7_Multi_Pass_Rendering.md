@@ -1,8 +1,8 @@
 # Phase R7：多 Pass 渲染框架
 
-> **文档版本**：v1.1  
+> **文档版本**：v1.2  
 > **创建日期**：2026-04-07  
-> **更新日期**：2026-04-15  
+> **更新日期**：2026-04-22  
 > **优先级**：?? P2  
 > **预计工作量**：5-7 天  
 > **前置依赖**：Phase R3（多光源）? 已完成、Phase R4（阴影系统）  
@@ -27,17 +27,19 @@
   - [6.1 ShadowPass](#61-shadowpass)
   - [6.2 DepthPrepass（可选）](#62-depthprepass可选)
   - [6.3 OpaquePass](#63-opaquepass)
-  - [6.4 SkyboxPass（可选）](#64-skyboxpass可选)
-  - [6.5 TransparentPass](#65-transparentpass)
-  - [6.6 PostProcessPass](#66-postprocesspass)
+  - [6.4 PickingPass](#64-pickingpass)
+  - [6.5 SkyboxPass（可选）](#65-skyboxpass可选)
+  - [6.6 TransparentPass](#66-transparentpass)
+  - [6.7 PostProcessPass](#67-postprocesspass)
 - [七、RenderPass 基类实现](#七renderpass-基类实现)
 - [八、RenderPipeline 实现](#八renderpipeline-实现)
 - [九、RenderQueue 实现](#九renderqueue-实现)
 - [十、各 Pass 详细实现](#十各-pass-详细实现)
   - [10.1 ShadowPass](#101-shadowpass)
   - [10.2 OpaquePass](#102-opaquepass)
-  - [10.3 TransparentPass](#103-transparentpass)
-  - [10.4 PostProcessPass](#104-postprocesspass)
+  - [10.3 PickingPass](#103-pickingpass)
+  - [10.4 TransparentPass](#104-transparentpass)
+  - [10.5 PostProcessPass](#105-postprocesspass)
 - [十一、Scene 集成](#十一scene-集成)
   - [11.1 渲染对象收集](#111-渲染对象收集)
   - [11.2 新的渲染流程](#112-新的渲染流程)
@@ -116,6 +118,8 @@ Renderer3D::EndScene();  // 当前为空实现
 | `Lucky/Source/Lucky/Renderer/Passes/OpaquePass.cpp` | **新建** | 不透明物体 Pass 实现 |
 | `Lucky/Source/Lucky/Renderer/Passes/TransparentPass.h` | **新建** | 透明物体 Pass |
 | `Lucky/Source/Lucky/Renderer/Passes/TransparentPass.cpp` | **新建** | 透明物体 Pass 实现 |
+| `Lucky/Source/Lucky/Renderer/Passes/PickingPass.h` | **新建** | 拾取 Pass（Entity ID 绘制） |
+| `Lucky/Source/Lucky/Renderer/Passes/PickingPass.cpp` | **新建** | 拾取 Pass 实现 |
 | `Lucky/Source/Lucky/Renderer/Passes/PostProcessPass.h` | **新建** | 后处理 Pass |
 | `Lucky/Source/Lucky/Renderer/Passes/PostProcessPass.cpp` | **新建** | 后处理 Pass 实现 |
 | `Lucky/Source/Lucky/Renderer/Renderer3D.h` | 修改 | 集成 RenderPipeline |
@@ -293,6 +297,7 @@ namespace Lucky
         glm::mat4 Transform;                    // 模型矩阵
         Ref<Mesh> MeshData;                     // 网格数据
         std::vector<Ref<Material>> Materials;   // 材质列表
+        int EntityID = -1;                      // Entity ID（用于鼠标拾取，-1 表示无效）
         float DistanceToCamera = 0.0f;          // 到相机的距离（用于排序）
         uint32_t SortKey = 0;                   // 排序键（用于材质排序）
     };
@@ -434,7 +439,24 @@ namespace Lucky
 | 深度写入 | 启用 |
 | 混合 | 禁用 |
 
-### 6.4 SkyboxPass（可选）
+### 6.4 PickingPass
+
+| 属性 | 值 |
+|------|-----|
+| 渲染目标 | 主 FBO 的 Entity ID 附件（R32I，Attachment 1） |
+| 渲染对象 | 所有不透明物体（复用 OpaqueQueue） |
+| Shader | EntityID.vert + EntityID.frag（专用 Shader，只输出 Entity ID） |
+| 深度测试 | 启用（GL_LEQUAL，复用 OpaquePass 写入的深度缓冲区） |
+| 深度写入 | **禁用**（只读深度） |
+| 混合 | 禁用 |
+| 排序 | 无需排序（深度测试保证正确性） |
+| 说明 | 在 OpaquePass 之后执行，复用其深度缓冲区，用独立的 EntityID Shader 将每个物体的 Entity ID 写入 R32I 整数纹理。鼠标点击时通过 `glReadPixels` 读取该纹理实现物体拾取。此 Pass 不影响用户编写的 Shader，Entity ID 由引擎自动注入。 |
+
+> **设计说明**：PickingPass 使用独立的 EntityID Shader 而非在用户 Shader 中添加 Entity ID 输出，这样用户编写 Shader 时无需关心拾取逻辑。这与 Unity 的处理方式类似——Unity 在 Scene View 中使用内部的 Picking Shader 进行拾取，用户 Shader 不需要包含任何拾取相关代码。
+
+> **当前状态**：PickingPass 已在当前代码中实现（内联在 `Renderer3D::EndScene()` 中），R7 重构时只需将其提取为独立的 `PickingPass` 类，迁移成本极低。
+
+### 6.5 SkyboxPass（可选）
 
 | 属性 | 值 |
 |------|-----|
@@ -445,7 +467,7 @@ namespace Lucky
 | 深度写入 | 禁用 |
 | 说明 | 在不透明物体之后渲染，利用 Early-Z 跳过被遮挡的天空像素 |
 
-### 6.5 TransparentPass
+### 6.6 TransparentPass
 
 | 属性 | 值 |
 |------|-----|
@@ -457,7 +479,7 @@ namespace Lucky
 | 深度写入 | **禁用** |
 | 混合 | 启用（SrcAlpha, OneMinusSrcAlpha） |
 
-### 6.6 PostProcessPass
+### 6.7 PostProcessPass
 
 | 属性 | 值 |
 |------|-----|
@@ -778,7 +800,97 @@ void OpaquePass::Cleanup()
 }
 ```
 
-### 10.3 TransparentPass
+### 10.3 PickingPass
+
+```cpp
+// Lucky/Source/Lucky/Renderer/Passes/PickingPass.h
+#pragma once
+
+#include "Lucky/Renderer/RenderPass.h"
+
+namespace Lucky
+{
+    /// <summary>
+    /// 拾取 Pass：将每个物体的 Entity ID 写入 R32I 整数纹理
+    /// 用于鼠标点击拾取物体
+    /// </summary>
+    class PickingPass : public RenderPass
+    {
+    public:
+        void Init() override;
+        void Setup(const EditorCamera& camera, const SceneLightData& lightData) override;
+        void Execute(const RenderQueue& queue) override;
+        void Cleanup() override;
+        const std::string& GetName() const override { static std::string name = "PickingPass"; return name; }
+        
+        /// <summary>
+        /// 设置主 FBO 引用（复用 OpaquePass 的 FBO 和深度缓冲区）
+        /// </summary>
+        void SetMainFBO(Ref<Framebuffer> fbo) { m_MainFBO = fbo; }
+        
+    private:
+        Ref<Shader> m_EntityIDShader;   // EntityID 专用 Shader
+        Ref<Framebuffer> m_MainFBO;     // 主 FBO（复用 OpaquePass 的）
+    };
+}
+```
+
+```cpp
+// PickingPass.cpp
+void PickingPass::Init()
+{
+    // 加载 EntityID Shader
+    m_EntityIDShader = Shader::Create("Assets/Shaders/EntityID");
+}
+
+void PickingPass::Setup(const EditorCamera& camera, const SceneLightData& lightData)
+{
+    m_MainFBO->Bind();
+    
+    // 切换 glDrawBuffers：只写入 Attachment 1（Entity ID，R32I）
+    GLenum pickBuffers[] = { GL_NONE, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, pickBuffers);
+    
+    // 深度状态：复用 OpaquePass 的深度缓冲区，GL_LEQUAL 保证相同深度可通过
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_FALSE);  // 不写入深度
+    
+    // 绑定 EntityID Shader 和相机矩阵
+    m_EntityIDShader->Bind();
+    m_EntityIDShader->SetMat4("u_ViewProjectionMatrix", camera.GetViewProjectionMatrix());
+}
+
+void PickingPass::Execute(const RenderQueue& queue)
+{
+    for (const auto& obj : queue.GetObjects())
+    {
+        m_EntityIDShader->SetMat4("u_ObjectToWorldMatrix", obj.Transform);
+        m_EntityIDShader->SetInt("u_EntityID", obj.EntityID);
+        
+        for (const auto& sm : obj.MeshData->GetSubMeshes())
+        {
+            RenderCommand::DrawIndexedRange(obj.MeshData->GetVertexArray(), sm.IndexOffset, sm.IndexCount);
+        }
+    }
+}
+
+void PickingPass::Cleanup()
+{
+    // 恢复深度状态
+    glDepthFunc(GL_LESS);
+    glDepthMask(GL_TRUE);
+    
+    // 恢复 glDrawBuffers：只写入 Attachment 0（颜色缓冲区）
+    GLenum defaultBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE };
+    glDrawBuffers(2, defaultBuffers);
+    
+    m_MainFBO->Unbind();
+}
+```
+
+> **迁移说明**：以上代码与当前 `Renderer3D::EndScene()` 中内联的 Picking Pass 逻辑完全一致，只是从 `EndScene()` 中提取到了独立的类中。迁移时只需将 `EndScene()` 中的 Picking Pass 代码块剪切粘贴到此类的对应方法中即可。
+
+### 10.4 TransparentPass
 
 ```cpp
 // TransparentPass.cpp
@@ -813,7 +925,7 @@ void TransparentPass::Cleanup()
 }
 ```
 
-### 10.4 PostProcessPass
+### 10.5 PostProcessPass
 
 ```cpp
 // PostProcessPass.cpp
@@ -866,6 +978,7 @@ void Scene::OnUpdate(DeltaTime dt, EditorCamera& camera)
         obj.Transform = transform.GetTransform();
         obj.MeshData = meshFilter.Mesh;
         obj.Materials = meshRenderer.Materials;
+        obj.EntityID = (int)(uint32_t)entity;   // 传递 Entity ID 用于拾取
         
         // 计算到相机的距离
         glm::vec3 objPos = glm::vec3(obj.Transform[3]);
@@ -908,7 +1021,8 @@ graph TD
     E --> F[RenderPipeline::Execute]
     F --> G[ShadowPass]
     G --> H[OpaquePass]
-    H --> I[TransparentPass]
+    H --> HP[PickingPass]
+    HP --> I[TransparentPass]
     I --> J[PostProcessPass]
     J --> K[显示]
 ```
@@ -941,17 +1055,20 @@ void Renderer3D::Init()
     // 创建渲染管线
     auto shadowPass = CreateRef<ShadowPass>();
     auto opaquePass = CreateRef<OpaquePass>();
+    auto pickingPass = CreateRef<PickingPass>();
     auto transparentPass = CreateRef<TransparentPass>();
     auto postProcessPass = CreateRef<PostProcessPass>();
     
     // 设置 Pass 之间的依赖
     opaquePass->SetShadowPass(shadowPass);
+    pickingPass->SetMainFBO(opaquePass->GetHDR_FBO());      // 复用 OpaquePass 的 FBO 和深度缓冲区
     transparentPass->SetHDR_FBO(opaquePass->GetHDR_FBO());
     postProcessPass->SetHDR_FBO(opaquePass->GetHDR_FBO());
     
     // 按顺序添加 Pass
     s_Data.Pipeline.AddPass(shadowPass);
     s_Data.Pipeline.AddPass(opaquePass);
+    s_Data.Pipeline.AddPass(pickingPass);       // OpaquePass 之后，复用其深度缓冲区
     s_Data.Pipeline.AddPass(transparentPass);
     s_Data.Pipeline.AddPass(postProcessPass);
     
@@ -1053,3 +1170,6 @@ glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 | 透明度判断 | Material::RenderMode | 显式设置，避免自动判断的歧义 |
 | Depth Prepass | 可选（默认禁用） | 简单场景不需要，复杂场景可启用 |
 | RenderContext | 推荐使用 | 减少 Execute 参数数量，便于扩展 |
+| PickingPass 位置 | OpaquePass 之后、TransparentPass 之前 | 复用 OpaquePass 的深度缓冲区，避免重复深度渲染 |
+| PickingPass 使用独立 Shader | EntityID.vert + EntityID.frag | 用户 Shader 无需关心拾取逻辑，引擎自动注入 Entity ID |
+| PickingPass 当前实现 | 内联在 EndScene() 中 | 渐进式演进，R7 重构时提取为独立类，迁移成本极低 |
