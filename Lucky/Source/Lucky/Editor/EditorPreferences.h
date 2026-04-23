@@ -11,12 +11,16 @@ namespace Lucky
     struct ColorSettings
     {
         // ---- Gizmo 颜色 ----
-        glm::vec4 GridAxisXColor  = { 1.0f, 0.2f, 0.322f, 1.0f };       // 网格 X 轴（红色）
-        glm::vec4 GridAxisZColor  = { 0.157f, 0.566f, 1.0f, 1.0f };     // 网格 Z 轴（蓝色）
-        glm::vec4 GridLineColor   = { 0.329f, 0.329f, 0.329f, 0.502f }; // 网格线（灰色半透明）
+        glm::vec4 GridAxisXColor  = { 1.0f, 0.2f, 0.322f, 1.0f };           // 网格 X 轴（红色）
+        glm::vec4 GridAxisZColor  = { 0.157f, 0.566f, 1.0f, 1.0f };         // 网格 Z 轴（蓝色）
+        glm::vec4 GridLineColor   = { 0.329f, 0.329f, 0.329f, 0.502f };     // 网格线（灰色半透明）
+        
+        // ---- 选中描边颜色 ----
+        glm::vec4 OutlineLeafColor   = { 1.0f, 0.4f, 0.0f, 1.0f };          // 叶节点描边（橙色 #FF6600）
+        glm::vec4 OutlineParentColor = { 0.369f, 0.467f, 0.608f, 1.0f };    // 非叶节点描边（蓝色 #5E779B）
         
         // ---- 视口颜色 ----
-        glm::vec4 ViewportClearColor = { 0.1f, 0.1f, 0.1f, 1.0f };     // 视口背景色
+        glm::vec4 ViewportClearColor = { 0.1f, 0.1f, 0.1f, 1.0f };          // 视口背景色
         
         // ---- ImGui UI 颜色 ----
         glm::vec4 WindowBackground       = { 0.1f, 0.105f, 0.11f, 1.0f };       // 普通窗口背景

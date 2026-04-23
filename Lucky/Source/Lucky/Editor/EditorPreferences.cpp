@@ -124,6 +124,8 @@ namespace Lucky
             out << YAML::Key << "GridAxisXColor" << YAML::Value << m_Colors.GridAxisXColor;
             out << YAML::Key << "GridAxisZColor" << YAML::Value << m_Colors.GridAxisZColor;
             out << YAML::Key << "GridLineColor" << YAML::Value << m_Colors.GridLineColor;
+            out << YAML::Key << "OutlineLeafColor" << YAML::Value << m_Colors.OutlineLeafColor;
+            out << YAML::Key << "OutlineParentColor" << YAML::Value << m_Colors.OutlineParentColor;
             out << YAML::EndMap;
             
             // Viewport
@@ -219,6 +221,8 @@ namespace Lucky
             ReadVec4(gizmo, "GridAxisXColor", m_Colors.GridAxisXColor);
             ReadVec4(gizmo, "GridAxisZColor", m_Colors.GridAxisZColor);
             ReadVec4(gizmo, "GridLineColor", m_Colors.GridLineColor);
+            ReadVec4(gizmo, "OutlineLeafColor", m_Colors.OutlineLeafColor);
+            ReadVec4(gizmo, "OutlineParentColor", m_Colors.OutlineParentColor);
         }
         
         // Viewport

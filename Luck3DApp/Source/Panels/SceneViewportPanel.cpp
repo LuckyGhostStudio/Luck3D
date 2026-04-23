@@ -1,6 +1,7 @@
 #include "SceneViewportPanel.h"
 
 #include "Lucky/Renderer/RenderCommand.h"
+#include "Lucky/Renderer/Renderer3D.h"
 
 #include "Lucky/Core/Input/Input.h"
 #include "Lucky/Scene/SelectionManager.h"
@@ -8,6 +9,9 @@
 #include "Lucky/Scene/Components/Components.h"
 #include "Lucky/Renderer/GizmoRenderer.h"
 #include "Lucky/Editor/EditorPreferences.h"
+
+#include <unordered_set>
+#include <functional>
 
 #include "imgui/imgui.h"
 #include "ImGuizmo.h"
@@ -47,6 +51,9 @@ namespace Lucky
         {
             m_Framebuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);  // 重置帧缓冲区大小
             m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);             // 重置编辑器相机视口大小
+            
+            // 同步 Silhouette FBO 大小（描边功能）
+            Renderer3D::ResizeSilhouetteFBO((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
         }
 
         m_EditorCamera.OnUpdate(dt);    // 更新编辑器相机
@@ -58,6 +65,51 @@ namespace Lucky
         RenderCommand::Clear();
 
         m_Framebuffer->ClearAttachment(1, -1);  // 清除 Entity ID 缓冲区为 -1（无实体）
+
+        // 传入主 FBO 引用（用于 Outline Pass 阶段 2 重新绑定）
+        Renderer3D::SetTargetFramebuffer(m_Framebuffer);
+        
+        // 设置描边实体集合和描边颜色
+        UUID selectedUUID = SelectionManager::GetSelection();
+        std::unordered_set<int> outlineEntityIDs;
+        if (selectedUUID != 0)
+        {
+            Entity selectedEntity = m_Scene->TryGetEntityWithUUID(selectedUUID);
+            if (selectedEntity)
+            {
+                int selectedID = (int)(uint32_t)(entt::entity)selectedEntity;
+                const auto& children = selectedEntity.GetChildren();
+                
+                if (children.empty())
+                {
+                    // 叶节点：仅描边自身，橙色
+                    outlineEntityIDs.insert(selectedID);
+                    Renderer3D::SetOutlineColor(colors.OutlineLeafColor);
+                }
+                else
+                {
+                    // 非叶节点：描边自身 + 所有子孙节点，蓝色
+                    outlineEntityIDs.insert(selectedID);
+                    Renderer3D::SetOutlineColor(colors.OutlineParentColor);
+                    
+                    // 递归收集所有子孙节点
+                    std::function<void(Entity)> collectChildren = [&](Entity entity)
+                    {
+                        for (UUID childUUID : entity.GetChildren())
+                        {
+                            Entity child = m_Scene->TryGetEntityWithUUID(childUUID);
+                            if (child)
+                            {
+                                outlineEntityIDs.insert((int)(uint32_t)(entt::entity)child);
+                                collectChildren(child);
+                            }
+                        }
+                    };
+                    collectChildren(selectedEntity);
+                }
+            }
+        }
+        Renderer3D::SetOutlineEntities(outlineEntityIDs);
 
         m_Scene->OnUpdate(dt, m_EditorCamera);   // 更新场景
         
@@ -90,6 +142,9 @@ namespace Lucky
             }
         }
         GizmoRenderer::EndScene();
+        
+        // ---- 描边（在 Gizmo 之后渲染，确保描边覆盖在 Gizmo 之上） ----
+        Renderer3D::RenderOutline();
         
         m_Framebuffer->Unbind();    // 解除绑定帧缓冲区
     }

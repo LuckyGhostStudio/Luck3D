@@ -59,6 +59,11 @@ namespace Lucky
             changed |= ImGui::ColorEdit4("Grid Z Axis", glm::value_ptr(colors.GridAxisZColor));
             changed |= ImGui::ColorEdit4("Grid Lines", glm::value_ptr(colors.GridLineColor));
             
+            ImGui::Spacing();
+            
+            changed |= ImGui::ColorEdit4("Outline Leaf", glm::value_ptr(colors.OutlineLeafColor));
+            changed |= ImGui::ColorEdit4("Outline Parent", glm::value_ptr(colors.OutlineParentColor));
+            
             ImGui::TreePop();
         }
         

@@ -2,10 +2,13 @@
 
 #include "Camera.h"
 #include "EditorCamera.h"
+#include "Framebuffer.h"
 
 #include "Texture.h"
 #include "Mesh.h"
 #include "Material.h"
+
+#include <unordered_set>
 
 namespace Lucky
 {
@@ -136,5 +139,35 @@ namespace Lucky
         static Ref<Material>& GetInternalErrorMaterial();
         static Ref<Material>& GetDefaultMaterial();
         static const Ref<Texture2D>& GetDefaultTexture(TextureDefault type);
+        
+        /// <summary>
+        /// 设置主 FBO 引用（描边合成后需要重新绑定）
+        /// 在 SceneViewportPanel::OnUpdate 中调用，位于 Framebuffer::Bind() 之后
+        /// </summary>
+        static void SetTargetFramebuffer(const Ref<Framebuffer>& framebuffer);
+        
+        /// <summary>
+        /// 设置需要描边的实体 ID 集合
+        /// 在 SceneViewportPanel::OnUpdate 中调用，位于 BeginScene() 之前
+        /// 空集合表示无选中
+        /// </summary>
+        static void SetOutlineEntities(const std::unordered_set<int>& entityIDs);
+        
+        /// <summary>
+        /// 设置描边颜色
+        /// </summary>
+        static void SetOutlineColor(const glm::vec4& color);
+        
+        /// <summary>
+        /// 同步 Silhouette FBO 大小（视口 Resize 时调用）
+        /// </summary>
+        static void ResizeSilhouetteFBO(uint32_t width, uint32_t height);
+        
+        /// <summary>
+        /// 渲染描边（在 Gizmo 之后调用，确保描边覆盖在 Gizmo 之上）
+        /// 执行 Silhouette 渲染 + 边缘检测描边合成
+        /// 调用后会清空 DrawCommands
+        /// </summary>
+        static void RenderOutline();
     };
 }

@@ -3,12 +3,14 @@
 
 #include "Renderer3D.h"
 #include "GizmoRenderer.h"
+#include "ScreenQuad.h"
 
 namespace Lucky
 {
     void Renderer::Init()
     {
         RenderCommand::Init();
+        ScreenQuad::Init();
         Renderer3D::Init();
         GizmoRenderer::Init();
     }
@@ -17,6 +19,7 @@ namespace Lucky
     {
         Renderer3D::Shutdown();
         GizmoRenderer::Shutdown();
+        ScreenQuad::Shutdown();
     }
 
     void Renderer::OnWindowResize(uint32_t width, uint32_t height)

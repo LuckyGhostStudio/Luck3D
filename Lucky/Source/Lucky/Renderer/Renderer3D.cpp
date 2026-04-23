@@ -4,9 +4,12 @@
 #include "Shader.h"
 #include "UniformBuffer.h"
 #include "RenderCommand.h"
+#include "ScreenQuad.h"
+#include "Framebuffer.h"
 
 #include <glad/glad.h>
 #include <glm/ext/matrix_transform.hpp>
+#include <unordered_set>
 
 namespace Lucky
 {
@@ -79,6 +82,18 @@ namespace Lucky
         
         std::vector<DrawCommand> OpaqueDrawCommands;    // 不透明物体绘制命令列表
         glm::vec3 CameraPosition;                       // 缓存相机位置（用于计算距离）
+        
+        // ======== Outline Pass 资源（临时内联） ========
+        Ref<Framebuffer> SilhouetteFBO;             // Silhouette FBO：选中物体轮廓掩码
+        Ref<Shader> SilhouetteShader;               // Silhouette Shader：纯白色输出
+        Ref<Shader> OutlineCompositeShader;         // 描边合成 Shader：边缘检测 + 叠加
+        Ref<Framebuffer> TargetFramebuffer;         // 主 FBO 引用（描边合成后重新绑定）
+        std::unordered_set<int> OutlineEntityIDs;   // 需要描边的所有 EntityID 集合（空集合表示无选中）
+        
+        // 描边参数
+        glm::vec4 OutlineColor = glm::vec4(1.0f, 0.4f, 0.0f, 1.0f);  // 描边颜色（默认橙色 #FF6600）
+        float OutlineWidth = 2.0f;                                      // 描边宽度（像素）
+        bool OutlineEnabled = true;                                     // 是否启用描边
     };
 
     static Renderer3DData s_Data;   // 渲染器数据
@@ -128,6 +143,24 @@ namespace Lucky
         
         s_Data.CameraUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::CameraUBOData), 0);  // 创建相机 Uniform 缓冲区
         s_Data.LightUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::LightUBOData), 1);    // 创建光照 Uniform 缓冲区
+        
+        // ======== Outline Pass 初始化 ========
+        
+        // 加载 Outline 相关 Shader
+        s_Data.ShaderLib->Load("Assets/Shaders/Outline/Silhouette");
+        s_Data.ShaderLib->Load("Assets/Shaders/Outline/OutlineComposite");
+        s_Data.SilhouetteShader = s_Data.ShaderLib->Get("Silhouette");
+        s_Data.OutlineCompositeShader = s_Data.ShaderLib->Get("OutlineComposite");
+        
+        // 创建 Silhouette FBO（初始大小 1280×720，后续在 Resize 时同步）
+        FramebufferSpecification silhouetteSpec;
+        silhouetteSpec.Width = 1280;
+        silhouetteSpec.Height = 720;
+        silhouetteSpec.Attachments = {
+            FramebufferTextureFormat::RGBA8     // 轮廓掩码（白色 = 选中，黑色 = 未选中）
+            // 不需要深度附件：描边穿透遮挡物（与 Unity 行为一致）
+        };
+        s_Data.SilhouetteFBO = Framebuffer::Create(silhouetteSpec);
     }
 
     void Renderer3D::Shutdown()
@@ -241,9 +274,7 @@ namespace Lucky
         glDrawBuffers(2, normalBuffers);
         glDepthMask(GL_TRUE);
         glDepthFunc(GL_LESS);
-    
-        // ---- 清空命令列表 ----
-        s_Data.OpaqueDrawCommands.clear();
+
     }
 
     void Renderer3D::DrawMesh(const glm::mat4& transform, Ref<Mesh>& mesh, const std::vector<Ref<Material>>& materials, int entityID)
@@ -334,5 +365,106 @@ namespace Lucky
         }
         
         return s_Data.DefaultTextures[TextureDefault::White];   // 默认白色
+    }
+
+    void Renderer3D::SetTargetFramebuffer(const Ref<Framebuffer>& framebuffer)
+    {
+        s_Data.TargetFramebuffer = framebuffer;
+    }
+
+    void Renderer3D::SetOutlineEntities(const std::unordered_set<int>& entityIDs)
+    {
+        s_Data.OutlineEntityIDs = entityIDs;
+    }
+
+    void Renderer3D::SetOutlineColor(const glm::vec4& color)
+    {
+        s_Data.OutlineColor = color;
+    }
+
+    void Renderer3D::ResizeSilhouetteFBO(uint32_t width, uint32_t height)
+    {
+        if (s_Data.SilhouetteFBO)
+        {
+            s_Data.SilhouetteFBO->Resize(width, height);
+        }
+    }
+
+    void Renderer3D::RenderOutline()
+    {
+        // ======== Outline Pass（选中物体描边） ========
+        if (s_Data.OutlineEnabled && !s_Data.OutlineEntityIDs.empty())
+        {
+            // ---- 阶段 1：渲染选中物体的 Silhouette ----
+            
+            // 绑定 Silhouette FBO
+            s_Data.SilhouetteFBO->Bind();
+            
+            // 清除为黑色（未选中区域 = 透明黑色）
+            RenderCommand::SetClearColor({ 0.0f, 0.0f, 0.0f, 0.0f });
+            RenderCommand::Clear();
+            
+            // 绑定 Silhouette Shader
+            s_Data.SilhouetteShader->Bind();
+            
+            // 禁用深度测试（描边穿透遮挡物，Silhouette FBO 无深度附件）
+            glDisable(GL_DEPTH_TEST);
+            
+            // 遍历 DrawCommands，渲染所有需要描边的物体
+            for (const DrawCommand& cmd : s_Data.OpaqueDrawCommands)
+            {
+                if (s_Data.OutlineEntityIDs.find(cmd.EntityID) == s_Data.OutlineEntityIDs.end())
+                    continue;
+                
+                s_Data.SilhouetteShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
+                
+                RenderCommand::DrawIndexedRange(
+                    cmd.MeshData->GetVertexArray(),
+                    cmd.SubMeshPtr->IndexOffset,
+                    cmd.SubMeshPtr->IndexCount
+                );
+            }
+            
+            s_Data.SilhouetteFBO->Unbind();
+            
+            // ---- 阶段 2：边缘检测 + 描边合成 ----
+            
+            // 重新绑定主 FBO
+            s_Data.TargetFramebuffer->Bind();
+            
+            // 只写入 Attachment 0（颜色），不写入 Attachment 1（EntityID）
+            GLenum outlineBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE };
+            glDrawBuffers(2, outlineBuffers);
+            
+            // 禁用深度测试（全屏 Quad 不需要深度测试）
+            glDisable(GL_DEPTH_TEST);
+            
+            // 启用 Alpha 混合（描边颜色与场景颜色混合）
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            
+            // 绑定 OutlineComposite Shader
+            s_Data.OutlineCompositeShader->Bind();
+            
+            // 绑定 Silhouette 纹理到纹理单元 0
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, s_Data.SilhouetteFBO->GetColorAttachmentRendererID(0));
+            s_Data.OutlineCompositeShader->SetInt("u_SilhouetteTexture", 0);
+            
+            // 设置描边参数
+            s_Data.OutlineCompositeShader->SetFloat4("u_OutlineColor", s_Data.OutlineColor);
+            s_Data.OutlineCompositeShader->SetFloat("u_OutlineWidth", s_Data.OutlineWidth);
+            
+            // 绘制全屏四边形
+            ScreenQuad::Draw();
+            
+            // 恢复渲染状态
+            glEnable(GL_DEPTH_TEST);
+            glDepthFunc(GL_LESS);
+            glDisable(GL_BLEND);
+        }
+        
+        // ---- 清空命令列表 ----
+        s_Data.OpaqueDrawCommands.clear();
     }
 }
