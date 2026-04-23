@@ -79,6 +79,12 @@ namespace Lucky
         {
             changed |= ImGui::ColorEdit4("Window Bg", glm::value_ptr(colors.WindowBackground));
             changed |= ImGui::ColorEdit4("Child Bg", glm::value_ptr(colors.ChildBackground));
+            changed |= ImGui::ColorEdit4("Popup Bg", glm::value_ptr(colors.PopupBackground));
+            
+            ImGui::Spacing();
+            
+            changed |= ImGui::ColorEdit4("Border", glm::value_ptr(colors.BorderColor));
+            changed |= ImGui::ColorEdit4("Border Shadow", glm::value_ptr(colors.BorderShadowColor));
             
             ImGui::Spacing();
             
@@ -101,6 +107,7 @@ namespace Lucky
             ImGui::Spacing();
             
             changed |= ImGui::ColorEdit4("Title Bar", glm::value_ptr(colors.TitleBarBackground));
+            changed |= ImGui::ColorEdit4("Menu Bar Bg", glm::value_ptr(colors.MenuBarBackground));
             
             ImGui::Spacing();
             
@@ -112,6 +119,13 @@ namespace Lucky
             
             changed |= ImGui::ColorEdit4("Text", glm::value_ptr(colors.TextColor));
             changed |= ImGui::ColorEdit4("Text Disabled", glm::value_ptr(colors.TextDisabledColor));
+            changed |= ImGui::ColorEdit4("Text Selected Bg", glm::value_ptr(colors.TextSelectedBackground));
+            
+            ImGui::Spacing();
+            
+            changed |= ImGui::ColorEdit4("Check Mark", glm::value_ptr(colors.CheckMarkColor));
+            changed |= ImGui::ColorEdit4("Slider Grab", glm::value_ptr(colors.SliderGrab));
+            changed |= ImGui::ColorEdit4("Slider Grab Active", glm::value_ptr(colors.SliderGrabActive));
             
             ImGui::Spacing();
             
@@ -119,10 +133,34 @@ namespace Lucky
             
             ImGui::Spacing();
             
+            changed |= ImGui::ColorEdit4("Resize Grip", glm::value_ptr(colors.ResizeGripColor));
+            changed |= ImGui::ColorEdit4("Resize Grip Hovered", glm::value_ptr(colors.ResizeGripHovered));
+            changed |= ImGui::ColorEdit4("Resize Grip Active", glm::value_ptr(colors.ResizeGripActive));
+            
+            ImGui::Spacing();
+            
             changed |= ImGui::ColorEdit4("Scrollbar Bg", glm::value_ptr(colors.ScrollbarBackground));
             changed |= ImGui::ColorEdit4("Scrollbar Grab", glm::value_ptr(colors.ScrollbarGrab));
             changed |= ImGui::ColorEdit4("Scrollbar Grab Hovered", glm::value_ptr(colors.ScrollbarGrabHovered));
             changed |= ImGui::ColorEdit4("Scrollbar Grab Active", glm::value_ptr(colors.ScrollbarGrabActive));
+            
+            ImGui::Spacing();
+            
+            changed |= ImGui::ColorEdit4("Table Header Bg", glm::value_ptr(colors.TableHeaderBg));
+            changed |= ImGui::ColorEdit4("Table Border Strong", glm::value_ptr(colors.TableBorderStrong));
+            changed |= ImGui::ColorEdit4("Table Border Light", glm::value_ptr(colors.TableBorderLight));
+            changed |= ImGui::ColorEdit4("Table Row Bg", glm::value_ptr(colors.TableRowBg));
+            changed |= ImGui::ColorEdit4("Table Row Bg Alt", glm::value_ptr(colors.TableRowBgAlt));
+            
+            ImGui::Spacing();
+            
+            changed |= ImGui::ColorEdit4("Drag Drop Target", glm::value_ptr(colors.DragDropTarget));
+            changed |= ImGui::ColorEdit4("Modal Window Dim Bg", glm::value_ptr(colors.ModalWindowDimBackground));
+            
+            ImGui::Spacing();
+            
+            changed |= ImGui::ColorEdit4("Docking Preview", glm::value_ptr(colors.DockingPreview));
+            changed |= ImGui::ColorEdit4("Docking Empty Bg", glm::value_ptr(colors.DockingEmptyBackground));
             
             ImGui::TreePop();
         }
