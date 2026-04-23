@@ -166,7 +166,8 @@ namespace Lucky
         /// <summary>
         /// 渲染描边（在 Gizmo 之后调用，确保描边覆盖在 Gizmo 之上）
         /// 执行 Silhouette 渲染 + 边缘检测描边合成
-        /// 调用后会清空 DrawCommands
+        /// 使用 EndScene() 中提取的 OutlineDrawCommands（独立于 OpaqueDrawCommands）
+        /// 调用后会清空 OutlineDrawCommands
         /// </summary>
         static void RenderOutline();
     };

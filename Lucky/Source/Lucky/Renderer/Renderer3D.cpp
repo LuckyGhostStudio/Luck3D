@@ -28,6 +28,17 @@ namespace Lucky
     };
     
     /// <summary>
+    /// 描边绘制命令：仅包含 Silhouette 渲染所需的最小数据
+    /// 从 DrawCommand 中提取，职责分离，避免 Outline Pass 依赖完整的 DrawCommand
+    /// </summary>
+    struct OutlineDrawCommand
+    {
+        glm::mat4 Transform;            // 模型变换矩阵
+        Ref<Mesh> MeshData;             // 网格引用（通过 Ref 保证生命周期）
+        const SubMesh* SubMeshPtr;      // SubMesh 指针（生命周期由 MeshData 的 Ref 保证）
+    };
+    
+    /// <summary>
     /// 渲染器数据
     /// </summary>
     struct Renderer3DData
@@ -81,6 +92,7 @@ namespace Lucky
         Ref<UniformBuffer> LightUniformBuffer;  // 光照 Uniform 缓冲区
         
         std::vector<DrawCommand> OpaqueDrawCommands;    // 不透明物体绘制命令列表
+        std::vector<OutlineDrawCommand> OutlineDrawCommands; // 描边专用绘制命令列表（从 OpaqueDrawCommands 中提取）
         glm::vec3 CameraPosition;                       // 缓存相机位置（用于计算距离）
         
         // ======== Outline Pass 资源（临时内联） ========
@@ -275,6 +287,27 @@ namespace Lucky
         glDepthMask(GL_TRUE);
         glDepthFunc(GL_LESS);
 
+        // ======== 提取描边物体到独立列表 ========
+        // 将描边所需的最小几何数据从 OpaqueDrawCommands 中提取到 OutlineDrawCommands
+        // 使 OpaqueDrawCommands 的生命周期在 EndScene() 结束时终止，职责清晰
+        s_Data.OutlineDrawCommands.clear();
+        if (!s_Data.OutlineEntityIDs.empty())
+        {
+            for (const DrawCommand& cmd : s_Data.OpaqueDrawCommands)
+            {
+                if (s_Data.OutlineEntityIDs.count(cmd.EntityID))
+                {
+                    OutlineDrawCommand outlineCmd;
+                    outlineCmd.Transform = cmd.Transform;
+                    outlineCmd.MeshData = cmd.MeshData;    
+                    outlineCmd.SubMeshPtr = cmd.SubMeshPtr;
+
+                    s_Data.OutlineDrawCommands.push_back(outlineCmd);
+                }
+            }
+        }
+        // 立即清空 OpaqueDrawCommands，生命周期在 EndScene() 结束
+        s_Data.OpaqueDrawCommands.clear();
     }
 
     void Renderer3D::DrawMesh(const glm::mat4& transform, Ref<Mesh>& mesh, const std::vector<Ref<Material>>& materials, int entityID)
@@ -410,12 +443,9 @@ namespace Lucky
             // 禁用深度测试（描边穿透遮挡物，Silhouette FBO 无深度附件）
             glDisable(GL_DEPTH_TEST);
             
-            // 遍历 DrawCommands，渲染所有需要描边的物体
-            for (const DrawCommand& cmd : s_Data.OpaqueDrawCommands)
+            // 遍历 OutlineDrawCommands（已在 EndScene() 中从 OpaqueDrawCommands 提取）
+            for (const OutlineDrawCommand& cmd : s_Data.OutlineDrawCommands)
             {
-                if (s_Data.OutlineEntityIDs.find(cmd.EntityID) == s_Data.OutlineEntityIDs.end())
-                    continue;
-                
                 s_Data.SilhouetteShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
                 
                 RenderCommand::DrawIndexedRange(
@@ -458,13 +488,13 @@ namespace Lucky
             // 绘制全屏四边形
             ScreenQuad::Draw();
             
-            // 恢复渲染状态
+        // 恢复渲染状态
             glEnable(GL_DEPTH_TEST);
             glDepthFunc(GL_LESS);
             glDisable(GL_BLEND);
         }
         
-        // ---- 清空命令列表 ----
-        s_Data.OpaqueDrawCommands.clear();
+        // 清空描边命令列表
+        s_Data.OutlineDrawCommands.clear();
     }
 }
