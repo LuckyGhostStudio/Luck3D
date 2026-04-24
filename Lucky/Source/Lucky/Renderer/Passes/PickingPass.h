@@ -16,6 +16,7 @@ namespace Lucky
         void Init() override;
         void Execute(const RenderContext& context) override;
         const std::string& GetName() const override { static std::string name = "PickingPass"; return name; }
+        const std::string& GetGroup() const override { static std::string group = "Main"; return group; }
         
     private:
         Ref<Shader> m_EntityIDShader;   // EntityID ×¨ÓÃ Shader

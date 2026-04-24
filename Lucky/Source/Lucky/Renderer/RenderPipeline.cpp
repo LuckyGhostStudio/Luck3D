@@ -42,6 +42,22 @@ namespace Lucky
         }
     }
     
+    void RenderPipeline::ExecuteGroup(const std::string& group, const RenderContext& context)
+    {
+        for (auto& pass : m_Passes)
+        {
+            if (!pass->Enabled)
+            {
+                continue;
+            }
+            
+            if (pass->GetGroup() == group)
+            {
+                pass->Execute(context);
+            }
+        }
+    }
+    
     void RenderPipeline::Resize(uint32_t width, uint32_t height)
     {
         for (auto& pass : m_Passes)

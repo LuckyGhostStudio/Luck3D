@@ -20,7 +20,7 @@ namespace Lucky
     {
         glm::mat4 Transform;            // 模型变换矩阵
         Ref<Mesh> MeshData;             // 网格引用
-        const SubMesh* SubMeshPtr;      // SubMesh 指针（指向 Mesh 内部数据，生命周期由 Mesh 保证）
+        const SubMesh* SubMeshPtr;      // SubMesh 指针（指向 Mesh 内部数据，仅在当前帧的 EndScene() 作用域内有效，生命周期由 MeshData 的 Ref 保证）
         Ref<Material> MaterialData;     // 材质引用
         uint64_t SortKey = 0;           // 排序键
         float DistanceToCamera = 0.0f;  // 到相机的距离
@@ -35,7 +35,7 @@ namespace Lucky
     {
         glm::mat4 Transform;            // 模型变换矩阵
         Ref<Mesh> MeshData;             // 网格引用（通过 Ref 保证生命周期）
-        const SubMesh* SubMeshPtr;      // SubMesh 指针（生命周期由 MeshData 的 Ref 保证）
+        const SubMesh* SubMeshPtr;      // SubMesh 指针（指向 Mesh 内部数据，仅在当前帧的 RenderOutline() 作用域内有效，生命周期由 MeshData 的 Ref 保证）
     };
     
     /// <summary>

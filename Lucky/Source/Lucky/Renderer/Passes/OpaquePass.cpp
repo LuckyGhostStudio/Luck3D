@@ -13,7 +13,8 @@ namespace Lucky
         }
         
         // ---- 批量绘制不透明物体（DrawCommands 已在外部按 SortKey 排序） ----
-        uint32_t lastShaderID = 0;  // 跟踪上一次绑定的 Shader
+        uint32_t lastShaderID = 0;      // 跟踪上一次绑定的 Shader
+        Material* lastMaterial = nullptr;   // 跟踪上一次应用的材质
         
         for (const DrawCommand& cmd : *context.OpaqueDrawCommands)
         {
@@ -28,8 +29,12 @@ namespace Lucky
             // 设置引擎内部 uniform
             cmd.MaterialData->GetShader()->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
             
-            // 应用材质属性 TODO 优化：相同材质跳过
-            cmd.MaterialData->Apply();
+            // 应用材质属性（仅在材质变化时应用，减少冗余 Uniform 设置）
+            if (cmd.MaterialData.get() != lastMaterial)
+            {
+                cmd.MaterialData->Apply();
+                lastMaterial = cmd.MaterialData.get();
+            }
             
             // 绘制
             RenderCommand::DrawIndexedRange(

@@ -52,8 +52,8 @@ namespace Lucky
             m_Framebuffer->Resize(static_cast<uint32_t>(m_ViewportSize.x), static_cast<uint32_t>(m_ViewportSize.y));  // 重置帧缓冲区大小
             m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);             // 重置编辑器相机视口大小
             
-            // 同步 Silhouette FBO 大小（描边功能）
-            Renderer3D::ResizeSilhouetteFBO(static_cast<uint32_t>(m_ViewportSize.x), static_cast<uint32_t>(m_ViewportSize.y));
+            // 同步渲染管线中所有 Pass 的 FBO 大小
+            Renderer3D::ResizePipeline(static_cast<uint32_t>(m_ViewportSize.x), static_cast<uint32_t>(m_ViewportSize.y));
         }
 
         m_EditorCamera.OnUpdate(dt);    // 更新编辑器相机

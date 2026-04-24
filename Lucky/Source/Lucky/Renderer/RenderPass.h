@@ -43,6 +43,17 @@ namespace Lucky
         virtual const std::string& GetName() const = 0;
         
         /// <summary>
+        /// 获取 Pass 所属分组（用于 Pipeline 按组执行）
+        /// 同一分组的 Pass 通过 RenderPipeline::ExecuteGroup() 一起执行
+        /// 默认分组为 "Default"
+        /// </summary>
+        virtual const std::string& GetGroup() const
+        {
+            static std::string group = "Default";
+            return group;
+        }
+        
+        /// <summary>
         /// 是否启用此 Pass
         /// </summary>
         bool Enabled = true;

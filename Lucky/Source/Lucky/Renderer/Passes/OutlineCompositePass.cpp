@@ -54,7 +54,6 @@ namespace Lucky
         
         // ---- »Ö¸´äÖÈ¾×´Ì¬ ----
         glEnable(GL_DEPTH_TEST);
-        glDepthFunc(GL_LESS);
         glDisable(GL_BLEND);
     }
 }

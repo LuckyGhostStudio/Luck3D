@@ -32,8 +32,6 @@ namespace Lucky
         Ref<Material> InternalErrorMaterial;    // 内部错误材质（材质丢失时使用：材质被意外删除等情况）
         Ref<Material> DefaultMaterial;          // 默认材质
 
-        std::vector<Vertex> MeshVertexBufferData;   // 顶点缓冲区数据：最终要渲染的顶点数据
-        
         // 全局默认纹理表 只在初始化时修改一次
         std::unordered_map<TextureDefault, Ref<Texture2D>> DefaultTextures;
         
@@ -210,9 +208,8 @@ namespace Lucky
         context.TargetFramebuffer = s_Data.TargetFramebuffer;
         context.Stats = &s_Data.Stats;
         
-        // ---- 执行 OpaquePass + PickingPass ----
-        s_Data.Pipeline.GetPass<OpaquePass>()->Execute(context);
-        s_Data.Pipeline.GetPass<PickingPass>()->Execute(context);
+        // ---- 执行 Main 分组（OpaquePass + PickingPass） ----
+        s_Data.Pipeline.ExecuteGroup("Main", context);
 
         // ======== 提取描边物体到独立列表 ========
         // 将描边所需的最小几何数据从 OpaqueDrawCommands 中提取到 OutlineDrawCommands
@@ -239,18 +236,10 @@ namespace Lucky
 
     void Renderer3D::DrawMesh(const glm::mat4& transform, Ref<Mesh>& mesh, const std::vector<Ref<Material>>& materials, int entityID)
     {
-        // 准备顶点数据
-        s_Data.MeshVertexBufferData.clear();
-        for (const Vertex& vertex : mesh->GetVertices())
-        {
-            Vertex v = vertex;
-            
-            s_Data.MeshVertexBufferData.push_back(v);   // 添加顶点缓冲区数据 TODO 可以直接使用 mesh->GetVertices()
-        }
-        
-        uint32_t dataSize = sizeof(Vertex) * static_cast<uint32_t>(s_Data.MeshVertexBufferData.size()); // 计算顶点缓冲区数据大小（字节）
-        
-        mesh->SetVertexBufferData(s_Data.MeshVertexBufferData.data(), dataSize);    // 设置顶点缓冲区数据
+        // 准备顶点数据（直接使用 Mesh 内部数据，避免冗余拷贝）
+        const auto& vertices = mesh->GetVertices();
+        uint32_t dataSize = sizeof(Vertex) * static_cast<uint32_t>(vertices.size());
+        mesh->SetVertexBufferData(vertices.data(), dataSize);
         
         // 计算物体到相机的距离
         glm::vec3 objPos = glm::vec3(transform[3]);
@@ -342,14 +331,9 @@ namespace Lucky
         s_Data.OutlineColor = color;
     }
 
-    void Renderer3D::ResizeSilhouetteFBO(uint32_t width, uint32_t height)
+    void Renderer3D::ResizePipeline(uint32_t width, uint32_t height)
     {
-        // 通过 Pipeline 获取 SilhouettePass 并调用 Resize
-        auto silhouettePass = s_Data.Pipeline.GetPass<SilhouettePass>();
-        if (silhouettePass)
-        {
-            silhouettePass->Resize(width, height);
-        }
+        s_Data.Pipeline.Resize(width, height);
     }
 
     RenderPipeline& Renderer3D::GetPipeline()
@@ -368,9 +352,8 @@ namespace Lucky
         context.OutlineEnabled = s_Data.OutlineEnabled;
         context.TargetFramebuffer = s_Data.TargetFramebuffer;
         
-        // ---- 执行 SilhouettePass + OutlineCompositePass ----
-        s_Data.Pipeline.GetPass<SilhouettePass>()->Execute(context);
-        s_Data.Pipeline.GetPass<OutlineCompositePass>()->Execute(context);
+        // ---- 执行 Outline 分组（SilhouettePass + OutlineCompositePass） ----
+        s_Data.Pipeline.ExecuteGroup("Outline", context);
         
         // 清空描边命令列表
         s_Data.OutlineDrawCommands.clear();

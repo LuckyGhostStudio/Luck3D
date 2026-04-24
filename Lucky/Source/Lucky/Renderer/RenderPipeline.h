@@ -58,6 +58,14 @@ namespace Lucky
         void Execute(const RenderContext& context);
         
         /// <summary>
+        /// 执行指定分组中所有已启用的 Pass
+        /// 按注册顺序依次执行属于该分组的 Pass，跳过未启用的 Pass
+        /// </summary>
+        /// <param name="group">分组名称（对应 RenderPass::GetGroup()）</param>
+        /// <param name="context">渲染上下文</param>
+        void ExecuteGroup(const std::string& group, const RenderContext& context);
+        
+        /// <summary>
         /// 调整大小（通知所有 Pass）
         /// </summary>
         void Resize(uint32_t width, uint32_t height);

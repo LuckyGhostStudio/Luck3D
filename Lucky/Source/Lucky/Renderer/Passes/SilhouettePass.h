@@ -17,6 +17,7 @@ namespace Lucky
         void Execute(const RenderContext& context) override;
         void Resize(uint32_t width, uint32_t height) override;
         const std::string& GetName() const override { static std::string name = "SilhouettePass"; return name; }
+        const std::string& GetGroup() const override { static std::string group = "Outline"; return group; }
         
         /// <summary>
         /// 获取 Silhouette FBO 的颜色附件纹理 ID（供 OutlineCompositePass 使用）

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Camera.h"
 #include "EditorCamera.h"
 #include "Framebuffer.h"
 
@@ -87,13 +86,6 @@ namespace Lucky
         static void BeginScene(const EditorCamera& camera, const SceneLightData& lightData);
 
         /// <summary>
-        /// 开始渲染场景：设置场景参数
-        /// </summary>
-        /// <param name="camera">相机</param>
-        /// <param name="transform">Transform</param>
-        static void BeginScene(const Camera& camera, const glm::mat4& transform);
-
-        /// <summary>
         /// 结束渲染场景
         /// </summary>
         static void EndScene();
@@ -160,9 +152,9 @@ namespace Lucky
         static void SetOutlineColor(const glm::vec4& color);
         
         /// <summary>
-        /// 同步 Silhouette FBO 大小（视口 Resize 时调用）
+        /// 同步渲染管线中所有 Pass 的 FBO 大小（视口 Resize 时调用）
         /// </summary>
-        static void ResizeSilhouetteFBO(uint32_t width, uint32_t height);
+        static void ResizePipeline(uint32_t width, uint32_t height);
         
         /// <summary>
         /// 渲染描边（在 Gizmo 之后调用，确保描边覆盖在 Gizmo 之上）

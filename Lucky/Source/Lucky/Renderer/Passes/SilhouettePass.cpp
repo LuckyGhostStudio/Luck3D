@@ -56,6 +56,9 @@ namespace Lucky
             );
         }
         
+        // ---- »Ö¸´äÖÈ¾×´Ì¬ ----
+        glEnable(GL_DEPTH_TEST);
+        
         // ---- ½â°ó FBO ----
         m_SilhouetteFBO->Unbind();
     }
