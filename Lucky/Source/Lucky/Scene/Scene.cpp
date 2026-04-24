@@ -36,7 +36,7 @@ namespace Lucky
 
         m_EntityIDMap[uuid] = entity;   // 添加到 m_EntityIDMap
 
-        LF_TRACE("Created Entity: [ENTT = {0}, UUID {1}, Name {2}]", (uint32_t)entity, uuid, name);
+        LF_TRACE("Created Entity: [ENTT = {0}, UUID {1}, Name {2}]", static_cast<uint32_t>(entity), uuid, name);
 
         return entity;
     }
@@ -65,7 +65,7 @@ namespace Lucky
         
         UUID id = entity.GetUUID();
         
-        LF_TRACE("Removed Entity: [ENTT = {0}, UUID {1}, Name {2}]", (uint32_t)entity, id, entity.GetName());
+        LF_TRACE("Removed Entity: [ENTT = {0}, UUID {1}, Name {2}]", static_cast<uint32_t>(entity), id, entity.GetName());
         
         m_Registry.destroy(entity);
         m_EntityIDMap.erase(id);    // 从 m_EntityIDMap 移除
@@ -153,7 +153,7 @@ namespace Lucky
             {
                 auto [transform, meshFilter, meshRenderer] = meshGroup.get<TransformComponent, MeshFilterComponent, MeshRendererComponent>(entity);
 
-                Renderer3D::DrawMesh(transform.GetTransform(), meshFilter.Mesh, meshRenderer.Materials, (int)(uint32_t)entity);    // 绘制网格
+                Renderer3D::DrawMesh(transform.GetTransform(), meshFilter.Mesh, meshRenderer.Materials, static_cast<int>(static_cast<uint32_t>(entity)));    // 绘制网格
             }
         }
         Renderer3D::EndScene();

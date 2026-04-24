@@ -176,7 +176,7 @@ namespace YAML
         static Node encode(const Lucky::UUID& uuid)
         {
             Node node;
-            node.push_back((uint64_t)uuid);
+            node.push_back(static_cast<uint64_t>(uuid));
 
             return node;
         }

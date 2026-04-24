@@ -49,11 +49,11 @@ namespace Lucky
             m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f &&
             (spec.Width != m_ViewportSize.x || spec.Height != m_ViewportSize.y))
         {
-            m_Framebuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);  // 重置帧缓冲区大小
+            m_Framebuffer->Resize(static_cast<uint32_t>(m_ViewportSize.x), static_cast<uint32_t>(m_ViewportSize.y));  // 重置帧缓冲区大小
             m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);             // 重置编辑器相机视口大小
             
             // 同步 Silhouette FBO 大小（描边功能）
-            Renderer3D::ResizeSilhouetteFBO((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+            Renderer3D::ResizeSilhouetteFBO(static_cast<uint32_t>(m_ViewportSize.x), static_cast<uint32_t>(m_ViewportSize.y));
         }
 
         m_EditorCamera.OnUpdate(dt);    // 更新编辑器相机
@@ -77,7 +77,7 @@ namespace Lucky
             Entity selectedEntity = m_Scene->TryGetEntityWithUUID(selectedUUID);
             if (selectedEntity)
             {
-                int selectedID = (int)(uint32_t)(entt::entity)selectedEntity;
+                int selectedID = static_cast<int>(static_cast<uint32_t>(selectedEntity));
                 const auto& children = selectedEntity.GetChildren();
                 
                 if (children.empty())
@@ -100,7 +100,7 @@ namespace Lucky
                             Entity child = m_Scene->TryGetEntityWithUUID(childUUID);
                             if (child)
                             {
-                                outlineEntityIDs.insert((int)(uint32_t)(entt::entity)child);
+                                outlineEntityIDs.insert(static_cast<int>(static_cast<uint32_t>(child)));
                                 collectChildren(child);
                             }
                         }
@@ -252,8 +252,8 @@ namespace Lucky
             ImGuizmo::Manipulate(
                 glm::value_ptr(viewMatrix),         // 视图矩阵
                 glm::value_ptr(projectionMatrix),   // 投影矩阵
-                (ImGuizmo::OPERATION)m_GizmoType,       // 操作类型
-                (ImGuizmo::MODE)m_GizmoMode,            // 坐标系：本地|世界
+                static_cast<ImGuizmo::OPERATION>(m_GizmoType),       // 操作类型
+                static_cast<ImGuizmo::MODE>(m_GizmoMode),            // 坐标系：本地|世界
                 glm::value_ptr(transform),          // transform 增量矩阵
                 nullptr,
                 span ? spanValues : nullptr             // 刻度捕捉值
@@ -349,11 +349,11 @@ namespace Lucky
         // 翻转 Y 轴（ImGui Y 向下，OpenGL Y 向上）
         my = viewportHeight - my;
 
-        int mouseX = (int)mx;
-        int mouseY = (int)my;
+        int mouseX = static_cast<int>(mx);
+        int mouseY = static_cast<int>(my);
 
         // 检查是否在视口范围内
-        if (mouseX >= 0 && mouseY >= 0 && mouseX < (int)viewportWidth && mouseY < (int)viewportHeight)
+		if (mouseX >= 0 && mouseY >= 0 && mouseX < static_cast<int>(viewportWidth) && mouseY < static_cast<int>(viewportHeight))
         {
             m_Framebuffer->Bind();
             int pixelData = m_Framebuffer->GetPixel(1, mouseX, mouseY);
@@ -367,7 +367,7 @@ namespace Lucky
             else
             {
                 // 通过 entt::entity 获取 Entity → 选中
-                entt::entity enttID = (entt::entity)(uint32_t)pixelData;
+				entt::entity enttID = static_cast<entt::entity>(static_cast<uint32_t>(pixelData));
 
                 if (m_Scene->IsEntityValid(enttID))
                 {

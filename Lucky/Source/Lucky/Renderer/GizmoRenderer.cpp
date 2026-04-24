@@ -88,7 +88,7 @@ namespace Lucky
         }
         
         // 上传顶点数据到 GPU
-        uint32_t dataSize = (uint32_t)((uint8_t*)s_GizmoData.LineVertexBufferPtr - (uint8_t*)s_GizmoData.LineVertexBufferBase);
+        uint32_t dataSize = static_cast<uint32_t>(reinterpret_cast<uint8_t*>(s_GizmoData.LineVertexBufferPtr) - reinterpret_cast<uint8_t*>(s_GizmoData.LineVertexBufferBase));
         s_GizmoData.LineVertexBuffer->SetData(s_GizmoData.LineVertexBufferBase, dataSize);
         
         // 绑定 Shader

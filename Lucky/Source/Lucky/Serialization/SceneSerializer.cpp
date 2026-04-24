@@ -133,7 +133,7 @@ namespace Lucky
             out << YAML::Key << "MeshFilterComponent";
             out << YAML::BeginMap;
             
-            out << YAML::Key << "PrimitiveType" << YAML::Value << (int)meshFilterComponent.Primitive;
+            out << YAML::Key << "PrimitiveType" << YAML::Value << static_cast<int>(meshFilterComponent.Primitive);
             out << YAML::Key << "MeshFilePath" << YAML::Value << meshFilterComponent.MeshFilePath;
             
             out << YAML::EndMap;
@@ -319,7 +319,7 @@ namespace Lucky
                 if (meshFilterComponentNode)
                 {
                     
-                    PrimitiveType primitiveType = (PrimitiveType)meshFilterComponentNode["PrimitiveType"].as<int>();
+                    PrimitiveType primitiveType = static_cast<PrimitiveType>(meshFilterComponentNode["PrimitiveType"].as<int>());
                     auto& meshFilterComponent = deserializedEntity.AddComponent<MeshFilterComponent>(primitiveType);
                     
                     std::string path = meshFilterComponentNode["MeshFilePath"].as<std::string>();
