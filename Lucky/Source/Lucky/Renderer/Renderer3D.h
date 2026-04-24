@@ -12,6 +12,7 @@
 
 namespace Lucky
 {
+    class RenderPipeline;   // 前向声明
     constexpr static int s_MaxDirectionalLights = 4;
     constexpr static int s_MaxPointLights = 8;
     constexpr static int s_MaxSpotLights = 4;
@@ -170,5 +171,10 @@ namespace Lucky
         /// 调用后会清空 OutlineDrawCommands
         /// </summary>
         static void RenderOutline();
+        
+        /// <summary>
+        /// 获取渲染管线（用于外部访问特定 Pass，如 Resize）
+        /// </summary>
+        static RenderPipeline& GetPipeline();
     };
 }

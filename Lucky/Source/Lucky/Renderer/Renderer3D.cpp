@@ -1,43 +1,23 @@
 #include "lcpch.h"
 #include "Renderer3D.h"
+#include "RenderContext.h"
+#include "RenderPipeline.h"
 
 #include "Shader.h"
 #include "UniformBuffer.h"
 #include "RenderCommand.h"
-#include "ScreenQuad.h"
 #include "Framebuffer.h"
 
-#include <glad/glad.h>
+#include "Passes/OpaquePass.h"
+#include "Passes/PickingPass.h"
+#include "Passes/SilhouettePass.h"
+#include "Passes/OutlineCompositePass.h"
+
 #include <glm/ext/matrix_transform.hpp>
 #include <unordered_set>
 
 namespace Lucky
 {
-    /// <summary>
-    /// 绘制命令：描述一次 DrawCall 所需的全部信息
-    /// </summary>
-    struct DrawCommand
-    {
-        glm::mat4 Transform;            // 模型变换矩阵
-        Ref<Mesh> MeshData;             // 网格引用
-        const SubMesh* SubMeshPtr;      // SubMesh 指针（指向 Mesh 内部数据，生命周期由 Mesh 保证）
-        Ref<Material> MaterialData;     // 材质引用
-        uint64_t SortKey = 0;           // 排序键
-        float DistanceToCamera = 0.0f;  // 到相机的距离
-        int EntityID = -1;              // Entity ID（用于鼠标拾取，-1 表示无效）
-    };
-    
-    /// <summary>
-    /// 描边绘制命令：仅包含 Silhouette 渲染所需的最小数据
-    /// 从 DrawCommand 中提取，职责分离，避免 Outline Pass 依赖完整的 DrawCommand
-    /// </summary>
-    struct OutlineDrawCommand
-    {
-        glm::mat4 Transform;            // 模型变换矩阵
-        Ref<Mesh> MeshData;             // 网格引用（通过 Ref 保证生命周期）
-        const SubMesh* SubMeshPtr;      // SubMesh 指针（生命周期由 MeshData 的 Ref 保证）
-    };
-    
     /// <summary>
     /// 渲染器数据
     /// </summary>
@@ -48,7 +28,6 @@ namespace Lucky
         Ref<ShaderLibrary> ShaderLib;   // 着色器库 TODO Move to Renderer.h
         
         Ref<Shader> InternalErrorShader;        // 内部错误着色器
-        Ref<Shader> EntityIDShader;             // Entity ID 内部拾取着色器
         Ref<Shader> StandardShader;             // 默认着色器
         Ref<Material> InternalErrorMaterial;    // 内部错误材质（材质丢失时使用：材质被意外删除等情况）
         Ref<Material> DefaultMaterial;          // 默认材质
@@ -95,10 +74,10 @@ namespace Lucky
         std::vector<OutlineDrawCommand> OutlineDrawCommands; // 描边专用绘制命令列表（从 OpaqueDrawCommands 中提取）
         glm::vec3 CameraPosition;                       // 缓存相机位置（用于计算距离）
         
-        // ======== Outline Pass 资源（临时内联） ========
-        Ref<Framebuffer> SilhouetteFBO;             // Silhouette FBO：选中物体轮廓掩码
-        Ref<Shader> SilhouetteShader;               // Silhouette Shader：纯白色输出
-        Ref<Shader> OutlineCompositeShader;         // 描边合成 Shader：边缘检测 + 叠加
+        // ======== 渲染管线 ========
+        RenderPipeline Pipeline;                        // 渲染管线（管理所有 RenderPass）
+        
+        // ======== Outline 数据（由外部设置，通过 RenderContext 传递给 Pass） ========
         Ref<Framebuffer> TargetFramebuffer;         // 主 FBO 引用（描边合成后重新绑定）
         std::unordered_set<int> OutlineEntityIDs;   // 需要描边的所有 EntityID 集合（空集合表示无选中）
         
@@ -120,7 +99,6 @@ namespace Lucky
         s_Data.ShaderLib->Load("Assets/Shaders/Standard");      // 默认着色器
         
         s_Data.InternalErrorShader = s_Data.ShaderLib->Get("InternalError");
-        s_Data.EntityIDShader = s_Data.ShaderLib->Get("EntityID");
         s_Data.StandardShader = s_Data.ShaderLib->Get("Standard");
         
         // 创建内部材质
@@ -156,28 +134,33 @@ namespace Lucky
         s_Data.CameraUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::CameraUBOData), 0);  // 创建相机 Uniform 缓冲区
         s_Data.LightUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::LightUBOData), 1);    // 创建光照 Uniform 缓冲区
         
-        // ======== Outline Pass 初始化 ========
-        
-        // 加载 Outline 相关 Shader
+        // ======== 加载 Outline 相关 Shader ========
         s_Data.ShaderLib->Load("Assets/Shaders/Outline/Silhouette");
         s_Data.ShaderLib->Load("Assets/Shaders/Outline/OutlineComposite");
-        s_Data.SilhouetteShader = s_Data.ShaderLib->Get("Silhouette");
-        s_Data.OutlineCompositeShader = s_Data.ShaderLib->Get("OutlineComposite");
         
-        // 创建 Silhouette FBO（初始大小 1280×720，后续在 Resize 时同步）
-        FramebufferSpecification silhouetteSpec;
-        silhouetteSpec.Width = 1280;
-        silhouetteSpec.Height = 720;
-        silhouetteSpec.Attachments = {
-            FramebufferTextureFormat::RGBA8     // 轮廓掩码（白色 = 选中，黑色 = 未选中）
-            // 不需要深度附件：描边穿透遮挡物（与 Unity 行为一致）
-        };
-        s_Data.SilhouetteFBO = Framebuffer::Create(silhouetteSpec);
+        // ======== 创建渲染管线 ========
+        auto opaquePass = CreateRef<OpaquePass>();
+        auto pickingPass = CreateRef<PickingPass>();
+        auto silhouettePass = CreateRef<SilhouettePass>();
+        auto outlineCompositePass = CreateRef<OutlineCompositePass>();
+        
+        // 设置 Pass 之间的依赖
+        outlineCompositePass->SetSilhouettePass(silhouettePass);
+        
+        // 按顺序添加 Pass
+        // 注意：OpaquePass 和 PickingPass 在 EndScene() 中执行
+        //       SilhouettePass 和 OutlineCompositePass 在 RenderOutline() 中执行
+        s_Data.Pipeline.AddPass(opaquePass);
+        s_Data.Pipeline.AddPass(pickingPass);
+        s_Data.Pipeline.AddPass(silhouettePass);
+        s_Data.Pipeline.AddPass(outlineCompositePass);
+        
+        s_Data.Pipeline.Init();
     }
 
     void Renderer3D::Shutdown()
     {
-        
+        s_Data.Pipeline.Shutdown();
     }
 
     void Renderer3D::BeginScene(const EditorCamera& camera, const SceneLightData& lightData)
@@ -220,72 +203,16 @@ namespace Lucky
         {
             return a.SortKey < b.SortKey;   // 按 SortKey 升序（聚合相同 Shader）
         });
-    
-        // ---- 批量绘制不透明物体 ----
-        uint32_t lastShaderID = 0;  // 跟踪上一次绑定的 Shader
-    
-        for (const DrawCommand& cmd : s_Data.OpaqueDrawCommands)
-        {
-            // 绑定 Shader（仅在 Shader 变化时绑定）
-            uint32_t currentShaderID = cmd.MaterialData->GetShader()->GetRendererID();
-            if (currentShaderID != lastShaderID)
-            {
-                cmd.MaterialData->GetShader()->Bind();
-                lastShaderID = currentShaderID;
-            }
         
-            // 设置引擎内部 uniform
-            cmd.MaterialData->GetShader()->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
+        // ---- 构建 RenderContext ----
+        RenderContext context;
+        context.OpaqueDrawCommands = &s_Data.OpaqueDrawCommands;
+        context.TargetFramebuffer = s_Data.TargetFramebuffer;
+        context.Stats = &s_Data.Stats;
         
-            // 应用材质属性 TODO 优化 相同材质跳过
-            cmd.MaterialData->Apply();
-        
-            // 绘制
-            RenderCommand::DrawIndexedRange(
-                cmd.MeshData->GetVertexArray(),
-                cmd.SubMeshPtr->IndexOffset,
-                cmd.SubMeshPtr->IndexCount
-            );
-        
-        s_Data.Stats.DrawCalls++;
-            s_Data.Stats.TriangleCount += cmd.SubMeshPtr->IndexCount / 3;
-        }
-
-        // ======== Pass 2: Picking Pass（Entity ID 拾取） ========
-        
-        // 切换 glDrawBuffers：只写入 Attachment 1（Entity ID）
-        GLenum pickBuffers[] = { GL_NONE, GL_COLOR_ATTACHMENT1 };
-        glDrawBuffers(2, pickBuffers);
-        
-        // 关闭深度写入，保持深度测试（复用 Pass 1 的深度缓冲区）
-        glDepthMask(GL_FALSE);
-        glDepthFunc(GL_LEQUAL);
-        
-        // 绑定 Picking Shader
-        s_Data.EntityIDShader->Bind();
-        
-        for (const DrawCommand& cmd : s_Data.OpaqueDrawCommands)
-        {
-            // 设置模型变换矩阵
-            s_Data.EntityIDShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
-            // 设置 Entity ID
-            s_Data.EntityIDShader->SetInt("u_EntityID", cmd.EntityID);
-            
-            // 绘制
-            RenderCommand::DrawIndexedRange(
-                cmd.MeshData->GetVertexArray(),
-                cmd.SubMeshPtr->IndexOffset,
-                cmd.SubMeshPtr->IndexCount
-            );
-        }
-        
-        // 恢复 glDrawBuffers 和深度状态
-        // 只启用 Attachment 0（颜色），禁用 Attachment 1（EntityID）
-        // 防止后续 Gizmo 渲染时向 EntityID 缓冲区写入未定义数据
-        GLenum normalBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE };
-        glDrawBuffers(2, normalBuffers);
-        glDepthMask(GL_TRUE);
-        glDepthFunc(GL_LESS);
+        // ---- 执行 OpaquePass + PickingPass ----
+        s_Data.Pipeline.GetPass<OpaquePass>()->Execute(context);
+        s_Data.Pipeline.GetPass<PickingPass>()->Execute(context);
 
         // ======== 提取描边物体到独立列表 ========
         // 将描边所需的最小几何数据从 OpaqueDrawCommands 中提取到 OutlineDrawCommands
@@ -417,82 +344,33 @@ namespace Lucky
 
     void Renderer3D::ResizeSilhouetteFBO(uint32_t width, uint32_t height)
     {
-        if (s_Data.SilhouetteFBO)
+        // 通过 Pipeline 获取 SilhouettePass 并调用 Resize
+        auto silhouettePass = s_Data.Pipeline.GetPass<SilhouettePass>();
+        if (silhouettePass)
         {
-            s_Data.SilhouetteFBO->Resize(width, height);
+            silhouettePass->Resize(width, height);
         }
+    }
+
+    RenderPipeline& Renderer3D::GetPipeline()
+    {
+        return s_Data.Pipeline;
     }
 
     void Renderer3D::RenderOutline()
     {
-        // ======== Outline Pass（选中物体描边） ========
-        if (s_Data.OutlineEnabled && !s_Data.OutlineEntityIDs.empty())
-        {
-            // ---- 阶段 1：渲染选中物体的 Silhouette ----
-            
-            // 绑定 Silhouette FBO
-            s_Data.SilhouetteFBO->Bind();
-            
-            // 清除为黑色（未选中区域 = 透明黑色）
-            RenderCommand::SetClearColor({ 0.0f, 0.0f, 0.0f, 0.0f });
-            RenderCommand::Clear();
-            
-            // 绑定 Silhouette Shader
-            s_Data.SilhouetteShader->Bind();
-            
-            // 禁用深度测试（描边穿透遮挡物，Silhouette FBO 无深度附件）
-            glDisable(GL_DEPTH_TEST);
-            
-            // 遍历 OutlineDrawCommands（已在 EndScene() 中从 OpaqueDrawCommands 提取）
-            for (const OutlineDrawCommand& cmd : s_Data.OutlineDrawCommands)
-            {
-                s_Data.SilhouetteShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
-                
-                RenderCommand::DrawIndexedRange(
-                    cmd.MeshData->GetVertexArray(),
-                    cmd.SubMeshPtr->IndexOffset,
-                    cmd.SubMeshPtr->IndexCount
-                );
-            }
-            
-            s_Data.SilhouetteFBO->Unbind();
-            
-            // ---- 阶段 2：边缘检测 + 描边合成 ----
-            
-            // 重新绑定主 FBO
-            s_Data.TargetFramebuffer->Bind();
-            
-            // 只写入 Attachment 0（颜色），不写入 Attachment 1（EntityID）
-            GLenum outlineBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE };
-            glDrawBuffers(2, outlineBuffers);
-            
-            // 禁用深度测试（全屏 Quad 不需要深度测试）
-            glDisable(GL_DEPTH_TEST);
-            
-            // 启用 Alpha 混合（描边颜色与场景颜色混合）
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            
-            // 绑定 OutlineComposite Shader
-            s_Data.OutlineCompositeShader->Bind();
-            
-            // 绑定 Silhouette 纹理到纹理单元 0
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, s_Data.SilhouetteFBO->GetColorAttachmentRendererID(0));
-            s_Data.OutlineCompositeShader->SetInt("u_SilhouetteTexture", 0);
-            
-            // 设置描边参数
-            s_Data.OutlineCompositeShader->SetFloat4("u_OutlineColor", s_Data.OutlineColor);
-            s_Data.OutlineCompositeShader->SetFloat("u_OutlineWidth", s_Data.OutlineWidth);
-            
-            // 绘制全屏四边形
-            ScreenQuad::Draw();
-            
-        // 恢复渲染状态
-            glEnable(GL_DEPTH_TEST);
-            glDepthFunc(GL_LESS);
-            glDisable(GL_BLEND);
-        }
+        // ---- 构建 Outline RenderContext ----
+        RenderContext context;
+        context.OutlineDrawCommands = &s_Data.OutlineDrawCommands;
+        context.OutlineEntityIDs = &s_Data.OutlineEntityIDs;
+        context.OutlineColor = s_Data.OutlineColor;
+        context.OutlineWidth = s_Data.OutlineWidth;
+        context.OutlineEnabled = s_Data.OutlineEnabled;
+        context.TargetFramebuffer = s_Data.TargetFramebuffer;
+        
+        // ---- 执行 SilhouettePass + OutlineCompositePass ----
+        s_Data.Pipeline.GetPass<SilhouettePass>()->Execute(context);
+        s_Data.Pipeline.GetPass<OutlineCompositePass>()->Execute(context);
         
         // 清空描边命令列表
         s_Data.OutlineDrawCommands.clear();
