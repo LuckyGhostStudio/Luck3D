@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Lucky/Renderer/VertexArray.h"
+#include "Lucky/Renderer/RenderState.h"
 
 #include <glm/glm.hpp>
 
@@ -71,5 +72,46 @@ namespace Lucky
         /// </summary>
         /// <param name="width">宽度</param>
         static void SetLineWidth(float width);
+
+        // ---- 渲染状态控制 ----
+
+        /// <summary>
+        /// 设置面剔除模式
+        /// </summary>
+        static void SetCullMode(CullMode mode);
+
+        /// <summary>
+        /// 设置深度测试开关
+        /// </summary>
+        static void SetDepthTest(bool enable);
+
+        /// <summary>
+        /// 设置深度写入开关
+        /// </summary>
+        static void SetDepthWrite(bool enable);
+
+        /// <summary>
+        /// 设置深度测试比较函数
+        /// </summary>
+        static void SetDepthFunc(DepthCompareFunc func);
+
+        /// <summary>
+        /// 设置混合模式
+        /// </summary>
+        static void SetBlendMode(BlendMode mode);
+
+        /// <summary>
+        /// 设置 DrawBuffer 目标（控制写入哪些颜色附件）
+        /// </summary>
+        /// <param name="attachments">颜色附件列表</param>
+        /// <param name="count">附件数量</param>
+        static void SetDrawBuffers(const uint32_t* attachments, uint32_t count);
+
+        /// <summary>
+        /// 绑定纹理到指定纹理单元
+        /// </summary>
+        /// <param name="slot">纹理单元索引（0, 1, 2, ...）</param>
+        /// <param name="textureID">纹理 ID</param>
+        static void BindTextureUnit(uint32_t slot, uint32_t textureID);
     };
 }

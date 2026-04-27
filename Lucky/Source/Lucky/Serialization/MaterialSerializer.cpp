@@ -3,6 +3,7 @@
 
 #include "Lucky/Renderer/Shader.h"
 #include "Lucky/Renderer/Renderer3D.h"
+#include "Lucky/Renderer/RenderState.h"
 
 #include "YamlHelpers.h"
 
@@ -231,6 +232,17 @@ namespace Lucky
         }
         out << YAML::Key << "Shader" << YAML::Value << shaderName;
 
+        // ---- 序列化渲染状态 ----
+        const RenderState& state = material->GetRenderState();
+        out << YAML::Key << "RenderState" << YAML::BeginMap;
+        out << YAML::Key << "RenderingMode" << YAML::Value << static_cast<int>(material->GetRenderingMode());
+        out << YAML::Key << "CullMode" << YAML::Value << static_cast<int>(state.Cull);
+        out << YAML::Key << "DepthWrite" << YAML::Value << state.DepthWrite;
+        out << YAML::Key << "DepthTest" << YAML::Value << static_cast<int>(state.DepthTest);
+        out << YAML::Key << "BlendMode" << YAML::Value << static_cast<int>(state.Blend);
+        out << YAML::Key << "RenderQueue" << YAML::Value << state.Queue;
+        out << YAML::EndMap;
+
         // 材质属性列表
         out << YAML::Key << "Properties" << YAML::Value << YAML::BeginSeq;
 
@@ -301,6 +313,39 @@ namespace Lucky
         }
 
         Ref<Material> material = CreateRef<Material>(materialName, shader);
+
+        // ---- 反序列化渲染状态 ----
+        YAML::Node renderStateNode = materialNode["RenderState"];
+        if (renderStateNode)
+        {
+            if (renderStateNode["RenderingMode"])
+            {
+                material->SetRenderingMode(static_cast<RenderingMode>(renderStateNode["RenderingMode"].as<int>()));
+            }
+            
+            RenderState& state = material->GetRenderState();
+            
+            if (renderStateNode["CullMode"])
+            {
+                state.Cull = static_cast<CullMode>(renderStateNode["CullMode"].as<int>());
+            }
+            if (renderStateNode["DepthWrite"])
+            {
+                state.DepthWrite = renderStateNode["DepthWrite"].as<bool>();
+            }
+            if (renderStateNode["DepthTest"])
+            {
+                state.DepthTest = static_cast<DepthCompareFunc>(renderStateNode["DepthTest"].as<int>());
+            }
+            if (renderStateNode["BlendMode"])
+            {
+                state.Blend = static_cast<BlendMode>(renderStateNode["BlendMode"].as<int>());
+            }
+            if (renderStateNode["RenderQueue"])
+            {
+                state.Queue = renderStateNode["RenderQueue"].as<int>();
+            }
+        }
 
         // 反序列化属性列表
         YAML::Node propertiesNode = materialNode["Properties"];

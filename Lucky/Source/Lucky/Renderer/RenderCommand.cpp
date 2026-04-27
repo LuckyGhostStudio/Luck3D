@@ -7,15 +7,19 @@ namespace Lucky
 {
     void RenderCommand::Init()
     {
-        glEnable(GL_BLEND);                                 // 启用颜色混合 TODO 透明度存在问题
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  // 最终颜色 = src * alpha + des * (1 - alpha)
+        // 默认不开启混合（不透明物体不需要混合）
+        glDisable(GL_BLEND);
 
-        glEnable(GL_DEPTH_TEST);    // 启用深度测试
+        // 开启深度测试
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
 
-        glEnable(GL_LINE_SMOOTH);   // 平滑直线
+        // 开启背面剔除（默认剔除背面）
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
 
-        // 开启线框模式 TODO Temp 用于调试
-        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        // 平滑直线
+        glEnable(GL_LINE_SMOOTH);
     }
 
     void RenderCommand::SetClearColor(const glm::vec4& color)
@@ -67,5 +71,93 @@ namespace Lucky
     void RenderCommand::SetLineWidth(float width)
     {
         glLineWidth(width);
+    }
+
+    // ---- 渲染状态控制 ----
+
+    void RenderCommand::SetCullMode(CullMode mode)
+    {
+        if (mode == CullMode::Off)
+        {
+            glDisable(GL_CULL_FACE);
+        }
+        else
+        {
+            glEnable(GL_CULL_FACE);
+            glCullFace(mode == CullMode::Back ? GL_BACK : GL_FRONT);
+        }
+    }
+
+    void RenderCommand::SetDepthTest(bool enable)
+    {
+        if (enable)
+        {
+            glEnable(GL_DEPTH_TEST);
+        }
+        else
+        {
+            glDisable(GL_DEPTH_TEST);
+        }
+    }
+
+    void RenderCommand::SetDepthWrite(bool enable)
+    {
+        glDepthMask(enable ? GL_TRUE : GL_FALSE);
+    }
+
+    void RenderCommand::SetDepthFunc(DepthCompareFunc func)
+    {
+        GLenum glFunc;
+        switch (func)
+        {
+            case DepthCompareFunc::Less:         glFunc = GL_LESS;     break;
+            case DepthCompareFunc::LessEqual:    glFunc = GL_LEQUAL;   break;
+            case DepthCompareFunc::Greater:      glFunc = GL_GREATER;  break;
+            case DepthCompareFunc::GreaterEqual: glFunc = GL_GEQUAL;   break;
+            case DepthCompareFunc::Equal:        glFunc = GL_EQUAL;    break;
+            case DepthCompareFunc::NotEqual:     glFunc = GL_NOTEQUAL; break;
+            case DepthCompareFunc::Always:       glFunc = GL_ALWAYS;   break;
+            case DepthCompareFunc::Never:        glFunc = GL_NEVER;    break;
+            default:                             glFunc = GL_LESS;     break;
+        }
+        glDepthFunc(glFunc);
+    }
+
+    void RenderCommand::SetBlendMode(BlendMode mode)
+    {
+        if (mode == BlendMode::None)
+        {
+            glDisable(GL_BLEND);
+        }
+        else
+        {
+            glEnable(GL_BLEND);
+            switch (mode)
+            {
+                case BlendMode::SrcAlpha_OneMinusSrcAlpha:
+                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                    break;
+                case BlendMode::One_One:
+                    glBlendFunc(GL_ONE, GL_ONE);
+                    break;
+                case BlendMode::SrcAlpha_One:
+                    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+                    break;
+                default:
+                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                    break;
+            }
+        }
+    }
+
+    void RenderCommand::SetDrawBuffers(const uint32_t* attachments, uint32_t count)
+    {
+        glDrawBuffers(count, attachments);
+    }
+
+    void RenderCommand::BindTextureUnit(uint32_t slot, uint32_t textureID)
+    {
+        glActiveTexture(GL_TEXTURE0 + slot);
+        glBindTexture(GL_TEXTURE_2D, textureID);
     }
 }

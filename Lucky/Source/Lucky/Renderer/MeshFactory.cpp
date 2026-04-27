@@ -78,12 +78,12 @@ namespace Lucky
         
         std::vector<uint32_t> indices =
         {
-            0, 1, 2, 0, 2, 3,        // 右面
-            4, 5, 6, 4, 6, 7,        // 左面
-            8, 9, 10, 8, 10, 11,     // 上面
-            12, 13, 14, 12, 14, 15,  // 下面
-            16, 17, 18, 16, 18, 19,  // 前面
-            20, 21, 22, 20, 22, 23   // 后面
+            0, 2, 1, 0, 3, 2,        // 右面 (X+)
+            4, 6, 5, 4, 7, 6,        // 左面 (X-)
+            8, 9, 10, 8, 10, 11,     // 上面 (Y+)
+            12, 13, 14, 12, 14, 15,  // 下面 (Y-)
+            16, 17, 18, 16, 18, 19,  // 前面 (Z+)
+            20, 21, 22, 20, 22, 23   // 后面 (Z-)
         };
         
         return CreateRef<Mesh>(vertices, indices);
@@ -134,15 +134,15 @@ namespace Lucky
                 uint32_t bottomLeft = (i + 1) * (subdivisions + 1) + j;
                 uint32_t bottomRight = (i + 1) * (subdivisions + 1) + (j + 1);
             
-                // 三角形 1
+                // 三角形 1（CCW：从法线方向 +Y 看为逆时针）
                 indices.push_back(topLeft);
-                indices.push_back(bottomLeft);
                 indices.push_back(topRight);
+                indices.push_back(bottomLeft);
             
-                // 三角形 2
+                // 三角形 2（CCW）
                 indices.push_back(topRight);
-                indices.push_back(bottomLeft);
                 indices.push_back(bottomRight);
+                indices.push_back(bottomLeft);
             }
         }
     
@@ -208,18 +208,18 @@ namespace Lucky
             {
                 uint32_t current = ring * (segments + 1) + seg;
                 uint32_t next = current + 1;
-                uint32_t below = (ring + 1) * (segments + 1) + seg;
+                uint32_t below = current + (segments + 1);
                 uint32_t belowNext = below + 1;
                 
-                // 三角形 1
+                // 三角形 1（CCW：从球外侧看为逆时针）
                 indices.push_back(current);
-                indices.push_back(below);
                 indices.push_back(next);
+                indices.push_back(below);
                 
-                // 三角形 2
+                // 三角形 2（CCW）
                 indices.push_back(next);
-                indices.push_back(below);
                 indices.push_back(belowNext);
+                indices.push_back(below);
             }
         }
         
@@ -283,15 +283,15 @@ namespace Lucky
             uint32_t topRight    = topLeft + 2;
             uint32_t bottomRight = topLeft + 3;
             
-            // 三角形 1
+            // 三角形 1（CCW：从圆柱外侧看为逆时针）
             indices.push_back(topLeft);
-            indices.push_back(bottomLeft);
             indices.push_back(topRight);
+            indices.push_back(bottomLeft);
             
-            // 三角形 2
+            // 三角形 2（CCW）
             indices.push_back(topRight);
-            indices.push_back(bottomLeft);
             indices.push_back(bottomRight);
+            indices.push_back(bottomLeft);
         }
         
         // ========== 2. 顶面 ==========
@@ -322,12 +322,12 @@ namespace Lucky
             });
         }
         
-        // 顶面索引（扇形三角形）
+        // 顶面索引（扇形三角形，CCW：从法线方向 +Y 看为逆时针）
         for (uint32_t seg = 0; seg < segments; ++seg)
         {
             indices.push_back(topCapBaseIndex); // 中心点
-            indices.push_back(topCapBaseIndex + 1 + seg);
             indices.push_back(topCapBaseIndex + 2 + seg);
+            indices.push_back(topCapBaseIndex + 1 + seg);
         }
         
         // ========== 3. 底面 ==========
@@ -358,12 +358,12 @@ namespace Lucky
             });
         }
         
-        // 底面索引（扇形三角形，绕序与顶面相反）
+        // 底面索引（扇形三角形，CCW：从法线方向 -Y 看为逆时针）
         for (uint32_t seg = 0; seg < segments; ++seg)
         {
             indices.push_back(bottomCapBaseIndex);           // 中心点
-            indices.push_back(bottomCapBaseIndex + 2 + seg); // 注意：与顶面相反
             indices.push_back(bottomCapBaseIndex + 1 + seg);
+            indices.push_back(bottomCapBaseIndex + 2 + seg);
         }
         
         return CreateRef<Mesh>(vertices, indices);
@@ -469,12 +469,12 @@ namespace Lucky
                 uint32_t belowNext = below + 1;
                 
                 indices.push_back(current);
-                indices.push_back(below);
                 indices.push_back(next);
+                indices.push_back(below);
                 
                 indices.push_back(next);
-                indices.push_back(below);
                 indices.push_back(belowNext);
+                indices.push_back(below);
             }
         }
         
@@ -490,13 +490,15 @@ namespace Lucky
             uint32_t bottomCurrent = bottomEquatorOffset + seg;
             uint32_t bottomNext = bottomCurrent + 1;
             
+            // 三角形 1（CCW：从胶囊体外侧看为逆时针）
             indices.push_back(topCurrent);
-            indices.push_back(bottomCurrent);
             indices.push_back(topNext);
+            indices.push_back(bottomCurrent);
             
+            // 三角形 2（CCW）
             indices.push_back(topNext);
-            indices.push_back(bottomCurrent);
             indices.push_back(bottomNext);
+            indices.push_back(bottomCurrent);
         }
         
         // 下半球索引
@@ -510,12 +512,12 @@ namespace Lucky
                 uint32_t belowNext = below + 1;
                 
                 indices.push_back(current);
-                indices.push_back(below);
                 indices.push_back(next);
+                indices.push_back(below);
                 
                 indices.push_back(next);
-                indices.push_back(below);
                 indices.push_back(belowNext);
+                indices.push_back(below);
             }
         }
         

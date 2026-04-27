@@ -5,6 +5,7 @@
 #include "Lucky/Scene/Components/Components.h"
 
 #include "Lucky/Renderer/Renderer3D.h"
+#include "Lucky/Renderer/RenderState.h"
 
 #include "Lucky/Utils/PlatformUtils.h"
 
@@ -226,6 +227,71 @@ namespace Lucky
         
         if (opened)
         {
+            // ---- 渲染状态区域 ----
+            if (ImGui::CollapsingHeader("Render State", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                RenderState& state = material->GetRenderState();
+                
+                // CullMode 下拉框
+                const char* cullModes[] = { "Back", "Front", "Off (Two Sided)" };
+                int currentCull = static_cast<int>(state.Cull);
+                if (ImGui::Combo("Cull Mode", &currentCull, cullModes, IM_ARRAYSIZE(cullModes)))
+                {
+                    state.Cull = static_cast<CullMode>(currentCull);
+                }
+                
+                // ZWrite 复选框
+                ImGui::Checkbox("Depth Write", &state.DepthWrite);
+                
+                // ZTest 下拉框
+                const char* depthFuncs[] = { "Less", "LessEqual", "Greater", "GreaterEqual", 
+                                              "Equal", "NotEqual", "Always", "Never" };
+                int currentDepth = static_cast<int>(state.DepthTest);
+                if (ImGui::Combo("Depth Test", &currentDepth, depthFuncs, IM_ARRAYSIZE(depthFuncs)))
+                {
+                    state.DepthTest = static_cast<DepthCompareFunc>(currentDepth);
+                }
+                
+                // BlendMode 下拉框
+                const char* blendModes[] = { "None (Opaque)", "Alpha Blend", "Additive", "Soft Additive" };
+                int currentBlend = static_cast<int>(state.Blend);
+                if (ImGui::Combo("Blend Mode", &currentBlend, blendModes, IM_ARRAYSIZE(blendModes)))
+                {
+                    state.Blend = static_cast<BlendMode>(currentBlend);
+                }
+                
+                // RenderQueue 拖拽条
+                ImGui::DragInt("Render Queue", &state.Queue, 1, 0, 5000);
+                
+                // 快捷预设按钮
+                if (ImGui::Button("Background"))
+                {
+                    state.Queue = RenderQueue::Background;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Geometry"))
+                {
+                    state.Queue = RenderQueue::Geometry;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("AlphaTest"))
+                {
+                    state.Queue = RenderQueue::AlphaTest;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Transparent"))
+                {
+                    state.Queue = RenderQueue::Transparent;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Overlay"))
+                {
+                    state.Queue = RenderQueue::Overlay;
+                }
+            }
+            
+            ImGui::Separator();
+            
             // 绘制材质属性（按 Shader uniform 声明顺序遍历）
             const auto& propertyMap = material->GetPropertyMap();
             for (const std::string& propName : material->GetPropertyOrder())

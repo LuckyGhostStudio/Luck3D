@@ -5,6 +5,7 @@
 
 #include "Shader.h"
 #include "Texture.h"
+#include "RenderState.h"
 
 namespace Lucky
 {
@@ -102,6 +103,38 @@ namespace Lucky
         
         const std::string& GetName() const { return m_Name; }
         void SetName(const std::string& name) { m_Name = name; }
+
+        // ---- 渲染状态 ----
+        
+        /// <summary>
+        /// 获取渲染状态（可修改）
+        /// </summary>
+        RenderState& GetRenderState() { return m_RenderState; }
+        
+        /// <summary>
+        /// 获取渲染状态（只读）
+        /// </summary>
+        const RenderState& GetRenderState() const { return m_RenderState; }
+        
+        /// <summary>
+        /// 设置渲染模式预设（自动配置 Blend/ZWrite/Queue）
+        /// </summary>
+        void SetRenderingMode(RenderingMode mode)
+        {
+            m_RenderingMode = mode;
+            ApplyRenderingMode(m_RenderState, mode);
+        }
+        
+        /// <summary>
+        /// 获取当前渲染模式预设
+        /// </summary>
+        RenderingMode GetRenderingMode() const { return m_RenderingMode; }
+        
+        /// <summary>
+        /// 判断是否为透明物体
+        /// </summary>
+        bool IsTransparent() const { return m_RenderState.IsTransparent(); }
+
     private:
         /// <summary>
         /// 根据当前 Shader 的 uniform 列表重建属性列表
@@ -119,5 +152,8 @@ namespace Lucky
         std::unordered_map<std::string, MaterialProperty> m_PropertyMap;    // 材质属性 Map：属性名 - 属性
         std::vector<std::string> m_PropertyOrder;                           // 属性名有序列表（按 Shader uniform 声明顺序）
         std::string m_Name;                                                 // 材质名称
+        
+        RenderState m_RenderState;                              // 渲染状态
+        RenderingMode m_RenderingMode = RenderingMode::Opaque;  // 渲染模式预设
     };
 }

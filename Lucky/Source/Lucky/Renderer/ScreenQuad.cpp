@@ -1,7 +1,7 @@
 #include "lcpch.h"
 #include "ScreenQuad.h"
 
-#include <glad/glad.h>
+#include "RenderCommand.h"
 
 namespace Lucky
 {
@@ -42,6 +42,6 @@ namespace Lucky
     void ScreenQuad::Draw()
     {
         s_VAO->Bind();
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        RenderCommand::DrawArrays(s_VAO, 6);
     }
 }

@@ -4,8 +4,6 @@
 #include "Lucky/Renderer/RenderCommand.h"
 #include "Lucky/Renderer/Renderer3D.h"
 
-#include <glad/glad.h>
-
 namespace Lucky
 {
     void SilhouettePass::Init()
@@ -42,7 +40,7 @@ namespace Lucky
         m_SilhouetteShader->Bind();
         
         // ½ûÓÃÉî¶È²âÊÔ£¨Ãè±ß´©Í¸ÕÚµ²Îï£¬Silhouette FBO ÎÞÉî¶È¸½¼þ£©
-        glDisable(GL_DEPTH_TEST);
+        RenderCommand::SetDepthTest(false);
         
         // ---- ±éÀúÃè±ßÎïÌå ----
         for (const OutlineDrawCommand& cmd : *context.OutlineDrawCommands)
@@ -57,7 +55,7 @@ namespace Lucky
         }
         
         // ---- »Ö¸´äÖÈ¾×´Ì¬ ----
-        glEnable(GL_DEPTH_TEST);
+        RenderCommand::SetDepthTest(true);
         
         // ---- ½â°ó FBO ----
         m_SilhouetteFBO->Unbind();

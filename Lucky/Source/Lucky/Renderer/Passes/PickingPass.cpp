@@ -2,9 +2,8 @@
 #include "PickingPass.h"
 #include "Lucky/Renderer/RenderContext.h"
 #include "Lucky/Renderer/RenderCommand.h"
+#include "Lucky/Renderer/RenderState.h"
 #include "Lucky/Renderer/Renderer3D.h"
-
-#include <glad/glad.h>
 
 namespace Lucky
 {
@@ -22,13 +21,13 @@ namespace Lucky
         
         // ---- 设置渲染状态 ----
         
-        // 切换 glDrawBuffers：只写入 Attachment 1（Entity ID，R32I）
-        GLenum pickBuffers[] = { GL_NONE, GL_COLOR_ATTACHMENT1 };
-        glDrawBuffers(2, pickBuffers);
+        // 切换 DrawBuffers：只写入 Attachment 1（Entity ID，R32I）
+        uint32_t pickBuffers[] = { DrawBuffer::None, DrawBuffer::Attachment1 };
+        RenderCommand::SetDrawBuffers(pickBuffers, 2);
         
         // 关闭深度写入，保持深度测试（复用 OpaquePass 的深度缓冲区）
-        glDepthMask(GL_FALSE);
-        glDepthFunc(GL_LEQUAL);     // GL_LEQUAL 保证相同深度可通过
+        RenderCommand::SetDepthWrite(false);
+        RenderCommand::SetDepthFunc(DepthCompareFunc::LessEqual);   // GL_LEQUAL 保证相同深度可通过
         
         // 绑定 EntityID Shader（VP 矩阵通过 Camera UBO binding=0 自动传递，无需手动设置）
         m_EntityIDShader->Bind();
@@ -51,11 +50,11 @@ namespace Lucky
         
         // ---- 恢复渲染状态 ----
         
-        // 恢复 glDrawBuffers：只写入 Attachment 0（颜色），禁用 Attachment 1（EntityID）
+        // 恢复 DrawBuffers：只写入 Attachment 0（颜色），禁用 Attachment 1（EntityID）
         // 防止后续 Gizmo 渲染时向 EntityID 缓冲区写入未定义数据
-        GLenum normalBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE };
-        glDrawBuffers(2, normalBuffers);
-        glDepthMask(GL_TRUE);
-        glDepthFunc(GL_LESS);
+        uint32_t normalBuffers[] = { DrawBuffer::Attachment0, DrawBuffer::None };
+        RenderCommand::SetDrawBuffers(normalBuffers, 2);
+        RenderCommand::SetDepthWrite(true);
+        RenderCommand::SetDepthFunc(DepthCompareFunc::Less);
     }
 }
