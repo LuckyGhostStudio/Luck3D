@@ -8,13 +8,14 @@
 #include "RenderCommand.h"
 #include "Framebuffer.h"
 
+#include "Passes/ShadowPass.h"
 #include "Passes/OpaquePass.h"
 #include "Passes/PickingPass.h"
 #include "Passes/SilhouettePass.h"
 #include "Passes/OutlineCompositePass.h"
 
 #include <glm/ext/matrix_transform.hpp>
-#include <unordered_set>
+#include <glm/ext/matrix_clip_space.hpp>
 
 namespace Lucky
 {
@@ -83,6 +84,13 @@ namespace Lucky
         glm::vec4 OutlineColor = glm::vec4(1.0f, 0.4f, 0.0f, 1.0f);  // 描边颜色（默认橙色 #FF6600）
         float OutlineWidth = 2.0f;                                      // 描边宽度（像素）
         bool OutlineEnabled = true;                                     // 是否启用描边
+        
+        // ======== 阴影数据 ========
+        bool ShadowEnabled = false;                     // 是否启用阴影
+        glm::mat4 LightSpaceMatrix = glm::mat4(1.0f);   // 光源空间矩阵（正交投影 × 光源视图）
+        float ShadowBias = 0.005f;                      // 阴影偏移（从组件读取）
+        float ShadowStrength = 1.0f;                    // 阴影强度（从组件读取）
+        ShadowType ShadowShadowType = ShadowType::None; // 阴影类型（从组件读取）
     };
 
     static Renderer3DData s_Data;   // 渲染器数据
@@ -91,10 +99,14 @@ namespace Lucky
     {
         s_Data.ShaderLib = CreateRef<ShaderLibrary>();  // 创建着色器库
         
-        // 加载内部着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/InternalError"); // 内部错误着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/EntityID");      // Entity ID 拾取着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/Standard");      // 默认着色器
+        // 加载着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/InternalError");             // 内部错误着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/EntityID");                  // Entity ID 拾取着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Outline/Silhouette");        // 描边轮廓着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Outline/OutlineComposite");  // 描边合成着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Shadow/Shadow");             // 阴影着色器
+
+        s_Data.ShaderLib->Load("Assets/Shaders/Standard");                  // 默认着色器
         
         s_Data.InternalErrorShader = s_Data.ShaderLib->Get("InternalError");
         s_Data.StandardShader = s_Data.ShaderLib->Get("Standard");
@@ -132,11 +144,8 @@ namespace Lucky
         s_Data.CameraUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::CameraUBOData), 0);  // 创建相机 Uniform 缓冲区
         s_Data.LightUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::LightUBOData), 1);    // 创建光照 Uniform 缓冲区
         
-        // ======== 加载 Outline 相关 Shader ========
-        s_Data.ShaderLib->Load("Assets/Shaders/Outline/Silhouette");
-        s_Data.ShaderLib->Load("Assets/Shaders/Outline/OutlineComposite");
-        
         // ======== 创建渲染管线 ========
+        auto shadowPass = CreateRef<ShadowPass>();
         auto opaquePass = CreateRef<OpaquePass>();
         auto pickingPass = CreateRef<PickingPass>();
         auto silhouettePass = CreateRef<SilhouettePass>();
@@ -145,9 +154,10 @@ namespace Lucky
         // 设置 Pass 之间的依赖
         outlineCompositePass->SetSilhouettePass(silhouettePass);
         
-        // 按顺序添加 Pass
-        // 注意：OpaquePass 和 PickingPass 在 EndScene() 中执行
+        // 按顺序添加 Pass（执行顺序：Shadow → Main → Outline）
+        // 注意：ShadowPass 和 OpaquePass/PickingPass 在 EndScene() 中执行
         //       SilhouettePass 和 OutlineCompositePass 在 RenderOutline() 中执行
+        s_Data.Pipeline.AddPass(shadowPass);
         s_Data.Pipeline.AddPass(opaquePass);
         s_Data.Pipeline.AddPass(pickingPass);
         s_Data.Pipeline.AddPass(silhouettePass);
@@ -187,6 +197,30 @@ namespace Lucky
         }
         s_Data.LightUniformBuffer->SetData(&s_Data.LightBuffer, sizeof(Renderer3DData::LightUBOData));
         
+        // ======== 计算阴影 Light Space Matrix ========
+        s_Data.ShadowEnabled = false;
+        if (lightData.DirectionalLightCount > 0 && lightData.DirLightShadowType != ShadowType::None)
+        {
+            // 使用第一个方向光计算 Light Space Matrix
+            // 正交投影范围（固定范围，后续可升级为 CSM 动态计算）
+            const float orthoSize = 20.0f;
+            const float nearPlane = -30.0f;
+            const float farPlane = 30.0f;
+            
+            glm::mat4 lightProjection = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, nearPlane, farPlane);
+            
+            // 光源视图矩阵：从光源方向看向原点
+            glm::vec3 lightDir = glm::normalize(lightData.DirectionalLights[0].Direction);
+            glm::vec3 lightPos = -lightDir * 15.0f;  // 光源位置（沿光照反方向偏移）
+            glm::mat4 lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            
+            s_Data.LightSpaceMatrix = lightProjection * lightView;
+            s_Data.ShadowEnabled = true;
+            s_Data.ShadowBias = lightData.DirLightShadowBias;
+            s_Data.ShadowStrength = lightData.DirLightShadowStrength;
+            s_Data.ShadowShadowType = lightData.DirLightShadowType;
+        }
+        
         // 清空绘制命令列表
         s_Data.OpaqueDrawCommands.clear();
     
@@ -202,11 +236,28 @@ namespace Lucky
             return a.SortKey < b.SortKey;   // 按 SortKey 升序（聚合相同 Shader）
         });
         
-        // ---- 构建 RenderContext ----
+        // ---- 构建 RenderContext（包含阴影数据） ----
         RenderContext context;
         context.OpaqueDrawCommands = &s_Data.OpaqueDrawCommands;
         context.TargetFramebuffer = s_Data.TargetFramebuffer;
         context.Stats = &s_Data.Stats;
+        
+        // 阴影数据
+        context.ShadowEnabled = s_Data.ShadowEnabled;
+        context.LightSpaceMatrix = s_Data.LightSpaceMatrix;
+        context.ShadowBias = s_Data.ShadowBias;
+        context.ShadowStrength = s_Data.ShadowStrength;
+        context.ShadowShadowType = s_Data.ShadowShadowType;
+        
+        // 获取 Shadow Map 纹理 ID（ShadowPass 持有 FBO）
+        auto shadowPass = s_Data.Pipeline.GetPass<ShadowPass>();
+        if (shadowPass)
+        {
+            context.ShadowMapTextureID = shadowPass->GetShadowMapTextureID();
+        }
+        
+        // ---- 执行 Shadow 分组（ShadowPass） ----
+        s_Data.Pipeline.ExecuteGroup("Shadow", context);
         
         // ---- 执行 Main 分组（OpaquePass + PickingPass） ----
         s_Data.Pipeline.ExecuteGroup("Main", context);

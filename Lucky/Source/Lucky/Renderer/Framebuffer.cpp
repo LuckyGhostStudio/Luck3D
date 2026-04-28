@@ -117,6 +117,7 @@ namespace Lucky
             switch (format)
             {
                 case FramebufferTextureFormat::DEFPTH24STENCIL8: return true;
+                case FramebufferTextureFormat::DEPTH_COMPONENT:  return true;
             }
 
             return false;
@@ -228,6 +229,20 @@ namespace Lucky
                 case FramebufferTextureFormat::DEFPTH24STENCIL8:
                     Utils::AttachDepthTexture(m_DepthAttachment, m_Specification.Samples, GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL_ATTACHMENT, m_Specification.Width, m_Specification.Height);
                     break;
+                case FramebufferTextureFormat::DEPTH_COMPONENT:
+                {
+                    // 纯深度纹理（用于 Shadow Map，可在 Fragment Shader 中采样）
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, m_Specification.Width, m_Specification.Height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+                    // 边界颜色为白色（深度 1.0），超出 Shadow Map 范围的区域不在阴影中
+                    float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+                    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+                    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_DepthAttachment, 0);
+                    break;
+                }
             }
         }
 

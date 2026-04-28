@@ -74,6 +74,23 @@ namespace Lucky
         {
             ImGui::ColorEdit3("Color", glm::value_ptr(light.Color));
             ImGui::DragFloat("Intensity", &light.Intensity, 0.01f, 0.0f, 10.0f);
+
+            ImGui::Separator();
+
+            // 阴影类型下拉框
+            const char* shadowTypes[] = { "No Shadows", "Hard Shadows", "Soft Shadows" };
+            int currentShadow = static_cast<int>(light.Shadows);
+            if (ImGui::Combo("Shadow Type", &currentShadow, shadowTypes, IM_ARRAYSIZE(shadowTypes)))
+            {
+                light.Shadows = static_cast<ShadowType>(currentShadow);
+            }
+
+            // 仅在启用阴影时显示阴影参数
+            if (light.Shadows != ShadowType::None)
+            {
+                ImGui::DragFloat("Shadow Bias", &light.ShadowBias, 0.0001f, 0.0f, 0.05f, "%.4f");
+                ImGui::DragFloat("Shadow Strength", &light.ShadowStrength, 0.01f, 0.0f, 1.0f);
+            }
         });
         
         // PointLight 组件

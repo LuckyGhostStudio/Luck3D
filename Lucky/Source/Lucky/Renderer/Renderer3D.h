@@ -7,6 +7,8 @@
 #include "Mesh.h"
 #include "Material.h"
 
+#include "Lucky/Scene/Components/DirectionalLightComponent.h"
+
 #include <unordered_set>
 
 namespace Lucky
@@ -66,6 +68,12 @@ namespace Lucky
         
         int SpotLightCount = 0;
         SpotLightData SpotLights[s_MaxSpotLights];                      // 聚光灯数组
+        
+        // ---- 阴影参数（CPU 端传递，不影响 UBO 布局） ----
+        // 仅使用第一个方向光的阴影参数
+        ShadowType DirLightShadowType = ShadowType::None;  // 方向光阴影类型
+        float DirLightShadowBias = 0.005f;                  // 方向光阴影偏移
+        float DirLightShadowStrength = 1.0f;                // 方向光阴影强度 [0, 1]
     };
     
     class Renderer3D

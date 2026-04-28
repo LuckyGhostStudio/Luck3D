@@ -93,6 +93,14 @@ namespace Lucky
                 dirlight.Color = light.Color;
                 dirlight.Intensity = light.Intensity;
                 
+                // 收集第一个方向光的阴影参数（当前仅支持单光源阴影）
+                if (sceneLightData.DirectionalLightCount == 0)
+                {
+                    sceneLightData.DirLightShadowType = light.Shadows;
+                    sceneLightData.DirLightShadowBias = light.ShadowBias;
+                    sceneLightData.DirLightShadowStrength = light.ShadowStrength;
+                }
+                
                 sceneLightData.DirectionalLightCount++;
             }
         }

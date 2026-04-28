@@ -14,7 +14,8 @@ namespace Lucky
         RGBA8,                      // 颜色 RGBA
         RED_INTEGER,                // 红色整型
 
-        DEFPTH24STENCIL8,           // 深度模板
+        DEFPTH24STENCIL8,           // 深度模板（深度24位 + 模板8位，不可采样）
+        DEPTH_COMPONENT,            // 纯深度纹理（24位深度，可采样，用于 Shadow Map）
 
         Depth = DEFPTH24STENCIL8    // 默认值
     };
@@ -129,6 +130,12 @@ namespace Lucky
         /// </summary>
         /// <returns>帧缓冲区规范</returns>
         const FramebufferSpecification& GetSpecification() const { return m_Specification; }
+
+        /// <summary>
+        /// 返回深度缓冲区纹理 ID（用于 Shadow Map 采样）
+        /// 仅当深度附件格式为 DEPTH_COMPONENT 时有意义
+        /// </summary>
+        uint32_t GetDepthAttachmentRendererID() const { return m_DepthAttachment; }
     private:
         uint32_t m_RendererID = 0;                  // 帧缓冲区 ID
         

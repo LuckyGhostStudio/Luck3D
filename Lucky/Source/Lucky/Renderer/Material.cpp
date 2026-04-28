@@ -14,6 +14,12 @@ namespace Lucky
         static const std::unordered_set<std::string> s_InternalUniforms = {
             "u_ObjectToWorldMatrix",    // 模型变换矩阵（由引擎每帧设置）
             "u_EntityID",               // Entity ID（拾取系统，由引擎每帧设置）
+            // ---- 阴影系统：由 OpaquePass 在每次 Shader 切换时设置 ----
+            "u_ShadowMap",              // Shadow Map 深度纹理（纹理槽位 15）
+            "u_LightSpaceMatrix",       // 光源空间 VP 矩阵
+            "u_ShadowBias",             // 阴影偏移
+            "u_ShadowStrength",         // 阴影强度
+            "u_ShadowEnabled",          // 阴影开关
         };
 
         return s_InternalUniforms.find(name) != s_InternalUniforms.end();

@@ -13,6 +13,12 @@ namespace Lucky
             return;
         }
         
+        // ---- 绑定 Shadow Map 纹理 ----
+        if (context.ShadowEnabled && context.ShadowMapTextureID != 0)
+        {
+            RenderCommand::BindTextureUnit(15, context.ShadowMapTextureID);
+        }
+        
         // ---- 批量绘制不透明物体（DrawCommands 已在外部按 SortKey 排序） ----
         
         // 状态跟踪（避免重复设置 GPU 状态）
@@ -56,14 +62,29 @@ namespace Lucky
                 lastShaderID = currentShaderID;
             }
             
-            // 设置引擎内部 uniform
-            cmd.MaterialData->GetShader()->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
-            
             // 应用材质属性（仅在材质变化时应用，减少冗余 Uniform 设置）
             if (cmd.MaterialData.get() != lastMaterial)
             {
                 cmd.MaterialData->Apply();
                 lastMaterial = cmd.MaterialData.get();
+            }
+            
+            // 设置引擎内部 uniform（在 Material::Apply() 之后，确保不被覆盖）
+            cmd.MaterialData->GetShader()->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
+            
+            // 设置阴影相关 uniform（在 Material::Apply() 之后，确保不被覆盖）
+            if (context.ShadowEnabled)
+            {
+                cmd.MaterialData->GetShader()->SetInt("u_ShadowMap", 15);
+                cmd.MaterialData->GetShader()->SetMat4("u_LightSpaceMatrix", context.LightSpaceMatrix);
+                cmd.MaterialData->GetShader()->SetFloat("u_ShadowBias", context.ShadowBias);
+                cmd.MaterialData->GetShader()->SetFloat("u_ShadowStrength", context.ShadowStrength);
+                cmd.MaterialData->GetShader()->SetInt("u_ShadowEnabled", 1);
+                cmd.MaterialData->GetShader()->SetInt("u_ShadowType", static_cast<int>(context.ShadowShadowType));
+            }
+            else
+            {
+                cmd.MaterialData->GetShader()->SetInt("u_ShadowEnabled", 0);
             }
             
             // 绘制
