@@ -57,11 +57,11 @@ namespace Lucky
         s_GizmoData.LineVertexBufferBase = new GizmoVertex[GizmoRendererData::MaxVertices];
         
         // 加载 Gizmo Shader
-        s_GizmoData.LineShader = Shader::Create("Assets/Shaders/GizmoLine");
+        s_GizmoData.LineShader = Shader::Create("Assets/Shaders/Internal/GizmoLine");
         
         // ---- 无限网格初始化 ----
         s_GizmoData.GridVertexArray = VertexArray::Create();    // 空 VAO（顶点在 Shader 中硬编码）
-        s_GizmoData.GridShader = Shader::Create("Assets/Shaders/InfiniteGrid");
+        s_GizmoData.GridShader = Shader::Create("Assets/Shaders/Internal/InfiniteGrid");
     }
 
     void GizmoRenderer::Shutdown()

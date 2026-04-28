@@ -99,14 +99,15 @@ namespace Lucky
     {
         s_Data.ShaderLib = CreateRef<ShaderLibrary>();  // 创建着色器库
         
-        // 加载着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/InternalError");             // 内部错误着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/EntityID");                  // Entity ID 拾取着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/Outline/Silhouette");        // 描边轮廓着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/Outline/OutlineComposite");  // 描边合成着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/Shadow/Shadow");             // 阴影着色器
+        // 加载引擎内部着色器（路径包含 /Internal/，自动标记为 Internal，不在 Inspector 中显示）
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/InternalError");             // 内部错误着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/EntityID");                  // Entity ID 拾取着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Outline/Silhouette");        // 描边轮廓着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Outline/OutlineComposite");  // 描边合成着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Shadow/Shadow");             // 阴影着色器
 
-        s_Data.ShaderLib->Load("Assets/Shaders/Standard");                  // 默认着色器
+        // 加载用户可见着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Standard");  // 默认着色器
         
         s_Data.InternalErrorShader = s_Data.ShaderLib->Get("InternalError");
         s_Data.StandardShader = s_Data.ShaderLib->Get("Standard");

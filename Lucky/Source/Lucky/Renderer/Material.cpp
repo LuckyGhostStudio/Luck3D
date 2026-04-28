@@ -20,6 +20,7 @@ namespace Lucky
             "u_ShadowBias",             // 阴影偏移
             "u_ShadowStrength",         // 阴影强度
             "u_ShadowEnabled",          // 阴影开关
+            "u_ShadowType",             // 阴影类型
         };
 
         return s_InternalUniforms.find(name) != s_InternalUniforms.end();

@@ -193,8 +193,8 @@ namespace Lucky
         
         // ---- Shader ----
         
-        // 所有可用 Shader 名称
-        std::vector<std::string> shaderNames = Renderer3D::GetShaderLibrary()->GetShaderNameList();
+        // 所有用户可见 Shader 名称（排除引擎内部 Shader）
+        std::vector<std::string> shaderNames = Renderer3D::GetShaderLibrary()->GetUserVisibleShaderNames();
 
         // 当前 Shader 名称
         std::string currentShaderName = material->GetShader()->GetName();

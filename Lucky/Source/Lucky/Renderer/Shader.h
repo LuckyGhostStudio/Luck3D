@@ -1,10 +1,6 @@
 #pragma once
 
-#include <string>
-
 #include <glm/glm.hpp>
-
-#include "Buffer.h"
 
 namespace Lucky
 {
@@ -130,6 +126,16 @@ namespace Lucky
         const std::string& GetName() const { return m_Name; }
         const std::vector<ShaderUniform>& GetUniforms() const { return m_Uniforms; }
 
+        /// <summary>
+        /// 是否为引擎内部 Shader（不在 Inspector 中显示）
+        /// </summary>
+        bool IsInternal() const { return m_IsInternal; }
+
+        /// <summary>
+        /// 设置为引擎内部 Shader
+        /// </summary>
+        void SetInternal(bool isInternal) { m_IsInternal = isInternal; }
+
         // ---- 下列方法：上传 Uniform 变量到 Shader ---- |（变量在 Shader 中的变量名，变量值）
 
         void UploadUniformInt(const std::string& name, int value);
@@ -173,10 +179,20 @@ namespace Lucky
         /// 将解析到的默认纹理类型应用到 m_Uniforms 列表
         /// </summary>
         void ApplyTextureDefaults();
+
+        /// <summary>
+        /// 预处理 #include 指令：将 #include "path" 替换为对应文件内容
+        /// 在 ReadFile() 之后、Compile() 之前调用
+        /// </summary>
+        /// <param name="source">Shader 源码</param>
+        /// <param name="directory">当前 Shader 文件所在目录（用于解析相对路径）</param>
+        /// <returns>处理后的源码</returns>
+        std::string PreprocessIncludes(const std::string& source, const std::string& directory);
     private:
         uint32_t m_RendererID;                  // 着色器 ID
         std::string m_Name;                     // 着色器名字
         std::vector<ShaderUniform> m_Uniforms;  // uniform 参数列表
+        bool m_IsInternal = false;              // 是否为引擎内部 Shader
         
         std::unordered_map<std::string, TextureDefault> m_TextureDefaultMap;    // 解析缓存：uniform 名 -> 默认纹理类型
     };
@@ -233,6 +249,11 @@ namespace Lucky
         /// 获取所有着色器名称列表
         /// </summary>
         std::vector<std::string> GetShaderNameList() const;
+
+        /// <summary>
+        /// 获取用户可见的着色器名称列表（排除引擎内部 Shader）
+        /// </summary>
+        std::vector<std::string> GetUserVisibleShaderNames() const;
 
         /// <summary>
         /// 获取所有着色器

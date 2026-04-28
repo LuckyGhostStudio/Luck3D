@@ -6,12 +6,8 @@ layout(location = 2) in vec3 a_Normal;      // 法线
 layout(location = 3) in vec2 a_TexCoord;    // 纹理坐标
 layout(location = 4) in vec4 a_Tangent;     // 切线 + 手性
 
-// 相机 Uniform 缓冲区
-layout(std140, binding = 0) uniform Camera
-{
-    mat4 ViewProjectionMatrix;
-    vec3 Position;  // 相机位置（用于计算视线向量）
-} u_Camera;
+// ---- 引擎公共库 ----
+#include "Lucky/Common.glsl"
 
 // 模型矩阵
 uniform mat4 u_ObjectToWorldMatrix;

@@ -67,6 +67,11 @@ namespace Lucky
         // 编译前解析 @default 注释元数据
         ParseTextureDefaults(vertexSrc);
         ParseTextureDefaults(fragmentSrc);
+
+        // 预处理 #include 指令
+        std::string directory = filepath.substr(0, filepath.find_last_of("/\\"));
+        vertexSrc = PreprocessIncludes(vertexSrc, directory);
+        fragmentSrc = PreprocessIncludes(fragmentSrc, directory);
         
         std::unordered_map<GLenum, std::string> shaderSources;  // 着色器类型 - 源码 map
 
@@ -383,6 +388,74 @@ namespace Lucky
         }
     }
 
+    std::string Shader::PreprocessIncludes(const std::string& source, const std::string& directory)
+    {
+        std::unordered_set<std::string> includedFiles;  // 防止循环 include
+
+        // 递归处理的内部 lambda
+        std::function<std::string(const std::string&, const std::string&, int)> process;
+        process = [&](const std::string& src, const std::string& dir, int depth) -> std::string
+        {
+            if (depth > 16)  // 防止无限递归
+            {
+                LF_CORE_ERROR("Shader #include depth exceeded 16 levels");
+                return src;
+            }
+
+            std::string output;
+            std::istringstream stream(src);
+            std::string line;
+
+            // 正则匹配 #include "path"
+            std::regex includeRegex(R"RE(^\s*#include\s+"([^"]+)")RE");
+
+            while (std::getline(stream, line))
+            {
+                std::smatch match;
+                if (std::regex_search(line, match, includeRegex))
+                {
+                    std::string includePath = match[1].str();
+
+                    // 解析完整路径（相对于当前文件目录）
+                    std::string fullPath = dir + "/" + includePath;
+
+                    // 防止重复 include
+                    if (includedFiles.count(fullPath))
+                    {
+                        output += "// [已包含] " + includePath + "\n";
+                        continue;
+                    }
+                    includedFiles.insert(fullPath);
+
+                    // 读取被引用的文件
+                    std::string includeContent = ReadFile(fullPath);
+                    if (includeContent.empty())
+                    {
+                        LF_CORE_ERROR("Failed to include file: {0}", fullPath);
+                        output += "// [include 失败] " + includePath + "\n";
+                        continue;
+                    }
+
+                    // 计算被引用文件的目录（支持嵌套 include）
+                    std::string includeDir = fullPath.substr(0, fullPath.find_last_of("/\\"));
+
+                    // 递归处理被引用文件中的 #include
+                    output += "// ---- begin include: " + includePath + " ----\n";
+                    output += process(includeContent, includeDir, depth + 1);
+                    output += "// ---- end include: " + includePath + " ----\n";
+                }
+                else
+                {
+                    output += line + "\n";
+                }
+            }
+
+            return output;
+        };
+
+        return process(source, directory, 0);
+    }
+
     // ---- ShaderLibrary ----
 
     void ShaderLibrary::Add(const std::string& name, const Ref<Shader>& shader)
@@ -401,7 +474,14 @@ namespace Lucky
     Ref<Shader> ShaderLibrary::Load(const std::string& filepath)
     {
         auto shader = Shader::Create(filepath);   // 创建着色器
-        Add(shader);                                        // 添加着色器
+
+        // 路径约定：路径中包含 "/Internal/" 则自动标记为引擎内部 Shader
+        if (filepath.find("/Internal/") != std::string::npos || filepath.find("\\Internal\\") != std::string::npos)
+        {
+            shader->SetInternal(true);
+        }
+
+        Add(shader);                              // 添加着色器
 
         return shader;
     }
@@ -436,6 +516,19 @@ namespace Lucky
             names.push_back(name);
         }
         
+        return names;
+    }
+
+    std::vector<std::string> ShaderLibrary::GetUserVisibleShaderNames() const
+    {
+        std::vector<std::string> names;
+        for (const auto& [name, shader] : m_Shaders)
+        {
+            if (!shader->IsInternal())
+            {
+                names.push_back(name);
+            }
+        }
         return names;
     }
 }
