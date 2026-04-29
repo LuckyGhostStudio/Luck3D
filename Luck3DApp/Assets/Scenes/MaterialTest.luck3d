@@ -66,10 +66,13 @@ Entitys:
       Parent: 0
       Children:
         []
-    DirectionalLightComponent:
-      Direction: [0.406246752, -0.249812275, 0.116489381, 0.871198952]
+    LightComponent:
+      Type: 0
       Color: [1, 1, 1]
       Intensity: 1
+      Shadows: 0
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1
   - Entity: 3534927062877440644
     NameComponent:
       Name: Cube
@@ -301,10 +304,14 @@ Entitys:
       Parent: 0
       Children:
         []
-    PointLightComponent:
+    LightComponent:
+      Type: 1
       Color: [1, 0.916908145, 0.00576370955]
       Intensity: 7.19999981
       Range: 34.5999985
+      Shadows: 0
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1
   - Entity: 12457339013104273193
     NameComponent:
       Name: Spot Light Blue
@@ -316,9 +323,13 @@ Entitys:
       Parent: 0
       Children:
         []
-    SpotLightComponent:
+    LightComponent:
+      Type: 2
       Color: [0, 0.853026152, 1]
       Intensity: 13.8999996
       Range: 20.2999992
       InnerCutoffAngle: 17.5
       OuterCutoffAngle: 17.5
+      Shadows: 0
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1

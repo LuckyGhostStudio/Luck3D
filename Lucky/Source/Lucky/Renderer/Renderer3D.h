@@ -7,7 +7,7 @@
 #include "Mesh.h"
 #include "Material.h"
 
-#include "Lucky/Scene/Components/DirectionalLightComponent.h"
+#include "Lucky/Scene/Components/LightComponent.h"
 
 #include <unordered_set>
 

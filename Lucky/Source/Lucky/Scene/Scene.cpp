@@ -76,79 +76,74 @@ namespace Lucky
         // 收集所有光源数据
         SceneLightData sceneLightData;
         
-        // 收集方向光实体
+        // 收集所有光源实体（统一查询）
         {
-            auto lightView = m_Registry.view<TransformComponent, DirectionalLightComponent>();
+            auto lightView = m_Registry.view<TransformComponent, LightComponent>();
             for (auto entity : lightView)
             {
-                if (sceneLightData.DirectionalLightCount >= s_MaxDirectionalLights)
+                auto [transform, light] = lightView.get<TransformComponent, LightComponent>(entity);
+
+                switch (light.Type)
                 {
-                    break;
+                    case LightType::Directional:
+                    {
+                        if (sceneLightData.DirectionalLightCount >= s_MaxDirectionalLights)
+                        {
+                            break;
+                        }
+
+                        DirectionalLightData& dirLight = sceneLightData.DirectionalLights[sceneLightData.DirectionalLightCount];
+                        dirLight.Direction = transform.GetForward();
+                        dirLight.Color = light.Color;
+                        dirLight.Intensity = light.Intensity;
+
+                        // 收集第一个方向光的阴影参数（当前仅支持单光源阴影）
+                        if (sceneLightData.DirectionalLightCount == 0)
+                        {
+                            sceneLightData.DirLightShadowType = light.Shadows;
+                            sceneLightData.DirLightShadowBias = light.ShadowBias;
+                            sceneLightData.DirLightShadowStrength = light.ShadowStrength;
+                        }
+
+                        sceneLightData.DirectionalLightCount++;
+                        break;
+                    }
+                    case LightType::Point:
+                    {
+                        if (sceneLightData.PointLightCount >= s_MaxPointLights)
+                        {
+                            break;
+                        }
+
+                        PointLightData& pointLight = sceneLightData.PointLights[sceneLightData.PointLightCount];
+                        pointLight.Position = transform.Translation;
+                        pointLight.Color = light.Color;
+                        pointLight.Intensity = light.Intensity;
+                        pointLight.Range = light.Range;
+
+                        sceneLightData.PointLightCount++;
+                        break;
+                    }
+                    case LightType::Spot:
+                    {
+                        if (sceneLightData.SpotLightCount >= s_MaxSpotLights)
+                        {
+                            break;
+                        }
+
+                        SpotLightData& spotLight = sceneLightData.SpotLights[sceneLightData.SpotLightCount];
+                        spotLight.Position = transform.Translation;
+                        spotLight.Direction = transform.GetForward();
+                        spotLight.Color = light.Color;
+                        spotLight.Intensity = light.Intensity;
+                        spotLight.Range = light.Range;
+                        spotLight.InnerCutoff = glm::cos(glm::radians(light.InnerCutoffAngle));
+                        spotLight.OuterCutoff = glm::cos(glm::radians(light.OuterCutoffAngle));
+
+                        sceneLightData.SpotLightCount++;
+                        break;
+                    }
                 }
-                
-                auto [transform, light] = lightView.get<TransformComponent, DirectionalLightComponent>(entity);
-                
-                DirectionalLightData& dirlight = sceneLightData.DirectionalLights[sceneLightData.DirectionalLightCount];
-                dirlight.Direction = transform.GetForward();
-                dirlight.Color = light.Color;
-                dirlight.Intensity = light.Intensity;
-                
-                // 收集第一个方向光的阴影参数（当前仅支持单光源阴影）
-                if (sceneLightData.DirectionalLightCount == 0)
-                {
-                    sceneLightData.DirLightShadowType = light.Shadows;
-                    sceneLightData.DirLightShadowBias = light.ShadowBias;
-                    sceneLightData.DirLightShadowStrength = light.ShadowStrength;
-                }
-                
-                sceneLightData.DirectionalLightCount++;
-            }
-        }
-        
-        // 收集点光源实体
-        {
-            auto lightView = m_Registry.view<TransformComponent, PointLightComponent>();
-            for (auto entity : lightView)
-            {
-                if (sceneLightData.PointLightCount >= s_MaxPointLights)
-                {
-                    break;
-                }
-                
-                auto [transform, light] = lightView.get<TransformComponent, PointLightComponent>(entity);
-                
-                PointLightData& pointLight = sceneLightData.PointLights[sceneLightData.PointLightCount];
-                pointLight.Position = transform.Translation;
-                pointLight.Color = light.Color;
-                pointLight.Intensity = light.Intensity;
-                pointLight.Range = light.Range;
-                
-                sceneLightData.PointLightCount++;
-            }
-        }
-        
-        // 收集聚光灯实体
-        {
-            auto lightView = m_Registry.view<TransformComponent, SpotLightComponent>();
-            for (auto entity : lightView)
-            {
-                if (sceneLightData.SpotLightCount >= s_MaxSpotLights)
-                {
-                    break;
-                }
-                
-                auto [transform, light] = lightView.get<TransformComponent, SpotLightComponent>(entity);
-                
-                SpotLightData& spotLight = sceneLightData.SpotLights[sceneLightData.SpotLightCount];
-                spotLight.Position = transform.Translation;
-                spotLight.Direction = transform.GetForward();
-                spotLight.Color = light.Color;
-                spotLight.Intensity = light.Intensity;
-                spotLight.Range = light.Range;
-                spotLight.InnerCutoff = glm::cos(glm::radians(light.InnerCutoffAngle));
-                spotLight.OuterCutoff = glm::cos(glm::radians(light.OuterCutoffAngle));
-                
-                sceneLightData.SpotLightCount++;
             }
         }
         
@@ -267,19 +262,7 @@ namespace Lucky
     }
     
     template<>
-    void Scene::OnComponentAdded<DirectionalLightComponent>(Entity entity, DirectionalLightComponent& component)
-    {
-        
-    }
-    
-    template<>
-    void Scene::OnComponentAdded<PointLightComponent>(Entity entity, PointLightComponent& component)
-    {
-        
-    }
-    
-    template<>
-    void Scene::OnComponentAdded<SpotLightComponent>(Entity entity, SpotLightComponent& component)
+    void Scene::OnComponentAdded<LightComponent>(Entity entity, LightComponent& component)
     {
         
     }

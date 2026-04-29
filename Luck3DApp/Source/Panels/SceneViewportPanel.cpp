@@ -120,25 +120,23 @@ namespace Lucky
             GizmoRenderer::DrawInfiniteGrid(m_EditorCamera);
         
             // 灯光 Gizmo TODO 只绘制选中项
-            auto dirLights = m_Scene->GetAllEntitiesWith<TransformComponent, DirectionalLightComponent>();
-            for (auto entity : dirLights)
+            auto lights = m_Scene->GetAllEntitiesWith<TransformComponent, LightComponent>();
+            for (auto entity : lights)
             {
-                auto [transform, light] = dirLights.get<TransformComponent, DirectionalLightComponent>(entity);
-                GizmoRenderer::DrawDirectionalLightGizmo(transform.Translation, transform.GetForward(), light.Color);
-            }
-            
-            auto pointLights = m_Scene->GetAllEntitiesWith<TransformComponent, PointLightComponent>();
-            for (auto entity : pointLights)
-            {
-                auto [transform, light] = pointLights.get<TransformComponent, PointLightComponent>(entity);
-                GizmoRenderer::DrawPointLightGizmo(transform.Translation, light.Range, light.Color);
-            }
-            
-            auto spotLights = m_Scene->GetAllEntitiesWith<TransformComponent, SpotLightComponent>();
-            for (auto entity : spotLights)
-            {
-                auto [transform, light] = spotLights.get<TransformComponent, SpotLightComponent>(entity);
-                GizmoRenderer::DrawSpotLightGizmo(transform.Translation, transform.GetForward(), light.Range, light.InnerCutoffAngle, light.OuterCutoffAngle, light.Color);
+                auto [transform, light] = lights.get<TransformComponent, LightComponent>(entity);
+
+                switch (light.Type)
+                {
+                    case LightType::Directional:
+                        GizmoRenderer::DrawDirectionalLightGizmo(transform.Translation, transform.GetForward(), light.Color);
+                        break;
+                    case LightType::Point:
+                        GizmoRenderer::DrawPointLightGizmo(transform.Translation, light.Range, light.Color);
+                        break;
+                    case LightType::Spot:
+                        GizmoRenderer::DrawSpotLightGizmo(transform.Translation, transform.GetForward(), light.Range, light.InnerCutoffAngle, light.OuterCutoffAngle, light.Color);
+                        break;
+                }
             }
         }
         GizmoRenderer::EndScene();

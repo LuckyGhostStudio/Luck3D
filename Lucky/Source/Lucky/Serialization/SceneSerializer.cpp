@@ -81,47 +81,36 @@ namespace Lucky
             out << YAML::EndMap;
         }
         
-        // DirectionalLight 组件
-        if (entity.HasComponent<DirectionalLightComponent>())
+        // Light 组件
+        if (entity.HasComponent<LightComponent>())
         {
-            const auto& light = entity.GetComponent<DirectionalLightComponent>();
-            
-            out << YAML::Key << "DirectionalLightComponent";
-            
+            const auto& light = entity.GetComponent<LightComponent>();
+
+            out << YAML::Key << "LightComponent";
+
             out << YAML::BeginMap;
-            out << YAML::Key << "Direction" << YAML::Value << entity.GetComponent<TransformComponent>().GetRotation();
+            out << YAML::Key << "Type" << YAML::Value << static_cast<int>(light.Type);
             out << YAML::Key << "Color" << YAML::Value << light.Color;
             out << YAML::Key << "Intensity" << YAML::Value << light.Intensity;
-            out << YAML::EndMap;
-        }
-        
-        // PointLight 组件
-        if (entity.HasComponent<PointLightComponent>())
-        {
-            const auto& light = entity.GetComponent<PointLightComponent>();
 
-            out << YAML::Key << "PointLightComponent";
-            
-            out << YAML::BeginMap;
-            out << YAML::Key << "Color" << YAML::Value << light.Color;
-            out << YAML::Key << "Intensity" << YAML::Value << light.Intensity;
-            out << YAML::Key << "Range" << YAML::Value << light.Range;
-            out << YAML::EndMap;
-        }
+            // Point / Spot 属性
+            if (light.Type == LightType::Point || light.Type == LightType::Spot)
+            {
+                out << YAML::Key << "Range" << YAML::Value << light.Range;
+            }
 
-        // SpotLight 组件
-        if (entity.HasComponent<SpotLightComponent>())
-        {
-            const auto& light = entity.GetComponent<SpotLightComponent>();
+            // Spot 属性
+            if (light.Type == LightType::Spot)
+            {
+                out << YAML::Key << "InnerCutoffAngle" << YAML::Value << light.InnerCutoffAngle;
+                out << YAML::Key << "OuterCutoffAngle" << YAML::Value << light.OuterCutoffAngle;
+            }
 
-            out << YAML::Key << "SpotLightComponent";
-            
-            out << YAML::BeginMap;
-            out << YAML::Key << "Color" << YAML::Value << light.Color;
-            out << YAML::Key << "Intensity" << YAML::Value << light.Intensity;
-            out << YAML::Key << "Range" << YAML::Value << light.Range;
-            out << YAML::Key << "InnerCutoffAngle" << YAML::Value << light.InnerCutoffAngle;
-            out << YAML::Key << "OuterCutoffAngle" << YAML::Value << light.OuterCutoffAngle;
+            // 阴影属性（所有类型）
+            out << YAML::Key << "Shadows" << YAML::Value << static_cast<int>(light.Shadows);
+            out << YAML::Key << "ShadowBias" << YAML::Value << light.ShadowBias;
+            out << YAML::Key << "ShadowStrength" << YAML::Value << light.ShadowStrength;
+
             out << YAML::EndMap;
         }
         
@@ -279,39 +268,32 @@ namespace Lucky
                     }
                 }
                 
-                // DirectionalLight 组件
-                YAML::Node directionalLightComponentNode = entity["DirectionalLightComponent"];
-                if (directionalLightComponentNode)
+                // Light 组件
+                YAML::Node lightComponentNode = entity["LightComponent"];
+                if (lightComponentNode)
                 {
-                    auto& lightComponent = deserializedEntity.AddComponent<DirectionalLightComponent>();
-                    
-                    deserializedEntity.GetComponent<TransformComponent>().SetRotation(directionalLightComponentNode["Direction"].as<glm::quat>());
-                    lightComponent.Color = directionalLightComponentNode["Color"].as<glm::vec3>();
-                    lightComponent.Intensity = directionalLightComponentNode["Intensity"].as<float>();
-                }
-                
-                // PointLight 组件
-                YAML::Node pointLightComponent = entity["PointLightComponent"];
-                if (pointLightComponent)
-                {
-                    auto& lightComponent = deserializedEntity.AddComponent<PointLightComponent>();
-                    
-                    lightComponent.Color = pointLightComponent["Color"].as<glm::vec3>();
-                    lightComponent.Intensity = pointLightComponent["Intensity"].as<float>();
-                    lightComponent.Range = pointLightComponent["Range"].as<float>();
-                }
+                    LightType type = static_cast<LightType>(lightComponentNode["Type"].as<int>());
+                    auto& light = deserializedEntity.AddComponent<LightComponent>(type);
 
-                // SpotLight 组件
-                YAML::Node spotLightComponent = entity["SpotLightComponent"];
-                if (spotLightComponent)
-                {
-                    auto& lightComponent = deserializedEntity.AddComponent<SpotLightComponent>();
-                    
-                    lightComponent.Color = spotLightComponent["Color"].as<glm::vec3>();
-                    lightComponent.Intensity = spotLightComponent["Intensity"].as<float>();
-                    lightComponent.Range = spotLightComponent["Range"].as<float>();
-                    lightComponent.InnerCutoffAngle = spotLightComponent["InnerCutoffAngle"].as<float>();
-                    lightComponent.OuterCutoffAngle = spotLightComponent["OuterCutoffAngle"].as<float>();
+                    light.Color = lightComponentNode["Color"].as<glm::vec3>();
+                    light.Intensity = lightComponentNode["Intensity"].as<float>();
+
+                    if (lightComponentNode["Range"])
+                    {
+                        light.Range = lightComponentNode["Range"].as<float>();
+                    }
+                    if (lightComponentNode["InnerCutoffAngle"])
+                    {
+                        light.InnerCutoffAngle = lightComponentNode["InnerCutoffAngle"].as<float>();
+                    }
+                    if (lightComponentNode["OuterCutoffAngle"])
+                    {
+                        light.OuterCutoffAngle = lightComponentNode["OuterCutoffAngle"].as<float>();
+                    }
+
+                    light.Shadows = static_cast<ShadowType>(lightComponentNode["Shadows"].as<int>());
+                    light.ShadowBias = lightComponentNode["ShadowBias"].as<float>();
+                    light.ShadowStrength = lightComponentNode["ShadowStrength"].as<float>();
                 }
                 
                 // MeshFilter 组件

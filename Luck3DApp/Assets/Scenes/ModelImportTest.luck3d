@@ -11,10 +11,13 @@ Entitys:
       Parent: 0
       Children:
         []
-    DirectionalLightComponent:
-      Direction: [0.406246752, -0.249812275, 0.116489381, 0.871198952]
+    LightComponent:
+      Type: 0
       Color: [1, 1, 1]
       Intensity: 1
+      Shadows: 0
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1
   - Entity: 16350740992008322361
     NameComponent:
       Name: Hornet

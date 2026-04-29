@@ -11,10 +11,14 @@ Entitys:
       Parent: 0
       Children:
         []
-    PointLightComponent:
+    LightComponent:
+      Type: 1
       Color: [1, 0, 0]
       Intensity: 8.60000038
       Range: 2.5
+      Shadows: 0
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1
   - Entity: 12831369083947461170
     NameComponent:
       Name: Cube
@@ -81,12 +85,16 @@ Entitys:
       Parent: 0
       Children:
         []
-    SpotLightComponent:
+    LightComponent:
+      Type: 2
       Color: [0.752989113, 0.927953899, 0.0962718874]
       Intensity: 10.8999996
       Range: 11.3000002
       InnerCutoffAngle: 18
       OuterCutoffAngle: 22
+      Shadows: 0
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1
   - Entity: 16506467162929908253
     NameComponent:
       Name: Point Light Orange
@@ -98,10 +106,14 @@ Entitys:
       Parent: 0
       Children:
         []
-    PointLightComponent:
+    LightComponent:
+      Type: 1
       Color: [0.99423629, 0.482812643, 0.303714871]
       Intensity: 2.4000001
       Range: 9.39999962
+      Shadows: 0
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1
   - Entity: 1077575231304841697
     NameComponent:
       Name: Point Light Blue
@@ -113,10 +125,14 @@ Entitys:
       Parent: 0
       Children:
         []
-    PointLightComponent:
+    LightComponent:
+      Type: 1
       Color: [0.0720461011, 0.799433589, 1]
       Intensity: 6.19999981
       Range: 10
+      Shadows: 0
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1
   - Entity: 16058491241260695684
     NameComponent:
       Name: Directional Light Pink
@@ -128,10 +144,13 @@ Entitys:
       Parent: 0
       Children:
         []
-    DirectionalLightComponent:
-      Direction: [-0.713229179, -0.629193366, 0.272182047, -0.146071658]
+    LightComponent:
+      Type: 0
       Color: [0.962535858, 0, 1]
       Intensity: 0.949999988
+      Shadows: 0
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1
   - Entity: 1222504292915771980
     NameComponent:
       Name: Directional Light
@@ -143,10 +162,13 @@ Entitys:
       Parent: 0
       Children:
         []
-    DirectionalLightComponent:
-      Direction: [0.331423789, 0.104354471, 0.263485879, 0.899913073]
+    LightComponent:
+      Type: 0
       Color: [0.21397078, 0.976945221, 0]
       Intensity: 1
+      Shadows: 0
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1
   - Entity: 6195016061485854941
     NameComponent:
       Name: Plane
@@ -378,9 +400,13 @@ Entitys:
       Parent: 0
       Children:
         []
-    SpotLightComponent:
+    LightComponent:
+      Type: 2
       Color: [1, 0.0230547786, 0.0230547786]
       Intensity: 4.5999999
       Range: 11.6000004
       InnerCutoffAngle: 17.5
       OuterCutoffAngle: 17.5
+      Shadows: 0
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1

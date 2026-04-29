@@ -227,34 +227,32 @@ namespace Lucky
 
         if (ImGui::BeginMenu("Light"))
         {
-            // 创建 DirectionalLight
+            // 创建 Directional Light
             if (ImGui::MenuItem("Directional Light"))
             {
                 std::string uniqueName = GenerateUniqueName("Directional Light", parent);
                 newEntity = m_Scene->CreateEntity(uniqueName);
-            
-                // DirectionalLight
-                newEntity.AddComponent<DirectionalLightComponent>();
+                newEntity.AddComponent<LightComponent>(LightType::Directional);
             
                 // 设置初始方向斜向下
                 TransformComponent& transform = newEntity.GetComponent<TransformComponent>();
                 transform.SetRotationEuler(glm::vec3(glm::radians(50.0f), glm::radians(-32.0f), 0.0f));
             }
         
-            // 创建 PointLight
+            // 创建 Point Light
             if (ImGui::MenuItem("Point Light"))
             {
                 std::string uniqueName = GenerateUniqueName("Point Light", parent);
                 newEntity = m_Scene->CreateEntity(uniqueName);
-                newEntity.AddComponent<PointLightComponent>();
+                newEntity.AddComponent<LightComponent>(LightType::Point);
             }
 
-            // 创建 SpotLight
+            // 创建 Spot Light
             if (ImGui::MenuItem("Spot Light"))
             {
                 std::string uniqueName = GenerateUniqueName("Spot Light", parent);
                 newEntity = m_Scene->CreateEntity(uniqueName);
-                newEntity.AddComponent<SpotLightComponent>();
+                newEntity.AddComponent<LightComponent>(LightType::Spot);
             }
             
             ImGui::EndMenu();

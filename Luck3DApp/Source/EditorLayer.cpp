@@ -53,7 +53,7 @@ namespace Lucky
         Entity lightEntity = m_Scene->CreateEntity("Directional Light");
         
         // DirectionalLight
-        lightEntity.AddComponent<DirectionalLightComponent>();
+        lightEntity.AddComponent<LightComponent>(LightType::Directional);
         
         // 设置初始方向斜向下
         TransformComponent& transform = lightEntity.GetComponent<TransformComponent>();

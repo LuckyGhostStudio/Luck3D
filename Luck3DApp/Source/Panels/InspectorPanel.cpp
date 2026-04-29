@@ -69,15 +69,55 @@ namespace Lucky
             ImGui::DragFloat3("Scale", &transform.Scale.x, 0.01f);
         });
         
-        // DirectionalLight 组件
-        DrawComponent<DirectionalLightComponent>("Directional Light", entity, [](DirectionalLightComponent& light)
+        // Light 组件
+        DrawComponent<LightComponent>("Light", entity, [](LightComponent& light)
         {
-            ImGui::ColorEdit3("Color", glm::value_ptr(light.Color));
-            ImGui::DragFloat("Intensity", &light.Intensity, 0.01f, 0.0f, 10.0f);
+            // 光源类型下拉框
+            const char* lightTypes[] = { "Directional", "Point", "Spot" };
+            int currentType = static_cast<int>(light.Type);
+            if (ImGui::Combo("Type", &currentType, lightTypes, IM_ARRAYSIZE(lightTypes)))
+            {
+                LightType newType = static_cast<LightType>(currentType);
+
+                // 切换类型时设置合理的默认值
+                if (newType != light.Type)
+                {
+                    light.Type = newType;
+
+                    // 根据新类型设置默认阴影模式
+                    if (newType == LightType::Directional)
+                    {
+                        light.Shadows = ShadowType::Hard;
+                    }
+                    else
+                    {
+                        light.Shadows = ShadowType::None;
+                    }
+                }
+            }
 
             ImGui::Separator();
 
-            // 阴影类型下拉框
+            // 通用属性
+            ImGui::ColorEdit3("Color", glm::value_ptr(light.Color));
+            ImGui::DragFloat("Intensity", &light.Intensity, 0.01f, 0.0f, 100.0f);
+
+            // Point / Spot 属性
+            if (light.Type == LightType::Point || light.Type == LightType::Spot)
+            {
+                ImGui::DragFloat("Range", &light.Range, 0.1f, 0.1f, 1000.0f);
+            }
+
+            // Spot 属性
+            if (light.Type == LightType::Spot)
+            {
+                ImGui::DragFloat("Inner Cutoff", &light.InnerCutoffAngle, 0.5f, 0.0f, light.OuterCutoffAngle);
+                ImGui::DragFloat("Outer Cutoff", &light.OuterCutoffAngle, 0.5f, light.InnerCutoffAngle, 90.0f);
+            }
+
+            ImGui::Separator();
+
+            // 阴影属性
             const char* shadowTypes[] = { "No Shadows", "Hard Shadows", "Soft Shadows" };
             int currentShadow = static_cast<int>(light.Shadows);
             if (ImGui::Combo("Shadow Type", &currentShadow, shadowTypes, IM_ARRAYSIZE(shadowTypes)))
@@ -85,30 +125,11 @@ namespace Lucky
                 light.Shadows = static_cast<ShadowType>(currentShadow);
             }
 
-            // 仅在启用阴影时显示阴影参数
             if (light.Shadows != ShadowType::None)
             {
                 ImGui::DragFloat("Shadow Bias", &light.ShadowBias, 0.0001f, 0.0f, 0.05f, "%.4f");
                 ImGui::DragFloat("Shadow Strength", &light.ShadowStrength, 0.01f, 0.0f, 1.0f);
             }
-        });
-        
-        // PointLight 组件
-        DrawComponent<PointLightComponent>("Point Light", entity, [](PointLightComponent& light)
-        {
-            ImGui::ColorEdit3("Color", glm::value_ptr(light.Color));
-            ImGui::DragFloat("Intensity", &light.Intensity, 0.1f, 0.0f, 100.0f);
-            ImGui::DragFloat("Range", &light.Range, 0.1f, 0.1f, 1000.0f);
-        });
-
-        // SpotLight 组件
-        DrawComponent<SpotLightComponent>("Spot Light", entity, [](SpotLightComponent& light)
-        {
-            ImGui::ColorEdit3("Color", glm::value_ptr(light.Color));
-            ImGui::DragFloat("Intensity", &light.Intensity, 0.1f, 0.0f, 100.0f);
-            ImGui::DragFloat("Range", &light.Range, 0.1f, 0.1f, 1000.0f);
-            ImGui::DragFloat("Inner Cutoff", &light.InnerCutoffAngle, 0.5f, 0.0f, light.OuterCutoffAngle);
-            ImGui::DragFloat("Outer Cutoff", &light.OuterCutoffAngle, 0.5f, light.InnerCutoffAngle, 90.0f);
         });
         
         // MeshFilter 组件

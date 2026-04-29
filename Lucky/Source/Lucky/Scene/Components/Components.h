@@ -9,6 +9,4 @@
 #include "MeshFilterComponent.h"
 #include "MeshRendererComponent.h"
 
-#include "DirectionalLightComponent.h"
-#include "PointLightComponent.h"
-#include "SpotLightComponent.h"
+#include "LightComponent.h"
