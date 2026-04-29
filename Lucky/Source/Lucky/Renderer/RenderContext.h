@@ -59,6 +59,9 @@ namespace Lucky
         // ---- FBO 引用 ----
         Ref<Framebuffer> TargetFramebuffer;     // 主 FBO（OpaquePass / PickingPass / OutlineCompositePass 使用）
         
+        // ---- 清屏颜色（由 SceneViewportPanel 设置，传递给 HDR FBO 清屏） ----
+        glm::vec4 ClearColor = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+        
         // ---- 阴影数据 ----
         bool ShadowEnabled = false;                     // 是否启用阴影
         glm::mat4 LightSpaceMatrix = glm::mat4(1.0f);   // 光源空间矩阵（正交投影 × 光源视图）
@@ -66,6 +69,11 @@ namespace Lucky
         float ShadowBias = 0.005f;                      // 阴影偏移（减少 Shadow Acne）
         float ShadowStrength = 1.0f;                    // 阴影强度 [0, 1]
         ShadowType ShadowShadowType = ShadowType::None; // 阴影类型（Hard/Soft）
+        
+        // ---- HDR / Tonemapping 数据 ----
+        Ref<Framebuffer> HDR_FBO;               // HDR FBO（由 PostProcessPass 提供，Main 分组 Pass 渲染到此 FBO）
+        float Exposure = 1.0f;                  // 曝光值
+        int TonemapMode = 1;                    // Tonemapping 模式（0=Reinhard, 1=ACES, 2=Uncharted2）
         
         // ---- 统计数据（可写） ----
         Renderer3D::Statistics* Stats = nullptr;    // 渲染统计（DrawCalls、TriangleCount）

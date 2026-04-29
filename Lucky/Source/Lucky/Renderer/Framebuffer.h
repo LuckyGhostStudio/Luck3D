@@ -12,6 +12,7 @@ namespace Lucky
         None = 0,
 
         RGBA8,                      // 颜色 RGBA
+        RGBA16F,                    // HDR 浮点颜色（半精度浮点，用于 HDR 渲染）
         RED_INTEGER,                // 红色整型
 
         DEFPTH24STENCIL8,           // 深度模板（深度24位 + 模板8位，不可采样）
@@ -136,6 +137,13 @@ namespace Lucky
         /// 仅当深度附件格式为 DEPTH_COMPONENT 时有意义
         /// </summary>
         uint32_t GetDepthAttachmentRendererID() const { return m_DepthAttachment; }
+
+        /// <summary>
+        /// 将当前 FBO 的深度缓冲区 Blit 到目标 FBO
+        /// 用于将 HDR FBO 的深度信息复制到主 FBO（使 Gizmo 能被场景物体正确遮挡）
+        /// </summary>
+        /// <param name="target">目标 FBO</param>
+        void BlitDepthTo(const Ref<Framebuffer>& target) const;
     private:
         uint32_t m_RendererID = 0;                  // 帧缓冲区 ID
         

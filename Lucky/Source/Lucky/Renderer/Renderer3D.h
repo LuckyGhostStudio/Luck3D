@@ -148,6 +148,11 @@ namespace Lucky
         static void SetTargetFramebuffer(const Ref<Framebuffer>& framebuffer);
         
         /// <summary>
+        /// 设置视口清屏颜色（传递给 HDR FBO 清屏，保持背景颜色一致）
+        /// </summary>
+        static void SetClearColor(const glm::vec4& color);
+        
+        /// <summary>
         /// 设置需要描边的实体 ID 集合
         /// 在 SceneViewportPanel::OnUpdate 中调用，位于 BeginScene() 之前
         /// 空集合表示无选中
@@ -176,5 +181,27 @@ namespace Lucky
         /// 获取渲染管线（用于外部访问特定 Pass，如 Resize）
         /// </summary>
         static RenderPipeline& GetPipeline();
+        
+        // ---- HDR / Tonemapping 控制 ----
+        
+        /// <summary>
+        /// 设置曝光值
+        /// </summary>
+        static void SetExposure(float exposure);
+        
+        /// <summary>
+        /// 获取曝光值
+        /// </summary>
+        static float GetExposure();
+        
+        /// <summary>
+        /// 设置 Tonemapping 模式（0=Reinhard, 1=ACES, 2=Uncharted2）
+        /// </summary>
+        static void SetTonemapMode(int mode);
+        
+        /// <summary>
+        /// 获取 Tonemapping 模式
+        /// </summary>
+        static int GetTonemapMode();
     };
 }

@@ -2,6 +2,8 @@
 
 #include "Lucky/Renderer/RenderCommand.h"
 #include "Lucky/Renderer/Renderer3D.h"
+#include "Lucky/Renderer/RenderPipeline.h"
+#include "Lucky/Renderer/Passes/PostProcessPass.h"
 
 #include "Lucky/Core/Input/Input.h"
 #include "Lucky/Scene/SelectionManager.h"
@@ -64,10 +66,11 @@ namespace Lucky
         RenderCommand::SetClearColor(colors.ViewportClearColor);
         RenderCommand::Clear();
 
-        m_Framebuffer->ClearAttachment(1, -1);  // 清除 Entity ID 缓冲区为 -1（无实体）
-
         // 传入主 FBO 引用（用于 Outline Pass 阶段 2 重新绑定）
         Renderer3D::SetTargetFramebuffer(m_Framebuffer);
+        
+        // 传递清屏颜色给渲染器（HDR FBO 使用相同的清屏颜色）
+        Renderer3D::SetClearColor(colors.ViewportClearColor);
         
         // 设置描边实体集合和描边颜色
         UUID selectedUUID = SelectionManager::GetSelection();
@@ -353,9 +356,22 @@ namespace Lucky
         // 检查是否在视口范围内
 		if (mouseX >= 0 && mouseY >= 0 && mouseX < static_cast<int>(viewportWidth) && mouseY < static_cast<int>(viewportHeight))
         {
-            m_Framebuffer->Bind();
-            int pixelData = m_Framebuffer->GetPixel(1, mouseX, mouseY);
-            m_Framebuffer->Unbind();
+            // 从 HDR FBO 读取 Entity ID（PickingPass 渲染到 HDR FBO 的 Attachment 1）
+            int pixelData = -1;
+            auto postProcessPass = Renderer3D::GetPipeline().GetPass<PostProcessPass>();
+            if (postProcessPass)
+            {
+                const auto& hdrFBO = postProcessPass->GetHDR_FBO();
+                hdrFBO->Bind();
+                pixelData = hdrFBO->GetPixel(1, mouseX, mouseY);
+                hdrFBO->Unbind();
+            }
+            else
+            {
+                m_Framebuffer->Bind();
+                pixelData = m_Framebuffer->GetPixel(1, mouseX, mouseY);
+                m_Framebuffer->Unbind();
+            }
 
             if (pixelData == -1)
             {

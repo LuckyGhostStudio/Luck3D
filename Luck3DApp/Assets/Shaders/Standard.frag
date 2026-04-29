@@ -95,8 +95,5 @@ void main()
     // ---- 最终颜色 = 环境光 + 直接光照 + 自发光 ----
     vec3 color = ambient + Lo + emission;
 
-    // ---- Gamma 校正（线性空间 → sRGB） ----
-    color = pow(color, vec3(1.0 / 2.2));
-
     o_Color = vec4(color, alpha);
 }

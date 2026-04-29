@@ -11,6 +11,7 @@
 #include "Passes/ShadowPass.h"
 #include "Passes/OpaquePass.h"
 #include "Passes/PickingPass.h"
+#include "Passes/PostProcessPass.h"
 #include "Passes/SilhouettePass.h"
 #include "Passes/OutlineCompositePass.h"
 
@@ -91,6 +92,13 @@ namespace Lucky
         float ShadowBias = 0.005f;                      // 阴影偏移（从组件读取）
         float ShadowStrength = 1.0f;                    // 阴影强度（从组件读取）
         ShadowType ShadowShadowType = ShadowType::None; // 阴影类型（从组件读取）
+        
+        // ======== HDR / Tonemapping 数据 ========
+        float Exposure = 1.0f;      // 曝光值
+        int TonemapMode = 1;        // Tonemapping 模式（0=Reinhard, 1=ACES, 2=Uncharted2）
+        
+        // ======== 清屏颜色 ========
+        glm::vec4 ClearColor = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);  // 视口清屏颜色（由外部设置）
     };
 
     static Renderer3DData s_Data;   // 渲染器数据
@@ -100,15 +108,16 @@ namespace Lucky
         s_Data.ShaderLib = CreateRef<ShaderLibrary>();  // 创建着色器库
         
         // 加载引擎内部着色器（路径包含 /Internal/，自动标记为 Internal，不在 Inspector 中显示）
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/InternalError");             // 内部错误着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/EntityID");                  // Entity ID 拾取着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Outline/Silhouette");        // 描边轮廓着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Outline/OutlineComposite");  // 描边合成着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Shadow/Shadow");             // 阴影着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/InternalError");            // 内部错误着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/EntityID");                 // Entity ID 拾取着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Outline/Silhouette");       // 描边轮廓着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Outline/OutlineComposite"); // 描边合成着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Shadow/Shadow");            // 阴影着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Tonemapping/Tonemapping");  // Tonemapping 着色器
 
         // 加载用户可见着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Standard");  // 默认着色器
-        
+
         s_Data.InternalErrorShader = s_Data.ShaderLib->Get("InternalError");
         s_Data.StandardShader = s_Data.ShaderLib->Get("Standard");
         
@@ -149,18 +158,21 @@ namespace Lucky
         auto shadowPass = CreateRef<ShadowPass>();
         auto opaquePass = CreateRef<OpaquePass>();
         auto pickingPass = CreateRef<PickingPass>();
+        auto postProcessPass = CreateRef<PostProcessPass>();
         auto silhouettePass = CreateRef<SilhouettePass>();
         auto outlineCompositePass = CreateRef<OutlineCompositePass>();
         
         // 设置 Pass 之间的依赖
         outlineCompositePass->SetSilhouettePass(silhouettePass);
         
-        // 按顺序添加 Pass（执行顺序：Shadow → Main → Outline）
+        // 按顺序添加 Pass（执行顺序：Shadow → Main → PostProcess → Outline）
         // 注意：ShadowPass 和 OpaquePass/PickingPass 在 EndScene() 中执行
+        //       PostProcessPass 在 EndScene() 中执行（Main 之后）
         //       SilhouettePass 和 OutlineCompositePass 在 RenderOutline() 中执行
         s_Data.Pipeline.AddPass(shadowPass);
         s_Data.Pipeline.AddPass(opaquePass);
         s_Data.Pipeline.AddPass(pickingPass);
+        s_Data.Pipeline.AddPass(postProcessPass);
         s_Data.Pipeline.AddPass(silhouettePass);
         s_Data.Pipeline.AddPass(outlineCompositePass);
         
@@ -241,6 +253,7 @@ namespace Lucky
         RenderContext context;
         context.OpaqueDrawCommands = &s_Data.OpaqueDrawCommands;
         context.TargetFramebuffer = s_Data.TargetFramebuffer;
+        context.ClearColor = s_Data.ClearColor;
         context.Stats = &s_Data.Stats;
         
         // 阴影数据
@@ -257,11 +270,23 @@ namespace Lucky
             context.ShadowMapTextureID = shadowPass->GetShadowMapTextureID();
         }
         
+        // HDR / Tonemapping 数据
+        auto postProcessPass = s_Data.Pipeline.GetPass<PostProcessPass>();
+        if (postProcessPass)
+        {
+            context.HDR_FBO = postProcessPass->GetHDR_FBO();
+        }
+        context.Exposure = s_Data.Exposure;
+        context.TonemapMode = s_Data.TonemapMode;
+        
         // ---- 执行 Shadow 分组（ShadowPass） ----
         s_Data.Pipeline.ExecuteGroup("Shadow", context);
         
-        // ---- 执行 Main 分组（OpaquePass + PickingPass） ----
+        // ---- 执行 Main 分组（OpaquePass + PickingPass → HDR FBO） ----
         s_Data.Pipeline.ExecuteGroup("Main", context);
+        
+        // ---- 执行 PostProcess 分组（PostProcessPass → 主 FBO） ----
+        s_Data.Pipeline.ExecuteGroup("PostProcess", context);
 
         // ======== 提取描边物体到独立列表 ========
         // 将描边所需的最小几何数据从 OpaqueDrawCommands 中提取到 OutlineDrawCommands
@@ -373,6 +398,11 @@ namespace Lucky
         s_Data.TargetFramebuffer = framebuffer;
     }
 
+    void Renderer3D::SetClearColor(const glm::vec4& color)
+    {
+        s_Data.ClearColor = color;
+    }
+
     void Renderer3D::SetOutlineEntities(const std::unordered_set<int>& entityIDs)
     {
         s_Data.OutlineEntityIDs = entityIDs;
@@ -391,6 +421,26 @@ namespace Lucky
     RenderPipeline& Renderer3D::GetPipeline()
     {
         return s_Data.Pipeline;
+    }
+
+    void Renderer3D::SetExposure(float exposure)
+    {
+        s_Data.Exposure = exposure;
+    }
+
+    float Renderer3D::GetExposure()
+    {
+        return s_Data.Exposure;
+    }
+
+    void Renderer3D::SetTonemapMode(int mode)
+    {
+        s_Data.TonemapMode = mode;
+    }
+
+    int Renderer3D::GetTonemapMode()
+    {
+        return s_Data.TonemapMode;
     }
 
     void Renderer3D::RenderOutline()

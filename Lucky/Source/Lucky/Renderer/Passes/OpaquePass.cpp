@@ -8,6 +8,23 @@ namespace Lucky
 {
     void OpaquePass::Execute(const RenderContext& context)
     {
+        // ---- 绑定 HDR FBO 作为渲染目标（如果可用） ----
+        if (context.HDR_FBO)
+        {
+            context.HDR_FBO->Bind();
+            
+            // 将清屏颜色从 sRGB 空间转换到线性空间
+            // 用户设置的清屏颜色是 sRGB 值，HDR FBO 工作在线性空间
+            // 后续 Tonemapping + Gamma 校正会将线性值转回 sRGB，确保最终显示与用户设置一致
+            glm::vec4 linearClearColor = glm::vec4(
+                glm::pow(glm::vec3(context.ClearColor), glm::vec3(2.2f)),
+                context.ClearColor.a
+            );
+            RenderCommand::SetClearColor(linearClearColor);
+            RenderCommand::Clear();
+            context.HDR_FBO->ClearAttachment(1, -1);  // 清除 Entity ID 缓冲区
+        }
+        
         if (!context.OpaqueDrawCommands || context.OpaqueDrawCommands->empty())
         {
             return;

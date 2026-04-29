@@ -133,6 +133,7 @@ namespace Lucky
             switch (format)
             {
                 case FramebufferTextureFormat::RGBA8:       return GL_RGBA8;
+                case FramebufferTextureFormat::RGBA16F:     return GL_RGBA16F;
                 case FramebufferTextureFormat::RED_INTEGER: return GL_RED_INTEGER;
             }
 
@@ -210,6 +211,25 @@ namespace Lucky
                     case FramebufferTextureFormat::RGBA8:
                         Utils::AttachColorTexture(m_ColorAttachments[i], m_Specification.Samples, GL_RGBA8, GL_RGBA, m_Specification.Width, m_Specification.Height, i);
                         break;
+                    // HDR 浮点纹理
+                    case FramebufferTextureFormat::RGBA16F:
+                    {
+                        bool ms = m_Specification.Samples > 1;
+                        if (ms)
+                        {
+                            glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, m_Specification.Samples, GL_RGBA16F, m_Specification.Width, m_Specification.Height, GL_FALSE);
+                        }
+                        else
+                        {
+                            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, m_Specification.Width, m_Specification.Height, 0, GL_RGBA, GL_FLOAT, nullptr);
+                            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                        }
+                        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, Utils::TextureTarget(ms), m_ColorAttachments[i], 0);
+                        break;
+                    }
                     // 红色整型
                     case FramebufferTextureFormat::RED_INTEGER:
                         Utils::AttachColorTexture(m_ColorAttachments[i], m_Specification.Samples, GL_R32I, GL_RED_INTEGER, m_Specification.Width, m_Specification.Height, i);
@@ -317,5 +337,21 @@ namespace Lucky
             GL_INT,
             &(value)
         );
+    }
+
+    void Framebuffer::BlitDepthTo(const Ref<Framebuffer>& target) const
+    {
+        // 将当前 FBO 的深度缓冲区复制到目标 FBO
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, m_RendererID);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target->m_RendererID);
+
+        glBlitFramebuffer(
+            0, 0, m_Specification.Width, m_Specification.Height,
+            0, 0, target->m_Specification.Width, target->m_Specification.Height,
+            GL_DEPTH_BUFFER_BIT, GL_NEAREST
+        );
+
+        // 恢复绑定状态（绑定到目标 FBO，因为调用方通常在目标 FBO 上继续操作）
+        glBindFramebuffer(GL_FRAMEBUFFER, target->m_RendererID);
     }
 }
