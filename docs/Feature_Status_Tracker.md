@@ -1,6 +1,6 @@
 # Luck3D 引擎功能盘点与状态追踪
 
-> **文档版本**：v1.1  
+> **文档版本**：v1.2  
 > **创建日期**：2026-04-29  
 > **更新日期**：2026-04-30  
 > **文档说明**：本文档全面盘点 Luck3D 引擎的功能实现状态，对标简化版 Unity / 通用 3D 游戏引擎的功能集，追踪距离第一个可发布版本（MVP）的差距。**每次功能更新后请同步更新本文档。**
@@ -11,6 +11,7 @@
 
 | 日期 | 版本 | 更新内容 |
 |------|------|----------|
+| 2026-04-30 | v1.2 | 完成 R-TODO-03 透明物体渲染、R21 Translucent Shadow Map，移至已实现；新增 R-TODO-MAT1 Material Semantic Mapping（设计文档已完成，代码待实现） |
 | 2026-04-30 | v1.1 | 完成 R-TODO-01 HDR+Tonemapping、R-TODO-02 后处理框架（Bloom/FXAA/Vignette）、R-TODO-04 Per-Material RenderState，移至已实现 |
 | 2026-04-29 | v1.0 | 初始版本，全面盘点已实现与未实现功能 |
 
@@ -49,7 +50,7 @@
 | 模块 | 完成度 | 已实现 | 未实现 | 说明 |
 |------|--------|--------|--------|------|
 | 核心基础设施（Core） | ?? 90% | 10 | 1 | 基本完善，缺少异步事件队列 |
-| 渲染系统（Renderer） | ?? 85% | 28 | 8 | 核心管线完整，HDR/后处理/Per-Material RenderState 已完成，缺透明渲染/天空盒/IBL/CSM |
+| 渲染系统（Renderer） | ?? 88% | 30 | 7 | 核心管线完整，HDR/后处理/Per-Material RenderState/透明渲染/Translucent Shadow 已完成，缺天空盒/IBL/CSM/Material Semantic |
 | 场景与 ECS（Scene） | ?? 65% | 9 | 6 | 基础完善，缺 Camera 组件/Play Mode |
 | 序列化系统（Serialization） | ?? 85% | 6 | 1 | 基本完善，缺独立材质文件 |
 | 编辑器（Editor） | ?? 60% | 14 | 10 | 框架完善，缺 Undo/Console/ContentBrowser |
@@ -158,6 +159,8 @@
 | R-33 | Vignette 暗角 | ? 已完成 | `Renderer/Effects/VignetteEffect.h/cpp`、`Shaders/Internal/PostProcess/Vignette.frag` | LDR 空间暗角效果 |
 | R-34 | Per-Material RenderState | ? 已完成 | `Renderer/Material.h/cpp`、`Renderer/RenderState.h` | Material 持有 RenderState + RenderingMode 预设（Opaque/Cutout/Transparent/Fade）+ OpaquePass 状态跟踪 + Inspector UI |
 | R-35 | PostProcessVolumeComponent | ? 已完成 | `Scene/Components/PostProcessVolumeComponent.h` | 场景层后处理参数控制组件 |
+| R-36 | 透明物体渲染 | ? 已完成 | `Renderer/Passes/TransparentPass.h/cpp` | 透明物体排序（从远到近）+ 独立 TransparentPass + Alpha 混合 |
+| R-37 | Translucent Shadow Map | ? 已完成 | `Renderer/Passes/ShadowPass.h/cpp`、`Shaders/Lucky/Shadow.glsl` | 透明物体阴影投射：Dithered Shadow + 乘法混合颜色衰减 |
 
 ---
 
@@ -250,7 +253,6 @@
 
 | # | 功能 | 优先级 | 说明 | 参考引擎 |
 |---|------|--------|------|----------|
-| R-TODO-03 | **透明物体渲染** | ?? P1 | Per-Material RenderState 已就位，需要透明物体排序和 TransparentPass | Unity |
 | R-TODO-05 | **级联阴影 (CSM)** | ?? P1 | 当前阴影使用固定正交范围，大场景精度不足 | Unity |
 | R-TODO-06 | **IBL 环境光** | ?? P1 | 当前环境光为简单常量 `vec3(0.03)`，缺乏环境反射 | Unity / Hazel |
 | R-TODO-07 | **天空盒 / Skybox** | ?? P1 | 无天空盒渲染，背景为纯色 | 基本引擎标配 |
@@ -258,6 +260,7 @@
 | R-TODO-09 | **LOD 系统** | ?? P2 | 无多级细节 | Unity |
 | R-TODO-10 | **Deferred Rendering** | ?? P2 | 当前 Forward 渲染，光源多时性能差 | 可选架构 |
 | R-TODO-11 | **GPU Instancing** | ?? P2 | 无实例化渲染 | Unity |
+| R-TODO-MAT1 | **Material Semantic Mapping** | ?? P1 | ShadowPass 硬编码 u_Albedo/u_AlbedoMap 属性名，需通过语义映射兼容自定义 Shader。设计文档已完成（PhaseR22），代码待实现 | Unity / Unreal |
 
 ---
 
