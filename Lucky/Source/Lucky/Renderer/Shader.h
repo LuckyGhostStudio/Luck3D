@@ -23,7 +23,8 @@ namespace Lucky
         Float, Float2, Float3, Float4,
         Int,
         Mat3, Mat4,
-        Sampler2D
+        Sampler2D,
+        SamplerCube     // Cubemap ÎÆÀí£¨Ìì¿ÕºÐ¡¢IBL µÈ£©
     };
     
     /// <summary>

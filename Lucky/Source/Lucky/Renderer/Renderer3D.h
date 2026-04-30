@@ -188,5 +188,17 @@ namespace Lucky
         /// 设置后处理参数（由 Scene 收集 Volume 后调用）
         /// </summary>
 		static void SetPostProcessSettings(const PostProcessSettings& settings);
+        
+        /// <summary>
+        /// 设置天空盒材质（Material 驱动方案）
+        /// Material 包含 Skybox Shader + TextureCube + 参数（旋转/曝光/色调）
+        /// </summary>
+        /// <param name="material">天空盒材质（nullptr 表示禁用天空盒）</param>
+        static void SetSkyboxMaterial(const Ref<Material>& material);
+        
+        /// <summary>
+        /// 获取当前天空盒材质
+        /// </summary>
+        static const Ref<Material>& GetSkyboxMaterial();
     };
 }

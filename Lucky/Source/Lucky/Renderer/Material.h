@@ -5,6 +5,7 @@
 
 #include "Shader.h"
 #include "Texture.h"
+#include "TextureCube.h"
 #include "RenderState.h"
 
 namespace Lucky
@@ -17,10 +18,11 @@ namespace Lucky
         glm::vec2,          // Float2
         glm::vec3,          // Float3
         glm::vec4,          // Float4
-        int,                // Int / Sampler2D（纹理槽索引）
+        int,                // Int / Sampler2D????o1????§??′￠??????
         glm::mat3,          // Mat3
         glm::mat4,          // Mat4
-        Ref<Texture2D>      // Sampler2D（纹理对象引用）
+        Ref<Texture2D>,     // Sampler2D????o1????ˉ1è±??????¨???
+        Ref<TextureCube>    // SamplerCube???Cubemap ?o1????ˉ1è±??????¨???
     >;
     
     /// <summary>
@@ -68,6 +70,7 @@ namespace Lucky
         void SetMat3(const std::string& name, const glm::mat3& value);
         void SetMat4(const std::string& name, const glm::mat4& value);
         void SetTexture(const std::string& name, const Ref<Texture2D>& texture);
+        void SetTextureCube(const std::string& name, const Ref<TextureCube>& texture);
 
         // ---- 获取材质属性值 ----
 
@@ -79,6 +82,7 @@ namespace Lucky
         glm::mat3 GetMat3(const std::string& name) const;
         glm::mat4 GetMat4(const std::string& name) const;
         Ref<Texture2D> GetTexture(const std::string& name) const;
+        Ref<TextureCube> GetTextureCube(const std::string& name) const;
 
         /// <summary>
         /// 按名获取属性指针（未找到返回 nullptr）

@@ -10,6 +10,7 @@
 
 #include "Passes/ShadowPass.h"
 #include "Passes/OpaquePass.h"
+#include "Passes/SkyboxPass.h"
 #include "Passes/TransparentPass.h"
 #include "Passes/PickingPass.h"
 #include "Passes/PostProcessPass.h"
@@ -102,6 +103,13 @@ namespace Lucky
         // ======== 清屏颜色 ========
         glm::vec4 ClearColor = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);  // 视口清屏颜色（由外部设置）
         
+        // ======== 天空盒数据（Material 驱动） ========
+        Ref<Material> SkyboxMaterial;       // 天空盒材质（nullptr 表示不渲染天空盒）
+        
+        // ======== 相机矩阵缓存（SkyboxPass 需要） ========
+        glm::mat4 CameraViewMatrix = glm::mat4(1.0f);           // 相机 View 矩阵
+        glm::mat4 CameraProjectionMatrix = glm::mat4(1.0f);     // 相机 Projection 矩阵
+        
         // ======== 后处理参数 ========
         PostProcessSettings PostProcess;    // 后处理参数（由 Scene 收集 Volume 后传入）
     };
@@ -124,6 +132,7 @@ namespace Lucky
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/BloomComposite");   // Bloom 合成着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/FXAA");             // FXAA 着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/Vignette");         // Vignette 着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Skybox");                        // 天空盒着色器
 
         // 加载用户可见着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Standard");  // 默认着色器
@@ -167,6 +176,7 @@ namespace Lucky
         // ======== 创建渲染管线 ========
         auto shadowPass = CreateRef<ShadowPass>();
         auto opaquePass = CreateRef<OpaquePass>();
+        auto skyboxPass = CreateRef<SkyboxPass>();
         auto transparentPass = CreateRef<TransparentPass>();
         auto pickingPass = CreateRef<PickingPass>();
         auto postProcessPass = CreateRef<PostProcessPass>();
@@ -182,6 +192,7 @@ namespace Lucky
         //       SilhouettePass 和 OutlineCompositePass 在 RenderOutline() 中执行
         s_Data.Pipeline.AddPass(shadowPass);
         s_Data.Pipeline.AddPass(opaquePass);
+        s_Data.Pipeline.AddPass(skyboxPass);
         s_Data.Pipeline.AddPass(transparentPass);
         s_Data.Pipeline.AddPass(pickingPass);
         s_Data.Pipeline.AddPass(postProcessPass);
@@ -269,6 +280,10 @@ namespace Lucky
     
         // 缓存相机位置
         s_Data.CameraPosition = camera.GetPosition();
+        
+        // 缓存相机矩阵（SkyboxPass 需要 View/Projection 矩阵）
+        s_Data.CameraViewMatrix = camera.GetViewMatrix();
+        s_Data.CameraProjectionMatrix = camera.GetProjectionMatrix();
     }
 
     void Renderer3D::EndScene()
@@ -308,6 +323,11 @@ namespace Lucky
             context.TranslucentShadowMapTextureID = shadowPass->GetTranslucentShadowMapTextureID();
             context.TranslucentShadowEnabled = true;  // 默认启用 Translucent Shadow Map
         }
+        
+        // 天空盒数据
+        context.SkyboxMaterial = s_Data.SkyboxMaterial;
+        context.SkyboxViewMatrix = s_Data.CameraViewMatrix;
+        context.SkyboxProjectionMatrix = s_Data.CameraProjectionMatrix;
         
         // HDR / 后处理数据
         auto postProcessPass = s_Data.Pipeline.GetPass<PostProcessPass>();
@@ -519,6 +539,16 @@ namespace Lucky
                 vignette->VignetteSmoothness = settings.VignetteSmoothness;
             }
         }
+    }
+
+    void Renderer3D::SetSkyboxMaterial(const Ref<Material>& material)
+    {
+        s_Data.SkyboxMaterial = material;
+    }
+
+    const Ref<Material>& Renderer3D::GetSkyboxMaterial()
+    {
+        return s_Data.SkyboxMaterial;
     }
 
     void Renderer3D::RenderOutline()

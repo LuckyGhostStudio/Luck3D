@@ -24,6 +24,7 @@ namespace Lucky
             case GL_FLOAT_MAT3:     return ShaderUniformType::Mat3;
             case GL_FLOAT_MAT4:     return ShaderUniformType::Mat4;
             case GL_SAMPLER_2D:     return ShaderUniformType::Sampler2D;
+            case GL_SAMPLER_CUBE:   return ShaderUniformType::SamplerCube;
             default:
                 LF_CORE_WARN("Unsupported GL uniform type: {0}", type);
                 return ShaderUniformType::None;

@@ -7,6 +7,8 @@
 #include "Panels/InspectorPanel.h"
 
 #include "Lucky/Renderer/MeshFactory.h"
+#include "Lucky/Renderer/TextureCube.h"
+#include "Lucky/Renderer/Material.h"
 
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/SelectionManager.h"
@@ -15,6 +17,8 @@
 
 #include "Lucky/Serialization//SceneSerializer.h"
 #include "Lucky/Asset/MeshImporter.h"
+
+#include <filesystem>
 
 namespace Lucky
 {
@@ -58,6 +62,42 @@ namespace Lucky
         // 设置初始方向斜向下
         TransformComponent& transform = lightEntity.GetComponent<TransformComponent>();
         transform.SetRotationEuler(glm::vec3(glm::radians(50.0f), glm::radians(-32.0f), 0.0f));
+
+        // ======== 天空盒测试（硬编码加载 6 面 Cubemap） ========
+        // 天空盒纹理路径（放置在 Assets/Textures/Skybox/ 目录下）
+        const std::string skyboxDir = "Assets/Textures/Skybox/";
+        std::array skyboxFaces = {
+            skyboxDir + "right.jpg",    // +X
+            skyboxDir + "left.jpg",     // -X
+            skyboxDir + "top.jpg",      // +Y
+            skyboxDir + "bottom.jpg",   // -Y
+            skyboxDir + "front.jpg",    // +Z
+            skyboxDir + "back.jpg"      // -Z
+        };
+        
+        // 检查天空盒纹理文件是否存在
+        if (std::filesystem::exists(skyboxFaces[0]))
+        {
+            // 加载 Cubemap 纹理
+            auto skyboxCubemap = TextureCube::Create(skyboxFaces);
+            
+            // 获取 Skybox Shader 并创建材质
+            auto skyboxShader = Renderer3D::GetShaderLibrary()->Get("Skybox");
+            auto skyboxMaterial = Material::Create(skyboxShader);
+            skyboxMaterial->SetName("Skybox Material");
+            
+            // 设置 Cubemap 纹理到材质
+            skyboxMaterial->SetTextureCube("u_SkyboxMap", skyboxCubemap);
+            
+            // 设置天空盒材质到渲染器
+            Renderer3D::SetSkyboxMaterial(skyboxMaterial);
+            
+            LF_INFO("Skybox loaded successfully from: {0}", skyboxDir);
+        }
+        else
+        {
+            LF_WARN("Skybox textures not found at: {0} (skipping skybox)", skyboxDir);
+        }
 
         auto commandLineArgs = Application::GetInstance().GetSpecification().CommandLineArgs;
         // 从命令行加载场景

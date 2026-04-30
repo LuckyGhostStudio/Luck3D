@@ -105,6 +105,11 @@ namespace Lucky
         float ShadowStrength = 1.0f;                    // 阴影强度 [0, 1]
         ShadowType ShadowShadowType = ShadowType::None; // 阴影类型（Hard/Soft）
         
+        // ---- 天空盒数据（Material 驱动） ----
+        Ref<Material> SkyboxMaterial;                              // 天空盒材质（nullptr 表示不渲染天空盒）
+        glm::mat4 SkyboxViewMatrix = glm::mat4(1.0f);              // 相机 View 矩阵（SkyboxPass 用于移除平移分量）
+        glm::mat4 SkyboxProjectionMatrix = glm::mat4(1.0f);        // 相机 Projection 矩阵
+        
         // ---- HDR / 后处理数据 ----
         Ref<Framebuffer> HDR_FBO;               // HDR FBO（由 PostProcessPass 提供，Main 分组 Pass 渲染到此 FBO）
         PostProcessSettings PostProcess;        // 后处理参数

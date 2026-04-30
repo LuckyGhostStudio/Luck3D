@@ -21,6 +21,8 @@ namespace Lucky
             "u_ShadowStrength",         // 阴影强度
             "u_ShadowEnabled",          // 阴影开关
             "u_ShadowType",             // 阴影类型
+            // ---- 天空盒系统：由 SkyboxPass 自动计算设置 ----
+            "u_SkyboxVP",              // 天空盒 VP 矩阵（移除 View 平移分量）
         };
 
         return s_InternalUniforms.find(name) != s_InternalUniforms.end();
@@ -43,6 +45,7 @@ namespace Lucky
             case ShaderUniformType::Mat3:       return glm::mat3(1.0f);
             case ShaderUniformType::Mat4:       return glm::mat4(1.0f);
             case ShaderUniformType::Sampler2D:  return Ref<Texture2D>(nullptr);
+            case ShaderUniformType::SamplerCube: return Ref<TextureCube>(nullptr);
             default:                            return 0.0f;
         }
     }
@@ -154,6 +157,15 @@ namespace Lucky
         }
     }
 
+    void Material::SetTextureCube(const std::string& name, const Ref<TextureCube>& texture)
+    {
+        MaterialProperty* prop = FindProperty(name);
+        if (prop && prop->Type == ShaderUniformType::SamplerCube)
+        {
+            prop->Value = texture;
+        }
+    }
+
     // ---- 属性获取方法 Begin ----
 
     float Material::GetFloat(const std::string& name) const
@@ -232,6 +244,16 @@ namespace Lucky
         if (prop && prop->Type == ShaderUniformType::Sampler2D)
         {
             return std::get<Ref<Texture2D>>(prop->Value);
+        }
+        return nullptr;
+    }
+
+    Ref<TextureCube> Material::GetTextureCube(const std::string& name) const
+    {
+        const MaterialProperty* prop = FindProperty(name);
+        if (prop && prop->Type == ShaderUniformType::SamplerCube)
+        {
+            return std::get<Ref<TextureCube>>(prop->Value);
         }
         return nullptr;
     }
@@ -327,6 +349,28 @@ namespace Lucky
                     m_Shader->SetInt(prop.Name, textureSlot);  // 设置纹理槽位 index
                     textureSlot++;
                         
+                    break;
+                }
+                case ShaderUniformType::SamplerCube:
+                {
+                    // Cubemap 纹理
+                    if (textureSlot >= 32)
+                    {
+                        LF_CORE_WARN("Texture slot count out of max 32! TextureCube '{0}' will be ignored", prop.Name);
+                        break;
+                    }
+
+                    const Ref<TextureCube>& textureCube = std::get<Ref<TextureCube>>(prop.Value);
+
+                    if (textureCube)
+                    {
+                        textureCube->Bind(textureSlot);
+                    }
+                    // 注意：Cubemap 没有默认纹理，未设置时不绑定
+
+                    m_Shader->SetInt(prop.Name, textureSlot);
+                    textureSlot++;
+
                     break;
                 }
                 default:
