@@ -1,8 +1,8 @@
 # Luck3D 引擎功能盘点与状态追踪
 
-> **文档版本**：v1.0  
+> **文档版本**：v1.1  
 > **创建日期**：2026-04-29  
-> **更新日期**：2026-04-29  
+> **更新日期**：2026-04-30  
 > **文档说明**：本文档全面盘点 Luck3D 引擎的功能实现状态，对标简化版 Unity / 通用 3D 游戏引擎的功能集，追踪距离第一个可发布版本（MVP）的差距。**每次功能更新后请同步更新本文档。**
 
 ---
@@ -11,6 +11,7 @@
 
 | 日期 | 版本 | 更新内容 |
 |------|------|----------|
+| 2026-04-30 | v1.1 | 完成 R-TODO-01 HDR+Tonemapping、R-TODO-02 后处理框架（Bloom/FXAA/Vignette）、R-TODO-04 Per-Material RenderState，移至已实现 |
 | 2026-04-29 | v1.0 | 初始版本，全面盘点已实现与未实现功能 |
 
 ---
@@ -43,12 +44,12 @@
 
 ## 一、功能完成度总览
 
-> **整体完成度：约 40-45%**（相对于一个最小可发布的 3D 游戏引擎）
+> **整体完成度：约 45-50%**（相对于一个最小可发布的 3D 游戏引擎）
 
 | 模块 | 完成度 | 已实现 | 未实现 | 说明 |
 |------|--------|--------|--------|------|
 | 核心基础设施（Core） | ?? 90% | 10 | 1 | 基本完善，缺少异步事件队列 |
-| 渲染系统（Renderer） | ?? 75% | 25 | 11 | 核心管线完整，缺 HDR/后处理/透明 |
+| 渲染系统（Renderer） | ?? 85% | 28 | 8 | 核心管线完整，HDR/后处理/Per-Material RenderState 已完成，缺透明渲染/天空盒/IBL/CSM |
 | 场景与 ECS（Scene） | ?? 65% | 9 | 6 | 基础完善，缺 Camera 组件/Play Mode |
 | 序列化系统（Serialization） | ?? 85% | 6 | 1 | 基本完善，缺独立材质文件 |
 | 编辑器（Editor） | ?? 60% | 14 | 10 | 框架完善，缺 Undo/Console/ContentBrowser |
@@ -150,6 +151,13 @@
 | R-26 | Gizmo 渲染 | ? 已完成 | `Renderer/GizmoRenderer.h/cpp` | 线段批处理 + 无限网格 + 灯光可视化 + 坐标轴指示器 |
 | R-27 | EditorCamera | ? 已完成 | `Renderer/EditorCamera.h/cpp` | 轨道相机模型（焦点 + 距离 + Pitch/Yaw） |
 | R-28 | OpaquePass | ? 已完成 | `Renderer/Passes/OpaquePass.h/cpp` | 不透明物体渲染 Pass |
+| R-29 | HDR + Tonemapping | ? 已完成 | `Renderer/Passes/PostProcessPass.h/cpp`、`Shaders/Internal/PostProcess/Tonemapping.frag` | RGBA16F HDR FBO + 3 种 Tonemapping 模式（Reinhard/ACES/Uncharted2）+ Exposure 控制 |
+| R-30 | 后处理框架 | ? 已完成 | `Renderer/PostProcessStack.h/cpp`、`Renderer/PostProcessEffect.h` | PostProcessEffect 基类 + PostProcessStack FBO Ping-Pong + HDR/LDR 双空间 |
+| R-31 | Bloom 泛光 | ? 已完成 | `Renderer/Effects/BloomEffect.h/cpp`、`Shaders/Internal/PostProcess/BrightExtract.frag`、`GaussianBlur.frag`、`BloomComposite.frag` | 亮度提取 + 高斯模糊 + 合成，HDR 空间执行 |
+| R-32 | FXAA 抗锯齿 | ? 已完成 | `Renderer/Effects/FXAAEffect.h/cpp`、`Shaders/Internal/PostProcess/FXAA.frag` | LDR 空间快速近似抗锯齿 |
+| R-33 | Vignette 暗角 | ? 已完成 | `Renderer/Effects/VignetteEffect.h/cpp`、`Shaders/Internal/PostProcess/Vignette.frag` | LDR 空间暗角效果 |
+| R-34 | Per-Material RenderState | ? 已完成 | `Renderer/Material.h/cpp`、`Renderer/RenderState.h` | Material 持有 RenderState + RenderingMode 预设（Opaque/Cutout/Transparent/Fade）+ OpaquePass 状态跟踪 + Inspector UI |
+| R-35 | PostProcessVolumeComponent | ? 已完成 | `Scene/Components/PostProcessVolumeComponent.h` | 场景层后处理参数控制组件 |
 
 ---
 
@@ -168,7 +176,7 @@
 | S-06 | SelectionManager | ? 已完成 | `Scene/SelectionManager.h/cpp` | 全局选中管理 |
 | S-07 | 统一 LightComponent | ? 已完成 | `Scene/Components/LightComponent.h` | 单一组件通过 Type 区分（Directional/Point/Spot），含阴影参数 |
 
-**已实现的组件**（8 个）：
+**已实现的组件**（9 个）：
 
 | 组件 | 文件 | 说明 | 可移除 |
 |------|------|------|--------|
@@ -179,6 +187,7 @@
 | MeshFilterComponent | `MeshFilterComponent.h` | 持有 Mesh，可通过 PrimitiveType 或文件路径创建 | ? |
 | MeshRendererComponent | `MeshRendererComponent.h` | 持有材质列表，索引对应 SubMesh | ? |
 | LightComponent | `LightComponent.h` | 统一光源（Directional/Point/Spot）+ 阴影参数 | ? |
+| PostProcessVolumeComponent | `PostProcessVolumeComponent.h` | 后处理参数控制（Tonemapping/Bloom/FXAA/Vignette） | ? |
 | ~~DirectionalLight/PointLight/SpotLight~~ | — | 已合并为统一 LightComponent | — |
 
 ---
@@ -241,10 +250,7 @@
 
 | # | 功能 | 优先级 | 说明 | 参考引擎 |
 |---|------|--------|------|----------|
-| R-TODO-01 | **HDR + Tonemapping** | ?? P0 | 当前手动 Gamma 校正在 Standard.frag 中，高光溢出被截断。需要 RGBA16F FBO + ACES Tonemapping Pass | Unity / Hazel |
-| R-TODO-02 | **后处理框架** | ?? P0 | 无 Bloom / FXAA / 色调调整等效果。需要 PostProcessEffect 基类 + FBO Ping-Pong | Unity / Hazel |
-| R-TODO-03 | **透明物体渲染** | ?? P1 | RenderState 枚举已定义但未集成到 Material。当前所有物体按不透明绘制，无透明排序 | Unity |
-| R-TODO-04 | **Per-Material RenderState** | ?? P1 | RenderState 结构体已定义，但 Material 未持有 RenderState，Inspector 无 UI | Unity |
+| R-TODO-03 | **透明物体渲染** | ?? P1 | Per-Material RenderState 已就位，需要透明物体排序和 TransparentPass | Unity |
 | R-TODO-05 | **级联阴影 (CSM)** | ?? P1 | 当前阴影使用固定正交范围，大场景精度不足 | Unity |
 | R-TODO-06 | **IBL 环境光** | ?? P1 | 当前环境光为简单常量 `vec3(0.03)`，缺乏环境反射 | Unity / Hazel |
 | R-TODO-07 | **天空盒 / Skybox** | ?? P1 | 无天空盒渲染，背景为纯色 | 基本引擎标配 |
@@ -376,8 +382,6 @@
 
 ```mermaid
 graph TD
-    HDR["?? R-TODO-01<br/>HDR + Tonemapping<br/>2-3 天"]
-    PP["?? R-TODO-02<br/>后处理框架 (Bloom)<br/>4-5 天"]
     CAM["?? S-TODO-01<br/>Camera 组件<br/>2-3 天"]
     PLAY["?? S-TODO-02<br/>Play Mode<br/>5-7 天"]
     SNAP["?? S-TODO-03<br/>场景拷贝/恢复<br/>2-3 天"]
@@ -387,15 +391,12 @@ graph TD
     SCRIPT["?? SC-TODO-01<br/>脚本系统<br/>15-20 天"]
     RT["?? P-TODO-01<br/>Runtime 构建<br/>3-5 天"]
 
-    HDR --> PP
     CAM --> PLAY
     SNAP --> PLAY
     ASSET --> CB
     PLAY --> SCRIPT
     PLAY --> RT
 
-    style HDR fill:#ff6b6b,color:#fff
-    style PP fill:#ff6b6b,color:#fff
     style CAM fill:#ff6b6b,color:#fff
     style PLAY fill:#ff6b6b,color:#fff
     style SNAP fill:#ff6b6b,color:#fff
@@ -410,8 +411,8 @@ graph TD
 
 | 模块 | 功能 | 编号 | 预估工作量 |
 |------|------|------|-----------|
-| 渲染 | HDR + Tonemapping | R-TODO-01 | 2-3 天 |
-| 渲染 | 后处理框架 + Bloom | R-TODO-02 | 4-5 天 |
+| ~~渲染~~ | ~~HDR + Tonemapping~~ | ~~R-TODO-01~~ | ~~? 已完成~~ |
+| ~~渲染~~ | ~~后处理框架 + Bloom/FXAA/Vignette~~ | ~~R-TODO-02~~ | ~~? 已完成~~ |
 | 场景 | Camera 组件 + 运行时相机 | S-TODO-01 | 2-3 天 |
 | 场景 | 场景拷贝/恢复 | S-TODO-03 | 2-3 天 |
 | 场景 | Play Mode（播放/暂停/停止） | S-TODO-02 | 5-7 天 |
@@ -420,14 +421,15 @@ graph TD
 | 资产 | Content Browser | A-TODO-02 | 5-7 天 |
 | 脚本 | 脚本系统（Lua 或 C#） | SC-TODO-01~03 | 15-20 天 |
 | 构建 | Runtime 独立可执行文件 | P-TODO-01 | 3-5 天 |
-| **总计** | | | **约 55-75 天** |
+| **总计** | | | **约 48-67 天** |
 
 ### 推荐实施顺序
 
 ```
-Phase 1：渲染完善（约 1 周）
-  ├── R-TODO-01  HDR + Tonemapping
-  └── R-TODO-02  后处理框架
+Phase 1：渲染完善（? 已完成）
+  ├── R-TODO-01  HDR + Tonemapping ? 
+  ├── R-TODO-02  后处理框架（Bloom/FXAA/Vignette）?
+  └── R-TODO-04  Per-Material RenderState ?
 
 Phase 2：编辑器体验（约 2 周）
   ├── E-TODO-01  Undo/Redo
