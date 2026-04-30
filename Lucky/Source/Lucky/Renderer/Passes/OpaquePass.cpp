@@ -34,6 +34,12 @@ namespace Lucky
         if (context.ShadowEnabled && context.ShadowMapTextureID != 0)
         {
             RenderCommand::BindTextureUnit(15, context.ShadowMapTextureID);
+
+            // 绑定 Translucent Shadow Map 纹理（透明物体颜色衰减）
+            if (context.TranslucentShadowEnabled && context.TranslucentShadowMapTextureID != 0)
+            {
+                RenderCommand::BindTextureUnit(14, context.TranslucentShadowMapTextureID);
+            }
         }
         
         // ---- 批量绘制不透明物体（DrawCommands 已在外部按 SortKey 排序） ----
@@ -98,10 +104,15 @@ namespace Lucky
                 cmd.MaterialData->GetShader()->SetFloat("u_ShadowStrength", context.ShadowStrength);
                 cmd.MaterialData->GetShader()->SetInt("u_ShadowEnabled", 1);
                 cmd.MaterialData->GetShader()->SetInt("u_ShadowType", static_cast<int>(context.ShadowShadowType));
+
+                // Translucent Shadow Map
+                cmd.MaterialData->GetShader()->SetInt("u_TranslucentShadowMap", 14);
+                cmd.MaterialData->GetShader()->SetInt("u_TranslucentShadowEnabled", context.TranslucentShadowEnabled ? 1 : 0);
             }
             else
             {
                 cmd.MaterialData->GetShader()->SetInt("u_ShadowEnabled", 0);
+                cmd.MaterialData->GetShader()->SetInt("u_TranslucentShadowEnabled", 0);
             }
             
             // 绘制

@@ -97,8 +97,10 @@ namespace Lucky
         
         // ---- 阴影数据 ----
         bool ShadowEnabled = false;                     // 是否启用阴影
-        glm::mat4 LightSpaceMatrix = glm::mat4(1.0f);   // 光源空间矩阵（正交投影 × 光源视图）
+        glm::mat4 LightSpaceMatrix = glm::mat4(1.0f);   // 光源空间矩阵（正交投影 * 光源视图）
         uint32_t ShadowMapTextureID = 0;                // Shadow Map 纹理 ID（供 OpaquePass 绑定）
+        uint32_t TranslucentShadowMapTextureID = 0;     // Translucent Shadow Map 纹理 ID（透明物体颜色衰减）
+        bool TranslucentShadowEnabled = false;          // 是否启用 Translucent Shadow Map
         float ShadowBias = 0.005f;                      // 阴影偏移（减少 Shadow Acne）
         float ShadowStrength = 1.0f;                    // 阴影强度 [0, 1]
         ShadowType ShadowShadowType = ShadowType::None; // 阴影类型（Hard/Soft）

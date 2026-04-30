@@ -3,6 +3,8 @@
 #include "Lucky/Renderer/RenderContext.h"
 #include "Lucky/Renderer/RenderCommand.h"
 #include "Lucky/Renderer/Renderer3D.h"
+#include "Lucky/Renderer/Material.h"
+#include "Lucky/Renderer/Texture.h"
 
 namespace Lucky
 {
@@ -10,11 +12,16 @@ namespace Lucky
     {
         m_ShadowShader = Renderer3D::GetShaderLibrary()->Get("Shadow");
 
-        // 创建 Shadow Map FBO（纯深度纹理，无颜色附件）
+        // 创建 Shadow Map FBO（深度纹理 + Translucent Shadow Map 颜色纹理）
+        // Color Attachment 0: RGBA8 - Translucent Shadow Map（透明物体颜色衰减）
+        // Depth Attachment: DEPTH_COMPONENT - 标准 Shadow Map（深度）
         FramebufferSpecification spec;
         spec.Width = m_ShadowMapResolution;
         spec.Height = m_ShadowMapResolution;
-        spec.Attachments = { FramebufferTextureFormat::DEPTH_COMPONENT };
+        spec.Attachments = {
+            FramebufferTextureFormat::RGBA8,            // Translucent Shadow Map
+            FramebufferTextureFormat::DEPTH_COMPONENT   // 标准 Shadow Map
+        };
         m_ShadowMapFBO = Framebuffer::Create(spec);
     }
 
@@ -32,6 +39,9 @@ namespace Lucky
         // ---- 绑定 Shadow Map FBO ----
         m_ShadowMapFBO->Bind();
         RenderCommand::SetViewport(0, 0, m_ShadowMapResolution, m_ShadowMapResolution);
+
+        // 清除深度（1.0）和颜色（白色 = 无衰减）
+        RenderCommand::SetClearColor(glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
         RenderCommand::Clear();
 
         // ---- 设置渲染状态：关闭面剔除（双面渲染，避免薄物体/近距离阴影缺失） ----
@@ -41,9 +51,14 @@ namespace Lucky
         m_ShadowShader->Bind();
         m_ShadowShader->SetMat4("u_LightSpaceMatrix", context.LightSpaceMatrix);
 
-        // ---- 遍历不透明物体 DrawCommand 列表（仅不透明物体投射阴影） ----
+        // ---- 遍历不透明物体 DrawCommand 列表 ----
         if (hasOpaque)
         {
+            // 不透明物体: 只写深度, 不写颜色（不影响 Translucent Shadow Map）
+            RenderCommand::SetColorMask(false, false, false, false);
+            m_ShadowShader->SetInt("u_AlphaTestEnabled", 0);
+            m_ShadowShader->SetInt("u_TranslucentShadowEnabled", 0);
+
             for (const DrawCommand& cmd : *context.OpaqueDrawCommands)
             {
                 m_ShadowShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
@@ -56,10 +71,53 @@ namespace Lucky
             }
         }
 
-        // ---- 透明物体不投射阴影 ----
-        // hasTransparent 仅参与 ShadowPass 的执行条件判断，确保 Shadow Map 被 Clear，避免残留
+        // ---- 遍历透明物体 DrawCommand 列表（Dithered Shadow + Translucent Shadow Map） ----
+        // 透明物体: 写深度（Dithered）+ 写颜色（Translucent Shadow Map 乘法混合）
+        if (hasTransparent)
+        {
+            // 启用颜色写入 + 乘法混合: Dst = Dst * Src
+            // 每个透明物体的透射颜色与已有值相乘, 累积衰减
+            RenderCommand::SetColorMask(true, true, true, true);
+            RenderCommand::SetBlendMode(BlendMode::Zero_SrcColor);
+
+            m_ShadowShader->SetInt("u_AlphaTestEnabled", 1);
+            m_ShadowShader->SetInt("u_TranslucentShadowEnabled", 1);
+            m_ShadowShader->SetFloat("u_AlphaTestThreshold", 0.5f);
+
+            // 获取默认白色纹理（当材质没有 AlbedoMap 时使用）
+            const auto& defaultWhiteTexture = Renderer3D::GetDefaultTexture(TextureDefault::White);
+
+            for (const DrawCommand& cmd : *context.TransparentDrawCommands)
+            {
+                m_ShadowShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
+
+                // 传递材质的 Albedo 颜色（包含 Alpha）
+                glm::vec4 albedo = cmd.MaterialData->GetFloat4("u_Albedo");
+                m_ShadowShader->SetFloat4("u_Albedo", albedo);
+
+                // 绑定材质的 AlbedoMap 纹理（无纹理时使用默认白色纹理）
+                Ref<Texture2D> albedoMap = cmd.MaterialData->GetTexture("u_AlbedoMap");
+                if (albedoMap)
+                {
+                    albedoMap->Bind(0);
+                }
+                else
+                {
+                    defaultWhiteTexture->Bind(0);
+                }
+                m_ShadowShader->SetInt("u_AlbedoMap", 0);
+
+                RenderCommand::DrawIndexedRange(
+                    cmd.MeshData->GetVertexArray(),
+                    cmd.SubMeshPtr->IndexOffset,
+                    cmd.SubMeshPtr->IndexCount
+                );
+            }
+        }
 
         // ---- 恢复渲染状态 ----
+        RenderCommand::SetBlendMode(BlendMode::None);
+        RenderCommand::SetColorMask(true, true, true, true);
         RenderCommand::SetCullMode(CullMode::Back);
         m_ShadowMapFBO->Unbind();
 
@@ -81,5 +139,10 @@ namespace Lucky
     uint32_t ShadowPass::GetShadowMapTextureID() const
     {
         return m_ShadowMapFBO->GetDepthAttachmentRendererID();
+    }
+
+    uint32_t ShadowPass::GetTranslucentShadowMapTextureID() const
+    {
+        return m_ShadowMapFBO->GetColorAttachmentRendererID(0);
     }
 }

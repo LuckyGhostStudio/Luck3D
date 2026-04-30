@@ -167,11 +167,12 @@ vec3 CalcAllLights(vec3 N, vec3 V, vec3 worldPos, vec3 albedo, float metallic, f
         vec3 contribution = CalcDirectionalLight(u_Lights.DirectionalLights[i], N, V, albedo, metallic, roughness, F0);
         
         // 仅对第一个方向光应用阴影（当前只支持单光源阴影）
+        // ShadowCalculation() 返回 vec3, 支持 Translucent Shadow 彩色阴影
         if (i == 0 && u_ShadowEnabled != 0)
         {
             vec3 lightDir = normalize(-u_Lights.DirectionalLights[i].Direction);
-            float shadow = ShadowCalculation(worldPos, N, lightDir);
-            contribution *= shadow;
+            vec3 shadow = ShadowCalculation(worldPos, N, lightDir);
+            contribution *= shadow;  // vec3 * vec3 逐通道相乘
         }
         
         Lo += contribution;

@@ -37,7 +37,8 @@ namespace Lucky
         None = 0,                       // 不混合（不透明物体）
         SrcAlpha_OneMinusSrcAlpha,      // 标准 Alpha 混合（半透明，最常用）
         One_One,                        // 叠加混合（粒子、发光效果）
-        SrcAlpha_One                    // 预乘 Alpha 叠加
+        SrcAlpha_One,                   // 预乘 Alpha 叠加
+        Zero_SrcColor                   // 乘法混合 Dst = Dst * Src（Translucent Shadow Map 用）
     };
 
     /// <summary>

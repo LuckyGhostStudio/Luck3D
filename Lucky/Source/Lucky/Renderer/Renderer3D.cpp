@@ -305,6 +305,8 @@ namespace Lucky
         if (shadowPass)
         {
             context.ShadowMapTextureID = shadowPass->GetShadowMapTextureID();
+            context.TranslucentShadowMapTextureID = shadowPass->GetTranslucentShadowMapTextureID();
+            context.TranslucentShadowEnabled = true;  // 默认启用 Translucent Shadow Map
         }
         
         // HDR / 后处理数据

@@ -143,6 +143,9 @@ namespace Lucky
                 case BlendMode::SrcAlpha_One:
                     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
                     break;
+                case BlendMode::Zero_SrcColor:
+                    glBlendFunc(GL_ZERO, GL_SRC_COLOR);
+                    break;
                 default:
                     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
                     break;
