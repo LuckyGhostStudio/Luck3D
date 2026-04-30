@@ -1,7 +1,8 @@
-# PhaseR21：天空盒渲染（SkyboxPass）
+# PhaseR23：天空盒渲染（SkyboxPass）
 
-> **文档版本**：v1.0  
+> **文档版本**：v1.1  
 > **创建日期**：2026-04-30  
+> **更新日期**：2026-04-30  
 > **对应功能编号**：R-TODO-07  
 > **前置依赖**：R-28（OpaquePass）、R-29（HDR + Tonemapping）、R-17（RenderPass 抽象）  
 > **预估工作量**：2-3 天
@@ -380,11 +381,108 @@ Outline 分组:
 | C3：SceneSettings | ? 其次 | 语义好但需要改 Scene 类 |
 | C2：SkyboxComponent | ? 其次 | 过度设计，天空盒是全局唯一的 |
 
-**实施策略**：先用方案 C1 快速实现功能，后续如果需要场景序列化支持，再升级为 C3。
+**实施策略**：采用方案 C1 的全局设置模式，但**通过 Material 驱动天空盒渲染**（而非直接绑定 TextureCube），以获得更好的灵活性和扩展性。后续如果需要场景序列化支持，再升级为 C3。
 
 ---
 
-### 4.5 Cubemap 面剔除方案
+### 4.6 天空盒渲染驱动方案（Phase 1 更新）
+
+> **更新说明**：基于对 Unity 天空盒系统的分析，将原始设计从"直接绑定 TextureCube"升级为"通过 Material 驱动"，以获得更接近 Unity 的用户体验和更好的扩展性。
+
+#### Unity 天空盒系统参考
+
+Unity 的天空盒工作流程：
+1. 内置多种 Skybox Shader（`Skybox/6 Sided`、`Skybox/Cubemap`、`Skybox/Panoramic`、`Skybox/Procedural`）
+2. 用户创建 Material，选择 Skybox Shader，设置纹理参数
+3. 在 `Lighting Settings -> Environment -> Skybox Material` 中选择该材质
+4. 用户也可以编写自定义 Skybox Shader
+
+#### 方案 D1：Material 驱动天空盒（? 推荐 - 最优）
+
+**描述**：`SkyboxPass` 不直接持有 `TextureCube`，而是持有 `Material`。天空盒的渲染方式完全由 Material（Shader + 参数）决定。
+
+**架构**：
+
+```mermaid
+graph LR
+    A["Skybox Shader<br/>(内置)"] --> B["Skybox Material<br/>(Shader + TextureCube + 参数)"]
+    B --> C["Renderer3D::SetSkyboxMaterial()"]
+    C --> D["RenderContext.SkyboxMaterial"]
+    D --> E["SkyboxPass::Execute()<br/>绑定 Material -> 绘制 Cube"]
+```
+
+**优点**：
+- 天空盒渲染方式完全由 Material 决定，未来支持程序化天空只需写新 Shader，无需修改 SkyboxPass
+- 用户可以在 Inspector 中调整天空盒材质参数（旋转、曝光、色调等）
+- 与现有材质系统（Shader 内省 + PropertyMap）完全兼容
+- 更接近 Unity 的用户体验
+- 不需要完整的资产系统即可实现
+
+**缺点**：
+- 比直接绑定 TextureCube 稍复杂（需要创建 Material 实例）
+
+**关键修改**：
+- `RenderContext` 中存储 `Ref<Material> SkyboxMaterial` 而非 `Ref<TextureCube> SkyboxTexture`
+- `SkyboxPass::Execute()` 通过 Material 绑定 Shader + 设置 Uniform + 绑定纹理
+- `Renderer3D` 提供 `SetSkyboxMaterial()` / `GetSkyboxMaterial()` 接口
+
+**内置 Skybox Shader 参数**：
+
+| Uniform | 类型 | 说明 |
+|---------|------|------|
+| `u_SkyboxMap` | `samplerCube` | Cubemap 纹理 |
+| `u_SkyboxVP` | `mat4` | 天空盒 VP 矩阵（由 SkyboxPass 自动设置，非材质参数） |
+| `u_Rotation` | `float` | 天空盒 Y 轴旋转角度（度） |
+| `u_Exposure` | `float` | 曝光调整（默认 1.0） |
+| `u_Tint` | `vec4` | 色调调整（默认白色） |
+
+> **注意**：`u_SkyboxVP` 由 SkyboxPass 在 Execute 时自动计算并设置（移除 View 平移分量），不作为材质可编辑参数。
+
+---
+
+#### 方案 D2：直接绑定 TextureCube（原始方案）
+
+**描述**：`SkyboxPass` 直接持有 `TextureCube`，使用固定的内部 Skybox Shader 渲染。
+
+**优点**：
+- 实现最简单
+- 代码量最少
+
+**缺点**：
+- 不支持自定义 Skybox Shader（如程序化天空）
+- 不支持天空盒材质参数调整（旋转、色调、曝光）
+- 要支持新天空盒类型需修改 SkyboxPass 代码
+- 扩展性差
+
+---
+
+#### 驱动方案选择
+
+| 方案 | 推荐度 | 理由 |
+|------|--------|------|
+| **D1：Material 驱动** | ? **最优** | 灵活、可扩展、接近 Unity 体验、与现有材质系统兼容 |
+| D2：直接绑定 TextureCube | ? 其次 | 简单但扩展性差 |
+
+---
+
+#### Phase 1 实施细节（无资产系统下的简化方案）
+
+由于当前没有完整的资产系统，Phase 1 采用以下简化方式实现 Material 驱动：
+
+1. **创建内置 Skybox Shader**：包含 `u_SkyboxMap` + `u_Rotation` + `u_Exposure` + `u_Tint` 参数
+2. **用户通过 UI 选择天空盒纹理文件** -> 引擎自动创建 Skybox Material（使用内置 Skybox Shader）
+3. **编辑器 UI**：在 Inspector 的场景设置区域提供天空盒类型下拉列表（None / 6-Sided Cubemap / HDR Panoramic），选择后自动创建对应的 Material
+4. **场景序列化**：保存天空盒纹理路径 + 材质参数（旋转、曝光、色调），加载时自动重建 Material
+5. **Inspector 中可调整天空盒材质参数**（旋转、曝光、色调等）
+
+**Phase 2（有资产系统后）的升级路径**：
+- Skybox Material 变为独立的 `.mat` 资产文件
+- 编辑器 UI 改为从资产列表中选择 Skybox Material（下拉列表 / 拖拽）
+- 支持用户创建自定义 Skybox Shader + Material
+
+---
+
+### 4.7 Cubemap 面剔除方案
 
 #### 方案 F1：剔除正面（CullMode::Front）（? 推荐 - 最优）
 
@@ -801,10 +899,14 @@ namespace Lucky
 namespace Lucky
 {
     /// <summary>
-    /// 天空盒渲染 Pass
+    /// 天空盒渲染 Pass（Material 驱动）
     /// 在 OpaquePass 之后渲染，利用 Early-Z 跳过被遮挡的天空像素
     /// 渲染状态：深度测试 LessEqual + 深度写入 OFF + 面剔除 Front
     /// 属于 "Main" 分组
+    /// 
+    /// 通过 Material 驱动渲染：SkyboxPass 不直接持有纹理，
+    /// 而是从 RenderContext 获取 SkyboxMaterial，通过 Material 绑定 Shader 和纹理。
+    /// 这样未来支持程序化天空只需写新 Shader，无需修改 SkyboxPass。
     /// </summary>
     class SkyboxPass : public RenderPass
     {
@@ -825,7 +927,6 @@ namespace Lucky
         }
         
     private:
-        Ref<Shader> m_SkyboxShader;     // 天空盒着色器
         Ref<VertexArray> m_CubeVAO;     // 天空盒 Cube VAO（仅位置属性）
         Ref<VertexBuffer> m_CubeVBO;    // 天空盒 Cube VBO
     };
@@ -892,11 +993,8 @@ namespace Lucky
     
     void SkyboxPass::Init()
     {
-        // ---- 加载天空盒着色器 ----
-        auto& shaderLib = Renderer3D::GetShaderLibrary();
-        m_SkyboxShader = shaderLib->Get("Skybox");
-        
         // ---- 创建天空盒 Cube VAO（仅位置属性） ----
+        // 注意：不再在此处加载 Shader，Shader 由 Material 持有
         m_CubeVAO = VertexArray::Create();
         
         m_CubeVBO = VertexBuffer::Create(s_SkyboxVertices, sizeof(s_SkyboxVertices));
@@ -909,8 +1007,8 @@ namespace Lucky
     
     void SkyboxPass::Execute(const RenderContext& context)
     {
-        // 如果没有设置天空盒纹理，跳过
-        if (!context.SkyboxTexture)
+        // 如果没有设置天空盒材质，跳过
+        if (!context.SkyboxMaterial)
         {
             return;
         }
@@ -923,17 +1021,15 @@ namespace Lucky
         RenderCommand::SetDepthWrite(false);                         // 不写入深度
         RenderCommand::SetCullMode(CullMode::Front);                 // 剔除正面（渲染内表面）
         
-        // ---- 绑定 Shader ----
-        m_SkyboxShader->Bind();
+        // ---- 通过 Material 绑定 Shader 和纹理 ----
+        auto& material = context.SkyboxMaterial;
+        material->Bind();  // 绑定 Shader + 上传所有 Uniform + 绑定纹理
         
-        // ---- 计算天空盒 VP 矩阵（移除 View 平移分量） ----
+        // ---- 计算并设置天空盒 VP 矩阵（移除 View 平移分量） ----
+        // 注意：u_SkyboxVP 由 SkyboxPass 自动计算，不作为材质可编辑参数
         glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(context.Camera->GetViewMatrix()));
         glm::mat4 skyboxVP = context.Camera->GetProjectionMatrix() * viewNoTranslation;
-        m_SkyboxShader->SetMat4("u_SkyboxVP", skyboxVP);
-        
-        // ---- 绑定 Cubemap 纹理 ----
-        context.SkyboxTexture->Bind(0);
-        m_SkyboxShader->SetInt("u_SkyboxMap", 0);
+        material->GetShader()->SetMat4("u_SkyboxVP", skyboxVP);
         
         // ---- 绘制天空盒 Cube ----
         RenderCommand::DrawArrays(m_CubeVAO, 36);
@@ -966,8 +1062,8 @@ struct RenderContext
     
     // ... 现有成员 ...
     
-    // ---- 天空盒数据 ----
-    Ref<TextureCube> SkyboxTexture;             // 天空盒 Cubemap 纹理（nullptr 表示不渲染天空盒）
+    // ---- 天空盒数据（Material 驱动） ----
+    Ref<Material> SkyboxMaterial;               // 天空盒材质（nullptr 表示不渲染天空盒）
     const EditorCamera* Camera = nullptr;       // 相机引用（SkyboxPass 需要 View/Projection 矩阵）
     
     // ... 其余成员不变 ...
@@ -975,18 +1071,20 @@ struct RenderContext
 ```
 
 > **注意**：当前 `RenderContext` 中没有 `Camera` 字段（Camera 数据通过 UBO 传递给 Shader）。天空盒需要在 CPU 端计算移除平移分量的 VP 矩阵，因此需要添加 `Camera` 指针。
+> 
+> **重要**：此处使用 `Ref<Material>` 而非 `Ref<TextureCube>`，天空盒的渲染方式完全由 Material（Shader + 参数）决定。
 
 ### 6.6 修改 `Renderer3DData`（Renderer3D.cpp）
 
-添加天空盒纹理存储：
+添加天空盒材质存储：
 
 ```cpp
 struct Renderer3DData
 {
     // ... 现有成员 ...
     
-    // ======== 天空盒数据 ========
-    Ref<TextureCube> SkyboxTexture;     // 天空盒纹理（nullptr 表示不渲染天空盒）
+    // ======== 天空盒数据（Material 驱动） ========
+    Ref<Material> SkyboxMaterial;       // 天空盒材质（nullptr 表示不渲染天空盒）
     
     // ... 其余成员 ...
 };
@@ -994,7 +1092,7 @@ struct Renderer3DData
 
 ### 6.7 修改 `Renderer3D.h`
 
-添加天空盒设置接口：
+添加天空盒材质设置接口：
 
 ```cpp
 class Renderer3D
@@ -1003,31 +1101,32 @@ public:
     // ... 现有接口 ...
     
     /// <summary>
-    /// 设置天空盒纹理
+    /// 设置天空盒材质（Material 驱动方案）
+    /// Material 包含 Skybox Shader + TextureCube + 参数（旋转/曝光/色调）
     /// </summary>
-    /// <param name="skybox">Cubemap 纹理（nullptr 表示禁用天空盒）</param>
-    static void SetSkybox(const Ref<TextureCube>& skybox);
+    /// <param name="material">天空盒材质（nullptr 表示禁用天空盒）</param>
+    static void SetSkyboxMaterial(const Ref<Material>& material);
     
     /// <summary>
-    /// 获取当前天空盒纹理
+    /// 获取当前天空盒材质
     /// </summary>
-    static const Ref<TextureCube>& GetSkybox();
+    static const Ref<Material>& GetSkyboxMaterial();
 };
 ```
 
 ### 6.8 修改 `Renderer3D.cpp`
 
-#### 6.8.1 添加 SetSkybox/GetSkybox 实现
+#### 6.8.1 添加 SetSkyboxMaterial/GetSkyboxMaterial 实现
 
 ```cpp
-void Renderer3D::SetSkybox(const Ref<TextureCube>& skybox)
+void Renderer3D::SetSkyboxMaterial(const Ref<Material>& material)
 {
-    s_Data.SkyboxTexture = skybox;
+    s_Data.SkyboxMaterial = material;
 }
 
-const Ref<TextureCube>& Renderer3D::GetSkybox()
+const Ref<Material>& Renderer3D::GetSkyboxMaterial()
 {
-    return s_Data.SkyboxTexture;
+    return s_Data.SkyboxMaterial;
 }
 ```
 
@@ -1098,8 +1197,8 @@ void Renderer3D::EndScene()
     context.ClearColor = s_Data.ClearColor;
     context.Stats = &s_Data.Stats;
     
-    // 天空盒数据
-    context.SkyboxTexture = s_Data.SkyboxTexture;   // ← 新增
+    // 天空盒数据（Material 驱动）
+    context.SkyboxMaterial = s_Data.SkyboxMaterial;   // ← 新增
     context.Camera = s_Data.CameraRef;              // ← 新增
     
     // ... 阴影数据、HDR 数据等（与现有代码相同） ...
@@ -1123,12 +1222,25 @@ layout(location = 0) in vec3 a_Position;
 
 out vec3 v_TexCoord;    // 方向向量（用于采样 Cubemap）
 
-uniform mat4 u_SkyboxVP;   // 天空盒 VP 矩阵（View 移除平移 × Projection）
+uniform mat4 u_SkyboxVP;   // 天空盒 VP 矩阵（View 移除平移 x Projection，由 SkyboxPass 自动设置）
+
+// @default 0.0
+uniform float u_Rotation;  // Y 轴旋转角度（度）
 
 void main()
 {
-    // 顶点位置即为 Cubemap 采样方向
-    v_TexCoord = a_Position;
+    // 应用 Y 轴旋转
+    float rad = radians(u_Rotation);
+    float cosR = cos(rad);
+    float sinR = sin(rad);
+    vec3 rotatedPos = vec3(
+        a_Position.x * cosR + a_Position.z * sinR,
+        a_Position.y,
+        -a_Position.x * sinR + a_Position.z * cosR
+    );
+    
+    // 旋转后的位置作为 Cubemap 采样方向
+    v_TexCoord = rotatedPos;
     
     // 计算裁剪空间位置
     vec4 pos = u_SkyboxVP * vec4(a_Position, 1.0);
@@ -1148,6 +1260,12 @@ in vec3 v_TexCoord;     // 方向向量
 
 uniform samplerCube u_SkyboxMap;    // Cubemap 纹理
 
+// @default 1.0
+uniform float u_Exposure;           // 曝光调整（默认 1.0）
+
+// @default 1.0, 1.0, 1.0, 1.0
+uniform vec4 u_Tint;                // 色调调整（默认白色）
+
 layout(location = 0) out vec4 o_Color;
 
 void main()
@@ -1155,11 +1273,18 @@ void main()
     // 使用方向向量采样 Cubemap
     vec3 color = texture(u_SkyboxMap, v_TexCoord).rgb;
     
+    // 应用曝光和色调
+    color *= u_Exposure;
+    color *= u_Tint.rgb;
+    
     o_Color = vec4(color, 1.0);
 }
 ```
 
-> **注意**：天空盒渲染到 HDR FBO（RGBA16F），如果使用 HDR 全景图，颜色值可以超过 1.0，后续由 Tonemapping 处理。
+> **注意**：
+> - 天空盒渲染到 HDR FBO（RGBA16F），如果使用 HDR 全景图，颜色值可以超过 1.0，后续由 Tonemapping 处理。
+> - `u_Rotation`、`u_Exposure`、`u_Tint` 使用 `@default` 元数据标注默认值，与现有材质系统的 Shader 内省机制兼容。
+> - `u_SkyboxVP` 不使用 `@default`，因为它由 SkyboxPass 自动设置，不作为材质可编辑参数。在 Inspector 中应隐藏此参数。
 
 ### 7.3 EquirectToCubemap.vert（Equirectangular → Cubemap 转换顶点着色器）
 
@@ -1220,9 +1345,9 @@ void main()
 
 ## 8. 序列化支持
 
-### 8.1 当前阶段（方案 C1：全局设置）
+### 8.1 当前阶段（Material 驱动 + 全局设置）
 
-由于采用全局 `Renderer3D::SetSkybox()` 方案，天空盒纹理路径需要保存在场景文件中。
+由于采用 Material 驱动方案，天空盒材质参数（纹理路径 + 旋转/曝光/色调）需要保存在场景文件中。
 
 #### 8.1.1 场景文件格式扩展
 
@@ -1232,7 +1357,7 @@ void main()
 Scene: Untitled
 SceneSettings:
   Skybox:
-    Type: Cubemap  # 或 "HDR"
+    Type: Cubemap  # 或 "HDR" 或 "None"
     # Cubemap 模式：6 面路径
     Faces:
       - "Assets/Textures/Skybox/right.jpg"
@@ -1244,6 +1369,10 @@ SceneSettings:
     # HDR 模式：单张全景图路径
     # HDRPath: "Assets/Textures/Skybox/environment.hdr"
     # Resolution: 1024
+    # Material 参数
+    Rotation: 0.0
+    Exposure: 1.0
+    Tint: [1.0, 1.0, 1.0, 1.0]
 Entities:
   - Entity: 12345678
     # ...
@@ -1286,6 +1415,8 @@ bool SceneSerializer::Deserialize(const std::string& filepath)
         if (skybox)
         {
             std::string type = skybox["Type"].as<std::string>("None");
+            Ref<TextureCube> cubemap;
+            
             if (type == "Cubemap")
             {
                 auto faces = skybox["Faces"];
@@ -1295,8 +1426,7 @@ bool SceneSerializer::Deserialize(const std::string& filepath)
                     for (int i = 0; i < 6; ++i)
                         facePaths[i] = faces[i].as<std::string>();
                     
-                    auto cubemap = TextureCube::Create(facePaths);
-                    Renderer3D::SetSkybox(cubemap);
+                    cubemap = TextureCube::Create(facePaths);
                 }
             }
             else if (type == "HDR")
@@ -1305,9 +1435,30 @@ bool SceneSerializer::Deserialize(const std::string& filepath)
                 uint32_t resolution = skybox["Resolution"].as<uint32_t>(1024);
                 if (!hdrPath.empty())
                 {
-                    auto cubemap = TextureCube::CreateFromHDR(hdrPath, resolution);
-                    Renderer3D::SetSkybox(cubemap);
+                    cubemap = TextureCube::CreateFromHDR(hdrPath, resolution);
                 }
+            }
+            
+            // 创建 Skybox Material 并设置参数
+            if (cubemap)
+            {
+                auto& shaderLib = Renderer3D::GetShaderLibrary();
+                auto skyboxShader = shaderLib->Get("Skybox");
+                auto skyboxMaterial = Material::Create(skyboxShader);
+                
+                // 设置 Cubemap 纹理
+                skyboxMaterial->SetTexture("u_SkyboxMap", cubemap);
+                
+                // 读取 Material 参数
+                float rotation = skybox["Rotation"].as<float>(0.0f);
+                float exposure = skybox["Exposure"].as<float>(1.0f);
+                glm::vec4 tint = skybox["Tint"].as<glm::vec4>(glm::vec4(1.0f));
+                
+                skyboxMaterial->Set("u_Rotation", rotation);
+                skyboxMaterial->Set("u_Exposure", exposure);
+                skyboxMaterial->Set("u_Tint", tint);
+                
+                Renderer3D::SetSkyboxMaterial(skyboxMaterial);
             }
         }
     }
@@ -1333,7 +1484,14 @@ void InspectorPanel::DrawSceneSettings()
         // 天空盒类型选择
         static int skyboxType = 0;  // 0=None, 1=Cubemap, 2=HDR
         const char* types[] = { "None", "Cubemap (6 Faces)", "HDR Equirectangular" };
-        ImGui::Combo("Type", &skyboxType, types, 3);
+        if (ImGui::Combo("Type", &skyboxType, types, 3))
+        {
+            if (skyboxType == 0)
+            {
+                Renderer3D::SetSkyboxMaterial(nullptr);
+            }
+            // 选择 Cubemap 或 HDR 时，通过文件对话框选择纹理后自动创建 Material
+        }
         
         if (skyboxType == 1)
         {
@@ -1344,6 +1502,29 @@ void InspectorPanel::DrawSceneSettings()
         {
             // HDR 文件路径输入
             // ... 文件选择 UI ...
+        }
+        
+        // ---- Material 参数编辑（当天空盒材质存在时显示） ----
+        auto skyboxMaterial = Renderer3D::GetSkyboxMaterial();
+        if (skyboxMaterial)
+        {
+            ImGui::Separator();
+            ImGui::Text("Material Parameters");
+            
+            // 旋转（Y 轴）
+            float rotation = skyboxMaterial->Get<float>("u_Rotation");
+            if (ImGui::DragFloat("Rotation", &rotation, 1.0f, 0.0f, 360.0f))
+                skyboxMaterial->Set("u_Rotation", rotation);
+            
+            // 曝光
+            float exposure = skyboxMaterial->Get<float>("u_Exposure");
+            if (ImGui::DragFloat("Exposure", &exposure, 0.01f, 0.0f, 10.0f))
+                skyboxMaterial->Set("u_Exposure", exposure);
+            
+            // 色调
+            glm::vec4 tint = skyboxMaterial->Get<glm::vec4>("u_Tint");
+            if (ImGui::ColorEdit4("Tint", glm::value_ptr(tint)))
+                skyboxMaterial->Set("u_Tint", tint);
         }
     }
 }
@@ -1450,8 +1631,8 @@ graph TD
 | `Renderer/TextureCube.cpp` | **新建** | TextureCube 类实现 |
 | `Renderer/Passes/SkyboxPass.h` | **新建** | SkyboxPass 头文件 |
 | `Renderer/Passes/SkyboxPass.cpp` | **新建** | SkyboxPass 实现 |
-| `Renderer/RenderContext.h` | **修改** | 添加 `SkyboxTexture` 和 `Camera` 字段 |
-| `Renderer/Renderer3D.h` | **修改** | 添加 `SetSkybox()` / `GetSkybox()` 接口 |
+| `Renderer/RenderContext.h` | **修改** | 添加 `SkyboxMaterial` 和 `Camera` 字段 |
+| `Renderer/Renderer3D.h` | **修改** | 添加 `SetSkyboxMaterial()` / `GetSkyboxMaterial()` 接口 |
 | `Renderer/Renderer3D.cpp` | **修改** | Init 注册 Pass + BeginScene 缓存相机 + EndScene 传递天空盒数据 |
 | `Shaders/Internal/Skybox.vert` | **新建** | 天空盒顶点着色器 |
 | `Shaders/Internal/Skybox.frag` | **新建** | 天空盒片段着色器 |
@@ -1463,14 +1644,17 @@ graph TD
 
 ## 附录 B：实施阶段建议
 
-### Phase 1：基础天空盒（1-1.5 天）
+### Phase 1：基础天空盒 + Material 驱动（1.5-2 天）
 
 1. 新建 `TextureCube` 类（仅 6 面 Cubemap 加载）
-2. 新建 `SkyboxPass`（含专用 Cube VAO）
-3. 新建 `Skybox.vert` + `Skybox.frag`
-4. 修改 `RenderContext` + `Renderer3D`（添加天空盒数据传递）
-5. 注册 SkyboxPass 到管线
-6. 硬编码测试（在 Init 中加载一个测试天空盒）
+2. 新建 `SkyboxPass`（含专用 Cube VAO，Material 驱动渲染）
+3. 新建 `Skybox.vert` + `Skybox.frag`（含 `u_Rotation`/`u_Exposure`/`u_Tint` 参数，使用 `@default` 元数据）
+4. 修改 `RenderContext`（添加 `SkyboxMaterial` + `Camera`）
+5. 修改 `Renderer3D`（添加 `SetSkyboxMaterial()` / `GetSkyboxMaterial()` 接口）
+6. 注册 SkyboxPass 到管线（OpaquePass 之后，TransparentPass 之前）
+7. 编辑器 UI：场景设置区域添加天空盒类型下拉列表（None / 6-Sided Cubemap），选择后自动创建 Material
+8. Inspector 中显示天空盒材质参数（旋转、曝光、色调），隐藏 `u_SkyboxVP`
+9. 硬编码测试（在 Init 中加载一个测试天空盒）
 
 ### Phase 2：HDR 支持（0.5-1 天）
 
