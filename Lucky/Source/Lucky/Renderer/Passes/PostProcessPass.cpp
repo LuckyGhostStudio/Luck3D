@@ -10,44 +10,76 @@ namespace Lucky
 {
     void PostProcessPass::Init()
     {
-        // 创建 HDR FBO（与主 FBO 相同的附件布局，但颜色格式为 RGBA16F）
+        // 创建 HDR FBO
         FramebufferSpecification hdrSpec;
-        hdrSpec.Width = 1280;   // 初始大小，后续随视口调整
+        hdrSpec.Width = 1280;
         hdrSpec.Height = 720;
         hdrSpec.Attachments = {
-            FramebufferTextureFormat::RGBA16F,          // HDR 颜色（Attachment 0）
-            FramebufferTextureFormat::RED_INTEGER,      // Entity ID（Attachment 1，保留鼠标拾取功能）
-            FramebufferTextureFormat::DEFPTH24STENCIL8  // 深度模板
+            FramebufferTextureFormat::RGBA16F,
+            FramebufferTextureFormat::RED_INTEGER,
+            FramebufferTextureFormat::DEFPTH24STENCIL8
         };
         m_HDR_FBO = Framebuffer::Create(hdrSpec);
 
         // 加载 Tonemapping Shader
         m_TonemappingShader = Renderer3D::GetShaderLibrary()->Get("Tonemapping");
+
+        // 初始化后处理栈
+        m_PostProcessStack.Init(1280, 720);
     }
 
     void PostProcessPass::Execute(const RenderContext& context)
     {
-        // 绑定主 FBO（RGBA8）作为 Tonemapping 输出目标
+        uint32_t width = m_HDR_FBO->GetSpecification().Width;
+        uint32_t height = m_HDR_FBO->GetSpecification().Height;
+
+        // ---- 1. 执行 HDR 空间效果链（Bloom、Vignette 等） ----
+        uint32_t processedTexture = m_PostProcessStack.Execute(GetHDRColorTextureID(), PostProcessSpace::HDR, width, height);
+
+        // ---- 2. Tonemapping（HDR -> LDR） ----
+        // 绑定主 FBO 作为 Tonemapping 输出目标
         if (context.TargetFramebuffer)
         {
             context.TargetFramebuffer->Bind();
         }
 
-        // 禁用深度测试（全屏后处理不需要）
         RenderCommand::SetDepthTest(false);
         RenderCommand::SetDepthWrite(false);
 
-        // 绑定 Tonemapping Shader
         m_TonemappingShader->Bind();
-        m_TonemappingShader->SetFloat("u_Exposure", context.Exposure);
-        m_TonemappingShader->SetInt("u_TonemapMode", context.TonemapMode);
+        m_TonemappingShader->SetFloat("u_Exposure", context.PostProcess.Exposure);
+        m_TonemappingShader->SetInt("u_TonemapMode", static_cast<int>(context.PostProcess.Tonemap));
 
-        // 绑定 HDR 颜色纹理到纹理单元 0
-        RenderCommand::BindTextureUnit(0, GetHDRColorTextureID());
+        RenderCommand::BindTextureUnit(0, processedTexture);
         m_TonemappingShader->SetInt("u_HDRTexture", 0);
 
-        // 绘制全屏 Quad
         ScreenQuad::Draw();
+
+        // ---- 3. 执行 LDR 空间效果链（FXAA 等） ----
+        if (context.TargetFramebuffer && m_PostProcessStack.HasEnabledEffects(PostProcessSpace::LDR))
+        {
+            // 获取 Tonemapping 输出的 LDR 纹理
+            uint32_t ldrTexture = context.TargetFramebuffer->GetColorAttachmentRendererID(0);
+            
+            // 通过 PostProcessStack 执行 LDR 效果链
+            uint32_t finalTexture = m_PostProcessStack.Execute(ldrTexture, PostProcessSpace::LDR, width, height);
+            
+            // 如果 LDR 效果链产生了新纹理，需要将结果 Blit 回主 FBO
+            if (finalTexture != ldrTexture)
+            {
+                context.TargetFramebuffer->Bind();
+                RenderCommand::SetDepthTest(false);
+                RenderCommand::SetDepthWrite(false);
+                
+                m_TonemappingShader->Bind();
+                m_TonemappingShader->SetFloat("u_Exposure", 1.0f);
+                m_TonemappingShader->SetInt("u_TonemapMode", -1);  // -1 表示直通模式（不做 Tonemapping）
+                
+                RenderCommand::BindTextureUnit(0, finalTexture);
+                m_TonemappingShader->SetInt("u_HDRTexture", 0);
+                ScreenQuad::Draw();
+            }
+        }
 
         // 恢复深度测试状态
         RenderCommand::SetDepthTest(true);
@@ -66,6 +98,9 @@ namespace Lucky
         {
             m_HDR_FBO->Resize(width, height);
         }
+
+        // 同步调整后处理栈的 FBO 大小
+        m_PostProcessStack.Resize(width, height);
     }
 
     uint32_t PostProcessPass::GetHDRColorTextureID() const

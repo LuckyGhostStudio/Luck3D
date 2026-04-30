@@ -162,6 +162,38 @@ namespace Lucky
             out << YAML::EndMap;
         }
 
+        // PostProcessVolume 组件
+        if (entity.HasComponent<PostProcessVolumeComponent>())
+        {
+            const auto& volume = entity.GetComponent<PostProcessVolumeComponent>();
+
+            out << YAML::Key << "PostProcessVolumeComponent";
+
+            out << YAML::BeginMap;
+            out << YAML::Key << "IsGlobal" << YAML::Value << volume.IsGlobal;
+            out << YAML::Key << "Priority" << YAML::Value << volume.Priority;
+
+            // Tonemapping
+            out << YAML::Key << "TonemapMode" << YAML::Value << static_cast<int>(volume.Tonemap);
+            out << YAML::Key << "Exposure" << YAML::Value << volume.Exposure;
+
+            // Bloom
+            out << YAML::Key << "BloomEnabled" << YAML::Value << volume.BloomEnabled;
+            out << YAML::Key << "BloomThreshold" << YAML::Value << volume.BloomThreshold;
+            out << YAML::Key << "BloomIntensity" << YAML::Value << volume.BloomIntensity;
+            out << YAML::Key << "BloomIterations" << YAML::Value << volume.BloomIterations;
+
+            // FXAA
+            out << YAML::Key << "FXAAEnabled" << YAML::Value << volume.FXAAEnabled;
+
+            // Vignette
+            out << YAML::Key << "VignetteEnabled" << YAML::Value << volume.VignetteEnabled;
+            out << YAML::Key << "VignetteIntensity" << YAML::Value << volume.VignetteIntensity;
+            out << YAML::Key << "VignetteSmoothness" << YAML::Value << volume.VignetteSmoothness;
+
+            out << YAML::EndMap;
+        }
+
         out << YAML::EndMap;    // 结束实体 Map
     }
 
@@ -343,6 +375,34 @@ namespace Lucky
                             meshRendererComponent.Materials.push_back(material);
                         }
                     }
+                }
+
+                // PostProcessVolume 组件
+                YAML::Node postProcessVolumeNode = entity["PostProcessVolumeComponent"];
+                if (postProcessVolumeNode)
+                {
+                    auto& volume = deserializedEntity.AddComponent<PostProcessVolumeComponent>();
+
+                    volume.IsGlobal = postProcessVolumeNode["IsGlobal"].as<bool>();
+                    volume.Priority = postProcessVolumeNode["Priority"].as<float>();
+
+                    // Tonemapping
+                    volume.Tonemap = static_cast<TonemapMode>(postProcessVolumeNode["TonemapMode"].as<int>());
+                    volume.Exposure = postProcessVolumeNode["Exposure"].as<float>();
+
+                    // Bloom
+                    volume.BloomEnabled = postProcessVolumeNode["BloomEnabled"].as<bool>();
+                    volume.BloomThreshold = postProcessVolumeNode["BloomThreshold"].as<float>();
+                    volume.BloomIntensity = postProcessVolumeNode["BloomIntensity"].as<float>();
+                    volume.BloomIterations = postProcessVolumeNode["BloomIterations"].as<int>();
+
+                    // FXAA
+                    volume.FXAAEnabled = postProcessVolumeNode["FXAAEnabled"].as<bool>();
+
+                    // Vignette
+                    volume.VignetteEnabled = postProcessVolumeNode["VignetteEnabled"].as<bool>();
+                    volume.VignetteIntensity = postProcessVolumeNode["VignetteIntensity"].as<float>();
+                    volume.VignetteSmoothness = postProcessVolumeNode["VignetteSmoothness"].as<float>();
                 }
             }
         }

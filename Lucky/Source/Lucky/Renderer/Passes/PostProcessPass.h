@@ -3,14 +3,15 @@
 #include "Lucky/Renderer/RenderPass.h"
 #include "Lucky/Renderer/Framebuffer.h"
 #include "Lucky/Renderer/Shader.h"
+#include "Lucky/Renderer/PostProcessStack.h"
 
 namespace Lucky
 {
     /// <summary>
     /// 后处理 Pass
-    /// 持有 HDR FBO（RGBA16F），执行后处理效果链 + Tonemapping + Gamma 校正
+    /// 持有 HDR FBO + PostProcessStack，执行完整的后处理管线：
+    /// HDR 效果链 -> Tonemapping -> LDR 效果链
     /// 属于 "PostProcess" 分组，在 Main 分组之后执行
-    /// R5 阶段仅包含 Tonemapping，R6 阶段将扩展效果链
     /// </summary>
     class PostProcessPass : public RenderPass
     {
@@ -37,12 +38,18 @@ namespace Lucky
         const Ref<Framebuffer>& GetHDR_FBO() const { return m_HDR_FBO; }
 
         /// <summary>
-        /// 获取 HDR 颜色纹理 ID（用于 Tonemapping 采样）
+        /// 获取 HDR 颜色纹理 ID
         /// </summary>
         uint32_t GetHDRColorTextureID() const;
+
+        /// <summary>
+        /// 获取后处理栈（供外部添加/配置效果）
+        /// </summary>
+        PostProcessStack& GetPostProcessStack() { return m_PostProcessStack; }
 
     private:
         Ref<Framebuffer> m_HDR_FBO;             // HDR 渲染目标（RGBA16F + RED_INTEGER + Depth）
         Ref<Shader> m_TonemappingShader;        // Tonemapping 着色器
+        PostProcessStack m_PostProcessStack;    // 后处理效果栈
     };
 }

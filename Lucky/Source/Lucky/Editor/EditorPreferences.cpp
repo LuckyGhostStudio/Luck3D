@@ -24,7 +24,7 @@ namespace Lucky
         auto& colors = ImGui::GetStyle().Colors;
         const ColorSettings& c = m_Colors;
         
-        // ¸¨Öú lambda£ºglm::vec4 ¡ú ImVec4
+        // ¸¨Öú lambda£ºglm::vec4 -> ImVec4
         auto ToImVec4 = [](const glm::vec4& v) -> ImVec4 {
             return ImVec4(v.r, v.g, v.b, v.a);
         };

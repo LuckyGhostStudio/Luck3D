@@ -375,12 +375,12 @@ namespace Lucky
 
             if (pixelData == -1)
             {
-                // 点击空白区域 → 取消选中
+                // 点击空白区域 -> 取消选中
                 SelectionManager::Deselect();
             }
             else
             {
-                // 通过 entt::entity 获取 Entity → 选中
+                // 通过 entt::entity 获取 Entity -> 选中
 				entt::entity enttID = static_cast<entt::entity>(static_cast<uint32_t>(pixelData));
 
                 if (m_Scene->IsEntityValid(enttID))

@@ -13,6 +13,39 @@
 namespace Lucky
 {
     /// <summary>
+    /// Tonemapping 模式枚举
+    /// </summary>
+    enum class TonemapMode
+    {
+        Reinhard = 0,       // Reinhard
+        ACES = 1,           // ACES Filmic（默认）
+        Uncharted2 = 2      // Uncharted 2
+    };
+
+    /// <summary>
+    /// 后处理参数（从 PostProcessVolumeComponent 收集）
+    /// </summary>
+    struct PostProcessSettings
+    {
+        // Tonemapping
+        TonemapMode Tonemap = TonemapMode::ACES;  // 默认 ACES
+        float Exposure = 1.0f;
+
+        // Bloom
+        bool BloomEnabled = false;
+        float BloomThreshold = 1.0f;
+        float BloomIntensity = 1.0f;
+        int BloomIterations = 5;
+
+        // FXAA
+        bool FXAAEnabled = false;
+
+        // Vignette
+        bool VignetteEnabled = false;
+        float VignetteIntensity = 0.5f;
+        float VignetteSmoothness = 2.0f;
+    };
+    /// <summary>
     /// 绘制命令：描述一次 DrawCall 所需的全部信息
     /// 从 Renderer3D::DrawMesh() 中收集，在 EndScene() 中排序后传递给各 Pass
     /// </summary>
@@ -70,10 +103,9 @@ namespace Lucky
         float ShadowStrength = 1.0f;                    // 阴影强度 [0, 1]
         ShadowType ShadowShadowType = ShadowType::None; // 阴影类型（Hard/Soft）
         
-        // ---- HDR / Tonemapping 数据 ----
+        // ---- HDR / 后处理数据 ----
         Ref<Framebuffer> HDR_FBO;               // HDR FBO（由 PostProcessPass 提供，Main 分组 Pass 渲染到此 FBO）
-        float Exposure = 1.0f;                  // 曝光值
-        int TonemapMode = 1;                    // Tonemapping 模式（0=Reinhard, 1=ACES, 2=Uncharted2）
+        PostProcessSettings PostProcess;        // 后处理参数
         
         // ---- 统计数据（可写） ----
         Renderer3D::Statistics* Stats = nullptr;    // 渲染统计（DrawCalls、TriangleCount）

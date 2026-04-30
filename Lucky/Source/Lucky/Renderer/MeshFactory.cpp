@@ -478,7 +478,7 @@ namespace Lucky
             }
         }
         
-        // 中间连接带（上半球赤道层 → 下半球赤道层）
+        // 中间连接带（上半球赤道层 -> 下半球赤道层）
         uint32_t topEquatorOffset = topHemiOffset + rings * (segments + 1);
         uint32_t bottomHemiOffset = (rings + 1) * (segments + 1);
         uint32_t bottomEquatorOffset = bottomHemiOffset;

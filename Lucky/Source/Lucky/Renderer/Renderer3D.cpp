@@ -15,6 +15,10 @@
 #include "Passes/SilhouettePass.h"
 #include "Passes/OutlineCompositePass.h"
 
+#include "Effects/BloomEffect.h"
+#include "Effects/FXAAEffect.h"
+#include "Effects/VignetteEffect.h"
+
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 
@@ -93,12 +97,11 @@ namespace Lucky
         float ShadowStrength = 1.0f;                    // 阴影强度（从组件读取）
         ShadowType ShadowShadowType = ShadowType::None; // 阴影类型（从组件读取）
         
-        // ======== HDR / Tonemapping 数据 ========
-        float Exposure = 1.0f;      // 曝光值
-        int TonemapMode = 1;        // Tonemapping 模式（0=Reinhard, 1=ACES, 2=Uncharted2）
-        
         // ======== 清屏颜色 ========
         glm::vec4 ClearColor = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);  // 视口清屏颜色（由外部设置）
+        
+        // ======== 后处理参数 ========
+        PostProcessSettings PostProcess;    // 后处理参数（由 Scene 收集 Volume 后传入）
     };
 
     static Renderer3DData s_Data;   // 渲染器数据
@@ -108,12 +111,17 @@ namespace Lucky
         s_Data.ShaderLib = CreateRef<ShaderLibrary>();  // 创建着色器库
         
         // 加载引擎内部着色器（路径包含 /Internal/，自动标记为 Internal，不在 Inspector 中显示）
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/InternalError");            // 内部错误着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/EntityID");                 // Entity ID 拾取着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Outline/Silhouette");       // 描边轮廓着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Outline/OutlineComposite"); // 描边合成着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Shadow/Shadow");            // 阴影着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Tonemapping/Tonemapping");  // Tonemapping 着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/InternalError");                // 内部错误着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/EntityID");                     // Entity ID 拾取着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Outline/Silhouette");           // 描边轮廓着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Outline/OutlineComposite");     // 描边合成着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Shadow/Shadow");                // 阴影着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/Tonemapping");      // Tonemapping 着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/BrightExtract");    // 亮度提取着色器（Bloom）
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/GaussianBlur");     // 高斯模糊着色器（Bloom）
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/BloomComposite");   // Bloom 合成着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/FXAA");             // FXAA 着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/Vignette");         // Vignette 着色器
 
         // 加载用户可见着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Standard");  // 默认着色器
@@ -165,7 +173,7 @@ namespace Lucky
         // 设置 Pass 之间的依赖
         outlineCompositePass->SetSilhouettePass(silhouettePass);
         
-        // 按顺序添加 Pass（执行顺序：Shadow → Main → PostProcess → Outline）
+        // 按顺序添加 Pass（执行顺序：Shadow -> Main -> PostProcess -> Outline）
         // 注意：ShadowPass 和 OpaquePass/PickingPass 在 EndScene() 中执行
         //       PostProcessPass 在 EndScene() 中执行（Main 之后）
         //       SilhouettePass 和 OutlineCompositePass 在 RenderOutline() 中执行
@@ -177,6 +185,23 @@ namespace Lucky
         s_Data.Pipeline.AddPass(outlineCompositePass);
         
         s_Data.Pipeline.Init();
+        
+        // ======== 注册后处理效果到 PostProcessStack ========
+        auto bloomEffect = CreateRef<BloomEffect>();
+        bloomEffect->Order = 0;
+        bloomEffect->Enabled = false;   // 默认禁用，由 Volume 控制
+        
+        auto vignetteEffect = CreateRef<VignetteEffect>();
+        vignetteEffect->Order = 10;
+        vignetteEffect->Enabled = false;
+        
+        auto fxaaEffect = CreateRef<FXAAEffect>();
+        fxaaEffect->Order = 0;
+        fxaaEffect->Enabled = false;
+        
+        postProcessPass->GetPostProcessStack().AddEffect(bloomEffect);
+        postProcessPass->GetPostProcessStack().AddEffect(vignetteEffect);
+        postProcessPass->GetPostProcessStack().AddEffect(fxaaEffect);
     }
 
     void Renderer3D::Shutdown()
@@ -270,22 +295,21 @@ namespace Lucky
             context.ShadowMapTextureID = shadowPass->GetShadowMapTextureID();
         }
         
-        // HDR / Tonemapping 数据
+        // HDR / 后处理数据
         auto postProcessPass = s_Data.Pipeline.GetPass<PostProcessPass>();
         if (postProcessPass)
         {
             context.HDR_FBO = postProcessPass->GetHDR_FBO();
         }
-        context.Exposure = s_Data.Exposure;
-        context.TonemapMode = s_Data.TonemapMode;
+        context.PostProcess = s_Data.PostProcess;
         
         // ---- 执行 Shadow 分组（ShadowPass） ----
         s_Data.Pipeline.ExecuteGroup("Shadow", context);
         
-        // ---- 执行 Main 分组（OpaquePass + PickingPass → HDR FBO） ----
+        // ---- 执行 Main 分组（OpaquePass + PickingPass -> HDR FBO） ----
         s_Data.Pipeline.ExecuteGroup("Main", context);
         
-        // ---- 执行 PostProcess 分组（PostProcessPass → 主 FBO） ----
+        // ---- 执行 PostProcess 分组（PostProcessPass -> 主 FBO） ----
         s_Data.Pipeline.ExecuteGroup("PostProcess", context);
 
         // ======== 提取描边物体到独立列表 ========
@@ -423,24 +447,42 @@ namespace Lucky
         return s_Data.Pipeline;
     }
 
-    void Renderer3D::SetExposure(float exposure)
+    void Renderer3D::SetPostProcessSettings(const PostProcessSettings& settings)
     {
-        s_Data.Exposure = exposure;
-    }
-
-    float Renderer3D::GetExposure()
-    {
-        return s_Data.Exposure;
-    }
-
-    void Renderer3D::SetTonemapMode(int mode)
-    {
-        s_Data.TonemapMode = mode;
-    }
-
-    int Renderer3D::GetTonemapMode()
-    {
-        return s_Data.TonemapMode;
+        s_Data.PostProcess = settings;
+        
+        // 同步效果参数到 PostProcessStack 中的各个 Effect
+        auto postProcessPass = s_Data.Pipeline.GetPass<PostProcessPass>();
+        if (postProcessPass)
+        {
+            auto& stack = postProcessPass->GetPostProcessStack();
+            
+            // 同步 Bloom 参数
+            auto bloom = stack.GetEffect<BloomEffect>();
+            if (bloom)
+            {
+                bloom->Enabled = settings.BloomEnabled;
+                bloom->Threshold = settings.BloomThreshold;
+                bloom->Intensity = settings.BloomIntensity;
+                bloom->Iterations = settings.BloomIterations;
+            }
+            
+            // 同步 FXAA 参数
+            auto fxaa = stack.GetEffect<FXAAEffect>();
+            if (fxaa)
+            {
+                fxaa->Enabled = settings.FXAAEnabled;
+            }
+            
+            // 同步 Vignette 参数
+            auto vignette = stack.GetEffect<VignetteEffect>();
+            if (vignette)
+            {
+                vignette->Enabled = settings.VignetteEnabled;
+                vignette->VignetteIntensity = settings.VignetteIntensity;
+                vignette->VignetteSmoothness = settings.VignetteSmoothness;
+            }
+        }
     }
 
     void Renderer3D::RenderOutline()

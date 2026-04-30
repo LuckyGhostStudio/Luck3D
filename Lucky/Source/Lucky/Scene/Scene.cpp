@@ -149,6 +149,35 @@ namespace Lucky
         
         Renderer3D::BeginScene(camera, sceneLightData);
         {
+            // ---- 收集后处理参数 ----
+            PostProcessSettings postProcessSettings;
+            {
+                auto volumeView = m_Registry.view<PostProcessVolumeComponent>();
+                float highestPriority = -1e38f;
+
+                for (auto entity : volumeView)
+                {
+                    auto& volume = volumeView.get<PostProcessVolumeComponent>(entity);
+
+                    if (volume.IsGlobal && volume.Priority > highestPriority)
+                    {
+                        highestPriority = volume.Priority;
+
+                        postProcessSettings.Tonemap = volume.Tonemap;
+                        postProcessSettings.Exposure = volume.Exposure;
+                        postProcessSettings.BloomEnabled = volume.BloomEnabled;
+                        postProcessSettings.BloomThreshold = volume.BloomThreshold;
+                        postProcessSettings.BloomIntensity = volume.BloomIntensity;
+                        postProcessSettings.BloomIterations = volume.BloomIterations;
+                        postProcessSettings.FXAAEnabled = volume.FXAAEnabled;
+                        postProcessSettings.VignetteEnabled = volume.VignetteEnabled;
+                        postProcessSettings.VignetteIntensity = volume.VignetteIntensity;
+                        postProcessSettings.VignetteSmoothness = volume.VignetteSmoothness;
+                    }
+                }
+            }
+            Renderer3D::SetPostProcessSettings(postProcessSettings);
+
             // 获取同时拥有 TransformComponent MeshFilterComponent MeshRendererComponent 的实体
             auto meshGroup = m_Registry.group<TransformComponent>(entt::get<MeshFilterComponent, MeshRendererComponent>);
 
@@ -263,6 +292,12 @@ namespace Lucky
     
     template<>
     void Scene::OnComponentAdded<LightComponent>(Entity entity, LightComponent& component)
+    {
+        
+    }
+    
+    template<>
+    void Scene::OnComponentAdded<PostProcessVolumeComponent>(Entity entity, PostProcessVolumeComponent& component)
     {
         
     }

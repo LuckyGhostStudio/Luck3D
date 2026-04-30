@@ -6,6 +6,7 @@
 
 #include "Lucky/Renderer/Renderer3D.h"
 #include "Lucky/Renderer/RenderState.h"
+#include "Lucky/Renderer/RenderContext.h"
 
 #include "Lucky/Utils/PlatformUtils.h"
 
@@ -132,6 +133,57 @@ namespace Lucky
             }
         });
         
+        // PostProcessVolume 组件
+        DrawComponent<PostProcessVolumeComponent>("Post Process Volume", entity, [](PostProcessVolumeComponent& volume)
+        {
+            // Volume 设置
+            ImGui::Checkbox("Is Global", &volume.IsGlobal);
+            ImGui::DragFloat("Priority", &volume.Priority, 0.1f);
+
+            ImGui::Separator();
+
+            // ---- Tonemapping ----
+            if (ImGui::CollapsingHeader("Tonemapping", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                const char* tonemapModes[] = { "Reinhard", "ACES Filmic", "Uncharted 2" };
+                int tonemapIndex = static_cast<int>(volume.Tonemap);
+                if (ImGui::Combo("Tonemap Mode", &tonemapIndex, tonemapModes, IM_ARRAYSIZE(tonemapModes)))
+                {
+                    volume.Tonemap = static_cast<TonemapMode>(tonemapIndex);
+                }
+                ImGui::DragFloat("Exposure", &volume.Exposure, 0.01f, 0.0f, 10.0f);
+            }
+
+            // ---- Bloom ----
+            if (ImGui::CollapsingHeader("Bloom", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::Checkbox("Bloom Enabled", &volume.BloomEnabled);
+                if (volume.BloomEnabled)
+                {
+                    ImGui::DragFloat("Threshold", &volume.BloomThreshold, 0.01f, 0.0f, 10.0f);
+                    ImGui::DragFloat("Bloom Intensity", &volume.BloomIntensity, 0.01f, 0.0f, 10.0f);
+                    ImGui::DragInt("Iterations", &volume.BloomIterations, 1, 1, 10);
+                }
+            }
+
+            // ---- FXAA ----
+            if (ImGui::CollapsingHeader("FXAA", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::Checkbox("FXAA Enabled", &volume.FXAAEnabled);
+            }
+
+            // ---- Vignette ----
+            if (ImGui::CollapsingHeader("Vignette", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::Checkbox("Vignette Enabled", &volume.VignetteEnabled);
+                if (volume.VignetteEnabled)
+                {
+                    ImGui::DragFloat("Vignette Intensity", &volume.VignetteIntensity, 0.01f, 0.0f, 1.0f);
+                    ImGui::DragFloat("Smoothness", &volume.VignetteSmoothness, 0.01f, 0.0f, 10.0f);
+                }
+            }
+        });
+
         // MeshFilter 组件
         static std::string meshName;
         DrawComponent<MeshFilterComponent>(meshName + " (Mesh Filter)", entity, [](MeshFilterComponent& meshFilter)

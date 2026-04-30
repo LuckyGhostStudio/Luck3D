@@ -257,6 +257,14 @@ namespace Lucky
             
             ImGui::EndMenu();
         }
+
+        // ´´½¨ Post Process Volume
+        if (ImGui::MenuItem("Post Process Volume"))
+        {
+            std::string uniqueName = GenerateUniqueName("Post Process Volume", parent);
+            newEntity = m_Scene->CreateEntity(uniqueName);
+            newEntity.AddComponent<PostProcessVolumeComponent>();
+        }
         
         if (newEntity)
         {

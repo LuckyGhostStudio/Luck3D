@@ -13,7 +13,9 @@
 
 namespace Lucky
 {
-    class RenderPipeline;   // 前向声明
+    class RenderPipeline;       // 前向声明
+    struct PostProcessSettings; // 前向声明
+
     constexpr static int s_MaxDirectionalLights = 4;
     constexpr static int s_MaxPointLights = 8;
     constexpr static int s_MaxSpotLights = 4;
@@ -182,26 +184,9 @@ namespace Lucky
         /// </summary>
         static RenderPipeline& GetPipeline();
         
-        // ---- HDR / Tonemapping 控制 ----
-        
         /// <summary>
-        /// 设置曝光值
+        /// 设置后处理参数（由 Scene 收集 Volume 后调用）
         /// </summary>
-        static void SetExposure(float exposure);
-        
-        /// <summary>
-        /// 获取曝光值
-        /// </summary>
-        static float GetExposure();
-        
-        /// <summary>
-        /// 设置 Tonemapping 模式（0=Reinhard, 1=ACES, 2=Uncharted2）
-        /// </summary>
-        static void SetTonemapMode(int mode);
-        
-        /// <summary>
-        /// 获取 Tonemapping 模式
-        /// </summary>
-        static int GetTonemapMode();
+		static void SetPostProcessSettings(const PostProcessSettings& settings);
     };
 }

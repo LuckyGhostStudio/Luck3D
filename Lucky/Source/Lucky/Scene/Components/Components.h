@@ -10,3 +10,4 @@
 #include "MeshRendererComponent.h"
 
 #include "LightComponent.h"
+#include "PostProcessVolumeComponent.h"
