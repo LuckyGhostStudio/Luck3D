@@ -80,7 +80,7 @@ namespace Lucky
     {
         // ---- DrawCommand 列表（已排序） ----
         const std::vector<DrawCommand>* OpaqueDrawCommands = nullptr;       // 不透明物体绘制命令（已按 SortKey 排序）
-        // const std::vector<DrawCommand>* TransparentDrawCommands = nullptr; // 透明物体绘制命令（后续阶段）
+        const std::vector<DrawCommand>* TransparentDrawCommands = nullptr;  // 透明物体绘制命令（已按距离从远到近排序）
         
         // ---- Outline 数据 ----
         const std::vector<OutlineDrawCommand>* OutlineDrawCommands = nullptr;   // 描边绘制命令

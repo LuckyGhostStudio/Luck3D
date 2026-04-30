@@ -61,8 +61,9 @@ void main()
     vec3 ldrColor;
     if (u_TonemapMode == -1)
     {
-        // 直通模式：直接输出（用于 LDR 效果链 Blit 回主 FBO）
-        o_Color = vec4(hdrColor, 1.0);
+    // 直通模式：直接输出（用于 LDR 效果链 Blit 回主 FBO）
+        float alpha = texture(u_HDRTexture, v_TexCoord).a;
+        o_Color = vec4(hdrColor, alpha);
         return;
     }
 
@@ -85,5 +86,7 @@ void main()
     // Gamma 校正（线性空间 -> sRGB）
     ldrColor = pow(ldrColor, vec3(1.0 / 2.2));
 
-    o_Color = vec4(ldrColor, 1.0);
+    // 保留 HDR 纹理的原始 Alpha（透明物体混合后的 Alpha 信息）
+    float alpha = texture(u_HDRTexture, v_TexCoord).a;
+    o_Color = vec4(ldrColor, alpha);
 }

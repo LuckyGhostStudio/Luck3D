@@ -101,6 +101,15 @@ namespace Lucky
         static void SetBlendMode(BlendMode mode);
 
         /// <summary>
+        /// 设置颜色写入掩码（控制 RGBA 各通道是否写入帧缓冲）
+        /// </summary>
+        /// <param name="r">是否写入红色通道</param>
+        /// <param name="g">是否写入绿色通道</param>
+        /// <param name="b">是否写入蓝色通道</param>
+        /// <param name="a">是否写入 Alpha 通道</param>
+        static void SetColorMask(bool r, bool g, bool b, bool a);
+
+        /// <summary>
         /// 设置 DrawBuffer 目标（控制写入哪些颜色附件）
         /// </summary>
         /// <param name="attachments">颜色附件列表</param>

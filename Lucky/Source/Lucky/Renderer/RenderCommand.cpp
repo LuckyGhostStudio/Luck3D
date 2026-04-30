@@ -150,6 +150,11 @@ namespace Lucky
         }
     }
 
+    void RenderCommand::SetColorMask(bool r, bool g, bool b, bool a)
+    {
+        glColorMask(r ? GL_TRUE : GL_FALSE, g ? GL_TRUE : GL_FALSE, b ? GL_TRUE : GL_FALSE, a ? GL_TRUE : GL_FALSE);
+    }
+
     void RenderCommand::SetDrawBuffers(const uint32_t* attachments, uint32_t count)
     {
         glDrawBuffers(count, attachments);

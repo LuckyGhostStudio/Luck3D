@@ -20,8 +20,11 @@ namespace Lucky
 
     void ShadowPass::Execute(const RenderContext& context)
     {
-        // 条件执行：仅当阴影启用且有不透明物体时执行
-        if (!context.ShadowEnabled || !context.OpaqueDrawCommands || context.OpaqueDrawCommands->empty())
+        // 条件执行：仅当阴影启用且有可渲染物体时执行
+        bool hasOpaque = context.OpaqueDrawCommands && !context.OpaqueDrawCommands->empty();
+        bool hasTransparent = context.TransparentDrawCommands && !context.TransparentDrawCommands->empty();
+
+        if (!context.ShadowEnabled || (!hasOpaque && !hasTransparent))
         {
             return;
         }
@@ -38,17 +41,23 @@ namespace Lucky
         m_ShadowShader->Bind();
         m_ShadowShader->SetMat4("u_LightSpaceMatrix", context.LightSpaceMatrix);
 
-        // ---- 遍历 DrawCommand 列表（复用 OpaquePass 的数据） ----
-        for (const DrawCommand& cmd : *context.OpaqueDrawCommands)
+        // ---- 遍历不透明物体 DrawCommand 列表（仅不透明物体投射阴影） ----
+        if (hasOpaque)
         {
-            m_ShadowShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
+            for (const DrawCommand& cmd : *context.OpaqueDrawCommands)
+            {
+                m_ShadowShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
 
-            RenderCommand::DrawIndexedRange(
-                cmd.MeshData->GetVertexArray(),
-                cmd.SubMeshPtr->IndexOffset,
-                cmd.SubMeshPtr->IndexCount
-            );
+                RenderCommand::DrawIndexedRange(
+                    cmd.MeshData->GetVertexArray(),
+                    cmd.SubMeshPtr->IndexOffset,
+                    cmd.SubMeshPtr->IndexCount
+                );
+            }
         }
+
+        // ---- 透明物体不投射阴影 ----
+        // hasTransparent 仅参与 ShadowPass 的执行条件判断，确保 Shadow Map 被 Clear，避免残留
 
         // ---- 恢复渲染状态 ----
         RenderCommand::SetCullMode(CullMode::Back);

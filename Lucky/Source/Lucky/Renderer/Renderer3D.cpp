@@ -10,6 +10,7 @@
 
 #include "Passes/ShadowPass.h"
 #include "Passes/OpaquePass.h"
+#include "Passes/TransparentPass.h"
 #include "Passes/PickingPass.h"
 #include "Passes/PostProcessPass.h"
 #include "Passes/SilhouettePass.h"
@@ -74,8 +75,9 @@ namespace Lucky
         Ref<UniformBuffer> CameraUniformBuffer; // 相机 Uniform 缓冲区
         Ref<UniformBuffer> LightUniformBuffer;  // 光照 Uniform 缓冲区
         
-        std::vector<DrawCommand> OpaqueDrawCommands;    // 不透明物体绘制命令列表
-        std::vector<OutlineDrawCommand> OutlineDrawCommands; // 描边专用绘制命令列表（从 OpaqueDrawCommands 中提取）
+        std::vector<DrawCommand> OpaqueDrawCommands;          // 不透明物体绘制命令列表
+        std::vector<DrawCommand> TransparentDrawCommands;     // 透明物体绘制命令列表
+        std::vector<OutlineDrawCommand> OutlineDrawCommands;  // 描边专用绘制命令列表（从 OpaqueDrawCommands 中提取）
         glm::vec3 CameraPosition;                       // 缓存相机位置（用于计算距离）
         
         // ======== 渲染管线 ========
@@ -165,6 +167,7 @@ namespace Lucky
         // ======== 创建渲染管线 ========
         auto shadowPass = CreateRef<ShadowPass>();
         auto opaquePass = CreateRef<OpaquePass>();
+        auto transparentPass = CreateRef<TransparentPass>();
         auto pickingPass = CreateRef<PickingPass>();
         auto postProcessPass = CreateRef<PostProcessPass>();
         auto silhouettePass = CreateRef<SilhouettePass>();
@@ -179,6 +182,7 @@ namespace Lucky
         //       SilhouettePass 和 OutlineCompositePass 在 RenderOutline() 中执行
         s_Data.Pipeline.AddPass(shadowPass);
         s_Data.Pipeline.AddPass(opaquePass);
+        s_Data.Pipeline.AddPass(transparentPass);
         s_Data.Pipeline.AddPass(pickingPass);
         s_Data.Pipeline.AddPass(postProcessPass);
         s_Data.Pipeline.AddPass(silhouettePass);
@@ -261,6 +265,7 @@ namespace Lucky
         
         // 清空绘制命令列表
         s_Data.OpaqueDrawCommands.clear();
+        s_Data.TransparentDrawCommands.clear();
     
         // 缓存相机位置
         s_Data.CameraPosition = camera.GetPosition();
@@ -268,15 +273,22 @@ namespace Lucky
 
     void Renderer3D::EndScene()
     {
-        // ---- 排序不透明物体 ----
+        // ---- 排序不透明物体（按 SortKey 升序，聚合相同 Shader） ----
         std::sort(s_Data.OpaqueDrawCommands.begin(), s_Data.OpaqueDrawCommands.end(), [](const DrawCommand& a, const DrawCommand& b)
         {
-            return a.SortKey < b.SortKey;   // 按 SortKey 升序（聚合相同 Shader）
+            return a.SortKey < b.SortKey;
+        });
+        
+        // ---- 排序透明物体（按距离降序，从远到近） ----
+        std::sort(s_Data.TransparentDrawCommands.begin(), s_Data.TransparentDrawCommands.end(), [](const DrawCommand& a, const DrawCommand& b)
+        {
+            return a.DistanceToCamera > b.DistanceToCamera;  // 远的先画
         });
         
         // ---- 构建 RenderContext（包含阴影数据） ----
         RenderContext context;
         context.OpaqueDrawCommands = &s_Data.OpaqueDrawCommands;
+        context.TransparentDrawCommands = &s_Data.TransparentDrawCommands;
         context.TargetFramebuffer = s_Data.TargetFramebuffer;
         context.ClearColor = s_Data.ClearColor;
         context.Stats = &s_Data.Stats;
@@ -313,11 +325,12 @@ namespace Lucky
         s_Data.Pipeline.ExecuteGroup("PostProcess", context);
 
         // ======== 提取描边物体到独立列表 ========
-        // 将描边所需的最小几何数据从 OpaqueDrawCommands 中提取到 OutlineDrawCommands
-        // 使 OpaqueDrawCommands 的生命周期在 EndScene() 结束时终止，职责清晰
+        // 将描边所需的最小几何数据从 OpaqueDrawCommands / TransparentDrawCommands 中提取到 OutlineDrawCommands
+        // 使 DrawCommands 的生命周期在 EndScene() 结束时终止，职责清晰
         s_Data.OutlineDrawCommands.clear();
         if (!s_Data.OutlineEntityIDs.empty())
         {
+            // 从不透明物体中提取
             for (const DrawCommand& cmd : s_Data.OpaqueDrawCommands)
             {
                 if (s_Data.OutlineEntityIDs.count(cmd.EntityID))
@@ -330,9 +343,23 @@ namespace Lucky
                     s_Data.OutlineDrawCommands.push_back(outlineCmd);
                 }
             }
+            // 从透明物体中提取（透明物体也需要描边）
+            for (const DrawCommand& cmd : s_Data.TransparentDrawCommands)
+            {
+                if (s_Data.OutlineEntityIDs.count(cmd.EntityID))
+                {
+                    OutlineDrawCommand outlineCmd;
+                    outlineCmd.Transform = cmd.Transform;
+                    outlineCmd.MeshData = cmd.MeshData;
+                    outlineCmd.SubMeshPtr = cmd.SubMeshPtr;
+
+                    s_Data.OutlineDrawCommands.push_back(outlineCmd);
+                }
+            }
         }
-        // 立即清空 OpaqueDrawCommands，生命周期在 EndScene() 结束
+        // 立即清空 DrawCommands，生命周期在 EndScene() 结束
         s_Data.OpaqueDrawCommands.clear();
+        s_Data.TransparentDrawCommands.clear();
     }
 
     void Renderer3D::DrawMesh(const glm::mat4& transform, Ref<Mesh>& mesh, const std::vector<Ref<Material>>& materials, int entityID)
@@ -376,8 +403,15 @@ namespace Lucky
             cmd.DistanceToCamera = distToCamera;
             cmd.EntityID = entityID;
         
-            // 加入不透明绘制命令列表
-            s_Data.OpaqueDrawCommands.push_back(cmd);
+            // 根据材质透明度分流到对应的绘制命令列表
+            if (material->IsTransparent())
+            {
+                s_Data.TransparentDrawCommands.push_back(cmd);
+            }
+            else
+            {
+                s_Data.OpaqueDrawCommands.push_back(cmd);
+            }
         }
     }
 

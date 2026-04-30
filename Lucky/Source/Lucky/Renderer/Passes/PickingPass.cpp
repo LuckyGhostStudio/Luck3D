@@ -14,7 +14,11 @@ namespace Lucky
     
     void PickingPass::Execute(const RenderContext& context)
     {
-        if (!context.OpaqueDrawCommands || context.OpaqueDrawCommands->empty())
+        // 不透明和透明物体都为空时跳过
+        bool hasOpaque = context.OpaqueDrawCommands && !context.OpaqueDrawCommands->empty();
+        bool hasTransparent = context.TransparentDrawCommands && !context.TransparentDrawCommands->empty();
+        
+        if (!hasOpaque && !hasTransparent)
         {
             return;
         }
@@ -32,20 +36,42 @@ namespace Lucky
         // 绑定 EntityID Shader（VP 矩阵通过 Camera UBO binding=0 自动传递，无需手动设置）
         m_EntityIDShader->Bind();
         
-        // ---- 遍历绘制 ----
-        for (const DrawCommand& cmd : *context.OpaqueDrawCommands)
+        // ---- 遍历绘制不透明物体 ----
+        if (hasOpaque)
         {
-            // 设置模型变换矩阵
-            m_EntityIDShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
-            // 设置 Entity ID
-            m_EntityIDShader->SetInt("u_EntityID", cmd.EntityID);
-            
-            // 绘制
-            RenderCommand::DrawIndexedRange(
-                cmd.MeshData->GetVertexArray(),
-                cmd.SubMeshPtr->IndexOffset,
-                cmd.SubMeshPtr->IndexCount
-            );
+            for (const DrawCommand& cmd : *context.OpaqueDrawCommands)
+            {
+                // 设置模型变换矩阵
+                m_EntityIDShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
+                // 设置 Entity ID
+                m_EntityIDShader->SetInt("u_EntityID", cmd.EntityID);
+                
+                // 绘制
+                RenderCommand::DrawIndexedRange(
+                    cmd.MeshData->GetVertexArray(),
+                    cmd.SubMeshPtr->IndexOffset,
+                    cmd.SubMeshPtr->IndexCount
+                );
+            }
+        }
+        
+        // ---- 遍历绘制透明物体（确保编辑器中可以选中透明物体） ----
+        if (hasTransparent)
+        {
+            for (const DrawCommand& cmd : *context.TransparentDrawCommands)
+            {
+                // 设置模型变换矩阵
+                m_EntityIDShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
+                // 设置 Entity ID
+                m_EntityIDShader->SetInt("u_EntityID", cmd.EntityID);
+                
+                // 绘制
+                RenderCommand::DrawIndexedRange(
+                    cmd.MeshData->GetVertexArray(),
+                    cmd.SubMeshPtr->IndexOffset,
+                    cmd.SubMeshPtr->IndexCount
+                );
+            }
         }
         
         // ---- 恢复渲染状态 ----

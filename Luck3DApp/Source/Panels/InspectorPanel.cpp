@@ -12,8 +12,23 @@
 
 #include "glm/gtc/type_ptr.hpp"
 
+#include <algorithm>
+
 namespace Lucky
 {
+    /// <summary>
+    /// 判断属性名是否表示颜色（根据命名约定自动识别）
+    /// </summary>
+    static bool IsColorProperty(const std::string& name)
+    {
+        std::string lower = name;
+        std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+
+        return lower.find("color") != std::string::npos
+            || lower.find("colour") != std::string::npos
+            || lower.find("tint") != std::string::npos
+            || lower.find("albedo") != std::string::npos;
+    }
     InspectorPanel::InspectorPanel(const Ref<Scene>& scene)
         : m_Scene(scene)
     {
@@ -322,6 +337,16 @@ namespace Lucky
             {
                 RenderState& state = material->GetRenderState();
                 
+                // RenderingMode 下拉框（一键预设：自动配置 Blend / DepthWrite / Queue）
+                const char* renderingModes[] = { "Opaque", "Cutout", "Fade", "Transparent" };
+                int currentMode = static_cast<int>(material->GetRenderingMode());
+                if (ImGui::Combo("Rendering Mode", &currentMode, renderingModes, IM_ARRAYSIZE(renderingModes)))
+                {
+                    material->SetRenderingMode(static_cast<RenderingMode>(currentMode));
+                }
+                
+                ImGui::Separator();
+                
                 // CullMode 下拉框
                 const char* cullModes[] = { "Back", "Front", "Off (Two Sided)" };
                 int currentCull = static_cast<int>(state.Cull);
@@ -353,7 +378,7 @@ namespace Lucky
                 // RenderQueue 拖拽条
                 ImGui::DragInt("Render Queue", &state.Queue, 1, 0, 5000);
                 
-                // 快捷预设按钮
+                // 快捷预设按钮（联动设置完整渲染状态）
                 if (ImGui::Button("Background"))
                 {
                     state.Queue = RenderQueue::Background;
@@ -361,17 +386,17 @@ namespace Lucky
                 ImGui::SameLine();
                 if (ImGui::Button("Geometry"))
                 {
-                    state.Queue = RenderQueue::Geometry;
+                    material->SetRenderingMode(RenderingMode::Opaque);
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("AlphaTest"))
                 {
-                    state.Queue = RenderQueue::AlphaTest;
+                    material->SetRenderingMode(RenderingMode::Cutout);
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("Transparent"))
                 {
-                    state.Queue = RenderQueue::Transparent;
+                    material->SetRenderingMode(RenderingMode::Transparent);
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("Overlay"))
@@ -417,18 +442,38 @@ namespace Lucky
                 case ShaderUniformType::Float3:
                 {
                     glm::vec3 value = std::get<glm::vec3>(prop.Value);
-                    if (ImGui::DragFloat3(prop.Name.c_str(), &value.x, 0.1f))
+                    if (IsColorProperty(prop.Name))
                     {
-                        material->SetFloat3(prop.Name, value);
+                        if (ImGui::ColorEdit3(prop.Name.c_str(), &value.x))
+                        {
+                            material->SetFloat3(prop.Name, value);
+                        }
+                    }
+                    else
+                    {
+                        if (ImGui::DragFloat3(prop.Name.c_str(), &value.x, 0.1f))
+                        {
+                            material->SetFloat3(prop.Name, value);
+                        }
                     }
                     break;
                 }
                 case ShaderUniformType::Float4:
                 {
                     glm::vec4 value = std::get<glm::vec4>(prop.Value);
-                    if (ImGui::DragFloat4(prop.Name.c_str(), &value.x, 0.1f))
+                    if (IsColorProperty(prop.Name))
                     {
-                        material->SetFloat4(prop.Name, value);
+                        if (ImGui::ColorEdit4(prop.Name.c_str(), &value.x))
+                        {
+                            material->SetFloat4(prop.Name, value);
+                        }
+                    }
+                    else
+                    {
+                        if (ImGui::DragFloat4(prop.Name.c_str(), &value.x, 0.1f))
+                        {
+                            material->SetFloat4(prop.Name, value);
+                        }
                     }
                     break;
                 }
