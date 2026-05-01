@@ -72,18 +72,18 @@ namespace Lucky::UI
 
         if (ImGui::IsItemActive())
         {
-            // ¼¤»î×´Ì¬£º¸ßÁÁ±ß¿ò
-            drawList->AddRect(rect.Min, rect.Max, IM_COL32(60, 60, 60, 255), rounding, 0, 1.5f);
+            // ¼¤»î×´Ì¬£º»Ò°×¸ßÁÁ±ß¿ò
+            drawList->AddRect(rect.Min, rect.Max, IM_COL32(200, 200, 200, 255), rounding, 0, 1.5f);
         }
         else if (ImGui::IsItemHovered() && !ImGui::IsItemActive())
         {
-            // ÐüÍ£×´Ì¬£ºÇ³É«±ß¿ò
-            drawList->AddRect(rect.Min, rect.Max, IM_COL32(60, 60, 60, 255), rounding, 0, 1.5f);
+            // ÐüÍ£×´Ì¬£ºÀ¶É«¸ßÁÁ±ß¿ò
+            drawList->AddRect(rect.Min, rect.Max, IM_COL32(62, 170, 255, 255), rounding, 0, 1.5f);
         }
         else
         {
             // ·Ç¼¤»î×´Ì¬£º¸üÇ³µÄ±ß¿ò
-            drawList->AddRect(rect.Min, rect.Max, IM_COL32(50, 50, 50, 255), rounding, 0, 1.0f);
+            drawList->AddRect(rect.Min, rect.Max, IM_COL32(26, 26, 26, 255), rounding, 0, 1.0f);
         }
     }
 }

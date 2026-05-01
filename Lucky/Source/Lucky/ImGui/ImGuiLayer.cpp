@@ -44,6 +44,8 @@ namespace Lucky
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;       // Enable Docking
         io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;     // Enable Multi-Viewport / Platform Windows
 
+        io.ConfigDragClickToInputText = true;  // 启用单次点击进入输入模式
+        
         float fontSize = 20.0f * app.GetWindow().GetDPI() / s_StandardDPI;
         io.Fonts->AddFontFromFileTTF("Resources/Fonts/Opensans/OpenSans-Bold.ttf", fontSize);   // 添加粗体（0号）
         
