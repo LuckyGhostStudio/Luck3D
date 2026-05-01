@@ -354,4 +354,20 @@ namespace Lucky
         // 恢复绑定状态（绑定到目标 FBO，因为调用方通常在目标 FBO 上继续操作）
         glBindFramebuffer(GL_FRAMEBUFFER, target->m_RendererID);
     }
+
+    void Framebuffer::BlitColorTo(const Ref<Framebuffer>& target) const
+    {
+        // 将当前 FBO 颜色缓冲区 Blit 到目标 FBO
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, m_RendererID);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target->m_RendererID);
+
+        glBlitFramebuffer(
+            0, 0, m_Specification.Width, m_Specification.Height,
+            0, 0, target->m_Specification.Width, target->m_Specification.Height,
+            GL_COLOR_BUFFER_BIT, GL_NEAREST
+        );
+
+        // 恢复状态，绑定目标 FBO 作为当前 FBO
+        glBindFramebuffer(GL_FRAMEBUFFER, target->m_RendererID);
+    }
 }

@@ -4,10 +4,8 @@ in vec3 v_TexCoord;     // 方向向量
 
 uniform samplerCube u_SkyboxMap;    // Cubemap 纹理
 
-// @default 1.0
 uniform float u_Exposure;           // 曝光调整（默认 1.0）
 
-// @default 1.0, 1.0, 1.0, 1.0
 uniform vec4 u_Tint;                // 色调调整（默认白色）
 
 layout(location = 0) out vec4 o_Color;
@@ -22,4 +20,5 @@ void main()
     color *= u_Tint.rgb;
     
     o_Color = vec4(color, 1.0);
+    // o_Color = vec4(1.0, 1.0, 1.0, 1.0);
 }

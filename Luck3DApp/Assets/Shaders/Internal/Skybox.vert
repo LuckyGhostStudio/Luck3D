@@ -6,7 +6,6 @@ out vec3 v_TexCoord;    // 方向向量（用于采样 Cubemap）
 
 uniform mat4 u_SkyboxVP;   // 天空盒 VP 矩阵（View 移除平移 x Projection，由 SkyboxPass 自动设置）
 
-// @default 0.0
 uniform float u_Rotation;  // Y 轴旋转角度（度）
 
 void main()
