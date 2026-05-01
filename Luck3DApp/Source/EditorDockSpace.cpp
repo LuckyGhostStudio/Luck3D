@@ -29,7 +29,7 @@ namespace Lucky
             m_WindowFlags |= ImGuiWindowFlags_NoTitleBar;
             m_WindowFlags |= ImGuiWindowFlags_NoCollapse;
             m_WindowFlags |= ImGuiWindowFlags_NoResize;
-            m_WindowFlags |= ImGuiWindowFlags_NoMove;;
+            m_WindowFlags |= ImGuiWindowFlags_NoMove;
             m_WindowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
             m_WindowFlags |= ImGuiWindowFlags_NoNavFocus;
         }
