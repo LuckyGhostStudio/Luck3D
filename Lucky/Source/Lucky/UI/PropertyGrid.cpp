@@ -8,6 +8,7 @@
 #include "Lucky/UI/ScopedGuards.h"
 
 #include <imgui/imgui.h>
+#include <glm/gtc/type_ptr.hpp>
 
 namespace Lucky::UI
 {

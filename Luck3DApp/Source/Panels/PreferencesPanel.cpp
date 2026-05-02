@@ -2,8 +2,10 @@
 
 #include "Lucky/Editor/EditorPreferences.h"
 
+#include "Lucky/UI/PropertyGrid.h"
+#include "Lucky/UI/Widgets.h"
+
 #include <imgui/imgui.h>
-#include <glm/gtc/type_ptr.hpp>
 
 namespace Lucky
 {
@@ -53,121 +55,131 @@ namespace Lucky
         bool changed = false;
         
         // ---- Gizmo 颜色 ----
-        if (ImGui::TreeNodeEx("Gizmo Colors", ImGuiTreeNodeFlags_DefaultOpen))
+        if (UI::BeginCollapsing("Gizmo Colors"))
         {
-            changed |= ImGui::ColorEdit4("Grid X Axis", glm::value_ptr(colors.GridAxisXColor));
-            changed |= ImGui::ColorEdit4("Grid Z Axis", glm::value_ptr(colors.GridAxisZColor));
-            changed |= ImGui::ColorEdit4("Grid Lines", glm::value_ptr(colors.GridLineColor));
+            UI::BeginPropertyGrid();
+            
+            changed |= UI::PropertyColor4("Grid X Axis", colors.GridAxisXColor);
+            changed |= UI::PropertyColor4("Grid Z Axis", colors.GridAxisZColor);
+            changed |= UI::PropertyColor4("Grid Lines", colors.GridLineColor);
             
             ImGui::Spacing();
             
-            changed |= ImGui::ColorEdit4("Outline Leaf", glm::value_ptr(colors.OutlineLeafColor));
-            changed |= ImGui::ColorEdit4("Outline Parent", glm::value_ptr(colors.OutlineParentColor));
+            changed |= UI::PropertyColor4("Outline Leaf", colors.OutlineLeafColor);
+            changed |= UI::PropertyColor4("Outline Parent", colors.OutlineParentColor);
             
-            ImGui::TreePop();
+            UI::EndPropertyGrid();
+            
+            UI::EndCollapsing();
         }
         
         ImGui::Separator();
         
         // ---- 视口颜色 ----
-        if (ImGui::TreeNodeEx("Viewport", ImGuiTreeNodeFlags_DefaultOpen))
+        if (UI::BeginCollapsing("Viewport"))
         {
-            changed |= ImGui::ColorEdit4("Clear Color", glm::value_ptr(colors.ViewportClearColor));
+            UI::BeginPropertyGrid();
+            changed |= UI::PropertyColor4("Clear Color", colors.ViewportClearColor);
+            UI::EndPropertyGrid();
             
-            ImGui::TreePop();
+            UI::EndCollapsing();
         }
         
         ImGui::Separator();
         
         // ---- UI 颜色 ----
-        if (ImGui::TreeNodeEx("UI Colors", ImGuiTreeNodeFlags_DefaultOpen))
+        if (UI::BeginCollapsing("UI Colors"))
         {
-            changed |= ImGui::ColorEdit4("Window Bg", glm::value_ptr(colors.WindowBackground));
-            changed |= ImGui::ColorEdit4("Child Bg", glm::value_ptr(colors.ChildBackground));
-            changed |= ImGui::ColorEdit4("Popup Bg", glm::value_ptr(colors.PopupBackground));
+            UI::BeginPropertyGrid();
+            
+            changed |= UI::PropertyColor4("Window Bg", colors.WindowBackground);
+            changed |= UI::PropertyColor4("Child Bg", colors.ChildBackground);
+            changed |= UI::PropertyColor4("Popup Bg", colors.PopupBackground);
             
             ImGui::Spacing();
             
-            changed |= ImGui::ColorEdit4("Border", glm::value_ptr(colors.BorderColor));
-            changed |= ImGui::ColorEdit4("Border Shadow", glm::value_ptr(colors.BorderShadowColor));
+            changed |= UI::PropertyColor4("Border", colors.BorderColor);
+            changed |= UI::PropertyColor4("Border Shadow", colors.BorderShadowColor);
             
             ImGui::Spacing();
             
-            changed |= ImGui::ColorEdit4("Frame Bg", glm::value_ptr(colors.FrameBackground));
-            changed |= ImGui::ColorEdit4("Frame Hovered", glm::value_ptr(colors.FrameBackgroundHovered));
-            changed |= ImGui::ColorEdit4("Frame Active", glm::value_ptr(colors.FrameBackgroundActive));
+            changed |= UI::PropertyColor4("Frame Bg", colors.FrameBackground);
+            changed |= UI::PropertyColor4("Frame Hovered", colors.FrameBackgroundHovered);
+            changed |= UI::PropertyColor4("Frame Active", colors.FrameBackgroundActive);
             
             ImGui::Spacing();
             
-            changed |= ImGui::ColorEdit4("Button", glm::value_ptr(colors.ButtonColor));
-            changed |= ImGui::ColorEdit4("Button Hovered", glm::value_ptr(colors.ButtonHovered));
-            changed |= ImGui::ColorEdit4("Button Active", glm::value_ptr(colors.ButtonActive));
+            changed |= UI::PropertyColor4("Button", colors.ButtonColor);
+            changed |= UI::PropertyColor4("Button Hovered", colors.ButtonHovered);
+            changed |= UI::PropertyColor4("Button Active", colors.ButtonActive);
             
             ImGui::Spacing();
             
-            changed |= ImGui::ColorEdit4("Header", glm::value_ptr(colors.HeaderColor));
-            changed |= ImGui::ColorEdit4("Header Hovered", glm::value_ptr(colors.HeaderHovered));
-            changed |= ImGui::ColorEdit4("Header Active", glm::value_ptr(colors.HeaderActive));
+            changed |= UI::PropertyColor4("Header", colors.HeaderColor);
+            changed |= UI::PropertyColor4("Header Hovered", colors.HeaderHovered);
+            changed |= UI::PropertyColor4("Header Active", colors.HeaderActive);
             
             ImGui::Spacing();
             
-            changed |= ImGui::ColorEdit4("Title Bar", glm::value_ptr(colors.TitleBarBackground));
-            changed |= ImGui::ColorEdit4("Menu Bar Bg", glm::value_ptr(colors.MenuBarBackground));
+            changed |= UI::PropertyColor4("Title Bar", colors.TitleBarBackground);
+            changed |= UI::PropertyColor4("Menu Bar Bg", colors.MenuBarBackground);
             
             ImGui::Spacing();
             
-            changed |= ImGui::ColorEdit4("Tab", glm::value_ptr(colors.TabColor));
-            changed |= ImGui::ColorEdit4("Tab Hovered", glm::value_ptr(colors.TabHovered));
-            changed |= ImGui::ColorEdit4("Tab Active", glm::value_ptr(colors.TabActive));
+            changed |= UI::PropertyColor4("Tab", colors.TabColor);
+            changed |= UI::PropertyColor4("Tab Hovered", colors.TabHovered);
+            changed |= UI::PropertyColor4("Tab Active", colors.TabActive);
             
             ImGui::Spacing();
             
-            changed |= ImGui::ColorEdit4("Text", glm::value_ptr(colors.TextColor));
-            changed |= ImGui::ColorEdit4("Text Disabled", glm::value_ptr(colors.TextDisabledColor));
-            changed |= ImGui::ColorEdit4("Text Selected Bg", glm::value_ptr(colors.TextSelectedBackground));
+            changed |= UI::PropertyColor4("Text", colors.TextColor);
+            changed |= UI::PropertyColor4("Text Disabled", colors.TextDisabledColor);
+            changed |= UI::PropertyColor4("Text Selected Bg", colors.TextSelectedBackground);
             
             ImGui::Spacing();
             
-            changed |= ImGui::ColorEdit4("Check Mark", glm::value_ptr(colors.CheckMarkColor));
-            changed |= ImGui::ColorEdit4("Slider Grab", glm::value_ptr(colors.SliderGrab));
-            changed |= ImGui::ColorEdit4("Slider Grab Active", glm::value_ptr(colors.SliderGrabActive));
+            changed |= UI::PropertyColor4("Check Mark", colors.CheckMarkColor);
+            changed |= UI::PropertyColor4("Slider Grab", colors.SliderGrab);
+            changed |= UI::PropertyColor4("Slider Grab Active", colors.SliderGrabActive);
             
             ImGui::Spacing();
             
-            changed |= ImGui::ColorEdit4("Separator", glm::value_ptr(colors.SeparatorColor));
+            changed |= UI::PropertyColor4("Separator", colors.SeparatorColor);
             
             ImGui::Spacing();
             
-            changed |= ImGui::ColorEdit4("Resize Grip", glm::value_ptr(colors.ResizeGripColor));
-            changed |= ImGui::ColorEdit4("Resize Grip Hovered", glm::value_ptr(colors.ResizeGripHovered));
-            changed |= ImGui::ColorEdit4("Resize Grip Active", glm::value_ptr(colors.ResizeGripActive));
+            changed |= UI::PropertyColor4("Resize Grip", colors.ResizeGripColor);
+            changed |= UI::PropertyColor4("Resize Grip Hovered", colors.ResizeGripHovered);
+            changed |= UI::PropertyColor4("Resize Grip Active", colors.ResizeGripActive);
             
             ImGui::Spacing();
             
-            changed |= ImGui::ColorEdit4("Scrollbar Bg", glm::value_ptr(colors.ScrollbarBackground));
-            changed |= ImGui::ColorEdit4("Scrollbar Grab", glm::value_ptr(colors.ScrollbarGrab));
-            changed |= ImGui::ColorEdit4("Scrollbar Grab Hovered", glm::value_ptr(colors.ScrollbarGrabHovered));
-            changed |= ImGui::ColorEdit4("Scrollbar Grab Active", glm::value_ptr(colors.ScrollbarGrabActive));
+            changed |= UI::PropertyColor4("Scrollbar Bg", colors.ScrollbarBackground);
+            changed |= UI::PropertyColor4("Scrollbar Grab", colors.ScrollbarGrab);
+            changed |= UI::PropertyColor4("Scrollbar Grab Hovered", colors.ScrollbarGrabHovered);
+            changed |= UI::PropertyColor4("Scrollbar Grab Active", colors.ScrollbarGrabActive);
             
             ImGui::Spacing();
             
-            changed |= ImGui::ColorEdit4("Table Header Bg", glm::value_ptr(colors.TableHeaderBg));
-            changed |= ImGui::ColorEdit4("Table Border Strong", glm::value_ptr(colors.TableBorderStrong));
-            changed |= ImGui::ColorEdit4("Table Border Light", glm::value_ptr(colors.TableBorderLight));
-            changed |= ImGui::ColorEdit4("Table Row Bg", glm::value_ptr(colors.TableRowBg));
-            changed |= ImGui::ColorEdit4("Table Row Bg Alt", glm::value_ptr(colors.TableRowBgAlt));
+            changed |= UI::PropertyColor4("Table Header Bg", colors.TableHeaderBg);
+            changed |= UI::PropertyColor4("Table Border Strong", colors.TableBorderStrong);
+            changed |= UI::PropertyColor4("Table Border Light", colors.TableBorderLight);
+            changed |= UI::PropertyColor4("Table Row Bg", colors.TableRowBg);
+            changed |= UI::PropertyColor4("Table Row Bg Alt", colors.TableRowBgAlt);
             
             ImGui::Spacing();
             
-            changed |= ImGui::ColorEdit4("Drag Drop Target", glm::value_ptr(colors.DragDropTarget));
-            changed |= ImGui::ColorEdit4("Modal Window Dim Bg", glm::value_ptr(colors.ModalWindowDimBackground));
+            changed |= UI::PropertyColor4("Drag Drop Target", colors.DragDropTarget);
+            changed |= UI::PropertyColor4("Modal Window Dim Bg", colors.ModalWindowDimBackground);
             
             ImGui::Spacing();
             
-            changed |= ImGui::ColorEdit4("Docking Preview", glm::value_ptr(colors.DockingPreview));
-            changed |= ImGui::ColorEdit4("Docking Empty Bg", glm::value_ptr(colors.DockingEmptyBackground));
+            changed |= UI::PropertyColor4("Docking Preview", colors.DockingPreview);
+            changed |= UI::PropertyColor4("Docking Empty Bg", colors.DockingEmptyBackground);
             
-            ImGui::TreePop();
+            UI::EndPropertyGrid();
+            
+            UI::EndCollapsing();
         }
         
         // 颜色改变时立即应用到 ImGui 主题

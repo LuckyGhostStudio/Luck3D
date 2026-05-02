@@ -12,6 +12,7 @@
 
 #include "Lucky/UI/Controls.h"
 #include "Lucky/UI/PropertyGrid.h"
+#include "Lucky/UI/Widgets.h"
 
 #include <glm/gtc/type_ptr.hpp>
 #include <algorithm>
@@ -124,6 +125,8 @@ namespace Lucky
 
     void InspectorPanel::DrawComponents(Entity entity)
     {
+        UUID id = entity.GetUUID();
+        
         // Name 组件
         if (entity.HasComponent<NameComponent>())
         {
@@ -220,13 +223,11 @@ namespace Lucky
         });
 
         // MeshRenderer 组件
-        DrawComponent<MeshRendererComponent>("Mesh Renderer", entity, [&entity](MeshRendererComponent& meshRenderer)
+        DrawComponent<MeshRendererComponent>("Mesh Renderer", entity, [&](MeshRendererComponent& meshRenderer)
         {
-            const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_SpanAvailWidth;
-            
-            const std::string& strID = std::format("Materials##{0}", entity.GetComponent<NameComponent>().Name);
+            const std::string& strID = std::format("Materials##{0}", static_cast<uint64_t>(id));
 
-            if (ImGui::TreeNodeEx(strID.c_str(), flags))
+            if (UI::BeginCollapsing(strID.c_str()))
             {
                 UI::BeginPropertyGrid();
                 
@@ -249,12 +250,12 @@ namespace Lucky
                 
                 UI::EndPropertyGrid();
                 
-                ImGui::TreePop();
+                UI::EndCollapsing();
             }
         });
         
         // PostProcessVolume 组件
-        DrawComponent<PostProcessVolumeComponent>("Post Process Volume", entity, [](PostProcessVolumeComponent& volume)
+        DrawComponent<PostProcessVolumeComponent>("Post Process Volume", entity, [&](PostProcessVolumeComponent& volume)
         {
             UI::BeginPropertyGrid();
             
@@ -263,9 +264,10 @@ namespace Lucky
             UI::PropertyFloat("Priority", volume.Priority, 0.1f);
             
             UI::EndPropertyGrid();
-
+            
             // ---- Tonemapping ----
-            if (ImGui::TreeNodeEx("Tonemapping", ImGuiTreeNodeFlags_DefaultOpen))
+            const std::string& strTonemappingID = std::format("Tonemapping##{0}", static_cast<uint64_t>(id));
+            if (UI::BeginCollapsing(strTonemappingID.c_str()))
             {
                 UI::BeginPropertyGrid();
                 
@@ -279,11 +281,12 @@ namespace Lucky
                 
                 UI::EndPropertyGrid();
                 
-                ImGui::TreePop();
+                UI::EndCollapsing();
             }
 
             // ---- Bloom ----
-            if (ImGui::TreeNodeEx("Bloom", ImGuiTreeNodeFlags_DefaultOpen))
+            const std::string& strBloomID = std::format("Bloom##{0}", static_cast<uint64_t>(id));
+            if (UI::BeginCollapsing(strBloomID.c_str()))
             {
                 UI::BeginPropertyGrid();
                 
@@ -297,11 +300,12 @@ namespace Lucky
                 
                 UI::EndPropertyGrid();
                 
-                ImGui::TreePop();
+                UI::EndCollapsing();
             }
 
             // ---- FXAA ----
-            if (ImGui::TreeNodeEx("FXAA", ImGuiTreeNodeFlags_DefaultOpen))
+            const std::string& strFXAAID = std::format("FXAA##{0}", static_cast<uint64_t>(id));
+            if (UI::BeginCollapsing(strFXAAID.c_str()))
             {
                 UI::BeginPropertyGrid();
                 
@@ -309,11 +313,12 @@ namespace Lucky
                 
                 UI::EndPropertyGrid();
                 
-                ImGui::TreePop();
+                UI::EndCollapsing();
             }
 
             // ---- Vignette ----
-            if (ImGui::TreeNodeEx("Vignette", ImGuiTreeNodeFlags_DefaultOpen))
+            const std::string& strVignetteID = std::format("Vignette##{0}", static_cast<uint64_t>(id));
+            if (UI::BeginCollapsing(strVignetteID.c_str()))
             {
                 UI::BeginPropertyGrid();
                 
@@ -326,7 +331,7 @@ namespace Lucky
                 
                 UI::EndPropertyGrid();
                 
-                ImGui::TreePop();
+                UI::EndCollapsing();
             }
         });
 
@@ -353,10 +358,14 @@ namespace Lucky
             material = Renderer3D::GetInternalErrorMaterial();  // 使用内部错误材质（表示材质丢失）
         }
         
+        UUID id = SelectionManager::GetSelection();
+        
         // 树节点标志：打开|框架|延伸到右边|允许重叠|框架边框
         const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth;
         
-        if (ImGui::TreeNodeEx(material->GetName().c_str(), flags))
+        const std::string& strMaterialID = std::format("{0}##{1}", material->GetName(), static_cast<uint64_t>(id));
+        
+        if (ImGui::TreeNodeEx(strMaterialID.c_str(), flags))
         {
             // ---- Shader ----
         
@@ -397,7 +406,8 @@ namespace Lucky
             UI::EndPropertyGrid();
             
             // ---- 渲染状态 ----
-            if (ImGui::TreeNodeEx("Render State", ImGuiTreeNodeFlags_DefaultOpen))
+            const std::string& strRenderStateID = std::format("Render State##{0}{1}", static_cast<uint64_t>(id), material->GetName());
+            if (UI::BeginCollapsing(strRenderStateID.c_str()))
             {
                 UI::BeginPropertyGrid();
                 
@@ -442,7 +452,7 @@ namespace Lucky
                 
                 UI::EndPropertyGrid();
                 
-                ImGui::TreePop();
+                UI::EndCollapsing();
             }
             
             // 绘制材质属性（按 Shader uniform 声明顺序遍历）
@@ -467,7 +477,7 @@ namespace Lucky
                         float value = std::get<float>(prop.Value);
                         if (UI::PropertyFloat(displayName.c_str(), value, 0.1f))
                         {
-                            material->SetFloat(displayName, value);
+                            material->SetFloat(prop.Name, value);
                         }
                         break;
                     }
@@ -476,25 +486,25 @@ namespace Lucky
                         glm::vec2 value = std::get<glm::vec2>(prop.Value);
                         if (UI::PropertyFloat2(displayName.c_str(), value, 0.1f))
                         {
-                            material->SetFloat2(displayName, value);
+                            material->SetFloat2(prop.Name, value);
                         }
                         break;
                     }
                     case ShaderUniformType::Float3:
                     {
                         glm::vec3 value = std::get<glm::vec3>(prop.Value);
-                        if (IsColorProperty(displayName))
+                        if (IsColorProperty(prop.Name))
                         {
                             if (UI::PropertyColor(displayName.c_str(), value))
                             {
-                                material->SetFloat3(displayName, value);
+                                material->SetFloat3(prop.Name, value);
                             }
                         }
                         else
                         {
                             if (UI::PropertyFloat3(displayName.c_str(), value, 0.1f))
                             {
-                                material->SetFloat3(displayName, value);
+                                material->SetFloat3(prop.Name, value);
                             }
                         }
                         break;
@@ -502,18 +512,18 @@ namespace Lucky
                     case ShaderUniformType::Float4:
                     {
                         glm::vec4 value = std::get<glm::vec4>(prop.Value);
-                        if (IsColorProperty(displayName))
+                        if (IsColorProperty(prop.Name))
                         {
                             if (UI::PropertyColor4(displayName.c_str(), value))
                             {
-                                material->SetFloat4(displayName, value);
+                                material->SetFloat4(prop.Name, value);
                             }
                         }
                         else
                         {
                             if (UI::PropertyFloat4(displayName.c_str(), value, 0.1f))
                             {
-                                material->SetFloat4(displayName, value);
+                                material->SetFloat4(prop.Name, value);
                             }
                         }
                         break;
@@ -523,7 +533,7 @@ namespace Lucky
                         int value = std::get<int>(prop.Value);
                         if (UI::PropertyInt(displayName.c_str(), value, 0.1f))
                         {
-                            material->SetInt(displayName, value);
+                            material->SetInt(prop.Name, value);
                         }
                         break;
                     }
@@ -540,7 +550,7 @@ namespace Lucky
                             std::string filepath = FileDialogs::OpenFile("Texture(*.png;*.jpg)\0*.png;*.jpg\0");
                             if (!filepath.empty())
                             {
-                                material->SetTexture(displayName, Texture2D::Create(filepath));
+                                material->SetTexture(prop.Name, Texture2D::Create(filepath));
                             }
                         }
                             

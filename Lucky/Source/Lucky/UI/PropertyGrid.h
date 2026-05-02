@@ -1,10 +1,8 @@
 #pragma once
 
-#include "Lucky/Core/Base.h"
 #include "Lucky/Renderer/Texture.h"
 
 #include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 namespace Lucky::UI
 {

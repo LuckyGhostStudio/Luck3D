@@ -8,6 +8,7 @@
 
 #include "Lucky/Scene/SelectionManager.h"
 
+#include "Lucky/UI/Widgets.h"
 #include "imgui/imgui.h"
 
 namespace Lucky
@@ -72,33 +73,20 @@ namespace Lucky
     
     void SceneHierarchyPanel::DrawEntityNode(Entity entity)
     {
-        std::string& name = entity.GetComponent<NameComponent>().Name;  // 物体名
+        const std::string& name = entity.GetComponent<NameComponent>().Name;  // 物体名
         UUID id = entity.GetUUID();
-        const std::string strID = std::format("{0}{1}", name, (uint64_t)id);
+        const std::string& strID = std::format("{0}##{1}", name, static_cast<uint64_t>(id));
 
         bool isLeaf = entity.GetChildren().empty(); // 是叶节点
         
-        // 树结点标志
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_SpanAvailWidth;
-        
-        if (SelectionManager::IsSelected(id))
-        {
-            flags |= ImGuiTreeNodeFlags_Selected;
-        }
-        
-        if (isLeaf)
-        {
-            flags |= ImGuiTreeNodeFlags_Leaf;   // 叶结点没有箭头
-        }
-        
-        bool opened = ImGui::TreeNodeEx(strID.c_str(), flags, name.c_str());
+        bool opened = UI::BeginTreeNode(strID.c_str(), SelectionManager::IsSelected(id), isLeaf);
         
         // 树结点被点击
         if (ImGui::IsItemClicked())
         {
             SelectionManager::Select(id);   // 选中物体
             
-            LF_TRACE("Selected Entity: [ENTT = {0}, UUID {1}, Name {2}]", (uint32_t)entity, id, entity.GetName());
+            LF_TRACE("Selected Entity: [ENTT = {0}, UUID {1}, Name {2}]", static_cast<uint32_t>(entity), id, entity.GetName());
         }
 
         const std::string rightClickPopupID = std::format("{0}-ContextMenu", strID);
@@ -134,7 +122,7 @@ namespace Lucky
                 DrawEntityNode(child);
             }
 
-            ImGui::TreePop();
+            UI::EndTreeNode();
         }
         
         if (entityDeleted)
