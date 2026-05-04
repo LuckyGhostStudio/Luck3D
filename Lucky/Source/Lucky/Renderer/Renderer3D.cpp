@@ -141,8 +141,8 @@ namespace Lucky
         s_Data.StandardShader = s_Data.ShaderLib->Get("Standard");
         
         // 创建内部材质
-        s_Data.InternalErrorMaterial = CreateRef<Material>("InternalError Material", s_Data.InternalErrorShader);   // 内部错误材质
-        s_Data.DefaultMaterial = CreateRef<Material>("Default Material", s_Data.StandardShader);                    // 默认材质
+        s_Data.InternalErrorMaterial = CreateRef<Material>("InternalError", s_Data.InternalErrorShader);    // 内部错误材质
+        s_Data.DefaultMaterial = CreateRef<Material>("Default", s_Data.StandardShader);                     // 默认材质
 
         // 创建全局默认纹理
         // White: (255, 255, 255, 255)
