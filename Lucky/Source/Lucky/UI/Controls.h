@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Lucky/UI/DrawUtils.h"
+#include "DrawUtils.h"
+#include "ScopedGuards.h"
 
 #include <imgui/imgui.h>
 #include <imgui/misc/cpp/imgui_stdlib.h>
@@ -17,6 +18,7 @@ namespace Lucky::UI
     inline bool DragFloat(const char* label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.4f", ImGuiSliderFlags flags = 0)
     {
         bool changed = ImGui::DragFloat(label, v, v_speed, v_min, v_max, format, flags);
+        Draw::ItemTopShadow();
         DrawItemActivityOutline();
         return changed;
     }
@@ -45,6 +47,7 @@ namespace Lucky::UI
     inline bool DragInt(const char* label, int* v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d", ImGuiSliderFlags flags = 0)
     {
         bool changed = ImGui::DragInt(label, v, v_speed, v_min, v_max, format, flags);
+        Draw::ItemTopShadow();
         DrawItemActivityOutline();
         return changed;
     }
@@ -54,6 +57,7 @@ namespace Lucky::UI
     inline bool SliderFloat(const char* label, float* v, float v_min, float v_max, const char* format = "%.4f", ImGuiSliderFlags flags = 0)
     {
         bool changed = ImGui::SliderFloat(label, v, v_min, v_max, format, flags);
+        Draw::ItemTopShadow();
         DrawItemActivityOutline();
         return changed;
     }
@@ -61,6 +65,7 @@ namespace Lucky::UI
     inline bool SliderInt(const char* label, int* v, int v_min, int v_max, const char* format = "%d", ImGuiSliderFlags flags = 0)
     {
         bool changed = ImGui::SliderInt(label, v, v_min, v_max, format, flags);
+        Draw::ItemTopShadow();
         DrawItemActivityOutline();
         return changed;
     }
@@ -70,6 +75,7 @@ namespace Lucky::UI
     inline bool InputText(const char* label, char* buf, size_t bufSize, ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = nullptr, void* userData = nullptr)
     {
         bool changed = ImGui::InputText(label, buf, bufSize, flags, callback, userData);
+        Draw::ItemTopShadow();
         DrawItemActivityOutline();
         return changed;
     }
@@ -77,6 +83,7 @@ namespace Lucky::UI
     inline bool InputText(const char* label, std::string* str, ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = nullptr, void* userData = nullptr)
     {
         bool changed = ImGui::InputText(label, str, flags, callback, userData);
+        Draw::ItemTopShadow();
         DrawItemActivityOutline();
         return changed;
     }
@@ -109,6 +116,7 @@ namespace Lucky::UI
     inline bool BeginCombo(const char* label, const char* previewValue, ImGuiComboFlags flags = 0)
     {
         bool opened = ImGui::BeginCombo(label, previewValue, flags);
+        Draw::ItemTopShadow();
         DrawItemActivityOutline();
         return opened;
     }
@@ -123,7 +131,17 @@ namespace Lucky::UI
     inline bool Checkbox(const char* label, bool* v)
     {
         bool changed = ImGui::Checkbox(label, v);
+        Draw::ItemTopShadow();
         DrawItemActivityOutline();
+        return changed;
+    }
+    
+    // ---- Button ----
+    
+    inline bool Button(const char* label, const ImVec2& size = ImVec2(0, 0))
+    {
+        bool changed = ImGui::Button(label, size);
+        Draw::ItemBottomShadow();
         return changed;
     }
     

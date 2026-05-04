@@ -150,18 +150,6 @@ namespace Lucky
         m_Framebuffer->Unbind();    // 解除绑定帧缓冲区
     }
 
-    void SceneViewportPanel::OnBegin(const char* name)
-    {
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(1, 0)); // 设置 Gui 窗口样式：边界 = 0
-        EditorPanel::OnBegin(name);
-    }
-
-    void SceneViewportPanel::OnEnd()
-    {
-        EditorPanel::OnEnd();
-        ImGui::PopStyleVar();
-    }
-
     void SceneViewportPanel::OnGUI()
     {
         auto viewportMinRegion = ImGui::GetWindowContentRegionMin();    // 视口可用区域最小值（视口左上角相对于视口左上角位置）

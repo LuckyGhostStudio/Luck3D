@@ -18,11 +18,12 @@ namespace Lucky::UI
     /// <summary>
     /// 树节点 用于 Hierarchy / Assets 等面板的树形结构
     /// </summary>
+    /// <param name="defaultOpen">默认打开</param>
     /// <param name="name">名称</param>
     /// <param name="selected">已选中</param>
     /// <param name="isLeaf">是叶节点</param>
     /// <returns></returns>
-    bool BeginTreeNode(const char* name, bool selected = false, bool isLeaf = false);
+    bool BeginTreeNode(const char* name, bool defaultOpen = false, bool selected = false, bool isLeaf = false);
     void EndTreeNode();
 
     /// <summary>
@@ -40,4 +41,11 @@ namespace Lucky::UI
     /// 绘制图像（OpenGL Y 翻转版本，UV 默认为 { 0, 1 } -> { 1, 0 }）适用于 Framebuffer 颜色附件等需要 Y 翻转的场景
     /// </summary>
     void ImageFlipped(const Ref<Texture2D>& texture, const ImVec2& size, const ImVec4& tintColor = ImVec4(1, 1, 1, 1), const ImVec4& borderColor = ImVec4(0, 0, 0, 0));
+    
+    // ---- Popup ----
+    
+    bool BeginPopupContextWindow(const char* strID = nullptr, ImGuiPopupFlags popupFlags = 1);
+    bool BeginPopupContextItem(const char* strID = nullptr, ImGuiPopupFlags popupFlags = 1);
+    bool BeginPopup(const char* strID = nullptr, ImGuiPopupFlags popupFlags = 0);
+    void EndPopup();
 }

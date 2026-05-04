@@ -136,10 +136,12 @@ namespace Lucky
             memset(buffer, 0, sizeof(buffer));              // 将 buffer 置零
             strcpy_s(buffer, sizeof(buffer), name.c_str()); // buffer = name
             
+            UI::ShiftCursor(8.0f, 8.0f);
             if (UI::InputText("##Name", buffer, sizeof(buffer)))
             {
                 name = std::string(buffer);
             }
+            UI::ShiftCursorY(8.0f);
         }
         
         // Transform 组件
@@ -233,7 +235,7 @@ namespace Lucky
                 
                 // 材质数量 TODO: 可编辑
                 int materialSize = static_cast<int>(meshRenderer.Materials.size());
-                UI::PropertyInt("Size", materialSize, 0);
+                UI::PropertyInt("Size", materialSize);
                 
                 // 材质列表
                 for (int i = 0; i < materialSize; i++)
@@ -344,6 +346,8 @@ namespace Lucky
                 DrawMaterialEditor(material);
             }
         }
+        
+        UI::Draw::HorizontalLine();
     }
 
     void InspectorPanel::OnEvent(Event& event)
@@ -448,7 +452,7 @@ namespace Lucky
                     state.Blend = static_cast<BlendMode>(currentBlend);
                 }
                 
-                UI::PropertyInt("Render Queue", state.Queue, 0, 5000);
+                UI::PropertyInt("Render Queue", state.Queue, 1, 0, 5000);
                 
                 UI::EndPropertyGrid();
                 
@@ -531,7 +535,7 @@ namespace Lucky
                     case ShaderUniformType::Int:
                     {
                         int value = std::get<int>(prop.Value);
-                        if (UI::PropertyInt(displayName.c_str(), value, 0.1f))
+                        if (UI::PropertyInt(displayName.c_str(), value))
                         {
                             material->SetInt(prop.Name, value);
                         }

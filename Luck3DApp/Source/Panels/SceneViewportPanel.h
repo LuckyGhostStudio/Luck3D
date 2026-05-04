@@ -18,9 +18,6 @@ namespace Lucky
         void SetScene(const Ref<Scene>& scene);
 
         void OnUpdate(DeltaTime dt) override;
-        
-        void OnBegin(const char* name) override;
-        void OnEnd() override;
         void OnGUI() override;
         
         void OnEvent(Event& event) override;

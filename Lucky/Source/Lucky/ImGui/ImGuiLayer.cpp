@@ -122,7 +122,7 @@ namespace Lucky
         // TODO 设置 ImGuiStyle 的所有参数
         style.WindowBorderSize = 1.0f;
         style.ChildBorderSize = 1.0f;
-        style.TabBorderSize = 1.0f;
+        style.TabBorderSize = 0.0f;
 
         style.WindowMinSize.x = 50.0f;          // 窗口最小尺寸
 

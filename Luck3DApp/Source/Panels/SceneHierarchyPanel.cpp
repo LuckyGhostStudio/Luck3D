@@ -37,10 +37,9 @@ namespace Lucky
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth;
         flags |= ImGuiTreeNodeFlags_DefaultOpen;
 
+        const std::string& strSceneID = std::format("{0}##{1}", sceneName, typeid(Scene).hash_code());
         // 哈希值作为结点 id
-        bool opened = ImGui::TreeNodeEx((void*)typeid(Scene).hash_code(), flags, sceneName.c_str());
-        
-        if (opened)
+        if (UI::BeginTreeNode(strSceneID.c_str(), true))
         {
             for (auto entityID : m_Scene->GetAllEntitiesWith<IDComponent, RelationshipComponent>())
             {
@@ -53,7 +52,7 @@ namespace Lucky
                 }
             }
             
-            ImGui::TreePop();
+            UI::EndTreeNode();
         }
         
         // 点击鼠标 && 鼠标悬停在该窗口（点击空白位置）
@@ -63,11 +62,10 @@ namespace Lucky
         }
         
         // 创建物体 右键点击窗口白区域弹出菜单：- 右键 不在物体项上
-        if (ImGui::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+        if (UI::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
         {
             DrawEntityCreateMenu({});   // 绘制创建物体菜单
-            
-            ImGui::EndPopup();
+            UI::EndPopup();
         }
     }
     
@@ -79,7 +77,7 @@ namespace Lucky
 
         bool isLeaf = entity.GetChildren().empty(); // 是叶节点
         
-        bool opened = UI::BeginTreeNode(strID.c_str(), SelectionManager::IsSelected(id), isLeaf);
+        bool opened = UI::BeginTreeNode(strID.c_str(), false, SelectionManager::IsSelected(id), isLeaf);
         
         // 树结点被点击
         if (ImGui::IsItemClicked())
@@ -94,7 +92,7 @@ namespace Lucky
         // 删除物体
         bool entityDeleted = false;
         // 右键点击该物体结点
-        if (ImGui::BeginPopupContextItem(rightClickPopupID.c_str(), ImGuiPopupFlags_MouseButtonRight))
+        if (UI::BeginPopupContextItem(rightClickPopupID.c_str(), ImGuiPopupFlags_MouseButtonRight))
         {
             SelectionManager::Select(id);   // 选中物体
             
@@ -108,7 +106,7 @@ namespace Lucky
             
             DrawEntityCreateMenu(entity);   // 绘制创建物体菜单
 
-            ImGui::EndPopup();
+            UI::EndPopup();
         }
 
         // 树结点已打开

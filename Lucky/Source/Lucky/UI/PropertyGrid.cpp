@@ -61,7 +61,7 @@ namespace Lucky::UI
     {
         ImGui::TableSetColumnIndex(1);
         ShiftCursorY(Theme::Layout::PropertyValueOffsetY);
-        ImGui::PushItemWidth(-1);  // 填满剩余宽度
+        ImGui::PushItemWidth(-8.0f);  // 填满剩余宽度 右侧 8 间距
     }
 
     /// <summary>
@@ -134,17 +134,6 @@ namespace Lucky::UI
         PropertyValueEnd();
         return modified;
     }
-    
-    bool PropertyInt(const char* label, int& value, int min, int max)
-    {
-        PropertyLabel(label);
-        PropertyValueBegin();
-
-        bool modified = InputInt(GenerateID(), &value, 1, min, max);
-
-        PropertyValueEnd();
-        return modified;
-    }
 
     // ---- Color 系列 ----
 
@@ -206,7 +195,7 @@ namespace Lucky::UI
 
         // BeginCombo 返回的是"是否打开"，不是"是否修改"
         // 需要手动跟踪选中项的变化
-        if (ImGui::BeginCombo(GenerateID(), options[selected]))
+        if (BeginCombo(GenerateID(), options[selected]))
         {
             for (int i = 0; i < count; i++)
             {
@@ -227,9 +216,8 @@ namespace Lucky::UI
                 }
             }
 
-            ImGui::EndCombo();
+            EndCombo();
         }
-        DrawItemActivityOutline();
 
         PropertyValueEnd();
         return modified;

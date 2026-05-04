@@ -2,10 +2,12 @@
 
 #include "Lucky/Editor/EditorPreferences.h"
 
+#include "Lucky/UI/Controls.h"
 #include "Lucky/UI/PropertyGrid.h"
 #include "Lucky/UI/Widgets.h"
 
 #include <imgui/imgui.h>
+
 
 namespace Lucky
 {
@@ -18,10 +20,20 @@ namespace Lucky
         
         ImGui::SetNextWindowSize(ImVec2(720, 560), ImGuiCond_FirstUseEver);
         
-        if (ImGui::Begin("Preferences", &m_IsOpen))
+        if (ImGui::Begin("Preferences", &m_IsOpen, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
         {
+            ImGui::BeginTable("##Preferences Table", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp);
+
+            float panelWidth = ImGui::GetContentRegionAvail().x;
+            float categoriesWidth = panelWidth * 0.3f;
+            ImGui::TableSetupColumn("Categories Column", 0, categoriesWidth);
+            ImGui::TableSetupColumn("Content Column", ImGuiTableColumnFlags_WidthStretch);
+            
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            
             // ---- 左侧分类列表 ----
-            ImGui::BeginChild("Categories", ImVec2(150, 0), true);
+            ImGui::BeginChild("Categories", ImVec2(0, 0));
             {
                 if (ImGui::Selectable("Colors", m_SelectedCategory == 0))
                 {
@@ -32,10 +44,10 @@ namespace Lucky
             }
             ImGui::EndChild();
             
-            ImGui::SameLine();
+            ImGui::TableSetColumnIndex(1);
             
             // ---- 右侧设置内容 ----
-            ImGui::BeginChild("Content", ImVec2(0, 0), false);
+            ImGui::BeginChild("Content", ImVec2(0, 0));
             {
                 switch (m_SelectedCategory)
                 {
@@ -45,6 +57,8 @@ namespace Lucky
                 }
             }
             ImGui::EndChild();
+            
+            ImGui::EndTable();
         }
         ImGui::End();
     }
@@ -192,7 +206,7 @@ namespace Lucky
         ImGui::Spacing();
         
         // 恢复默认设置
-        if (ImGui::Button("Reset to Default"))
+        if (UI::Button("Reset to Default"))
         {
             EditorPreferences::Get().ResetColorsToDefault();
             EditorPreferences::Get().ApplyImGuiColors();
@@ -201,7 +215,7 @@ namespace Lucky
         ImGui::SameLine();
         
         // 保存设置
-        if (ImGui::Button("Save"))
+        if (UI::Button("Save"))
         {
             EditorPreferences::Get().Save();
         }

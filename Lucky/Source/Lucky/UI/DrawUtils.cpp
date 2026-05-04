@@ -7,7 +7,7 @@ namespace Lucky::UI
 {
     namespace Draw
     {
-        void Underline(bool fullWidth, float offsetX, float offsetY)
+        void Underline(bool fullWidth, float lineWidth, float offsetX, float offsetY)
         {
             if (fullWidth)
             {
@@ -31,7 +31,7 @@ namespace Lucky::UI
                 ImVec2(cursor.x + offsetX, cursor.y + offsetY),
                 ImVec2(cursor.x + width, cursor.y + offsetY),
                 color,
-                1.0f
+                lineWidth
             );
 
             if (fullWidth)
@@ -45,6 +45,46 @@ namespace Lucky::UI
                     ImGui::TablePopBackgroundChannel();
                 }
             }
+        }
+        
+        void ItemTopShadow()
+        {
+            auto* drawList = ImGui::GetWindowDrawList();
+            ImRect rect = { ImGui::GetItemRectMin(), ImGui::GetItemRectMax() };
+            
+            // ÉÏ±ß¿òÉîÉ«ÒõÓ°Ïß
+            ImRect shadowLineRect = {
+                { rect.Min.x + 4.0f, rect.Min.y + 0.5f },
+                { rect.Max.x - 4.0f, rect.Min.y + 0.5f }
+            };
+            drawList->AddLine(shadowLineRect.Min, shadowLineRect.Max, IM_COL32(0, 0, 0, 255), 2.0f);
+        }
+        
+        void ItemBottomShadow()
+        {
+            auto* drawList = ImGui::GetWindowDrawList();
+            ImRect rect = { ImGui::GetItemRectMin(), ImGui::GetItemRectMax() };
+            
+            // ÏÂ±ß¿òÉîÉ«ÒõÓ°Ïß
+            ImRect shadowLineRect = {
+                { rect.Min.x + 4.0f, rect.Max.y - 0.5f },
+                { rect.Max.x - 4.0f, rect.Max.y - 0.5f }
+            };
+            drawList->AddLine(shadowLineRect.Min, shadowLineRect.Max, IM_COL32(0, 0, 0, 255), 2.0f);
+        }
+        
+        void HorizontalLine(float alpha, float offsetX, float offsetY)
+        {
+            const float width = ImGui::GetContentRegionAvail().x;
+            const ImVec2 cursor = ImGui::GetCursorScreenPos();
+            
+            auto* drawList = ImGui::GetWindowDrawList();
+            ImRect rect = {
+                ImVec2(cursor.x + offsetX, cursor.y + offsetY),
+                ImVec2(cursor.x + width, cursor.y + offsetY)
+            };
+            
+            drawList->AddRect(rect.Min, rect.Max, IM_COL32(25, 25, 25, 255 * alpha), 0.0f, 0);
         }
     }
 
@@ -72,18 +112,13 @@ namespace Lucky::UI
 
         if (ImGui::IsItemActive())
         {
-            // ¼¤»î×´Ì¬£º»Ò°×¸ßÁÁ±ß¿ò
-            drawList->AddRect(rect.Min, rect.Max, IM_COL32(200, 200, 200, 255), rounding, 0, 1.5f);
+            // ¼¤»î×´Ì¬£ºÀ¶É«¸ßÁÁ±ß¿ò
+            drawList->AddRect(rect.Min, rect.Max, IM_COL32(62, 170, 255, 255), rounding, 0, 1.5f);
         }
         else if (ImGui::IsItemHovered() && !ImGui::IsItemActive())
         {
-            // ÐüÍ£×´Ì¬£ºÀ¶É«¸ßÁÁ±ß¿ò
-            drawList->AddRect(rect.Min, rect.Max, IM_COL32(62, 170, 255, 255), rounding, 0, 1.5f);
-        }
-        else
-        {
-            // ·Ç¼¤»î×´Ì¬£º¸üÇ³µÄ±ß¿ò
-            drawList->AddRect(rect.Min, rect.Max, IM_COL32(26, 26, 26, 255), rounding, 0, 1.0f);
+            // ÐüÍ£×´Ì¬£º»Ò°×¸ßÁÁ±ß¿ò
+            drawList->AddRect(rect.Min, rect.Max, IM_COL32(200, 200, 200, 255), rounding, 0, 1.5f);
         }
     }
 }

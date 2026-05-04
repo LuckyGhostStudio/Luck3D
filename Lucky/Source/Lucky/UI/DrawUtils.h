@@ -10,9 +10,22 @@ namespace Lucky::UI
         /// 绘制下划线分隔线
         /// </summary>
         /// <param name="fullWidth">是否占满窗口宽度（false 则仅占内容区域宽度）</param>
+        /// <param name="lineWidth">线宽</param>
         /// <param name="offsetX">水平偏移</param>
         /// <param name="offsetY">垂直偏移（默认 -1.0f，在当前行上方 1px）</param>
-        void Underline(bool fullWidth = false, float offsetX = 0.0f, float offsetY = -1.0f);
+        void Underline(bool fullWidth = false, float lineWidth = 1.0f, float offsetX = 0.0f, float offsetY = -1.0f);
+        
+        /// <summary>
+        /// 绘制控件顶部阴影线
+        /// </summary>
+        void ItemTopShadow();
+        
+        /// <summary>
+        /// 绘制控件底部阴影线
+        /// </summary>
+        void ItemBottomShadow();
+        
+        void HorizontalLine(float alpha = 1.0f, float offsetX = 0.0f, float offsetY = 0.0f);
     }
 
     /// <summary>

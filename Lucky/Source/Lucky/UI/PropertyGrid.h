@@ -65,8 +65,6 @@ namespace Lucky::UI
     /// <param name="max">最大值</param>
     /// <returns>值是否被修改</returns>
     bool PropertyInt(const char* label, int& value, float delta = 1.0f, int min = 0, int max = 0);
-    
-    bool PropertyInt(const char* label, int& value, int min = 0, int max = 0);
 
     // ---- Color 系列 ----
 
