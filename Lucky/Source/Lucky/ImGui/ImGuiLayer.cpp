@@ -14,6 +14,7 @@
 
 #include "Lucky/Core/Application.h"
 #include "Lucky/Editor/EditorPreferences.h"
+#include "Lucky/UI/Theme.h"
 
 namespace Lucky
 {
@@ -119,26 +120,58 @@ namespace Lucky
     void ImGuiLayer::SetDefaultStyles()
     {
         ImGuiStyle& style = ImGui::GetStyle();
-        // TODO 设置 ImGuiStyle 的所有参数
-        style.WindowBorderSize = 1.0f;
-        style.ChildBorderSize = 1.0f;
-        style.TabBorderSize = 0.0f;
-
-        style.WindowMinSize.x = 50.0f;          // 窗口最小尺寸
-
-        style.FrameRounding = 4.0f;             // 控件边框圆度 [0, 12] 4.8 <=> 0.4f
-        style.FrameBorderSize = 1.0f;           // 边框尺寸
-        style.FramePadding.y = 4.0f;
- 
-        style.WindowRounding = 4.0f;            // 窗口边框圆度
-        style.GrabRounding = 4.0f;              // 拖动条 handle 圆度
-        style.PopupRounding = 4.0f;             // 弹出窗口圆度
-        style.ChildRounding = 4.0f;             // 子窗口圆度
-        style.TabRounding = 2.0f;               // Tab 圆度
-
-        style.ScrollbarRounding = 12.0f;        // 滚动条圆度
-        style.ScrollbarSize = 18.0f;
-
-        style.ButtonTextAlign = { 0.5f, 0.5f }; // 按钮文字居中
+        
+        style.Alpha = UI::Theme::Layout::Alpha;                                             // 全局透明度
+        style.DisabledAlpha = UI::Theme::Layout::DisabledAlpha;                             // 禁用状态的透明度
+        style.WindowPadding.x = UI::Theme::Layout::WindowPaddingX;                          // 窗口内边距 X
+        style.WindowPadding.y = UI::Theme::Layout::WindowPaddingY;                          // 窗口内边距 Y
+        style.WindowRounding = UI::Theme::Layout::WindowRounding;                           // 窗口圆角半径
+        style.WindowBorderSize = UI::Theme::Layout::WindowBorderSize;                       // 窗口边框大小
+        style.WindowMinSize.x = UI::Theme::Layout::WindowMinSizeX;                          // 窗口最小尺寸 X
+        style.WindowMinSize.y = UI::Theme::Layout::WindowMinSizeY;                          // 窗口最小尺寸 Y
+        style.WindowTitleAlign.x = UI::Theme::Layout::WindowTitleAlignX;                    // 窗口标题对齐 X
+        style.WindowTitleAlign.y = UI::Theme::Layout::WindowTitleAlignY;                    // 窗口标题对齐 Y
+        style.WindowMenuButtonPosition = UI::Theme::Layout::WindowMenuButtonPosition;       // 窗口菜单按钮位置 (-1=左, 0=无, 1=右)
+        style.ChildRounding = UI::Theme::Layout::ChildRounding;                             // 子窗口圆角半径
+        style.ChildBorderSize = UI::Theme::Layout::ChildBorderSize;                         // 子窗口边框大小
+        style.PopupRounding = UI::Theme::Layout::PopupRounding;                             // 弹出窗口圆角半径
+        style.PopupBorderSize = UI::Theme::Layout::PopupBorderSize;                         // 弹出窗口边框大小
+        style.FramePadding.x = UI::Theme::Layout::FramePaddingX;                            // 框架内边距 X
+        style.FramePadding.y = UI::Theme::Layout::FramePaddingY;                            // 框架内边距 Y
+        style.FrameRounding = UI::Theme::Layout::FrameRounding;                             // 框架圆角半径
+        style.FrameBorderSize = UI::Theme::Layout::FrameBorderSize;                         // 框架边框大小
+        style.ItemSpacing.x = UI::Theme::Layout::ItemSpacingX;                              // 项目间距 X
+        style.ItemSpacing.y = UI::Theme::Layout::ItemSpacingY;                              // 项目间距 Y
+        style.ItemInnerSpacing.x = UI::Theme::Layout::ItemInnerSpacingX;                    // 项目内间距 X
+        style.ItemInnerSpacing.y = UI::Theme::Layout::ItemInnerSpacingY;                    // 项目内间距 Y
+        style.CellPadding.x = UI::Theme::Layout::CellPaddingX;                              // 单元格内边距 X
+        style.CellPadding.y = UI::Theme::Layout::CellPaddingY;                              // 单元格内边距 Y
+        style.TouchExtraPadding.x = UI::Theme::Layout::TouchExtraPaddingX;                  // 触摸额外内边距 X
+        style.TouchExtraPadding.y = UI::Theme::Layout::TouchExtraPaddingY;                  // 触摸额外内边距 Y
+        style.IndentSpacing = UI::Theme::Layout::IndentSpacing;                             // 缩进间距
+        style.ColumnsMinSpacing = UI::Theme::Layout::ColumnsMinSpacing;                     // 列最小间距
+        style.ScrollbarSize = UI::Theme::Layout::ScrollbarSize;                             // 滚动条大小
+        style.ScrollbarRounding = UI::Theme::Layout::ScrollbarRounding;                     // 滚动条圆角半径
+        style.GrabMinSize = UI::Theme::Layout::GrabMinSize;                                 // 抓取最小大小
+        style.GrabRounding = UI::Theme::Layout::GrabRounding;                               // 抓取圆角半径
+        style.LogSliderDeadzone = UI::Theme::Layout::LogSliderDeadzone;                     // 对数滑块死区
+        style.TabRounding = UI::Theme::Layout::TabRounding;                                 // 标签页圆角半径
+        style.TabBorderSize =UI::Theme::Layout::TabBorderSize;                              // 标签页边框大小
+        style.TabMinWidthForCloseButton = UI::Theme::Layout::TabMinWidthForCloseButton;     // 显示关闭按钮的标签页最小宽度
+        style.ColorButtonPosition = UI::Theme::Layout::ColorButtonPosition;                 // 颜色按钮位置 (0=左, 1=右)
+        style.ButtonTextAlign.x = UI::Theme::Layout::ButtonTextAlignX;                      // 按钮文本对齐 X
+        style.ButtonTextAlign.y = UI::Theme::Layout::ButtonTextAlignY;                      // 按钮文本对齐 Y
+        style.SelectableTextAlign.x = UI::Theme::Layout::SelectableTextAlignX;              // 可选文本对齐 X
+        style.SelectableTextAlign.y = UI::Theme::Layout::SelectableTextAlignY;              // 可选文本对齐 Y
+        style.DisplayWindowPadding.x = UI::Theme::Layout::DisplayWindowPaddingX;            // 显示窗口内边距 X
+        style.DisplayWindowPadding.y = UI::Theme::Layout::DisplayWindowPaddingY;            // 显示窗口内边距 Y
+        style.DisplaySafeAreaPadding.x = UI::Theme::Layout::DisplaySafeAreaPaddingX;        // 显示安全区内边距 X
+        style.DisplaySafeAreaPadding.y = UI::Theme::Layout::DisplaySafeAreaPaddingY;        // 显示安全区内边距 Y
+        style.MouseCursorScale = UI::Theme::Layout::MouseCursorScale;                       // 鼠标光标缩放
+        style.AntiAliasedLines = UI::Theme::Layout::AntiAliasedLines;                       // 抗锯齿线条
+        style.AntiAliasedLinesUseTex = UI::Theme::Layout::AntiAliasedLinesUseTex;           // 使用纹理抗锯齿线条
+        style.AntiAliasedFill = UI::Theme::Layout::AntiAliasedFill;                         // 抗锯齿填充
+        style.CurveTessellationTol = UI::Theme::Layout::CurveTessellationTol;               // 曲线细分容差
+        style.CircleTessellationMaxError = UI::Theme::Layout::CircleTessellationMaxError;   // 圆细分最大误差
     }
 }

@@ -134,13 +134,9 @@ namespace Lucky
         {
             meshName = meshFilter.Mesh->GetName();
             
-            char buffer[256];                                   // 输入框内容 buffer
-            memset(buffer, 0, sizeof(buffer));                  // 将 buffer 置零
-            strcpy_s(buffer, sizeof(buffer), meshName.c_str()); // buffer = name
-            
             UI::BeginPropertyGrid();
             
-            UI::PropertyString("Mesh", buffer, sizeof(buffer));
+            UI::PropertyObject("Mesh", meshName.c_str());
             
             UI::EndPropertyGrid();
         });
@@ -164,11 +160,7 @@ namespace Lucky
                     const std::string& label = std::format("Element {0}", i);
                     const std::string& materialName = meshRenderer.Materials[i]->GetName();
                 
-                    char buffer[256];                                   // 输入框内容 buffer
-                    memset(buffer, 0, sizeof(buffer));                  // 将 buffer 置零
-                    strcpy_s(buffer, sizeof(buffer), materialName.c_str()); // buffer = name
-                
-                    UI::PropertyString(label.c_str(), buffer, sizeof(buffer));
+                    UI::PropertyObject(label.c_str(), materialName.c_str());
                 }
                 
                 UI::EndPropertyGrid();

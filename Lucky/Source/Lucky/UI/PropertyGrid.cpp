@@ -20,7 +20,7 @@ namespace Lucky::UI
     {
         PushID();
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(Theme::Layout::ItemSpacingX, Theme::Layout::ItemSpacingY));
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(Theme::Layout::PropertyFramePaddingX, Theme::Layout::PropertyFramePaddingY));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(Theme::Layout::FramePaddingX, Theme::Layout::FramePaddingY));
 
         ImGui::BeginTable("##PropertyGrid", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoBordersInBody);
 
@@ -61,7 +61,7 @@ namespace Lucky::UI
     {
         ImGui::TableSetColumnIndex(1);
         ShiftCursorY(Theme::Layout::PropertyValueOffsetY);
-        ImGui::PushItemWidth(-8.0f);  // ÃÓ¬˙ £”‡øÌ∂» ”“≤‡ 8 º‰æ‡
+        ImGui::PushItemWidth(-Theme::Layout::WindowPaddingX);  // ÃÓ¬˙ £”‡øÌ∂» ”“≤‡¡Ù≥ˆƒ⁄±ﬂæ‡
     }
 
     /// <summary>
@@ -264,6 +264,19 @@ namespace Lucky::UI
         //     }
         //     ImGui::EndDragDropTarget();
         // }
+        
+        return modified;
+    }
+    
+    bool PropertyObject(const char* label, const char* valueName)
+    {
+        PropertyLabel(label);
+        PropertyValueBegin();
+        
+        // ShiftCursorX(Theme::Layout::WindowPaddingX);
+        bool modified = ObjectField(valueName);
+
+        PropertyValueEnd();
         
         return modified;
     }

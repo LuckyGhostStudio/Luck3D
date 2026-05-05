@@ -1,10 +1,11 @@
 #pragma once
 
 #include "DrawUtils.h"
-#include "ScopedGuards.h"
+#include "Theme.h"
 
 #include <imgui/imgui.h>
 #include <imgui/misc/cpp/imgui_stdlib.h>
+
 
 namespace Lucky::UI
 {
@@ -145,12 +146,54 @@ namespace Lucky::UI
         return changed;
     }
     
-    // ---- ImageButton ----
+    // ---- ImageButton TODO 整合到 ObjectField ----
     
     inline bool ImageButton(ImTextureID user_texture_id, const ImVec2& size, const ImVec2& uv0 = ImVec2(0, 1),  const ImVec2& uv1 = ImVec2(1, 0), int frame_padding = -1, const ImVec4& bg_col = ImVec4(0, 0, 0, 0), const ImVec4& tint_col = ImVec4(1, 1, 1, 1))
     {
         bool changed = ImGui::ImageButton(user_texture_id, size, uv0, uv1, frame_padding, bg_col, tint_col);
         DrawItemActivityOutline();
+        return changed;
+    }
+    
+    // const Ref<TObject>& ObjectField(label)
+    // ---- ObjectField TODO 资产系统实现后再完善，现在仅做显示用 ----
+    inline bool ObjectField(const char* label)
+    {
+        const std::string& strID = label;
+        
+        float width = ImGui::GetContentRegionAvail().x - Theme::Layout::WindowPaddingX;
+        
+        // Field Frame
+        ImVec4 frameBgColor = ImGui::GetStyleColorVec4(ImGuiCol_FrameBg);
+        ImGui::PushStyleColor(ImGuiCol_Button, frameBgColor);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, frameBgColor);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, frameBgColor);
+        ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, { (Theme::Layout::FramePaddingX - 4) / width, 0 });
+        bool changed = ImGui::Button(strID.c_str(), { width, 28 });
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor(3);
+        
+        Draw::ItemTopShadow();
+        DrawItemActivityOutline();
+        
+        // static bool openPopup = false;
+        
+        if (changed)
+        {
+            // TODO 打开对象选择面板，从当前场景中选择实体、从资产库选择资产
+            // ImGui::OpenPopup("AssetSelect");
+            // openPopup = true;
+        }
+        
+        // if (ImGui::BeginPopupModal("AssetSelect", &openPopup))
+        // {
+        //     ImGui::Text("Test");
+        //     
+        //     ImGui::EndPopup();
+        // }
+        
+        // Field Icon
+
         return changed;
     }
 }

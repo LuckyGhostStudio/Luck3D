@@ -128,4 +128,8 @@ namespace Lucky::UI
     /// <param name="texture">纹理引用</param>
     /// <returns>纹理是否被修改</returns>
     bool PropertyTexture(const char* label, const Ref<Texture2D>& texture);
+    
+    // ---- Object TODO ----
+    
+    bool PropertyObject(const char* label, const char* valueName);
 }
