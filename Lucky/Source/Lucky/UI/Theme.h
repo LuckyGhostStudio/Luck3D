@@ -65,8 +65,8 @@ namespace Lucky::UI::Theme
         constexpr int ColorButtonPosition = 1;              // 颜色按钮位置 (0=左, 1=右)
         constexpr float ButtonTextAlignX = 0.5f;            // 按钮文本对齐 X
         constexpr float ButtonTextAlignY = 0.5f;            // 按钮文本对齐 Y
-        constexpr float SelectableTextAlignX = 0.0f;        // 可选文本对齐 X
-        constexpr float SelectableTextAlignY = 0.0f;        // 可选文本对齐 Y
+        constexpr float SelectableTextAlignX = 0.5f;        // 可选文本对齐 X
+        constexpr float SelectableTextAlignY = 0.5f;        // 可选文本对齐 Y
         constexpr float DisplayWindowPaddingX = 19.0f;      // 显示窗口内边距 X
         constexpr float DisplayWindowPaddingY = 19.0f;      // 显示窗口内边距 Y
         constexpr float DisplaySafeAreaPaddingX = 3.0f;     // 显示安全区内边距 X

@@ -5,6 +5,7 @@
 #include "Panels/SceneHierarchyPanel.h"
 #include "Panels/SceneViewportPanel.h"
 #include "Panels/InspectorPanel.h"
+#include "Panels/PreferencesPanel.h"
 
 #include "Lucky/Renderer/MeshFactory.h"
 #include "Lucky/Renderer/TextureCube.h"
@@ -25,6 +26,7 @@ namespace Lucky
 #define SCENE_HIERARCHY_PANEL_ID "SceneHierarchyPanel"
 #define SCENE_VIEWPORT_PANEL_ID "SceneViewportPanel"
 #define INSPECTOR_PANEL_ID "InspectorPanel"
+#define PREFERENCES_PANEL_ID "PreferencesPanel"
     
     EditorLayer::EditorLayer()
         : Layer("EditorLayer")
@@ -43,6 +45,7 @@ namespace Lucky
         m_PanelManager->AddPanel<SceneHierarchyPanel>(SCENE_HIERARCHY_PANEL_ID, "Hierarchy", true, m_Scene);
         m_PanelManager->AddPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID, "Scene", true, m_Scene);
         m_PanelManager->AddPanel<InspectorPanel>(INSPECTOR_PANEL_ID, "Inspector", true, m_Scene);
+        m_PanelManager->AddPanel<PreferencesPanel>(PREFERENCES_PANEL_ID, "Preferences", false);
         
         // Temp ²âÊÔ Cube
         Entity cubeEntity = m_Scene->CreateEntity("Cube");
@@ -127,8 +130,6 @@ namespace Lucky
         UI_DrawMenuBar();
 
         m_PanelManager->OnImGuiRender();
-        
-        m_PreferencesPanel.OnImGuiRender();
     }
 
     void EditorLayer::OnEvent(Event& event)
@@ -189,7 +190,9 @@ namespace Lucky
                 // Æ«ºÃÉèÖÃ
                 if (ImGui::MenuItem("Preferences..."))
                 {
-                    m_PreferencesPanel.Open();
+                    uint32_t panelID = Hash::GenerateFNVHash(PREFERENCES_PANEL_ID);
+                    PanelData* panelData = m_PanelManager->GetPanelData(panelID);
+                    panelData->IsOpen = true;
                 }
                 ImGui::EndMenu();
             }

@@ -32,8 +32,11 @@ namespace Lucky
         /// <param name="event">ÊÂ¼þ</param>
         virtual void OnEvent(Event& event) {}
     protected:
+        void SetFlags(int flags) { m_WindowFlags = flags; }
         virtual void OnBegin(const char* name);
         virtual void OnEnd();
         virtual void OnGUI() = 0;
+    private:
+        int m_WindowFlags = 0;
     };
 }

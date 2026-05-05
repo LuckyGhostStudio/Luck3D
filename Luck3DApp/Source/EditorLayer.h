@@ -5,8 +5,6 @@
 #include "EditorDockSpace.h"
 #include "Lucky/Editor/PanelManager.h"
 
-#include "Panels/PreferencesPanel.h"
-
 #include <filesystem>
 
 namespace Lucky
@@ -74,8 +72,6 @@ namespace Lucky
         EditorDockSpace m_EditorDockSpace;  // 停靠空间
 
         Scope<PanelManager> m_PanelManager; // 编辑器面板管理器
-        
-        PreferencesPanel m_PreferencesPanel;    // 偏好设置面板 独立面板
         
         Ref<Scene> m_Scene;
         std::filesystem::path m_SceneFilePath;

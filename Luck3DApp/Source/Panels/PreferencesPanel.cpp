@@ -5,67 +5,77 @@
 #include "Lucky/UI/Controls.h"
 #include "Lucky/UI/PropertyGrid.h"
 #include "Lucky/UI/Widgets.h"
+#include "Lucky/UI/DrawUtils.h"
+#include "Lucky/UI/UICore.h"
+#include "Lucky/UI/Theme.h"
 
 #include <imgui/imgui.h>
 
 
 namespace Lucky
 {
-    void PreferencesPanel::OnImGuiRender()
+    PreferencesPanel::PreferencesPanel()
     {
-        if (!m_IsOpen)
-        {
-            return;
-        }
-        
-        ImGui::SetNextWindowSize(ImVec2(720, 560), ImGuiCond_FirstUseEver);
-        
-        if (ImGui::Begin("Preferences", &m_IsOpen, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
-        {
-            ImGui::BeginTable("##Preferences Table", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp);
+        SetFlags(ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);    // 禁用滚动条
+    }
 
-            float panelWidth = ImGui::GetContentRegionAvail().x;
-            float categoriesWidth = panelWidth * 0.3f;
-            ImGui::TableSetupColumn("Categories Column", 0, categoriesWidth);
-            ImGui::TableSetupColumn("Content Column", ImGuiTableColumnFlags_WidthStretch);
-            
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            
-            // ---- 左侧分类列表 ----
-            ImGui::BeginChild("Categories", ImVec2(0, 0));
+    void PreferencesPanel::OnUpdate(DeltaTime dt)
+    {
+
+    }
+
+    void PreferencesPanel::OnGUI()
+    {
+        ImGui::BeginTable("##Preferences Table", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadInnerX);
+        
+        float panelWidth = ImGui::GetContentRegionAvail().x;
+        float categoriesWidth = panelWidth * 0.3f;
+        ImGui::TableSetupColumn("Categories Column", 0, categoriesWidth);   // TODO 停靠在 docking 时切换 Inspector 界面会崩溃
+        ImGui::TableSetupColumn("Content Column", ImGuiTableColumnFlags_WidthStretch);
+        
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        
+        // ---- 左侧分类列表 ----
+        ImGui::BeginChild("Categories", ImVec2(0, 0));
+        {
+            // TODO X 对齐比例有点问题
+            UI::ScopedStyle textAlign(ImGuiStyleVar_SelectableTextAlign, { UI::Theme::Layout::FramePaddingX / categoriesWidth, 0 });
+            if (ImGui::Selectable("Colors", m_SelectedCategory == 0))
             {
-                if (ImGui::Selectable("Colors", m_SelectedCategory == 0))
-                {
-                    m_SelectedCategory = 0;
-                }
-                
-                // TODO 其他分类
+                m_SelectedCategory = 0;
             }
-            ImGui::EndChild();
             
-            ImGui::TableSetColumnIndex(1);
-            
-            // ---- 右侧设置内容 ----
-            ImGui::BeginChild("Content", ImVec2(0, 0));
-            {
-                switch (m_SelectedCategory)
-                {
-                case 0:
-                    DrawColorsPage();
-                    break;
-                }
-            }
-            ImGui::EndChild();
-            
-            ImGui::EndTable();
+            // TODO 其他分类
         }
-        ImGui::End();
+        ImGui::EndChild();
+        
+        // TODO 分割线拖动到最右边会卡住
+        ImGui::TableSetColumnIndex(1);
+        
+        // ---- 右侧设置内容 ----
+        ImGui::BeginChild("Content", ImVec2(0, 0));
+        {
+            switch (m_SelectedCategory)
+            {
+            case 0:
+                DrawColorsPage();
+                break;
+            }
+        }
+        ImGui::EndChild();
+        
+        ImGui::EndTable();
+    }
+
+    void PreferencesPanel::OnEvent(Event& event)
+    {
+
     }
     
     void PreferencesPanel::DrawColorsPage()
     {
-        auto& colors = EditorPreferences::Get().GetColors();
+        ColorSettings& colors = EditorPreferences::Get().GetColors();
         bool changed = false;
         
         // ---- Gizmo 颜色 ----
@@ -83,7 +93,7 @@ namespace Lucky
             UI::EndCollapsing();
         }
         
-        ImGui::Separator();
+        UI::Draw::HorizontalLine();
         
         // ---- 视口颜色 ----
         if (UI::BeginCollapsing("Viewport"))
@@ -93,7 +103,7 @@ namespace Lucky
             UI::EndCollapsing();
         }
         
-        ImGui::Separator();
+        UI::Draw::HorizontalLine();
         
         // ---- UI 颜色 ----
         if (UI::BeginCollapsing("UI Colors"))
@@ -192,11 +202,13 @@ namespace Lucky
             EditorPreferences::Get().ApplyImGuiColors();
         }
         
-        ImGui::Separator();
+        UI::Draw::HorizontalLine();
         ImGui::Spacing();
         
+        UI::ShiftCursorX(UI::Theme::Layout::WindowPaddingX);
+        
         // 恢复默认设置
-        if (UI::Button("Reset to Default"))
+        if (UI::Button("Reset"))
         {
             EditorPreferences::Get().ResetColorsToDefault();
             EditorPreferences::Get().ApplyImGuiColors();
@@ -209,5 +221,7 @@ namespace Lucky
         {
             EditorPreferences::Get().Save();
         }
+        
+        ImGui::Spacing();
     }
 }

@@ -1,39 +1,28 @@
 #pragma once
 
+#include "Lucky/Editor/EditorPanel.h"
+
 namespace Lucky
 {
     /// <summary>
-    /// 偏好设置面板：独立面板，不走 PanelManager
+    /// 偏好设置面板
     /// </summary>
-    class PreferencesPanel
+    class PreferencesPanel : public EditorPanel
     {
     public:
-        PreferencesPanel() = default;
+        PreferencesPanel();
+        ~PreferencesPanel() override = default;
         
-        /// <summary>
-        /// 渲染偏好设置面板
-        /// </summary>
-        void OnImGuiRender();
+        void OnUpdate(DeltaTime dt) override;
+        void OnGUI() override;
         
-        /// <summary>
-        /// 打开偏好设置面板
-        /// </summary>
-        void Open() { m_IsOpen = true; }
-        
-        /// <summary>
-        /// 面板是否打开
-        /// </summary>
-        bool IsOpen() const { return m_IsOpen; }
-        
+        void OnEvent(Event& event) override;
     private:
         /// <summary>
         /// 绘制颜色设置页
         /// </summary>
         void DrawColorsPage();
-        
     private:
-        bool m_IsOpen = false;
-        
         /// <summary>
         /// 当前选中的分类索引（0 = Colors）
         /// </summary>

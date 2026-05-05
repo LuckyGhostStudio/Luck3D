@@ -33,7 +33,7 @@ namespace Lucky::UI
         
         ScopedFont boldFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO 封装 Fonts
         
-        ShiftCursorY(4.0f);   // 向下偏移，增加与上方内容的间距
+        ShiftCursorY(Theme::Layout::ItemSpacingY);   // 向下偏移，增加与上方内容的间距
         bool opened = ImGui::TreeNodeEx(label, flags);
         if (opened)
         {

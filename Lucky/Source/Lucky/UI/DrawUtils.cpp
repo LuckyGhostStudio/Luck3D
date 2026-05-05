@@ -87,6 +87,20 @@ namespace Lucky::UI
             
             drawList->AddRect(rect.Min, rect.Max, IM_COL32(25, 25, 25, 255 * alpha), 0.0f, 0);
         }
+        
+        void VerticalLine(float alpha, float offsetX, float offsetY)
+        {
+            const float height = ImGui::GetContentRegionAvail().y;
+            const ImVec2 cursor = ImGui::GetCursorScreenPos();
+            
+            auto* drawList = ImGui::GetWindowDrawList();
+            ImRect rect = {
+                ImVec2(cursor.x + offsetX, cursor.y),
+                ImVec2(cursor.x, cursor.y + height)
+            };
+            
+            drawList->AddRect(rect.Min, rect.Max, IM_COL32(25, 25, 25, 255 * alpha), 0.0f, 0);
+        }
     }
 
     void DrawItemActivityOutline(float rounding)

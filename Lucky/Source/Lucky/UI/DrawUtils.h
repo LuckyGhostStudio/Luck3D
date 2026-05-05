@@ -24,6 +24,7 @@ namespace Lucky::UI
         void ItemBottomShadow();
         
         void HorizontalLine(float alpha = 1.0f, float offsetX = 0.0f, float offsetY = 0.0f);
+        void VerticalLine(float alpha = 1.0f, float offsetX = 0.0f, float offsetY = 0.0f);
     }
 
     /// <summary>

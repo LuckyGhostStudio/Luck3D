@@ -34,7 +34,7 @@ namespace Lucky
     void EditorPanel::OnBegin(const char* name)
     {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 }); // ´°¿Ú padding = 0
-        ImGui::Begin(name);
+        ImGui::Begin(name, nullptr, m_WindowFlags);
     }
 
     void EditorPanel::OnEnd()
