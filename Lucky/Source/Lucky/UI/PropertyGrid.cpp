@@ -80,45 +80,65 @@ namespace Lucky::UI
 
     bool PropertyFloat(const char* label, float& value, float delta, float min, float max)
     {
+        BeginPropertyGrid();
+        
         PropertyLabel(label);
         PropertyValueBegin();
 
         bool modified = DragFloat(GenerateID(), &value, delta, min, max);
 
         PropertyValueEnd();
+        
+        EndPropertyGrid();
+        
         return modified;
     }
 
     bool PropertyFloat2(const char* label, glm::vec2& value, float delta, float min, float max)
     {
+        BeginPropertyGrid();
+        
         PropertyLabel(label);
         PropertyValueBegin();
 
         bool modified = DragFloat2(GenerateID(), glm::value_ptr(value), delta, min, max);
 
         PropertyValueEnd();
+        
+        EndPropertyGrid();
+        
         return modified;
     }
 
     bool PropertyFloat3(const char* label, glm::vec3& value, float delta, float min, float max)
     {
+        BeginPropertyGrid();
+        
         PropertyLabel(label);
         PropertyValueBegin();
 
         bool modified = DragFloat3(GenerateID(), glm::value_ptr(value), delta, min, max);
 
         PropertyValueEnd();
+        
+        EndPropertyGrid();
+        
         return modified;
     }
 
     bool PropertyFloat4(const char* label, glm::vec4& value, float delta, float min, float max)
     {
+        BeginPropertyGrid();
+        
         PropertyLabel(label);
         PropertyValueBegin();
 
         bool modified = DragFloat4(GenerateID(), glm::value_ptr(value), delta, min, max);
 
         PropertyValueEnd();
+        
+        EndPropertyGrid();
+        
         return modified;
     }
 
@@ -126,36 +146,61 @@ namespace Lucky::UI
 
     bool PropertyInt(const char* label, int& value, float delta, int min, int max)
     {
+        BeginPropertyGrid();
+        
         PropertyLabel(label);
         PropertyValueBegin();
 
         bool modified = DragInt(GenerateID(), &value, delta, min, max);
 
         PropertyValueEnd();
+        
+        EndPropertyGrid();
+        
         return modified;
     }
 
     // ---- Color 系列 ----
-
+    
     bool PropertyColor(const char* label, glm::vec3& value)
     {
+        BeginPropertyGrid();
+        
         PropertyLabel(label);
         PropertyValueBegin();
-
-        bool modified = ColorEdit3(GenerateID(), glm::value_ptr(value));
+        
+        ImVec4 color = { value.x, value.y, value.z, 1.0f };
+        bool modified = ColorButton(GenerateID(), color, ImGuiColorEditFlags_NoAlpha);
+        if (modified)
+        {
+            value = { color.x, color.y, color.z};
+        }
 
         PropertyValueEnd();
+        
+        EndPropertyGrid();
+        
         return modified;
     }
-
-    bool PropertyColor4(const char* label, glm::vec4& value)
+    
+    bool PropertyColor(const char* label, glm::vec4& value)
     {
+        BeginPropertyGrid();
+        
         PropertyLabel(label);
         PropertyValueBegin();
 
-        bool modified = ColorEdit4(GenerateID(), glm::value_ptr(value));
+        ImVec4 color = { value.x, value.y, value.z, value.w };
+        bool modified = ColorButton(GenerateID(), color, ImGuiColorEditFlags_AlphaPreviewHalf);
+        if (modified)
+        {
+            value = { color.x, color.y, color.z, color.w };
+        }
 
         PropertyValueEnd();
+        
+        EndPropertyGrid();
+        
         return modified;
     }
 
@@ -163,17 +208,24 @@ namespace Lucky::UI
 
     bool PropertyString(const char* label, char* value, size_t bufSize)
     {
+        BeginPropertyGrid();
+        
         PropertyLabel(label);
         PropertyValueBegin();
 
         bool modified = InputText(GenerateID(), value, bufSize);
 
         PropertyValueEnd();
+        
+        EndPropertyGrid();
+        
         return modified;
     }
 
     void PropertyReadOnlyString(const char* label, const char* value)
     {
+        BeginPropertyGrid();
+        
         PropertyLabel(label);
         PropertyValueBegin();
 
@@ -182,12 +234,16 @@ namespace Lucky::UI
         InputText(GenerateID(), const_cast<char*>(value), strlen(value) + 1, ImGuiInputTextFlags_ReadOnly);
 
         PropertyValueEnd();
+        
+        EndPropertyGrid();
     }
 
     // ---- Combo 下拉框 ----
 
     bool PropertyCombo(const char* label, int& selected, const char* const* options, int count)
     {
+        BeginPropertyGrid();
+        
         bool modified = false;
 
         PropertyLabel(label);
@@ -220,6 +276,9 @@ namespace Lucky::UI
         }
 
         PropertyValueEnd();
+        
+        EndPropertyGrid();
+        
         return modified;
     }
 
@@ -227,12 +286,17 @@ namespace Lucky::UI
 
     bool PropertyCheckbox(const char* label, bool& value)
     {
+        BeginPropertyGrid();
+        
         PropertyLabel(label);
         PropertyValueBegin();
 
         bool modified = Checkbox(GenerateID(), &value);
 
         PropertyValueEnd();
+        
+        EndPropertyGrid();
+        
         return modified;
     }
 
@@ -240,6 +304,8 @@ namespace Lucky::UI
 
     bool PropertyTexture(const char* label, const Ref<Texture2D>& texture)
     {
+        BeginPropertyGrid();
+        
         bool modified = false;
 
         PropertyLabel(label);
@@ -265,11 +331,15 @@ namespace Lucky::UI
         //     ImGui::EndDragDropTarget();
         // }
         
+        EndPropertyGrid();
+        
         return modified;
     }
     
     bool PropertyObject(const char* label, const char* valueName)
     {
+        BeginPropertyGrid();
+        
         PropertyLabel(label);
         PropertyValueBegin();
         
@@ -277,6 +347,8 @@ namespace Lucky::UI
         bool modified = ObjectField(valueName);
 
         PropertyValueEnd();
+        
+        EndPropertyGrid();
         
         return modified;
     }

@@ -72,11 +72,11 @@ namespace Lucky::UI
     /// RGB 颜色属性（glm::vec3）
     /// </summary>
     bool PropertyColor(const char* label, glm::vec3& value);
-
+    
     /// <summary>
-    /// RGBA 颜色属性（glm::vec4）
+    /// RGB 颜色属性（glm::vec4）
     /// </summary>
-    bool PropertyColor4(const char* label, glm::vec4& value);
+    bool PropertyColor(const char* label, glm::vec4& value);
 
     // ---- String 系列 ----
 

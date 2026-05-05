@@ -158,9 +158,7 @@ namespace Lucky
                     break;
                 }
             }
-            
-            UI::BeginPropertyGrid();
-            
+
             // 绘制下拉选择框
             if (UI::PropertyCombo(currentShaderName.c_str(), currentShaderIndex, shaderNamesArr.data(), static_cast<int>(shaderNames.size())))
             {
@@ -168,14 +166,10 @@ namespace Lucky
                 material->SetShader(newShader);  // 设置 Shader 触发属性重建
             }
             
-            UI::EndPropertyGrid();
-            
             // ---- 渲染状态 ----
             const std::string& strRenderStateID = std::format("Render State##{0}{1}", static_cast<uint64_t>(id), material->GetName());
             if (UI::BeginCollapsing(strRenderStateID.c_str()))
             {
-                UI::BeginPropertyGrid();
-                
                 RenderState& state = material->GetRenderState();
                 
                 // RenderingMode 下拉框（一键预设：自动配置 Blend / DepthWrite / Queue）
@@ -215,8 +209,6 @@ namespace Lucky
                 
                 UI::PropertyInt("Render Queue", state.Queue, 1, 0, 5000);
                 
-                UI::EndPropertyGrid();
-                
                 UI::EndCollapsing();
             }
             
@@ -232,8 +224,6 @@ namespace Lucky
 
                 const MaterialProperty& prop = it->second;  // 当前属性
                 const std::string& displayName = GetDisplayName(prop.Name);  // 显示名称（友好格式）
-                
-                UI::BeginPropertyGrid();
                 
                 switch (prop.Type)
                 {
@@ -279,7 +269,7 @@ namespace Lucky
                         glm::vec4 value = std::get<glm::vec4>(prop.Value);
                         if (IsColorProperty(prop.Name))
                         {
-                            if (UI::PropertyColor4(displayName.c_str(), value))
+                            if (UI::PropertyColor(displayName.c_str(), value))
                             {
                                 material->SetFloat4(prop.Name, value);
                             }
@@ -324,8 +314,6 @@ namespace Lucky
                     default:
                         break;  // TODO 其他类型
                 }
-                
-                UI::EndPropertyGrid();
             }
 
             ImGui::TreePop();

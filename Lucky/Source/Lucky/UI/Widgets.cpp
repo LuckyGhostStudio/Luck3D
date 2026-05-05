@@ -30,16 +30,23 @@ namespace Lucky::UI
         
         ScopedStyle frameRounding(ImGuiStyleVar_FrameRounding, 0.0f);
         ScopedStyle framePadding(ImGuiStyleVar_FramePadding, { 6.0f, 6.0f });
-
-        // TODO Font 粗体
         
-        UI::ShiftCursorY(4.0f);   // 向下偏移，增加与上方内容的间距
-        return ImGui::TreeNodeEx(label, flags);
+        ScopedFont boldFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO 封装 Fonts
+        
+        ShiftCursorY(4.0f);   // 向下偏移，增加与上方内容的间距
+        bool opened = ImGui::TreeNodeEx(label, flags);
+        if (opened)
+        {
+            ImGui::Indent(Theme::Layout::IndentSpacing);    // 下方内容缩进
+        }
+        
+        return opened;
     }
     
     void EndCollapsing()
     {
         ImGui::TreePop();
+        ImGui::Indent(-Theme::Layout::IndentSpacing);   // 恢复缩进
     }
     
     bool BeginTreeNode(const char* name, bool defaultOpen, bool selected, bool isLeaf)
@@ -104,39 +111,39 @@ namespace Lucky::UI
     
     bool BeginPopupContextWindow(const char* strID, ImGuiPopupFlags popupFlags)
     {
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingX });
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingY });
         bool opened = ImGui::BeginPopupContextWindow(strID, popupFlags);
         ImGui::PopStyleVar();
         
         if (opened)
         {
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingX });
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingY });
         }
         return opened;
     }
     
     bool BeginPopupContextItem(const char* strID, ImGuiPopupFlags popupFlags)
     {
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingX });
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingY });
         bool opened = ImGui::BeginPopupContextItem(strID, popupFlags);
         ImGui::PopStyleVar();
         
         if (opened)
         {
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingX });
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingY });
         }
         return opened;
     }
     
     bool BeginPopup(const char* strID, ImGuiPopupFlags popupFlags)
     {
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingX });
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingY });
         bool opened = ImGui::BeginPopup(strID, popupFlags);
         ImGui::PopStyleVar();
         
         if (opened)
         {
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingX });
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingY });
         }
         return opened;
     }

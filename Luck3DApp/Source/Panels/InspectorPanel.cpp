@@ -68,8 +68,6 @@ namespace Lucky
         // Transform 组件
         DrawComponent<TransformComponent>("Transform", entity, [](TransformComponent& transform)
         {
-            UI::BeginPropertyGrid();
-    
             UI::PropertyFloat3("Position", transform.Translation, 0.01f);
             
             glm::vec3 rotationEuler = glm::degrees(transform.GetRotationEuler());
@@ -79,15 +77,11 @@ namespace Lucky
             }
 
             UI::PropertyFloat3("Scale", transform.Scale, 0.01f);
-            
-            UI::EndPropertyGrid();
         });
         
         // Light 组件
         DrawComponent<LightComponent>("Light", entity, [](LightComponent& light)
         {
-            UI::BeginPropertyGrid();
-
             const char* lightTypes[] = { "Directional", "Point", "Spot" };
             int currentType = static_cast<int>(light.Type);
             if (UI::PropertyCombo("Type", currentType, lightTypes, IM_ARRAYSIZE(lightTypes)))
@@ -124,8 +118,6 @@ namespace Lucky
                 UI::PropertyFloat("Shadow Bias", light.ShadowBias, 0.0001f, 0.0f, 0.05f);
                 UI::PropertyFloat("Shadow Strength", light.ShadowStrength, 0.01f, 0.0f, 1.0f);
             }
-            
-            UI::EndPropertyGrid();
         });
 
         // MeshFilter 组件
@@ -134,11 +126,7 @@ namespace Lucky
         {
             meshName = meshFilter.Mesh->GetName();
             
-            UI::BeginPropertyGrid();
-            
             UI::PropertyObject("Mesh", meshName.c_str());
-            
-            UI::EndPropertyGrid();
         });
 
         // MeshRenderer 组件
@@ -148,8 +136,6 @@ namespace Lucky
 
             if (UI::BeginCollapsing(strID.c_str()))
             {
-                UI::BeginPropertyGrid();
-                
                 // 材质数量 TODO: 可编辑
                 int materialSize = static_cast<int>(meshRenderer.Materials.size());
                 UI::PropertyInt("Size", materialSize);
@@ -163,8 +149,6 @@ namespace Lucky
                     UI::PropertyObject(label.c_str(), materialName.c_str());
                 }
                 
-                UI::EndPropertyGrid();
-                
                 UI::EndCollapsing();
             }
         });
@@ -172,20 +156,14 @@ namespace Lucky
         // PostProcessVolume 组件
         DrawComponent<PostProcessVolumeComponent>("Post Process Volume", entity, [&](PostProcessVolumeComponent& volume)
         {
-            UI::BeginPropertyGrid();
-            
             // Volume 设置
             UI::PropertyCheckbox("Is Global", volume.IsGlobal);
             UI::PropertyFloat("Priority", volume.Priority, 0.1f);
-            
-            UI::EndPropertyGrid();
             
             // ---- Tonemapping ----
             const std::string& strTonemappingID = std::format("Tonemapping##{0}", static_cast<uint64_t>(id));
             if (UI::BeginCollapsing(strTonemappingID.c_str()))
             {
-                UI::BeginPropertyGrid();
-                
                 const char* tonemapModes[] = { "Reinhard", "ACES Filmic", "Uncharted 2" };
                 int tonemapIndex = static_cast<int>(volume.Tonemap);
                 if (UI::PropertyCombo("Tonemap Mode", tonemapIndex, tonemapModes, IM_ARRAYSIZE(tonemapModes)))
@@ -194,8 +172,6 @@ namespace Lucky
                 }
                 UI::PropertyFloat("Exposure", volume.Exposure, 0.01f, 0.0f, 10.0f);
                 
-                UI::EndPropertyGrid();
-                
                 UI::EndCollapsing();
             }
 
@@ -203,8 +179,6 @@ namespace Lucky
             const std::string& strBloomID = std::format("Bloom##{0}", static_cast<uint64_t>(id));
             if (UI::BeginCollapsing(strBloomID.c_str()))
             {
-                UI::BeginPropertyGrid();
-                
                 UI::PropertyCheckbox("Bloom Enabled", volume.BloomEnabled);
                 if (volume.BloomEnabled)
                 {
@@ -212,9 +186,7 @@ namespace Lucky
                     UI::PropertyFloat("Bloom Intensity", volume.BloomIntensity, 0.01f, 0.0f, 10.0f);
                     UI::PropertyInt("Iterations", volume.BloomIterations, 1, 1, 10);
                 }
-                
-                UI::EndPropertyGrid();
-                
+
                 UI::EndCollapsing();
             }
 
@@ -222,11 +194,7 @@ namespace Lucky
             const std::string& strFXAAID = std::format("FXAA##{0}", static_cast<uint64_t>(id));
             if (UI::BeginCollapsing(strFXAAID.c_str()))
             {
-                UI::BeginPropertyGrid();
-                
                 UI::PropertyCheckbox("FXAA Enabled", volume.FXAAEnabled);
-                
-                UI::EndPropertyGrid();
                 
                 UI::EndCollapsing();
             }
@@ -235,16 +203,12 @@ namespace Lucky
             const std::string& strVignetteID = std::format("Vignette##{0}", static_cast<uint64_t>(id));
             if (UI::BeginCollapsing(strVignetteID.c_str()))
             {
-                UI::BeginPropertyGrid();
-                
                 UI::PropertyCheckbox("Vignette Enabled", volume.VignetteEnabled);
                 if (volume.VignetteEnabled)
                 {
                     UI::PropertyFloat("Vignette Intensity", volume.VignetteIntensity, 0.01f, 0.0f, 1.0f);
                     UI::PropertyFloat("Smoothness", volume.VignetteSmoothness, 0.01f, 0.0f, 10.0f);
                 }
-                
-                UI::EndPropertyGrid();
                 
                 UI::EndCollapsing();
             }
