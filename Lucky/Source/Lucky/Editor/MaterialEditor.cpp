@@ -160,7 +160,7 @@ namespace Lucky
             }
 
             // 绘制下拉选择框
-            if (UI::PropertyCombo(currentShaderName.c_str(), currentShaderIndex, shaderNamesArr.data(), static_cast<int>(shaderNames.size())))
+            if (UI::PropertyCombo("Shader", currentShaderIndex, shaderNamesArr.data(), static_cast<int>(shaderNames.size())))
             {
                 const Ref<Shader>& newShader = Renderer3D::GetShaderLibrary()->Get(shaderNames[currentShaderIndex]);
                 material->SetShader(newShader);  // 设置 Shader 触发属性重建

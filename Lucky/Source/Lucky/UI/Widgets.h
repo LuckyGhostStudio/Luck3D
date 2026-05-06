@@ -11,8 +11,14 @@ namespace Lucky::UI
     // 非 Property 语义化控件
     // ========================================================================
     
-    // ---- 可折叠子分组：一般无嵌套 ----
+    // ---- 只用于第一层的可折叠子分组：无嵌套，可嵌套 Sub 或者 普通分组 ----
+    bool BeginPrimaryCollapsing(const char* label);
+    void EndPrimaryCollapsing();
+    
+    // bool BeginSubCollapsing(const char* label, bool defaultOpen = true);
+    
     bool BeginCollapsing(const char* label, bool defaultOpen = true);
+    
     void EndCollapsing();
 
     /// <summary>

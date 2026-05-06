@@ -1,6 +1,7 @@
 #include "lcpch.h"
 #include "Widgets.h"
 
+#include "DrawUtils.h"
 #include "ScopedGuards.h"
 #include "Theme.h"
 #include "UICore.h"
@@ -18,6 +19,44 @@ namespace Lucky::UI
         }
 
         return reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(texture->GetRendererID()));
+    }
+    
+    bool BeginPrimaryCollapsing(const char* label)
+    {
+        // 树节点标志：打开|框架|延伸到右边|框架边框
+        const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth;
+        
+        // 生成唯一 ID
+        const std::string& strID = std::format("{}", label);
+        
+        bool opened = false;
+        
+        Draw::HorizontalLine();
+        
+        ShiftCursorY(1.0f);
+        {
+            ScopedStyle itemSpacing(ImGuiStyleVar_ItemSpacing, { 0, 0 });   // 树节点和底部水平线之间的 Spacing
+            opened = ImGui::TreeNodeEx(strID.c_str(), flags, "");
+            
+            // 组件名
+            ImGui::SameLine();
+            ShiftCursorX(8.0f);
+            {
+                ScopedFont boldFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO 封装 Fonts
+                ImGui::Text(label);
+            }
+        
+            ImGui::Indent(-Theme::Layout::IndentSpacing);
+            Draw::HorizontalLine(0.6f);
+            ImGui::Indent(Theme::Layout::IndentSpacing);
+        }
+        
+        return opened;
+    }
+    
+    void EndPrimaryCollapsing()
+    {
+        ImGui::TreePop();
     }
     
     bool BeginCollapsing(const char* label, bool defaultOpen)

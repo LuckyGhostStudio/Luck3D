@@ -1,5 +1,8 @@
 #include "lcpch.h"
 #include "Renderer3D.h"
+
+#include <filesystem>
+
 #include "RenderContext.h"
 #include "RenderPipeline.h"
 
@@ -37,8 +40,10 @@ namespace Lucky
         
         Ref<Shader> InternalErrorShader;        // 内部错误着色器
         Ref<Shader> StandardShader;             // 默认着色器
+        Ref<Shader> SkyboxShader;               // 默认天空盒着色器
         Ref<Material> InternalErrorMaterial;    // 内部错误材质（材质丢失时使用：材质被意外删除等情况）
         Ref<Material> DefaultMaterial;          // 默认材质
+        Ref<Material> SkyboxMaterial;           // 默认天空盒材质（nullptr 不渲染天空盒）
 
         // 全局默认纹理表 只在初始化时修改一次
         std::unordered_map<TextureDefault, Ref<Texture2D>> DefaultTextures;
@@ -103,9 +108,6 @@ namespace Lucky
         // ======== 清屏颜色 ========
         glm::vec4 ClearColor = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);  // 视口清屏颜色（由外部设置）
         
-        // ======== 天空盒数据（Material 驱动） ========
-        Ref<Material> SkyboxMaterial;       // 天空盒材质（nullptr 表示不渲染天空盒）
-        
         // ======== 相机矩阵缓存（SkyboxPass 需要） ========
         glm::mat4 CameraViewMatrix = glm::mat4(1.0f);           // 相机 View 矩阵
         glm::mat4 CameraProjectionMatrix = glm::mat4(1.0f);     // 相机 Projection 矩阵
@@ -132,17 +134,49 @@ namespace Lucky
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/BloomComposite");   // Bloom 合成着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/FXAA");             // FXAA 着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/Vignette");         // Vignette 着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Skybox");                        // 天空盒着色器
 
         // 加载用户可见着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Standard");  // 默认着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Skybox");    // 默认天空盒着色器
 
         s_Data.InternalErrorShader = s_Data.ShaderLib->Get("InternalError");
         s_Data.StandardShader = s_Data.ShaderLib->Get("Standard");
+        s_Data.SkyboxShader = s_Data.ShaderLib->Get("Skybox");
         
         // 创建内部材质
         s_Data.InternalErrorMaterial = CreateRef<Material>("InternalError", s_Data.InternalErrorShader);    // 内部错误材质
         s_Data.DefaultMaterial = CreateRef<Material>("Default", s_Data.StandardShader);                     // 默认材质
+        s_Data.SkyboxMaterial = CreateRef<Material>("Default-Skybox", s_Data.ShaderLib->Get("Skybox"));     // 默认天空盒材质
+        
+        // ======== 天空盒测试（硬编码加载 6 面 Cubemap） ========
+        // 天空盒纹理路径（放置在 Assets/Textures/Skybox/ 目录下）
+        const std::string skyboxDir = "Assets/Textures/Skybox/";
+        std::array skyboxFaces = {
+            skyboxDir + "right.jpg",    // +X
+            skyboxDir + "left.jpg",     // -X
+            skyboxDir + "up.jpg",       // +Y
+            skyboxDir + "down.jpg",     // -Y
+            skyboxDir + "front.jpg",    // +Z
+            skyboxDir + "back.jpg"      // -Z
+        };
+        
+        // 检查天空盒纹理文件是否存在
+        if (std::filesystem::exists(skyboxFaces[0]))
+        {
+            // 加载 Cubemap 纹理
+            auto skyboxCubemap = TextureCube::Create(skyboxFaces);
+
+            // 设置 Cubemap 纹理到材质
+            s_Data.SkyboxMaterial->SetTextureCube("u_SkyboxMap", skyboxCubemap);
+            s_Data.SkyboxMaterial->SetFloat("u_Exposure", 1.0f);
+            s_Data.SkyboxMaterial->SetFloat4("u_Tint", glm::vec4(1.0f));
+            
+            LF_INFO("Skybox loaded successfully from: {0}", skyboxDir);
+        }
+        else
+        {
+            LF_WARN("Skybox textures not found at: {0} (skipping skybox)", skyboxDir);
+        }
 
         // 创建全局默认纹理
         // White: (255, 255, 255, 255)
@@ -462,6 +496,11 @@ namespace Lucky
         return s_Data.DefaultMaterial;
     }
 
+    Ref<Material>& Renderer3D::GetSkyboxMaterial()
+    {
+        return s_Data.SkyboxMaterial;
+    }
+
     const Ref<Texture2D>& Renderer3D::GetDefaultTexture(TextureDefault type)
     {
         auto it = s_Data.DefaultTextures.find(type);
@@ -539,16 +578,6 @@ namespace Lucky
                 vignette->VignetteSmoothness = settings.VignetteSmoothness;
             }
         }
-    }
-
-    void Renderer3D::SetSkyboxMaterial(const Ref<Material>& material)
-    {
-        s_Data.SkyboxMaterial = material;
-    }
-
-    const Ref<Material>& Renderer3D::GetSkyboxMaterial()
-    {
-        return s_Data.SkyboxMaterial;
     }
 
     void Renderer3D::RenderOutline()

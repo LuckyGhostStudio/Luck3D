@@ -6,6 +6,7 @@
 #include "Panels/SceneViewportPanel.h"
 #include "Panels/InspectorPanel.h"
 #include "Panels/PreferencesPanel.h"
+#include "Panels/LightingPanel.h"
 
 #include "Lucky/Renderer/MeshFactory.h"
 #include "Lucky/Renderer/TextureCube.h"
@@ -26,7 +27,9 @@ namespace Lucky
 #define SCENE_HIERARCHY_PANEL_ID "SceneHierarchyPanel"
 #define SCENE_VIEWPORT_PANEL_ID "SceneViewportPanel"
 #define INSPECTOR_PANEL_ID "InspectorPanel"
+    
 #define PREFERENCES_PANEL_ID "PreferencesPanel"
+#define LIGHTING_PANEL_ID "LightingPanel"
     
     EditorLayer::EditorLayer()
         : Layer("EditorLayer")
@@ -41,11 +44,12 @@ namespace Lucky
         m_Scene = CreateRef<Scene>("New Scene");
         
         m_PanelManager = CreateScope<PanelManager>();
-
+        
         m_PanelManager->AddPanel<SceneHierarchyPanel>(SCENE_HIERARCHY_PANEL_ID, "Hierarchy", true, m_Scene);
         m_PanelManager->AddPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID, "Scene", true, m_Scene);
         m_PanelManager->AddPanel<InspectorPanel>(INSPECTOR_PANEL_ID, "Inspector", true, m_Scene);
         m_PanelManager->AddPanel<PreferencesPanel>(PREFERENCES_PANEL_ID, "Preferences", false);
+        m_PanelManager->AddPanel<LightingPanel>(LIGHTING_PANEL_ID, "Lighting", false, Renderer3D::GetSkyboxMaterial());
         
         // Temp 测试 Cube
         Entity cubeEntity = m_Scene->CreateEntity("Cube");
@@ -65,44 +69,6 @@ namespace Lucky
         // 设置初始方向斜向下
         TransformComponent& transform = lightEntity.GetComponent<TransformComponent>();
         transform.SetRotationEuler(glm::vec3(glm::radians(50.0f), glm::radians(-32.0f), 0.0f));
-
-        // ======== 天空盒测试（硬编码加载 6 面 Cubemap） ========
-        // 天空盒纹理路径（放置在 Assets/Textures/Skybox/ 目录下）
-        const std::string skyboxDir = "Assets/Textures/Skybox/";
-        std::array skyboxFaces = {
-            skyboxDir + "right.jpg",    // +X
-            skyboxDir + "left.jpg",     // -X
-            skyboxDir + "top.jpg",      // +Y
-            skyboxDir + "bottom.jpg",   // -Y
-            skyboxDir + "front.jpg",    // +Z
-            skyboxDir + "back.jpg"      // -Z
-        };
-        
-        // 检查天空盒纹理文件是否存在
-        if (std::filesystem::exists(skyboxFaces[0]))
-        {
-            // 加载 Cubemap 纹理
-            auto skyboxCubemap = TextureCube::Create(skyboxFaces);
-            
-            // 获取 Skybox Shader 并创建材质
-            auto skyboxShader = Renderer3D::GetShaderLibrary()->Get("Skybox");
-            auto skyboxMaterial = Material::Create(skyboxShader);
-            skyboxMaterial->SetName("Skybox Material");
-            
-            // 设置 Cubemap 纹理到材质
-            skyboxMaterial->SetTextureCube("u_SkyboxMap", skyboxCubemap);
-            skyboxMaterial->SetFloat("u_Exposure", 1.0f);
-            skyboxMaterial->SetFloat4("u_Tint", glm::vec4(1.0f));
-            
-            // 设置天空盒材质到渲染器
-            Renderer3D::SetSkyboxMaterial(skyboxMaterial);
-            
-            LF_INFO("Skybox loaded successfully from: {0}", skyboxDir);
-        }
-        else
-        {
-            LF_WARN("Skybox textures not found at: {0} (skipping skybox)", skyboxDir);
-        }
 
         auto commandLineArgs = Application::GetInstance().GetSpecification().CommandLineArgs;
         // 从命令行加载场景
@@ -201,27 +167,44 @@ namespace Lucky
             
             if (ImGui::BeginMenu("Window"))
             {
-                if (ImGui::MenuItem("Hierarchy"))
+                if (ImGui::BeginMenu("Panels"))
                 {
-                    uint32_t panelID = Hash::GenerateFNVHash(SCENE_HIERARCHY_PANEL_ID);
-                    PanelData* panelData = m_PanelManager->GetPanelData(panelID);
-                    panelData->IsOpen = true;
+                    if (ImGui::MenuItem("Hierarchy"))
+                    {
+                        uint32_t panelID = Hash::GenerateFNVHash(SCENE_HIERARCHY_PANEL_ID);
+                        PanelData* panelData = m_PanelManager->GetPanelData(panelID);
+                        panelData->IsOpen = true;
+                    }
+                
+                    if (ImGui::MenuItem("Inspector"))
+                    {
+                        uint32_t panelID = Hash::GenerateFNVHash(INSPECTOR_PANEL_ID);
+                        PanelData* panelData = m_PanelManager->GetPanelData(panelID);
+                        panelData->IsOpen = true;
+                    }
+                    
+                    if (ImGui::MenuItem("Scene"))
+                    {
+                        uint32_t panelID = Hash::GenerateFNVHash(SCENE_VIEWPORT_PANEL_ID);
+                        PanelData* panelData = m_PanelManager->GetPanelData(panelID);
+                        panelData->IsOpen = true;
+                    }
+                    
+                    ImGui::EndMenu();
                 }
                 
-                if (ImGui::MenuItem("Scene"))
+                if (ImGui::BeginMenu("Rendering"))
                 {
-                    uint32_t panelID = Hash::GenerateFNVHash(SCENE_VIEWPORT_PANEL_ID);
-                    PanelData* panelData = m_PanelManager->GetPanelData(panelID);
-                    panelData->IsOpen = true;
+                    if (ImGui::MenuItem("Lighting"))
+                    {
+                        uint32_t panelID = Hash::GenerateFNVHash(LIGHTING_PANEL_ID);
+                        PanelData* panelData = m_PanelManager->GetPanelData(panelID);
+                        panelData->IsOpen = true;
+                    }
+                    
+                    ImGui::EndMenu();
                 }
                 
-                if (ImGui::MenuItem("Inspector"))
-                {
-                    uint32_t panelID = Hash::GenerateFNVHash(INSPECTOR_PANEL_ID);
-                    PanelData* panelData = m_PanelManager->GetPanelData(panelID);
-                    panelData->IsOpen = true;
-                }
-
                 ImGui::EndMenu();
             }
 
