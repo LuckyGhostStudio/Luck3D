@@ -106,11 +106,11 @@ vec3 ShadowCalculation(vec3 worldPos, vec3 normal, vec3 lightDir)
     if (u_TranslucentShadowEnabled != 0)
     {
         vec3 translucentColor = texture(u_TranslucentShadowMap, projCoords.xy).rgb;
-        // 仅在阴影区域内应用颜色衰减:
-        // shadow=0 (不在阴影中) -> mix 返回 vec3(1.0), 不受 Translucent 影响
-        // shadow=1 (完全在阴影中) -> mix 返回 translucentColor, 应用完整颜色衰减
-        // 这样可以避免光源前方的物体被后方透明物体的颜色衰减错误影响
-        return mix(vec3(1.0), translucentColor, shadow);
+        // 深度 Shadow Map 只包含不透明物体的深度（透明物体不写入深度）
+        // baseShadow: 仅反映不透明物体的遮挡（0 = 被不透明物体完全遮挡, 1 = 无不透明遮挡）
+        // translucentColor: 仅反映透明物体的颜色衰减（(1,1,1) = 无透明遮挡, <1 = 有彩色衰减）
+        // 两者相乘: 不透明阴影和透明彩色阴影独立叠加, 互不干扰
+        return vec3(baseShadow) * translucentColor;
     }
 
     return vec3(baseShadow);

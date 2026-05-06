@@ -1,7 +1,8 @@
 // Shadow Pass 片段着色器
 // 支持两种透明阴影模式(互斥, 不可同时启用):
 // 1. Translucent Shadow Map: 输出透射颜色到 RGBA8 颜色附件, 实现彩色半透明阴影
-//    透明物体写入完整深度(不 discard), 阴影浓度完全由颜色衰减控制
+//    透明物体不写入深度(由 C++ 端关闭 DepthWrite), 阴影浓度完全由颜色衰减控制
+//    深度 Shadow Map 只记录不透明物体的遮挡信息
 // 2. Dithered Shadow(回退方案): 透明物体使用 Bayer 矩阵抖动实现阴影浓度随透明度渐变
 // 不透明物体直接由硬件写入深度, 颜色输出白色(无衰减)
 #version 450 core
@@ -41,12 +42,13 @@ void main()
         if (u_TranslucentShadowEnabled)
         {
             // ---- Translucent Shadow Map 模式 ----
-            // 写入完整深度(不 discard), 阴影浓度完全由颜色衰减控制
-            // 输出透射颜色: 光线穿过该片段后的剩余比例
-            // transmittance = mix(白色, 材质颜色, alpha)
-            // alpha=0 -> 完全透光, 输出 (1,1,1) 表示无衰减
-            // alpha=1 -> 完全吸收为材质颜色, 输出 albedo
-            vec3 transmittance = mix(vec3(1.0), albedo, alpha);
+            // 深度写入已由 C++ 端关闭(SetDepthWrite(false)), 透明物体不影响深度 Shadow Map
+            // 输出透射颜色: 光线穿过该片段后的剩余比例（Beer-Lambert 近似）
+            // transmittance = mix(白色, 材质颜色, alpha) * (1 - alpha)
+            // alpha=0 -> 完全透光, 输出 (1,1,1) 表示无衰减（无阴影）
+            // alpha=1 -> 完全遮挡, 输出 (0,0,0) 表示全黑阴影（等同于不透明物体）
+            // 中间值 -> 彩色半透明阴影, 颜色由 albedo 决定, 强度由 alpha 决定
+            vec3 transmittance = mix(vec3(1.0), albedo, alpha) * (1.0 - alpha);
             o_TranslucentColor = vec4(transmittance, 1.0);
         }
         else

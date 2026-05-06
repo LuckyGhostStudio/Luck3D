@@ -93,7 +93,7 @@ namespace Lucky
 
                 // Translucent Shadow Map
                 cmd.MaterialData->GetShader()->SetInt("u_TranslucentShadowMap", 14);
-                cmd.MaterialData->GetShader()->SetInt("u_TranslucentShadowEnabled", context.TranslucentShadowEnabled ? 1 : 0);
+                cmd.MaterialData->GetShader()->SetInt("u_TranslucentShadowEnabled", 0);
             }
             else
             {

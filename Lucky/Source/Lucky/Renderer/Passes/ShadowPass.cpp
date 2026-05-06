@@ -71,10 +71,15 @@ namespace Lucky
             }
         }
 
-        // ---- 遍历透明物体 DrawCommand 列表（Dithered Shadow + Translucent Shadow Map） ----
-        // 透明物体: 写深度（Dithered）+ 写颜色（Translucent Shadow Map 乘法混合）
+        // ---- 遍历透明物体 DrawCommand 列表（Translucent Shadow Map） ----
+        // 透明物体: 不写深度（深度 Shadow Map 只记录不透明物体遮挡）
+        //           只写颜色（Translucent Shadow Map 乘法混合，记录颜色衰减）
         if (hasTransparent)
         {
+            // 关闭深度写入: 透明物体不影响深度 Shadow Map
+            // 这样 baseShadow 只反映不透明物体的遮挡, translucentColor 只反映透明物体的颜色衰减
+            // 两者在采样端相乘即可得到正确的阴影效果
+            RenderCommand::SetDepthWrite(false);
             // 启用颜色写入 + 乘法混合: Dst = Dst * Src
             // 每个透明物体的透射颜色与已有值相乘, 累积衰减
             RenderCommand::SetColorMask(true, true, true, true);

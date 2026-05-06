@@ -34,7 +34,7 @@ Entitys:
               Value: ""
             - Name: u_Albedo
               Type: Float4
-              Value: [1, 0, 0, 0.607843161]
+              Value: [1, 0, 0, 0.478431374]
             - Name: u_AlbedoMap
               Type: Sampler2D
               Value: ""
@@ -81,8 +81,8 @@ Entitys:
         []
     LightComponent:
       Type: 0
-      Color: [1, 1, 1]
-      Intensity: 1.04999995
+      Color: [0.909757257, 1, 0.378917396]
+      Intensity: 1.66999996
       Shadows: 2
       ShadowBias: 0.000300000014
       ShadowStrength: 1
@@ -188,7 +188,75 @@ Entitys:
               Value: ""
             - Name: u_Albedo
               Type: Float4
-              Value: [0.0489913821, 0.482015371, 1, 0.894117653]
+              Value: [0.0470588244, 0.482352942, 1, 0.686274529]
+            - Name: u_AlbedoMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Emission
+              Type: Float3
+              Value: [0, 0, 0]
+            - Name: u_EmissionIntensity
+              Type: Float
+              Value: 1
+            - Name: u_EmissionMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Metallic
+              Type: Float
+              Value: 0
+            - Name: u_MetallicMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_NormalMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Roughness
+              Type: Float
+              Value: 0.5
+            - Name: u_RoughnessMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_TranslucentShadowEnabled
+              Type: Int
+              Value: 0
+            - Name: u_TranslucentShadowMap
+              Type: Sampler2D
+              Value: ""
+  - Entity: 2209797999287802055
+    NameComponent:
+      Name: Cube (1)
+    TransformComponent:
+      Position: [-0.715824246, 1.44268107, 1.55336487]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 1
+      MeshFilePath: ""
+    MeshRendererComponent:
+      Materials:
+        - Name: Default
+          Shader: Standard
+          RenderState:
+            RenderingMode: 0
+            CullMode: 0
+            DepthWrite: true
+            DepthTest: 0
+            BlendMode: 0
+            RenderQueue: 2000
+          Properties:
+            - Name: u_AO
+              Type: Float
+              Value: 1
+            - Name: u_AOMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Albedo
+              Type: Float4
+              Value: [0.800000012, 0.800000012, 0.800000012, 1]
             - Name: u_AlbedoMap
               Type: Sampler2D
               Value: ""
