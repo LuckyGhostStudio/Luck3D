@@ -147,6 +147,7 @@ namespace Lucky
             }
         }
         
+        Renderer3D::ResetStats();   // 重置统计数据
         Renderer3D::BeginScene(camera, sceneLightData);
         {
             // ---- 收集后处理参数 ----

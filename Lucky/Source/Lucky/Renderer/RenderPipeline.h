@@ -52,6 +52,11 @@ namespace Lucky
         }
         
         /// <summary>
+        /// 获取所有 Pass 列表（只读，按执行顺序排列）
+        /// </summary>
+        const std::vector<Ref<RenderPass>>& GetPasses() const { return m_Passes; }
+        
+        /// <summary>
         /// 执行所有已启用的 Pass
         /// </summary>
         /// <param name="context">渲染上下文</param>

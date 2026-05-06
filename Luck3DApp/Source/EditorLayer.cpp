@@ -5,12 +5,11 @@
 #include "Panels/SceneHierarchyPanel.h"
 #include "Panels/SceneViewportPanel.h"
 #include "Panels/InspectorPanel.h"
+#include "Panels/RenderPipelinePanel.h"
 #include "Panels/PreferencesPanel.h"
 #include "Panels/LightingPanel.h"
 
 #include "Lucky/Renderer/MeshFactory.h"
-#include "Lucky/Renderer/TextureCube.h"
-#include "Lucky/Renderer/Material.h"
 
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/SelectionManager.h"
@@ -27,6 +26,7 @@ namespace Lucky
 #define SCENE_HIERARCHY_PANEL_ID "SceneHierarchyPanel"
 #define SCENE_VIEWPORT_PANEL_ID "SceneViewportPanel"
 #define INSPECTOR_PANEL_ID "InspectorPanel"
+#define RENDER_PIPELINE_PANEL_ID "RenderPipelinePanel"
     
 #define PREFERENCES_PANEL_ID "PreferencesPanel"
 #define LIGHTING_PANEL_ID "LightingPanel"
@@ -48,6 +48,7 @@ namespace Lucky
         m_PanelManager->AddPanel<SceneHierarchyPanel>(SCENE_HIERARCHY_PANEL_ID, "Hierarchy", true, m_Scene);
         m_PanelManager->AddPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID, "Scene", true, m_Scene);
         m_PanelManager->AddPanel<InspectorPanel>(INSPECTOR_PANEL_ID, "Inspector", true, m_Scene);
+        m_PanelManager->AddPanel<RenderPipelinePanel>(RENDER_PIPELINE_PANEL_ID, "Render Pipeline", true);
         m_PanelManager->AddPanel<PreferencesPanel>(PREFERENCES_PANEL_ID, "Preferences", false);
         m_PanelManager->AddPanel<LightingPanel>(LIGHTING_PANEL_ID, "Lighting", false, Renderer3D::GetSkyboxMaterial());
         
@@ -195,6 +196,13 @@ namespace Lucky
                 
                 if (ImGui::BeginMenu("Rendering"))
                 {
+                    if (ImGui::MenuItem("Render Pipeline"))
+                    {
+                        uint32_t panelID = Hash::GenerateFNVHash(RENDER_PIPELINE_PANEL_ID);
+                        PanelData* panelData = m_PanelManager->GetPanelData(panelID);
+                        panelData->IsOpen = true;
+                    }
+                    
                     if (ImGui::MenuItem("Lighting"))
                     {
                         uint32_t panelID = Hash::GenerateFNVHash(LIGHTING_PANEL_ID);
