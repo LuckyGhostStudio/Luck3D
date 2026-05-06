@@ -91,6 +91,8 @@ namespace Lucky
             
             // 设置 Cubemap 纹理到材质
             skyboxMaterial->SetTextureCube("u_SkyboxMap", skyboxCubemap);
+            skyboxMaterial->SetFloat("u_Exposure", 1.0f);
+            skyboxMaterial->SetFloat4("u_Tint", glm::vec4(1.0f));
             
             // 设置天空盒材质到渲染器
             Renderer3D::SetSkyboxMaterial(skyboxMaterial);

@@ -20,5 +20,4 @@ void main()
     color *= u_Tint.rgb;
     
     o_Color = vec4(color, 1.0);
-    // o_Color = vec4(1.0, 1.0, 1.0, 1.0);
 }

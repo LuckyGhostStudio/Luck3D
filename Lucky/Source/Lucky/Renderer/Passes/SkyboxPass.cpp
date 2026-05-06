@@ -90,7 +90,7 @@ namespace Lucky
         // ---- 设置渲染状态 ----
         RenderCommand::SetDepthFunc(DepthCompareFunc::LessEqual);   // 深度 = 1.0 通过测试
         RenderCommand::SetDepthWrite(false);                         // 不写入深度
-        RenderCommand::SetCullMode(CullMode::Front);                 // 剔除正面（渲染内表面）
+        RenderCommand::SetCullMode(CullMode::Back);                 // 背面剔除（顶点绕序为外表面CCW，从内部观察时正面朝向相机）
         
         // ---- 通过 Material 绑定 Shader 并上传材质属性 ----
         auto& material = context.SkyboxMaterial;
