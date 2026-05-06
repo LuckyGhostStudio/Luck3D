@@ -107,11 +107,6 @@ namespace Lucky
         // ---- 绘制天空盒 Cube ----
         RenderCommand::DrawArrays(m_CubeVAO, 36);
         
-        // ---- 恢复默认渲染状态 ----
-        RenderCommand::SetDepthFunc(DepthCompareFunc::Less);
-        RenderCommand::SetDepthWrite(true);
-        RenderCommand::SetCullMode(CullMode::Back);
-        
         // 更新统计
         if (context.Stats)
         {

@@ -129,11 +129,5 @@ namespace Lucky
                 context.Stats->TriangleCount += cmd.SubMeshPtr->IndexCount / 3;
             }
         }
-        
-        // 绘制结束后恢复默认渲染状态
-        RenderCommand::SetCullMode(CullMode::Back);
-        RenderCommand::SetDepthWrite(true);
-        RenderCommand::SetDepthFunc(DepthCompareFunc::Less);
-        RenderCommand::SetBlendMode(BlendMode::None);
     }
 }

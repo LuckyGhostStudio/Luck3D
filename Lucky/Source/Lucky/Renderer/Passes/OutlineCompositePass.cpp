@@ -48,9 +48,5 @@ namespace Lucky
         
         // ---- 绘制全屏四边形 ----
         ScreenQuad::Draw();
-        
-        // ---- 恢复渲染状态 ----
-        RenderCommand::SetDepthTest(true);
-        RenderCommand::SetBlendMode(BlendMode::None);
     }
 }

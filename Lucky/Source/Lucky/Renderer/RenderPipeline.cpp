@@ -1,5 +1,6 @@
 #include "lcpch.h"
 #include "RenderPipeline.h"
+#include "Lucky/Renderer/RenderCommand.h"
 
 namespace Lucky
 {
@@ -39,6 +40,7 @@ namespace Lucky
             }
             
             pass->Execute(context);
+            RenderCommand::ResetDefaultRenderState();   // »Ö¸´Ä¬ÈÏäÖÈ¾×´Ì¬
         }
     }
     
@@ -54,6 +56,7 @@ namespace Lucky
             if (pass->GetGroup() == group)
             {
                 pass->Execute(context);
+                RenderCommand::ResetDefaultRenderState();
             }
         }
     }

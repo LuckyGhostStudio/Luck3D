@@ -74,13 +74,11 @@ namespace Lucky
             }
         }
         
-        // ---- 恢复渲染状态 ----
+        // ---- 恢复 DrawBuffers ----
         
         // 恢复 DrawBuffers：只写入 Attachment 0（颜色），禁用 Attachment 1（EntityID）
         // 防止后续 Gizmo 渲染时向 EntityID 缓冲区写入未定义数据
         uint32_t normalBuffers[] = { DrawBuffer::Attachment0, DrawBuffer::None };
         RenderCommand::SetDrawBuffers(normalBuffers, 2);
-        RenderCommand::SetDepthWrite(true);
-        RenderCommand::SetDepthFunc(DepthCompareFunc::Less);
     }
 }

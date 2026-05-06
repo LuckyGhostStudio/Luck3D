@@ -81,10 +81,6 @@ namespace Lucky
             }
         }
 
-        // 恢复深度测试状态
-        RenderCommand::SetDepthTest(true);
-        RenderCommand::SetDepthWrite(true);
-
         // 将 HDR FBO 的深度缓冲区 Blit 到主 FBO（使 Gizmo 能被场景物体正确遮挡）
         if (m_HDR_FBO && context.TargetFramebuffer)
         {

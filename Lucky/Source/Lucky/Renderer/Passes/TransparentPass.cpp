@@ -137,13 +137,5 @@ namespace Lucky
                 cmd.SubMeshPtr->IndexCount
             );
         }
-
-        RenderCommand::SetColorMask(true, true, true, true);    // 恢复颜色写入
-
-        // 绘制结束后恢复默认渲染状态
-        RenderCommand::SetCullMode(CullMode::Back);
-        RenderCommand::SetDepthWrite(true);
-        RenderCommand::SetDepthFunc(DepthCompareFunc::Less);
-        RenderCommand::SetBlendMode(BlendMode::None);
     }
 }

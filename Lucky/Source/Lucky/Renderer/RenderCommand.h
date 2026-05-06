@@ -122,5 +122,15 @@ namespace Lucky
         /// <param name="slot">纹理单元索引（0, 1, 2, ...）</param>
         /// <param name="textureID">纹理 ID</param>
         static void BindTextureUnit(uint32_t slot, uint32_t textureID);
+
+        /// <summary>
+        /// 恢复默认渲染状态
+        /// 将面剔除、深度测试、深度写入、深度比较函数、混合模式、颜色写入掩码
+        /// 重置为引擎初始化时的默认值。
+        /// 通常由 RenderPipeline 在每个 Pass 执行后自动调用，
+        /// 确保下一个 Pass 以干净的渲染状态开始。
+        /// 注意：不影响 FBO 绑定、Viewport、DrawBuffers 等资源绑定类状态。
+        /// </summary>
+        static void ResetDefaultRenderState();
     };
 }

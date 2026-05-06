@@ -54,9 +54,6 @@ namespace Lucky
             );
         }
         
-        // ---- »Ö¸´äÖÈ¾×´Ì¬ ----
-        RenderCommand::SetDepthTest(true);
-        
         // ---- ½â°ó FBO ----
         m_SilhouetteFBO->Unbind();
     }

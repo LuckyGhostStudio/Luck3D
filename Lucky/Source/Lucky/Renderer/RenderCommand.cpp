@@ -7,18 +7,10 @@ namespace Lucky
 {
     void RenderCommand::Init()
     {
-        // 默认不开启混合（不透明物体不需要混合）
-        glDisable(GL_BLEND);
+        // 设置默认渲染状态
+        ResetDefaultRenderState();
 
-        // 开启深度测试
-        glEnable(GL_DEPTH_TEST);
-        glDepthFunc(GL_LESS);
-
-        // 开启背面剔除（默认剔除背面）
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_BACK);
-
-        // 平滑直线
+        // 一次性初始化设置（不属于每帧恢复的渲染状态）
         glEnable(GL_LINE_SMOOTH);
     }
 
@@ -167,5 +159,15 @@ namespace Lucky
     {
         glActiveTexture(GL_TEXTURE0 + slot);
         glBindTexture(GL_TEXTURE_2D, textureID);
+    }
+
+    void RenderCommand::ResetDefaultRenderState()
+    {
+        SetCullMode(CullMode::Back);            // 背面剔除
+        SetDepthTest(true);                     // 开启深度测试
+        SetDepthWrite(true);                    // 开启深度写入
+        SetDepthFunc(DepthCompareFunc::Less);   // 深度比较函数：Less
+        SetBlendMode(BlendMode::None);          // 关闭混合
+        SetColorMask(true, true, true, true);   // 开启所有颜色通道写入
     }
 }

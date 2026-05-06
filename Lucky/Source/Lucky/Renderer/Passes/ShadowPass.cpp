@@ -115,10 +115,7 @@ namespace Lucky
             }
         }
 
-        // ---- 恢复渲染状态 ----
-        RenderCommand::SetBlendMode(BlendMode::None);
-        RenderCommand::SetColorMask(true, true, true, true);
-        RenderCommand::SetCullMode(CullMode::Back);
+        // ---- 解绑 Shadow Map FBO ----
         m_ShadowMapFBO->Unbind();
 
         // ---- 恢复主 FBO 视口 ----
