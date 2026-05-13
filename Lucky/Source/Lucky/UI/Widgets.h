@@ -54,4 +54,6 @@ namespace Lucky::UI
     bool BeginPopupContextItem(const char* strID = nullptr, ImGuiPopupFlags popupFlags = 1);
     bool BeginPopup(const char* strID = nullptr, ImGuiPopupFlags popupFlags = 0);
     void EndPopup();
+    
+    bool DropdownList(int& selected, const char* const* options, int count);
 }

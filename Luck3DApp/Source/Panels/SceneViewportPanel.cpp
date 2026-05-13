@@ -12,6 +12,10 @@
 #include "Lucky/Renderer/GizmoRenderer.h"
 #include "Lucky/Editor/EditorPreferences.h"
 
+#include "Lucky/UI/ScopedGuards.h"
+#include "Lucky/UI/UICore.h"
+#include "Lucky/UI/Widgets.h"
+
 #include <unordered_set>
 #include <functional>
 
@@ -25,6 +29,8 @@ namespace Lucky
         : m_Scene(scene), 
         m_EditorCamera(30.0f, 1280.0f / 720.0f, 0.01f, 1000.0f)
     {
+        SetFlags(ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);    // 禁用滚动条
+        
         FramebufferSpecification fbSpec; // 帧缓冲区规范
 
         fbSpec.Attachments =
@@ -120,8 +126,11 @@ namespace Lucky
         GizmoRenderer::BeginScene(m_EditorCamera);
         {
             // 坐标系无限网格
-            GizmoRenderer::DrawInfiniteGrid(m_EditorCamera);
-        
+            if (m_ShowGrid)
+            {
+                GizmoRenderer::DrawInfiniteGrid(m_EditorCamera);
+            }
+            
             // 灯光 Gizmo TODO 只绘制选中项
             auto lights = m_Scene->GetAllEntitiesWith<TransformComponent, LightComponent>();
             for (auto entity : lights)
@@ -152,21 +161,78 @@ namespace Lucky
 
     void SceneViewportPanel::OnGUI()
     {
+        float toolBarHeight = 34.0f;   // 工具栏高度
+        
+        {
+            UI::ScopedColor bgColor(ImGuiCol_ChildBg, { 0.235f, 0.235f, 0.235f, 1.0f });    // 工具栏背景色
+            ImGui::BeginChild("ToolBar", { 0, toolBarHeight }, false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+            {
+                UI::ShiftCursor(4.0f, 4.0f);
+            
+                ImGui::SetNextItemWidth(90.0f);
+            
+                const char* gizmoModes[] = { "Local", "World" };
+                UI::DropdownList(m_GizmoMode, gizmoModes, IM_ARRAYSIZE(gizmoModes));
+            
+                ImGui::SameLine();
+            
+                UI::ShiftCursorX(2.0f);
+         
+                // TODO 封装 UI::CheckButton()
+            
+                float buttonSize = 28.0f;
+                static bool checked = m_ShowGrid;
+            
+                ImVec4 color = { 0.275f, 0.377f, 0.486f, 1.0f };
+                ImVec4 hoveredColor = { 0.404f, 0.404f, 0.404f, 1.0f };
+                ImVec4 activeColor = { 0.404f, 0.404f, 0.404f, 1.0f };
+
+                if (checked)
+                {
+                    color = { 0.275f, 0.377f, 0.486f, 1.0f };       // 蓝
+                    hoveredColor = { 0.275f, 0.377f, 0.486f, 1.0f };    
+                    activeColor = { 0.275f, 0.377f, 0.486f, 1.0f };
+                }
+                else
+                {
+                    color = { 0.345f, 0.345f, 0.345f, 1.0f };       // 灰
+                    hoveredColor = { 0.404f, 0.404f, 0.404f, 1.0f };
+                    activeColor = { 0.404f, 0.404f, 0.404f, 1.0f };
+                }
+            
+                UI::ScopedColor buttonColor(ImGuiCol_Button, color);
+                UI::ScopedColor buttonHoveredColor(ImGuiCol_ButtonHovered, hoveredColor);
+                UI::ScopedColor buttonActiveColor(ImGuiCol_ButtonActive, activeColor);
+                UI::ScopedStyle buttonBorderSize(ImGuiStyleVar_FrameBorderSize, 0.0f);
+                if (ImGui::Button("Grid", { 0, buttonSize }))
+                {
+                    checked = !checked;
+                
+                    m_ShowGrid = !m_ShowGrid;
+                }
+            }
+            ImGui::EndChild();
+        }
+        
         auto viewportMinRegion = ImGui::GetWindowContentRegionMin();    // 视口可用区域最小值（视口左上角相对于视口左上角位置）
         auto viewportMaxRegion = ImGui::GetWindowContentRegionMax();    // 视口可用区域最大值（视口右下角相对于视口左上角位置）
         auto viewportOffset = ImGui::GetWindowPos();                    // 视口偏移量：视口面板左上角位置（相对于屏幕左上角）
 
-        m_Bounds[0] = { viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y };
+        m_Bounds[0] = { viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y + toolBarHeight };
         m_Bounds[1] = { viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y };
         
-        ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();  // 当前面板大小
-        m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };      // 视口大小
+        ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();      // 当前面板大小
+        m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };  // 视口大小
         
         uint32_t textureID = m_Framebuffer->GetColorAttachmentRendererID(); // 颜色缓冲区 0 ID
 
-        ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, ImVec2(0, 1), ImVec2(1, 0)); // 场景视口图像
+        ImGui::BeginChild("Viewport", { m_ViewportSize.x, m_ViewportSize.y }, false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+        {
+            ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, ImVec2(0, 1), ImVec2(1, 0)); // 场景视口图像
         
-        UI_DrawGizmos();    // 绘制 Gizmo
+            UI_DrawGizmos();    // 绘制 Gizmo
+        }
+        ImGui::EndChild();
     }
 
     void SceneViewportPanel::OnEvent(Event& event)

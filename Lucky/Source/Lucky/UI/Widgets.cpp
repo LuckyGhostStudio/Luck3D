@@ -192,4 +192,35 @@ namespace Lucky::UI
         ImGui::PopStyleVar();
         ImGui::EndPopup();
     }
+    
+    bool DropdownList(int& selected, const char* const* options, int count)
+    {
+        bool modified = false;
+        
+        if (ImGui::BeginCombo(GenerateID(), options[selected]))
+        {
+            for (int i = 0; i < count; i++)
+            {
+                bool isSelected = (i == selected);
+
+                if (ImGui::Selectable(options[i], isSelected))
+                {
+                    if (i != selected)
+                    {
+                        selected = i;
+                        modified = true;
+                    }
+                }
+
+                if (isSelected)
+                {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+
+            ImGui::EndCombo();
+        }
+        
+        return modified;
+    }
 }
