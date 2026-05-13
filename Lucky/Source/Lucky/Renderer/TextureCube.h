@@ -58,7 +58,7 @@ namespace Lucky
         /// </summary>
         TextureCube(uint32_t resolution);
         
-        ~TextureCube();
+        ~TextureCube() override;
         
         // ---- Texture 接口实现 ----
         uint32_t GetWidth() const override { return m_Resolution; }
@@ -69,6 +69,11 @@ namespace Lucky
         void Bind(uint32_t slot = 0) const override;
         
     private:
+        /// <summary>
+        /// 设置 Cubemap 纹理采样参数（内部辅助方法）
+        /// </summary>
+        void SetTextureParameters();
+        
         uint32_t m_RendererID = 0;      // OpenGL 纹理 ID
         uint32_t m_Resolution = 0;      // 每面分辨率
         std::string m_Path;             // 路径（6 面时为第一张图片路径，HDR 时为 .hdr 路径）

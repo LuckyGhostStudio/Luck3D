@@ -58,7 +58,7 @@ namespace Lucky
         Texture2D(uint32_t width, uint32_t height);
         Texture2D(const std::string& path);
 
-        virtual ~Texture2D();
+        ~Texture2D() override;
 
         uint32_t GetWidth() const override { return m_Width; }
         uint32_t GetHeight() const  override { return m_Height; }
