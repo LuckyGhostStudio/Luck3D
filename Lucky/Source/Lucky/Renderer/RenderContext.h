@@ -97,13 +97,25 @@ namespace Lucky
         
         // ---- 阴影数据 ----
         bool ShadowEnabled = false;                     // 是否启用阴影
-        glm::mat4 LightSpaceMatrix = glm::mat4(1.0f);   // 光源空间矩阵（正交投影 * 光源视图）
-        uint32_t ShadowMapTextureID = 0;                // Shadow Map 纹理 ID（供 OpaquePass 绑定）
-        uint32_t TranslucentShadowMapTextureID = 0;     // Translucent Shadow Map 纹理 ID（透明物体颜色衰减）
-        bool TranslucentShadowEnabled = false;          // 是否启用 Translucent Shadow Map
         float ShadowBias = 0.005f;                      // 阴影偏移（减少 Shadow Acne）
         float ShadowStrength = 1.0f;                    // 阴影强度 [0, 1]
         ShadowType ShadowShadowType = ShadowType::None; // 阴影类型（Hard/Soft）
+        
+        // ---- CSM 数据 ----
+        int CascadeCount = 4;                                       // 级联数量
+        glm::mat4 CascadeLightSpaceMatrices[4];                     // 每级 Light Space Matrix
+        float CascadeFarPlanes[4] = { 0.0f };                       // 每级远平面距离（视图空间 z 值）
+        uint32_t CascadeShadowMapArrayTextureID = 0;                // CSM Texture2DArray 深度纹理 ID
+        int ShadowMapResolution = 2048;                             // 每级 Shadow Map 分辨率
+        glm::mat4 CameraViewMatrix = glm::mat4(1.0f);               // 相机视图矩阵（用于计算片段的视图空间深度）
+        
+        // ---- Translucent Shadow Map 数据（仅 Cascade 0） ----
+        uint32_t TranslucentShadowMapTextureID = 0;     // Translucent Shadow Map 颜色纹理 ID
+        bool TranslucentShadowEnabled = false;          // 是否启用 Translucent Shadow Map
+        
+        // ---- 兼容字段（CSM 实施前的旧接口，保留供过渡使用） ----
+        glm::mat4 LightSpaceMatrix = glm::mat4(1.0f);   // 光源空间矩阵（= CascadeLightSpaceMatrices[0]）
+        uint32_t ShadowMapTextureID = 0;                // Shadow Map 纹理 ID（= CascadeShadowMapArrayTextureID 的 Layer 0）
         
         // ---- 天空盒数据（Material 驱动） ----
         Ref<Material> SkyboxMaterial;                              // 天空盒材质（nullptr 表示不渲染天空盒）
@@ -113,6 +125,9 @@ namespace Lucky
         // ---- HDR / 后处理数据 ----
         Ref<Framebuffer> HDR_FBO;               // HDR FBO（由 PostProcessPass 提供，Main 分组 Pass 渲染到此 FBO）
         PostProcessSettings PostProcess;        // 后处理参数
+        
+        // ---- 调试标志 ----
+        bool DebugCSMVisualize = false;         // CSM 级联颜色可视化（由 ShadowPass 控制）
         
         // ---- 统计数据（可写） ----
         Renderer3D::Statistics* Stats = nullptr;    // 渲染统计（DrawCalls、TriangleCount）

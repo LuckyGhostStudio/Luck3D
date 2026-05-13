@@ -47,6 +47,12 @@ namespace Lucky
         float ShadowBias = 0.0003f;                         // 阴影偏移
         float ShadowStrength = 1.0f;                        // 阴影强度 [0, 1]
 
+        // ======== CSM 属性（仅 LightType::Directional 使用） ========
+        int CascadeCount = 4;                                       // 级联数量 [1, 4]
+        float ShadowDistance = 150.0f;                              // 阴影最大距离（世界空间单位）
+        float CascadeSplits[4] = { 0.067f, 0.2f, 0.467f, 1.0f };    // 级联分割比例（占 ShadowDistance 的百分比）
+        int ShadowMapResolution = 2048;                             // 每级 Shadow Map 分辨率
+
         // ======== 构造函数 ========
         LightComponent() = default;
         LightComponent(const LightComponent& other) = default;

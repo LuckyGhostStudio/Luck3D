@@ -157,8 +157,9 @@ namespace Lucky
 
     void RenderCommand::BindTextureUnit(uint32_t slot, uint32_t textureID)
     {
-        glActiveTexture(GL_TEXTURE0 + slot);
-        glBindTexture(GL_TEXTURE_2D, textureID);
+        // 使用 OpenGL 4.5 DSA API：自动识别纹理类型（GL_TEXTURE_2D / GL_TEXTURE_2D_ARRAY 等）
+        // 无需手动指定纹理目标，解决 Texture2DArray 绑定失败的问题
+        glBindTextureUnit(slot, textureID);
     }
 
     void RenderCommand::ResetDefaultRenderState()

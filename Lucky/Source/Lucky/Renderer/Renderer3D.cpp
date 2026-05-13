@@ -1,14 +1,11 @@
 #include "lcpch.h"
 #include "Renderer3D.h"
 
-#include <filesystem>
-
 #include "RenderContext.h"
 #include "RenderPipeline.h"
 
 #include "Shader.h"
 #include "UniformBuffer.h"
-#include "RenderCommand.h"
 #include "Framebuffer.h"
 
 #include "Passes/ShadowPass.h"
@@ -26,6 +23,9 @@
 
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
+
+#include <limits>
+#include <filesystem>
 
 namespace Lucky
 {
@@ -100,10 +100,16 @@ namespace Lucky
         
         // ======== 阴影数据 ========
         bool ShadowEnabled = false;                     // 是否启用阴影
-        glm::mat4 LightSpaceMatrix = glm::mat4(1.0f);   // 光源空间矩阵（正交投影 × 光源视图）
+        glm::mat4 LightSpaceMatrix = glm::mat4(1.0f);   // 光源空间矩阵（兼容旧接口）
         float ShadowBias = 0.005f;                      // 阴影偏移（从组件读取）
         float ShadowStrength = 1.0f;                    // 阴影强度（从组件读取）
         ShadowType ShadowShadowType = ShadowType::None; // 阴影类型（从组件读取）
+        
+        // ---- CSM 数据 ----
+        int CascadeCount = 4;                                                    // 级联数量
+        glm::mat4 CascadeLightSpaceMatrices[s_MaxCascadeCount];                  // 每级 Light Space Matrix
+        float CascadeFarPlanes[s_MaxCascadeCount] = { 0.0f };                    // 每级远平面距离（视图空间）
+        int ShadowMapResolution = 2048;                                          // 每级 Shadow Map 分辨率
         
         // ======== 清屏颜色 ========
         glm::vec4 ClearColor = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);  // 视口清屏颜色（由外部设置）
@@ -284,28 +290,126 @@ namespace Lucky
         }
         s_Data.LightUniformBuffer->SetData(&s_Data.LightBuffer, sizeof(Renderer3DData::LightUBOData));
         
-        // ======== 计算阴影 Light Space Matrix ========
+        // ======== CSM 计算（替换原有的固定 orthoSize 计算） ========
         s_Data.ShadowEnabled = false;
         if (lightData.DirectionalLightCount > 0 && lightData.DirLightShadowType != ShadowType::None)
         {
-            // 使用第一个方向光计算 Light Space Matrix
-            // 正交投影范围（固定范围，后续可升级为 CSM 动态计算）
-            const float orthoSize = 20.0f;
-            const float nearPlane = -30.0f;
-            const float farPlane = 30.0f;
-            
-            glm::mat4 lightProjection = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, nearPlane, farPlane);
-            
-            // 光源视图矩阵：从光源方向看向原点
-            glm::vec3 lightDir = glm::normalize(lightData.DirectionalLights[0].Direction);
-            glm::vec3 lightPos = -lightDir * 15.0f;  // 光源位置（沿光照反方向偏移）
-            glm::mat4 lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-            
-            s_Data.LightSpaceMatrix = lightProjection * lightView;
             s_Data.ShadowEnabled = true;
             s_Data.ShadowBias = lightData.DirLightShadowBias;
             s_Data.ShadowStrength = lightData.DirLightShadowStrength;
             s_Data.ShadowShadowType = lightData.DirLightShadowType;
+            s_Data.CascadeCount = lightData.CascadeCount;
+            s_Data.ShadowMapResolution = lightData.ShadowMapResolution;
+
+            glm::vec3 lightDir = glm::normalize(lightData.DirectionalLights[0].Direction);
+
+            // 计算每级的远平面距离
+            float cameraNear = camera.GetNear();
+            
+            float cascadeNearPlanes[s_MaxCascadeCount];
+            float cascadeFarPlanes[s_MaxCascadeCount];
+            
+            for (int i = 0; i < s_Data.CascadeCount; ++i)
+            {
+                cascadeNearPlanes[i] = (i == 0) ? cameraNear : cascadeFarPlanes[i - 1];
+                cascadeFarPlanes[i] = cameraNear + lightData.ShadowDistance * lightData.CascadeSplits[i];
+                s_Data.CascadeFarPlanes[i] = cascadeFarPlanes[i];
+            }
+
+            // 计算每级的 Light Space Matrix
+            float fov = camera.GetFOV();
+            float aspectRatio = camera.GetAspectRatio();
+            glm::mat4 cameraView = camera.GetViewMatrix();
+
+            for (int i = 0; i < s_Data.CascadeCount; ++i)
+            {
+                // 1. 计算子视锥体的 8 个角点（世界空间）
+                glm::mat4 subProjection = glm::perspective(glm::radians(fov), aspectRatio, cascadeNearPlanes[i], cascadeFarPlanes[i]);
+                glm::mat4 invVP = glm::inverse(subProjection * cameraView);
+
+                std::array<glm::vec3, 8> corners;
+                int index = 0;
+                for (int x = 0; x <= 1; ++x)
+                {
+                    for (int y = 0; y <= 1; ++y)
+                    {
+                        for (int z = 0; z <= 1; ++z)
+                        {
+                            glm::vec4 pt = invVP * glm::vec4(
+                                2.0f * x - 1.0f,
+                                2.0f * y - 1.0f,
+                                2.0f * z - 1.0f,
+                                1.0f
+                            );
+                            corners[index++] = glm::vec3(pt) / pt.w;
+                        }
+                    }
+                }
+
+                // 2. 计算子视锥体中心
+                glm::vec3 center(0.0f);
+                for (const auto& corner : corners)
+                {
+                    center += corner;
+                }
+                center /= 8.0f;
+
+                // 3. 构建光源视图矩阵
+                // 修复：当光照方向接近垂直时，up 向量 (0,1,0) 与视线方向平行会导致 lookAt 矩阵退化（NaN）
+                glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+                if (std::abs(glm::dot(lightDir, up)) > 0.99f)
+                {
+                    up = glm::vec3(0.0f, 0.0f, 1.0f);  // 光照方向接近垂直时使用 Z 轴作为 up
+                }
+                // 修复：偏移量从固定 50.0f 改为基于子视锥体包围球半径动态计算
+                float radius = 0.0f;
+                for (const auto& corner : corners)
+                {
+                    radius = std::max(radius, glm::length(corner - center));
+                }
+                glm::vec3 lightPos = center - lightDir * (radius + 50.0f);
+                glm::mat4 lightView = glm::lookAt(lightPos, center, up);
+
+                // 4. 计算光源空间 AABB
+                float minX = std::numeric_limits<float>::max();
+                float maxX = std::numeric_limits<float>::lowest();
+                float minY = std::numeric_limits<float>::max();
+                float maxY = std::numeric_limits<float>::lowest();
+                float minZ = std::numeric_limits<float>::max();
+                float maxZ = std::numeric_limits<float>::lowest();
+
+                for (const auto& corner : corners)
+                {
+                    glm::vec4 lightSpaceCorner = lightView * glm::vec4(corner, 1.0f);
+                    minX = std::min(minX, lightSpaceCorner.x);
+                    maxX = std::max(maxX, lightSpaceCorner.x);
+                    minY = std::min(minY, lightSpaceCorner.y);
+                    maxY = std::max(maxY, lightSpaceCorner.y);
+                    minZ = std::min(minZ, lightSpaceCorner.z);
+                    maxZ = std::max(maxZ, lightSpaceCorner.z);
+                }
+
+                // 5. 扩展 Z 范围（确保光源"背后"的物体也能投射阴影）
+                // 在 glm::lookAt 生成的视图矩阵中，物体在光源前方时 Z 值为负。
+                // 扩展 minZ（更负方向）以捕获视锥体外的投影物体。
+                float zRange = maxZ - minZ;
+                float zPadding = std::max(zRange * 2.0f, 50.0f);
+                minZ -= zPadding;
+                maxZ += zPadding * 0.1f;
+
+                // 6. 构建正交投影矩阵
+                // 关键修复：glm::ortho 使用 orthoRH_NO（右手坐标系，NDC Z 范围 [-1,1]）。
+                // 在该模式下，zNear/zFar 参数表示沿 -Z 轴的距离（正值 = 相机前方）。
+                // 光源空间中物体 Z 值为负（在光源前方），所以需要取反：
+                //   ortho_near = -maxZ（最近的物体，Z 值最大即最接近 0 的负值）
+                //   ortho_far  = -minZ（最远的物体，Z 值最小即最负的值）
+                glm::mat4 lightProjection = glm::ortho(minX, maxX, minY, maxY, -maxZ, -minZ);
+
+                s_Data.CascadeLightSpaceMatrices[i] = lightProjection * lightView;
+            }
+
+            // 兼容旧接口：LightSpaceMatrix = 第一级联的矩阵
+            s_Data.LightSpaceMatrix = s_Data.CascadeLightSpaceMatrices[0];
         }
         
         // 清空绘制命令列表
@@ -349,13 +453,28 @@ namespace Lucky
         context.ShadowStrength = s_Data.ShadowStrength;
         context.ShadowShadowType = s_Data.ShadowShadowType;
         
+        // CSM 数据
+        context.CascadeCount = s_Data.CascadeCount;
+        context.ShadowMapResolution = s_Data.ShadowMapResolution;
+        context.CameraViewMatrix = s_Data.CameraViewMatrix;
+        for (int i = 0; i < s_Data.CascadeCount; ++i)
+        {
+            context.CascadeLightSpaceMatrices[i] = s_Data.CascadeLightSpaceMatrices[i];
+            context.CascadeFarPlanes[i] = s_Data.CascadeFarPlanes[i];
+        }
+        
         // 获取 Shadow Map 纹理 ID（ShadowPass 持有 FBO）
         auto shadowPass = s_Data.Pipeline.GetPass<ShadowPass>();
         if (shadowPass)
         {
-            context.ShadowMapTextureID = shadowPass->GetShadowMapTextureID();
+            context.CascadeShadowMapArrayTextureID = shadowPass->GetShadowMapTextureID();
+            context.ShadowMapTextureID = shadowPass->GetShadowMapTextureID();  // 兼容旧接口
             context.TranslucentShadowMapTextureID = shadowPass->GetTranslucentShadowMapTextureID();
-            context.TranslucentShadowEnabled = true;  // 默认启用 Translucent Shadow Map
+            // 仅当场景中存在透明物体时才启用 Translucent Shadow Map，
+            // 避免删除最后一个透明物体后残留阴影数据被采样
+            bool hasTransparentObjects = context.TransparentDrawCommands && !context.TransparentDrawCommands->empty();
+            context.TranslucentShadowEnabled = hasTransparentObjects;
+            context.DebugCSMVisualize = shadowPass->IsDebugCSMVisualize();
         }
         
         // 天空盒数据

@@ -14,18 +14,33 @@ namespace Lucky
         static const std::unordered_set<std::string> s_InternalUniforms = {
             "u_ObjectToWorldMatrix",    // 模型变换矩阵（由引擎每帧设置）
             "u_EntityID",               // Entity ID（拾取系统，由引擎每帧设置）
-            // ---- 阴影系统：由 OpaquePass 在每次 Shader 切换时设置 ----
-            "u_ShadowMap",              // Shadow Map 深度纹理（纹理槽位 15）
-            "u_LightSpaceMatrix",       // 光源空间 VP 矩阵
+            // ---- CSM 阴影系统：由 OpaquePass/TransparentPass 在每次 Shader 切换时设置 ----
+            "u_ShadowMapArray",         // CSM Texture2DArray 深度纹理（纹理槽位 15）
+            "u_CascadeCount",           // 级联数量
+            "u_CameraViewMatrix",       // 相机视图矩阵
             "u_ShadowBias",             // 阴影偏移
             "u_ShadowStrength",         // 阴影强度
             "u_ShadowEnabled",          // 阴影开关
             "u_ShadowType",             // 阴影类型
+            "u_TranslucentShadowMap",   // Translucent Shadow Map 纹理（纹理槽位 8）
+            "u_TranslucentShadowEnabled", // Translucent Shadow 开关
+            "u_DebugCSMVisualize",      // CSM 调试可视化开关
+            // ---- 旧接口（兼容） ----
+            "u_ShadowMap",              // 旧 Shadow Map 深度纹理
+            "u_LightSpaceMatrix",       // 旧光源空间 VP 矩阵
             // ---- 天空盒系统：由 SkyboxPass 自动计算设置 ----
             "u_SkyboxVP",              // 天空盒 VP 矩阵（移除 View 平移分量）
         };
 
-        return s_InternalUniforms.find(name) != s_InternalUniforms.end();
+        // 检查精确匹配
+        if (s_InternalUniforms.find(name) != s_InternalUniforms.end())
+            return true;
+
+        // 检查数组 uniform（u_CascadeLightSpaceMatrices[0] ~ [3]、u_CascadeFarPlanes[0] ~ [3]）
+        if (name.find("u_CascadeLightSpaceMatrices") == 0 || name.find("u_CascadeFarPlanes") == 0)
+            return true;
+
+        return false;
     }
 
     /// <summary>

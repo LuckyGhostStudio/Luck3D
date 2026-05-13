@@ -117,6 +117,50 @@ namespace Lucky
             {
                 UI::PropertyFloat("Shadow Bias", light.ShadowBias, 0.0001f, 0.0f, 0.05f);
                 UI::PropertyFloat("Shadow Strength", light.ShadowStrength, 0.01f, 0.0f, 1.0f);
+
+                // ---- CSM 属性（仅方向光 + 阴影开启时显示） ----
+                if (light.Type == LightType::Directional)
+                {
+                    UI::PropertyFloat("Shadow Distance", light.ShadowDistance, 1.0f, 1.0f, 1000.0f);
+                    UI::PropertyInt("Cascade Count", light.CascadeCount, 1.0f, 1, 4);
+
+                    // Shadow Map Resolution（下拉框）
+                    const char* resolutionOptions[] = { "512", "1024", "2048", "4096" };
+                    int resolutionValues[] = { 512, 1024, 2048, 4096 };
+                    int currentResIdx = 2;  // 默认 2048
+                    for (int i = 0; i < 4; ++i)
+                    {
+                        if (resolutionValues[i] == light.ShadowMapResolution)
+                        {
+                            currentResIdx = i;
+                            break;
+                        }
+                    }
+                    if (UI::PropertyCombo("Shadow Resolution", currentResIdx, resolutionOptions, 4))
+                    {
+                        light.ShadowMapResolution = resolutionValues[currentResIdx];
+                    }
+
+                    // Cascade Splits（根据 CascadeCount 显示对应数量的滑块）
+                    for (int i = 0; i < light.CascadeCount; ++i)
+                    {
+                        std::string label = "Cascade " + std::to_string(i);
+                        float minVal = (i == 0) ? 0.001f : light.CascadeSplits[i - 1];
+                        UI::PropertyFloat(label.c_str(), light.CascadeSplits[i], 0.001f, minVal, 1.0f);
+                    }
+
+                    // 确保最后一级始终为 1.0
+                    light.CascadeSplits[light.CascadeCount - 1] = 1.0f;
+
+                    // 确保分割比例单调递增
+                    for (int i = 1; i < light.CascadeCount; ++i)
+                    {
+                        if (light.CascadeSplits[i] <= light.CascadeSplits[i - 1])
+                        {
+                            light.CascadeSplits[i] = light.CascadeSplits[i - 1] + 0.001f;
+                        }
+                    }
+                }
             }
         });
 

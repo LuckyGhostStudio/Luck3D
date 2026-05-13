@@ -17,6 +17,8 @@ namespace Lucky
 
         DEFPTH24STENCIL8,           // 深度模板（深度24位 + 模板8位，不可采样）
         DEPTH_COMPONENT,            // 纯深度纹理（24位深度，可采样，用于 Shadow Map）
+        DEPTH_COMPONENT_ARRAY,      // 深度纹理数组（GL_TEXTURE_2D_ARRAY，用于 CSM）
+        RGBA8_ARRAY,                // 颜色纹理数组（GL_TEXTURE_2D_ARRAY，RGBA8，用于 Translucent Shadow Map CSM）
 
         Depth = DEFPTH24STENCIL8    // 默认值
     };
@@ -54,7 +56,8 @@ namespace Lucky
 
         FramebufferAttachmentSpecification Attachments; // 帧缓冲区所有附件
 
-        uint32_t Samples = 1;   // 采样数
+        uint32_t Samples = 1;       // 采样数
+        uint32_t Layers = 1;        // 纹理层数（Texture2DArray 使用，默认 1 = 普通 2D 纹理）
 
         bool SwapChainTarget = false;   // 是否要渲染到屏幕
     };
@@ -140,6 +143,38 @@ namespace Lucky
 
         // TODO 封装 Blit 方法 void BlitTo(const Ref<Framebuffer>& target, BufferType bufferType) const;
         
+        /// <summary>
+        /// 将 Texture2DArray 的指定层绑定为当前 FBO 的深度附件
+        /// 用于 CSM 逐级联渲染：每次渲染一个级联前调用此方法切换目标层
+        /// 仅当 Specification.Layers > 1 且深度格式为 DEPTH_COMPONENT_ARRAY 时有效
+        /// </summary>
+        /// <param name="layer">层索引（0 ~ Layers-1）</param>
+        void BindDepthLayer(int layer);
+
+        /// <summary>
+        /// 将 Texture2DArray 的指定层绑定为当前 FBO 的颜色附件
+        /// 用于逐级联渲染颜色数据（如 Translucent Shadow Map）
+        /// 仅当颜色附件格式为 RGBA8_ARRAY 时有效
+        /// </summary>
+        /// <param name="attachmentIndex">颜色附件索引</param>
+        /// <param name="layer">层索引（0 ~ Layers-1）</param>
+        void BindColorLayer(uint32_t attachmentIndex, int layer);
+
+        /// <summary>
+        /// 获取深度 Texture2DArray 的纹理 ID
+        /// 用于在 OpaquePass/TransparentPass 中绑定到纹理单元进行采样
+        /// 仅当深度格式为 DEPTH_COMPONENT_ARRAY 时有意义
+        /// </summary>
+        uint32_t GetDepthArrayTextureID() const { return m_DepthAttachment; }
+
+        /// <summary>
+        /// 获取颜色 Texture2DArray 的纹理 ID
+        /// 用于在 OpaquePass/TransparentPass 中绑定到纹理单元进行采样
+        /// 仅当颜色格式为 RGBA8_ARRAY 时有意义
+        /// </summary>
+        /// <param name="index">颜色附件索引</param>
+        uint32_t GetColorArrayTextureID(uint32_t index = 0) const { return GetColorAttachmentRendererID(index); }
+
         /// <summary>
         /// 将当前 FBO 的深度缓冲区 Blit 到目标 FBO
         /// 用于将 HDR FBO 的深度信息复制到主 FBO（使 Gizmo 能被场景物体正确遮挡）

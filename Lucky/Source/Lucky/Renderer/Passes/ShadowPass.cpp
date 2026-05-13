@@ -6,23 +6,39 @@
 #include "Lucky/Renderer/Material.h"
 #include "Lucky/Renderer/Texture.h"
 
+#include "Lucky/UI/DrawUtils.h"
+#include "Lucky/UI/PropertyGrid.h"
+
 namespace Lucky
 {
     void ShadowPass::Init()
     {
         m_ShadowShader = Renderer3D::GetShaderLibrary()->Get("Shadow");
+        RecreateFBOs();
+    }
 
-        // 创建 Shadow Map FBO（深度纹理 + Translucent Shadow Map 颜色纹理）
-        // Color Attachment 0: RGBA8 - Translucent Shadow Map（透明物体颜色衰减）
-        // Depth Attachment: DEPTH_COMPONENT - 标准 Shadow Map（深度）
-        FramebufferSpecification spec;
-        spec.Width = m_ShadowMapResolution;
-        spec.Height = m_ShadowMapResolution;
-        spec.Attachments = {
-            FramebufferTextureFormat::RGBA8,            // Translucent Shadow Map
-            FramebufferTextureFormat::DEPTH_COMPONENT   // 标准 Shadow Map
+    void ShadowPass::RecreateFBOs()
+    {
+        // 创建 CSM Texture2DArray FBO（多层深度纹理）
+        FramebufferSpecification csmSpec;
+        csmSpec.Width = m_ShadowMapResolution;
+        csmSpec.Height = m_ShadowMapResolution;
+        csmSpec.Layers = m_CascadeCount;
+        csmSpec.Attachments = {
+            FramebufferTextureFormat::DEPTH_COMPONENT_ARRAY
         };
-        m_ShadowMapFBO = Framebuffer::Create(spec);
+        m_CSMFramebuffer = Framebuffer::Create(csmSpec);
+
+        // 创建 Translucent Shadow Map FBO（RGBA8 Array 颜色 + 深度 Array，所有级联）
+        FramebufferSpecification translucentSpec;
+        translucentSpec.Width = m_ShadowMapResolution;
+        translucentSpec.Height = m_ShadowMapResolution;
+        translucentSpec.Layers = m_CascadeCount;
+        translucentSpec.Attachments = {
+            FramebufferTextureFormat::RGBA8_ARRAY,           // Translucent Shadow Map 颜色衰减（Texture2DArray）
+            FramebufferTextureFormat::DEPTH_COMPONENT_ARRAY  // 深度（Texture2DArray，用于深度测试）
+        };
+        m_TranslucentShadowFBO = Framebuffer::Create(translucentSpec);
     }
 
     void ShadowPass::Execute(const RenderContext& context)
@@ -36,92 +52,153 @@ namespace Lucky
             return;
         }
 
-        // ---- 绑定 Shadow Map FBO ----
-        m_ShadowMapFBO->Bind();
+        // 检查是否需要重建 FBO（分辨率或级联数量变化）
+        if (context.ShadowMapResolution != (int)m_ShadowMapResolution || context.CascadeCount != m_CascadeCount)
+        {
+            m_ShadowMapResolution = context.ShadowMapResolution;
+            m_CascadeCount = context.CascadeCount;
+            RecreateFBOs();
+        }
+
+        // ======== 阶段 1：CSM 深度渲染（所有级联，仅不透明物体） ========
+        m_CSMFramebuffer->Bind();
         RenderCommand::SetViewport(0, 0, m_ShadowMapResolution, m_ShadowMapResolution);
-
-        // 清除深度（1.0）和颜色（白色 = 无衰减）
-        RenderCommand::SetClearColor(glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
-        RenderCommand::Clear();
-
-        // ---- 设置渲染状态：关闭面剔除（双面渲染，避免薄物体/近距离阴影缺失） ----
         RenderCommand::SetCullMode(CullMode::Off);
 
-        // ---- 绑定 Shader 并设置 Light Space Matrix ----
         m_ShadowShader->Bind();
-        m_ShadowShader->SetMat4("u_LightSpaceMatrix", context.LightSpaceMatrix);
+        m_ShadowShader->SetInt("u_AlphaTestEnabled", 0);
+        m_ShadowShader->SetInt("u_TranslucentShadowEnabled", 0);
 
-        // ---- 遍历不透明物体 DrawCommand 列表 ----
-        if (hasOpaque)
+        // 逐级联渲染深度
+        for (int i = 0; i < context.CascadeCount; ++i)
         {
-            // 不透明物体: 只写深度, 不写颜色（不影响 Translucent Shadow Map）
-            RenderCommand::SetColorMask(false, false, false, false);
-            m_ShadowShader->SetInt("u_AlphaTestEnabled", 0);
-            m_ShadowShader->SetInt("u_TranslucentShadowEnabled", 0);
+            // 切换到第 i 层
+            m_CSMFramebuffer->BindDepthLayer(i);
+            RenderCommand::Clear();
 
-            for (const DrawCommand& cmd : *context.OpaqueDrawCommands)
+            // 设置当前级联的 Light Space Matrix
+            m_ShadowShader->SetMat4("u_LightSpaceMatrix", context.CascadeLightSpaceMatrices[i]);
+
+            // 渲染所有不透明物体
+            if (hasOpaque)
             {
-                m_ShadowShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
+                for (const DrawCommand& cmd : *context.OpaqueDrawCommands)
+                {
+                    m_ShadowShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
 
-                RenderCommand::DrawIndexedRange(
-                    cmd.MeshData->GetVertexArray(),
-                    cmd.SubMeshPtr->IndexOffset,
-                    cmd.SubMeshPtr->IndexCount
-                );
+                    RenderCommand::DrawIndexedRange(
+                        cmd.MeshData->GetVertexArray(),
+                        cmd.SubMeshPtr->IndexOffset,
+                        cmd.SubMeshPtr->IndexCount
+                    );
+                }
             }
         }
 
-        // ---- 遍历透明物体 DrawCommand 列表（Translucent Shadow Map） ----
-        // 透明物体: 不写深度（深度 Shadow Map 只记录不透明物体遮挡）
-        //           只写颜色（Translucent Shadow Map 乘法混合，记录颜色衰减）
-        if (hasTransparent)
+        m_CSMFramebuffer->Unbind();
+
+        // ======== 阶段 2：Translucent Shadow Map（所有级联，透明物体颜色衰减） ========
+        if (!hasTransparent)
         {
-            // 关闭深度写入: 透明物体不影响深度 Shadow Map
-            // 这样 baseShadow 只反映不透明物体的遮挡, translucentColor 只反映透明物体的颜色衰减
-            // 两者在采样端相乘即可得到正确的阴影效果
-            RenderCommand::SetDepthWrite(false);
-            // 启用颜色写入 + 乘法混合: Dst = Dst * Src
-            // 每个透明物体的透射颜色与已有值相乘, 累积衰减
+            // 没有透明物体时，清除 Translucent Shadow Map 为白色（无衰减），
+            // 防止上一帧残留的颜色衰减数据被 OpaquePass 采样导致阴影残留
+            m_TranslucentShadowFBO->Bind();
+            RenderCommand::SetDepthWrite(true);
             RenderCommand::SetColorMask(true, true, true, true);
-            RenderCommand::SetBlendMode(BlendMode::Zero_SrcColor);
+            RenderCommand::SetBlendMode(BlendMode::None);
+            RenderCommand::SetClearColor(glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+            for (int i = 0; i < context.CascadeCount; ++i)
+            {
+                m_TranslucentShadowFBO->BindColorLayer(0, i);
+                m_TranslucentShadowFBO->BindDepthLayer(i);
+                RenderCommand::Clear();
+            }
+            m_TranslucentShadowFBO->Unbind();
+        }
+        else
+        {
+            m_TranslucentShadowFBO->Bind();
+            RenderCommand::SetViewport(0, 0, m_ShadowMapResolution, m_ShadowMapResolution);
+            RenderCommand::SetCullMode(CullMode::Off);
+            m_ShadowShader->Bind();
 
-            m_ShadowShader->SetInt("u_AlphaTestEnabled", 1);
-            m_ShadowShader->SetInt("u_TranslucentShadowEnabled", 1);
-            m_ShadowShader->SetFloat("u_AlphaTestThreshold", 0.5f);
-
-            // 获取默认白色纹理（当材质没有 AlbedoMap 时使用）
             const auto& defaultWhiteTexture = Renderer3D::GetDefaultTexture(TextureDefault::White);
 
-            for (const DrawCommand& cmd : *context.TransparentDrawCommands)
+            // 逐级联渲染
+            for (int i = 0; i < context.CascadeCount; ++i)
             {
-                m_ShadowShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
+                // 切换到第 i 层（颜色 + 深度）
+                m_TranslucentShadowFBO->BindColorLayer(0, i);
+                m_TranslucentShadowFBO->BindDepthLayer(i);
 
-                // 传递材质的 Albedo 颜色（包含 Alpha）
-                glm::vec4 albedo = cmd.MaterialData->GetFloat4("u_Albedo");
-                m_ShadowShader->SetFloat4("u_Albedo", albedo);
+                // 恢复渲染状态，确保 Clear 能正确清除颜色和深度缓冲区
+                RenderCommand::SetDepthWrite(true);
+                RenderCommand::SetColorMask(true, true, true, true);
+                RenderCommand::SetBlendMode(BlendMode::None);
 
-                // 绑定材质的 AlbedoMap 纹理（无纹理时使用默认白色纹理）
-                Ref<Texture2D> albedoMap = cmd.MaterialData->GetTexture("u_AlbedoMap");
-                if (albedoMap)
+                // 清除深度（1.0）和颜色（白色 = 无衰减）
+                RenderCommand::SetClearColor(glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+                RenderCommand::Clear();
+
+                // 设置当前级联的 Light Space Matrix
+                m_ShadowShader->SetMat4("u_LightSpaceMatrix", context.CascadeLightSpaceMatrices[i]);
+
+                // 先渲染不透明物体的深度（用于深度测试，确保透明物体在不透明物体之后）
+                RenderCommand::SetColorMask(false, false, false, false);
+                RenderCommand::SetDepthWrite(true);
+                m_ShadowShader->SetInt("u_AlphaTestEnabled", 0);
+                m_ShadowShader->SetInt("u_TranslucentShadowEnabled", 0);
+
+                if (hasOpaque)
                 {
-                    albedoMap->Bind(0);
+                    for (const DrawCommand& cmd : *context.OpaqueDrawCommands)
+                    {
+                        m_ShadowShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
+                        RenderCommand::DrawIndexedRange(
+                            cmd.MeshData->GetVertexArray(),
+                            cmd.SubMeshPtr->IndexOffset,
+                            cmd.SubMeshPtr->IndexCount
+                        );
+                    }
                 }
-                else
-                {
-                    defaultWhiteTexture->Bind(0);
-                }
-                m_ShadowShader->SetInt("u_AlbedoMap", 0);
 
-                RenderCommand::DrawIndexedRange(
-                    cmd.MeshData->GetVertexArray(),
-                    cmd.SubMeshPtr->IndexOffset,
-                    cmd.SubMeshPtr->IndexCount
-                );
+                // 渲染透明物体（颜色衰减，乘法混合）
+                RenderCommand::SetDepthWrite(false);
+                RenderCommand::SetColorMask(true, true, true, true);
+                RenderCommand::SetBlendMode(BlendMode::Zero_SrcColor);
+
+                m_ShadowShader->SetInt("u_AlphaTestEnabled", 1);
+                m_ShadowShader->SetInt("u_TranslucentShadowEnabled", 1);
+                m_ShadowShader->SetFloat("u_AlphaTestThreshold", 0.5f);
+
+                for (const DrawCommand& cmd : *context.TransparentDrawCommands)
+                {
+                    m_ShadowShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
+
+                    glm::vec4 albedo = cmd.MaterialData->GetFloat4("u_Albedo");
+                    m_ShadowShader->SetFloat4("u_Albedo", albedo);
+
+                    Ref<Texture2D> albedoMap = cmd.MaterialData->GetTexture("u_AlbedoMap");
+                    if (albedoMap)
+                    {
+                        albedoMap->Bind(0);
+                    }
+                    else
+                    {
+                        defaultWhiteTexture->Bind(0);
+                    }
+                    m_ShadowShader->SetInt("u_AlbedoMap", 0);
+
+                    RenderCommand::DrawIndexedRange(
+                        cmd.MeshData->GetVertexArray(),
+                        cmd.SubMeshPtr->IndexOffset,
+                        cmd.SubMeshPtr->IndexCount
+                    );
+                }
             }
-        }
 
-        // ---- 解绑 Shadow Map FBO ----
-        m_ShadowMapFBO->Unbind();
+            m_TranslucentShadowFBO->Unbind();
+        }
 
         // ---- 恢复主 FBO 视口 ----
         if (context.TargetFramebuffer)
@@ -135,16 +212,28 @@ namespace Lucky
     void ShadowPass::Resize(uint32_t width, uint32_t height)
     {
         // Shadow Map 分辨率固定，不随视口变化
-        // 后续可根据光源的 ShadowResolution 属性动态调整
     }
 
     uint32_t ShadowPass::GetShadowMapTextureID() const
     {
-        return m_ShadowMapFBO->GetDepthAttachmentRendererID();
+        return m_CSMFramebuffer->GetDepthArrayTextureID();
     }
 
     uint32_t ShadowPass::GetTranslucentShadowMapTextureID() const
     {
-        return m_ShadowMapFBO->GetColorAttachmentRendererID(0);
+        return m_TranslucentShadowFBO->GetColorArrayTextureID(0);
+    }
+
+    void ShadowPass::OnDebugGUI()
+    {
+        UI::Draw::HorizontalLine();
+        UI::PropertyCheckbox("Cascade Visualization", m_DebugCSMVisualize);
+
+        // 显示当前 Shadow Map 信息（只读）
+        std::string resolution = std::to_string(m_ShadowMapResolution) + "x" + std::to_string(m_ShadowMapResolution);
+        UI::PropertyReadOnlyString("Resolution", resolution.c_str());
+        
+        std::string cascades = std::to_string(m_CascadeCount) + " cascades";
+        UI::PropertyReadOnlyString("Cascades", cascades.c_str());
     }
 }

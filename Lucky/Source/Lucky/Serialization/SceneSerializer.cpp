@@ -111,6 +111,20 @@ namespace Lucky
             out << YAML::Key << "ShadowBias" << YAML::Value << light.ShadowBias;
             out << YAML::Key << "ShadowStrength" << YAML::Value << light.ShadowStrength;
 
+            // CSM 属性（仅方向光）
+            if (light.Type == LightType::Directional)
+            {
+                out << YAML::Key << "CascadeCount" << YAML::Value << light.CascadeCount;
+                out << YAML::Key << "ShadowDistance" << YAML::Value << light.ShadowDistance;
+                out << YAML::Key << "ShadowMapResolution" << YAML::Value << light.ShadowMapResolution;
+                out << YAML::Key << "CascadeSplits" << YAML::Value << YAML::Flow << YAML::BeginSeq;
+                for (int i = 0; i < 4; ++i)
+                {
+                    out << light.CascadeSplits[i];
+                }
+                out << YAML::EndSeq;
+            }
+
             out << YAML::EndMap;
         }
         
@@ -326,6 +340,28 @@ namespace Lucky
                     light.Shadows = static_cast<ShadowType>(lightComponentNode["Shadows"].as<int>());
                     light.ShadowBias = lightComponentNode["ShadowBias"].as<float>();
                     light.ShadowStrength = lightComponentNode["ShadowStrength"].as<float>();
+
+                    // CSM 属性
+                    if (lightComponentNode["CascadeCount"])
+                    {
+                        light.CascadeCount = lightComponentNode["CascadeCount"].as<int>();
+                    }
+                    if (lightComponentNode["ShadowDistance"])
+                    {
+                        light.ShadowDistance = lightComponentNode["ShadowDistance"].as<float>();
+                    }
+                    if (lightComponentNode["ShadowMapResolution"])
+                    {
+                        light.ShadowMapResolution = lightComponentNode["ShadowMapResolution"].as<int>();
+                    }
+                    if (lightComponentNode["CascadeSplits"])
+                    {
+                        auto splitSeq = lightComponentNode["CascadeSplits"].as<std::vector<float>>();
+                        for (int i = 0; i < 4 && i < (int)splitSeq.size(); ++i)
+                        {
+                            light.CascadeSplits[i] = splitSeq[i];
+                        }
+                    }
                 }
                 
                 // MeshFilter 组件

@@ -103,6 +103,15 @@ namespace Lucky
                             sceneLightData.DirLightShadowType = light.Shadows;
                             sceneLightData.DirLightShadowBias = light.ShadowBias;
                             sceneLightData.DirLightShadowStrength = light.ShadowStrength;
+
+                            // CSM 参数
+                            sceneLightData.CascadeCount = light.CascadeCount;
+                            sceneLightData.ShadowDistance = light.ShadowDistance;
+                            sceneLightData.ShadowMapResolution = light.ShadowMapResolution;
+                            for (int i = 0; i < s_MaxCascadeCount; ++i)
+                            {
+                                sceneLightData.CascadeSplits[i] = light.CascadeSplits[i];
+                            }
                         }
 
                         sceneLightData.DirectionalLightCount++;

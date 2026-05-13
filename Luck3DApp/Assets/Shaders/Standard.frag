@@ -95,5 +95,13 @@ void main()
     // ---- 最终颜色 = 环境光 + 直接光照 + 自发光 ----
     vec3 color = ambient + Lo + emission;
 
+    // ---- CSM 调试可视化（级联颜色叠加） ----
+    if (u_DebugCSMVisualize != 0 && u_ShadowEnabled != 0)
+    {
+        int cascadeIndex = SelectCascadeIndex(v_Input.WorldPos);
+        vec3 debugColor = GetCascadeDebugColor(cascadeIndex);
+        color = mix(color, debugColor, 0.3);  // 30% 混合级联颜色
+    }
+
     o_Color = vec4(color, alpha);
 }

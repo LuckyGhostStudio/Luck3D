@@ -118,6 +118,7 @@ namespace Lucky
             {
                 case FramebufferTextureFormat::DEFPTH24STENCIL8: return true;
                 case FramebufferTextureFormat::DEPTH_COMPONENT:  return true;
+                case FramebufferTextureFormat::DEPTH_COMPONENT_ARRAY: return true;
             }
 
             return false;
@@ -202,18 +203,18 @@ namespace Lucky
             // 遍历颜色缓冲区 ID 列表
             for (size_t i = 0; i < m_ColorAttachments.size(); i++)
             {
-                Utils::BindTexture(multisampled, m_ColorAttachments[i]);    // 绑定颜色缓冲区纹理
-                
                 // 附加颜色纹理
                 switch (m_ColorAttachmentSpecs[i].TextureFormat)
                 {
                     // RGBA8
                     case FramebufferTextureFormat::RGBA8:
+                        Utils::BindTexture(multisampled, m_ColorAttachments[i]);
                         Utils::AttachColorTexture(m_ColorAttachments[i], m_Specification.Samples, GL_RGBA8, GL_RGBA, m_Specification.Width, m_Specification.Height, i);
                         break;
                     // HDR 浮点纹理
                     case FramebufferTextureFormat::RGBA16F:
                     {
+                        Utils::BindTexture(multisampled, m_ColorAttachments[i]);
                         bool ms = m_Specification.Samples > 1;
                         if (ms)
                         {
@@ -232,8 +233,30 @@ namespace Lucky
                     }
                     // 红色整型
                     case FramebufferTextureFormat::RED_INTEGER:
+                        Utils::BindTexture(multisampled, m_ColorAttachments[i]);
                         Utils::AttachColorTexture(m_ColorAttachments[i], m_Specification.Samples, GL_R32I, GL_RED_INTEGER, m_Specification.Width, m_Specification.Height, i);
                         break;
+                    // RGBA8 Texture2DArray（用于 Translucent Shadow Map CSM）
+                    case FramebufferTextureFormat::RGBA8_ARRAY:
+                    {
+                        // 重新创建为 GL_TEXTURE_2D_ARRAY 类型
+                        glDeleteTextures(1, &m_ColorAttachments[i]);
+                        glGenTextures(1, &m_ColorAttachments[i]);
+                        glBindTexture(GL_TEXTURE_2D_ARRAY, m_ColorAttachments[i]);
+                        glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA8,
+                            m_Specification.Width, m_Specification.Height, m_Specification.Layers,
+                            0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+                        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+                        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+                        // 边界颜色为白色（无衰减），超出范围的区域不产生透明阴影
+                        float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+                        glTexParameterfv(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BORDER_COLOR, borderColor);
+                        // 默认绑定第 0 层为颜色附件
+                        glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, m_ColorAttachments[i], 0, 0);
+                        break;
+                    }
                 }
             }
         }
@@ -261,6 +284,26 @@ namespace Lucky
                     float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
                     glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
                     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_DepthAttachment, 0);
+                    break;
+                }
+                case FramebufferTextureFormat::DEPTH_COMPONENT_ARRAY:
+                {
+                    // Texture2DArray 深度纹理（用于 CSM，多层深度纹理）
+                    // 重新创建为 GL_TEXTURE_2D_ARRAY 类型
+                    glDeleteTextures(1, &m_DepthAttachment);
+                    glGenTextures(1, &m_DepthAttachment);
+                    glBindTexture(GL_TEXTURE_2D_ARRAY, m_DepthAttachment);
+                    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH_COMPONENT24,
+                        m_Specification.Width, m_Specification.Height, m_Specification.Layers,
+                        0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+                    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+                    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+                    float borderColor2[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+                    glTexParameterfv(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BORDER_COLOR, borderColor2);
+                    // 默认绑定第 0 层为深度附件
+                    glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, m_DepthAttachment, 0, 0);
                     break;
                 }
             }
@@ -353,6 +396,25 @@ namespace Lucky
 
         // 恢复绑定状态（绑定到目标 FBO，因为调用方通常在目标 FBO 上继续操作）
         glBindFramebuffer(GL_FRAMEBUFFER, target->m_RendererID);
+    }
+
+    void Framebuffer::BindDepthLayer(int layer)
+    {
+        LF_CORE_ASSERT(m_DepthAttachmentSpec.TextureFormat == FramebufferTextureFormat::DEPTH_COMPONENT_ARRAY,
+            "BindDepthLayer 仅在 DEPTH_COMPONENT_ARRAY 格式下可用！");
+        LF_CORE_ASSERT(layer >= 0 && layer < (int)m_Specification.Layers, "layer 索引越界！");
+
+        glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, m_DepthAttachment, 0, layer);
+    }
+
+    void Framebuffer::BindColorLayer(uint32_t attachmentIndex, int layer)
+    {
+        LF_CORE_ASSERT(attachmentIndex < m_ColorAttachments.size(), "attachmentIndex 越界！");
+        LF_CORE_ASSERT(m_ColorAttachmentSpecs[attachmentIndex].TextureFormat == FramebufferTextureFormat::RGBA8_ARRAY,
+            "BindColorLayer 仅在 RGBA8_ARRAY 格式下可用！");
+        LF_CORE_ASSERT(layer >= 0 && layer < (int)m_Specification.Layers, "layer 索引越界！");
+
+        glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachmentIndex, m_ColorAttachments[attachmentIndex], 0, layer);
     }
 
     void Framebuffer::BlitColorTo(const Ref<Framebuffer>& target) const

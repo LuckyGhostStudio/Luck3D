@@ -9,8 +9,6 @@
 
 #include "Lucky/Scene/Components/LightComponent.h"
 
-#include <unordered_set>
-
 namespace Lucky
 {
     class RenderPipeline;       // 前向声明
@@ -19,6 +17,7 @@ namespace Lucky
     constexpr static int s_MaxDirectionalLights = 4;
     constexpr static int s_MaxPointLights = 8;
     constexpr static int s_MaxSpotLights = 4;
+    constexpr static int s_MaxCascadeCount = 4;     // CSM 最大级联数
     
     /// <summary>
     /// 方向光 GPU 数据
@@ -76,6 +75,12 @@ namespace Lucky
         ShadowType DirLightShadowType = ShadowType::None;  // 方向光阴影类型
         float DirLightShadowBias = 0.005f;                  // 方向光阴影偏移
         float DirLightShadowStrength = 1.0f;                // 方向光阴影强度 [0, 1]
+
+        // ---- CSM 参数 ----
+        int CascadeCount = 4;                                                       // 级联数量
+        float ShadowDistance = 150.0f;                                              // 阴影最大距离
+        float CascadeSplits[s_MaxCascadeCount] = { 0.067f, 0.2f, 0.467f, 1.0f };    // 级联分割比例
+        int ShadowMapResolution = 2048;                                             // 每级 Shadow Map 分辨率
     };
     
     class Renderer3D

@@ -17,14 +17,17 @@ namespace Lucky
         // ---- 深度缓冲区已由 OpaquePass 写入，透明物体可以正确被遮挡 ----
         
         // ---- 绑定 Shadow Map 纹理 ----
-        if (context.ShadowEnabled && context.ShadowMapTextureID != 0)
+        if (context.ShadowEnabled && context.CascadeShadowMapArrayTextureID != 0)
         {
-            RenderCommand::BindTextureUnit(15, context.ShadowMapTextureID);
+            // 绑定 CSM Texture2DArray 到纹理单元 15
+            RenderCommand::BindTextureUnit(15, context.CascadeShadowMapArrayTextureID);
 
-            // 绑定 Translucent Shadow Map 纹理（透明物体颜色衰减）
+            // 绑定 Translucent Shadow Map 纹理（纹理单元 8），使透明物体能接收其他透明物体的阴影
+            // 自阴影问题可接受：Translucent Shadow Map 使用乘法混合且透明物体不写入深度，
+            // 自阴影表现为物体自身颜色略微加深，不会产生错误的黑色条纹
             if (context.TranslucentShadowEnabled && context.TranslucentShadowMapTextureID != 0)
             {
-                RenderCommand::BindTextureUnit(14, context.TranslucentShadowMapTextureID);
+                RenderCommand::BindTextureUnit(8, context.TranslucentShadowMapTextureID);
             }
         }
         
@@ -81,19 +84,31 @@ namespace Lucky
             // 设置引擎内部 uniform（在 Material::Apply() 之后，确保不被覆盖）
             cmd.MaterialData->GetShader()->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
             
-            // 设置阴影相关 uniform（在 Material::Apply() 之后，确保不被覆盖）
+            // 设置阴影相关 uniform（CSM 版本）
             if (context.ShadowEnabled)
             {
-                cmd.MaterialData->GetShader()->SetInt("u_ShadowMap", 15);
-                cmd.MaterialData->GetShader()->SetMat4("u_LightSpaceMatrix", context.LightSpaceMatrix);
+                // CSM uniform
+                cmd.MaterialData->GetShader()->SetInt("u_ShadowMapArray", 15);
+                cmd.MaterialData->GetShader()->SetInt("u_CascadeCount", context.CascadeCount);
+                
+                for (int i = 0; i < context.CascadeCount; ++i)
+                {
+                    std::string matName = "u_CascadeLightSpaceMatrices[" + std::to_string(i) + "]";
+                    cmd.MaterialData->GetShader()->SetMat4(matName, context.CascadeLightSpaceMatrices[i]);
+                    
+                    std::string farName = "u_CascadeFarPlanes[" + std::to_string(i) + "]";
+                    cmd.MaterialData->GetShader()->SetFloat(farName, context.CascadeFarPlanes[i]);
+                }
+                
+                cmd.MaterialData->GetShader()->SetMat4("u_CameraViewMatrix", context.CameraViewMatrix);
                 cmd.MaterialData->GetShader()->SetFloat("u_ShadowBias", context.ShadowBias);
                 cmd.MaterialData->GetShader()->SetFloat("u_ShadowStrength", context.ShadowStrength);
                 cmd.MaterialData->GetShader()->SetInt("u_ShadowEnabled", 1);
                 cmd.MaterialData->GetShader()->SetInt("u_ShadowType", static_cast<int>(context.ShadowShadowType));
 
-                // Translucent Shadow Map
-                cmd.MaterialData->GetShader()->SetInt("u_TranslucentShadowMap", 14);
-                cmd.MaterialData->GetShader()->SetInt("u_TranslucentShadowEnabled", 0);
+                // 启用 Translucent Shadow Map 采样，使透明物体能接收其他透明物体的阴影
+                cmd.MaterialData->GetShader()->SetInt("u_TranslucentShadowMap", 8);
+                cmd.MaterialData->GetShader()->SetInt("u_TranslucentShadowEnabled", context.TranslucentShadowEnabled ? 1 : 0);
             }
             else
             {

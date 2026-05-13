@@ -1,12 +1,12 @@
 Scene: New Scene
 Entitys:
-  - Entity: 1906677499841113932
+  - Entity: 2209797999287802055
     NameComponent:
-      Name: Cube
+      Name: Cube (1)
     TransformComponent:
-      Position: [1.18811655, 1.75708532, 0.56086719]
+      Position: [-0.715824246, 1.44268107, 1.55336487]
       Rotation: [0, 0, 0, 1]
-      Scale: [3.37587452, 0.69700259, 3.61802006]
+      Scale: [1, 1, 1]
     RelationshipComponent:
       Parent: 0
       Children:
@@ -16,93 +16,7 @@ Entitys:
       MeshFilePath: ""
     MeshRendererComponent:
       Materials:
-        - Name: Default Material
-          Shader: Standard
-          RenderState:
-            RenderingMode: 3
-            CullMode: 0
-            DepthWrite: false
-            DepthTest: 0
-            BlendMode: 1
-            RenderQueue: 3000
-          Properties:
-            - Name: u_AO
-              Type: Float
-              Value: 1
-            - Name: u_AOMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_Albedo
-              Type: Float4
-              Value: [1, 0, 0, 0.478431374]
-            - Name: u_AlbedoMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_Emission
-              Type: Float3
-              Value: [0, 0, 0]
-            - Name: u_EmissionIntensity
-              Type: Float
-              Value: 1
-            - Name: u_EmissionMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_Metallic
-              Type: Float
-              Value: 0
-            - Name: u_MetallicMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_NormalMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_Roughness
-              Type: Float
-              Value: 0.5
-            - Name: u_RoughnessMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_TranslucentShadowEnabled
-              Type: Int
-              Value: 0
-            - Name: u_TranslucentShadowMap
-              Type: Sampler2D
-              Value: ""
-  - Entity: 16820949544979723202
-    NameComponent:
-      Name: Directional Light
-    TransformComponent:
-      Position: [2.06490326, 4.64383268, -3.30453563]
-      Rotation: [0.406246752, -0.249812275, 0.116489381, 0.871198952]
-      Scale: [1, 1, 1]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    LightComponent:
-      Type: 0
-      Color: [0.909757257, 1, 0.378917396]
-      Intensity: 1.66999996
-      Shadows: 2
-      ShadowBias: 0.000300000014
-      ShadowStrength: 1
-  - Entity: 17948659315949347407
-    NameComponent:
-      Name: Plane
-    TransformComponent:
-      Position: [0, 0.479545385, 0.826126575]
-      Rotation: [0, 0, 0, 1]
-      Scale: [9.05999947, 9.05999947, 9.05999947]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    MeshFilterComponent:
-      PrimitiveType: 2
-      MeshFilePath: ""
-    MeshRendererComponent:
-      Materials:
-        - Name: Default Material
+        - Name: Default
           Shader: Standard
           RenderState:
             RenderingMode: 0
@@ -146,12 +60,6 @@ Entitys:
               Type: Float
               Value: 0.5
             - Name: u_RoughnessMap
-              Type: Sampler2D
-              Value: ""
-            - Name: u_TranslucentShadowEnabled
-              Type: Int
-              Value: 0
-            - Name: u_TranslucentShadowMap
               Type: Sampler2D
               Value: ""
   - Entity: 14080268040111183991
@@ -216,29 +124,23 @@ Entitys:
             - Name: u_RoughnessMap
               Type: Sampler2D
               Value: ""
-            - Name: u_TranslucentShadowEnabled
-              Type: Int
-              Value: 0
-            - Name: u_TranslucentShadowMap
-              Type: Sampler2D
-              Value: ""
-  - Entity: 2209797999287802055
+  - Entity: 17948659315949347407
     NameComponent:
-      Name: Cube (1)
+      Name: Plane
     TransformComponent:
-      Position: [-0.715824246, 1.44268107, 1.55336487]
+      Position: [0, 0.479545385, 0.826126575]
       Rotation: [0, 0, 0, 1]
-      Scale: [1, 1, 1]
+      Scale: [9.05999947, 9.05999947, 9.05999947]
     RelationshipComponent:
       Parent: 0
       Children:
         []
     MeshFilterComponent:
-      PrimitiveType: 1
+      PrimitiveType: 2
       MeshFilePath: ""
     MeshRendererComponent:
       Materials:
-        - Name: Default
+        - Name: Default Material
           Shader: Standard
           RenderState:
             RenderingMode: 0
@@ -284,9 +186,87 @@ Entitys:
             - Name: u_RoughnessMap
               Type: Sampler2D
               Value: ""
-            - Name: u_TranslucentShadowEnabled
-              Type: Int
+  - Entity: 16820949544979723202
+    NameComponent:
+      Name: Directional Light
+    TransformComponent:
+      Position: [2.06490326, 4.64383268, -3.30453563]
+      Rotation: [0.406246752, -0.249812275, 0.116489381, 0.871198952]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    LightComponent:
+      Type: 0
+      Color: [0.909757257, 1, 0.378917396]
+      Intensity: 1.66999996
+      Shadows: 2
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1
+      CascadeCount: 4
+      ShadowDistance: 150
+      ShadowMapResolution: 2048
+      CascadeSplits: [0.0670000017, 0.200000003, 0.467000008, 1]
+  - Entity: 1906677499841113932
+    NameComponent:
+      Name: Cube
+    TransformComponent:
+      Position: [1.18811655, 1.75708532, 0.56086719]
+      Rotation: [0, 0, 0, 1]
+      Scale: [3.37587452, 0.69700259, 3.61802006]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 1
+      MeshFilePath: ""
+    MeshRendererComponent:
+      Materials:
+        - Name: Default Material
+          Shader: Standard
+          RenderState:
+            RenderingMode: 3
+            CullMode: 0
+            DepthWrite: false
+            DepthTest: 0
+            BlendMode: 1
+            RenderQueue: 3000
+          Properties:
+            - Name: u_AO
+              Type: Float
+              Value: 1
+            - Name: u_AOMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Albedo
+              Type: Float4
+              Value: [1, 0, 0, 0.478431374]
+            - Name: u_AlbedoMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Emission
+              Type: Float3
+              Value: [0, 0, 0]
+            - Name: u_EmissionIntensity
+              Type: Float
+              Value: 1
+            - Name: u_EmissionMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Metallic
+              Type: Float
               Value: 0
-            - Name: u_TranslucentShadowMap
+            - Name: u_MetallicMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_NormalMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Roughness
+              Type: Float
+              Value: 0.5
+            - Name: u_RoughnessMap
               Type: Sampler2D
               Value: ""
