@@ -113,10 +113,6 @@ namespace Lucky
         uint32_t TranslucentShadowMapTextureID = 0;     // Translucent Shadow Map 颜色纹理 ID
         bool TranslucentShadowEnabled = false;          // 是否启用 Translucent Shadow Map
         
-        // ---- 兼容字段（CSM 实施前的旧接口，保留供过渡使用） ----
-        glm::mat4 LightSpaceMatrix = glm::mat4(1.0f);   // 光源空间矩阵（= CascadeLightSpaceMatrices[0]）
-        uint32_t ShadowMapTextureID = 0;                // Shadow Map 纹理 ID（= CascadeShadowMapArrayTextureID 的 Layer 0）
-        
         // ---- 天空盒数据（Material 驱动） ----
         Ref<Material> SkyboxMaterial;                              // 天空盒材质（nullptr 表示不渲染天空盒）
         glm::mat4 SkyboxViewMatrix = glm::mat4(1.0f);              // 相机 View 矩阵（SkyboxPass 用于移除平移分量）

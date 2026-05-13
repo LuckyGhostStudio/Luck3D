@@ -100,7 +100,6 @@ namespace Lucky
         
         // ======== 阴影数据 ========
         bool ShadowEnabled = false;                     // 是否启用阴影
-        glm::mat4 LightSpaceMatrix = glm::mat4(1.0f);   // 光源空间矩阵（兼容旧接口）
         float ShadowBias = 0.005f;                      // 阴影偏移（从组件读取）
         float ShadowStrength = 1.0f;                    // 阴影强度（从组件读取）
         ShadowType ShadowShadowType = ShadowType::None; // 阴影类型（从组件读取）
@@ -408,8 +407,6 @@ namespace Lucky
                 s_Data.CascadeLightSpaceMatrices[i] = lightProjection * lightView;
             }
 
-            // 兼容旧接口：LightSpaceMatrix = 第一级联的矩阵
-            s_Data.LightSpaceMatrix = s_Data.CascadeLightSpaceMatrices[0];
         }
         
         // 清空绘制命令列表
@@ -448,7 +445,6 @@ namespace Lucky
         
         // 阴影数据
         context.ShadowEnabled = s_Data.ShadowEnabled;
-        context.LightSpaceMatrix = s_Data.LightSpaceMatrix;
         context.ShadowBias = s_Data.ShadowBias;
         context.ShadowStrength = s_Data.ShadowStrength;
         context.ShadowShadowType = s_Data.ShadowShadowType;
@@ -468,7 +464,6 @@ namespace Lucky
         if (shadowPass)
         {
             context.CascadeShadowMapArrayTextureID = shadowPass->GetShadowMapTextureID();
-            context.ShadowMapTextureID = shadowPass->GetShadowMapTextureID();  // 兼容旧接口
             context.TranslucentShadowMapTextureID = shadowPass->GetTranslucentShadowMapTextureID();
             // 仅当场景中存在透明物体时才启用 Translucent Shadow Map，
             // 避免删除最后一个透明物体后残留阴影数据被采样
