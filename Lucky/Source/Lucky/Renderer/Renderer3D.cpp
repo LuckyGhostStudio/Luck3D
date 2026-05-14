@@ -21,6 +21,8 @@
 #include "Effects/FXAAEffect.h"
 #include "Effects/VignetteEffect.h"
 
+#include "IBLPrecompute.h"
+
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 
@@ -139,6 +141,9 @@ namespace Lucky
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/BloomComposite");   // Bloom 合成着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/FXAA");             // FXAA 着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/Vignette");         // Vignette 着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/IBL/BRDFIntegration");          // BRDF LUT 生成着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/IBL/IrradianceConvolution");    // Irradiance 卷积着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/IBL/PrefilterConvolution");     // Prefilter 卷积着色器
 
         // 加载用户可见着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Standard");  // 默认着色器
@@ -166,10 +171,12 @@ namespace Lucky
         };
         
         // 检查天空盒纹理文件是否存在
+        Ref<TextureCube> skyboxCubemap = nullptr;
         if (std::filesystem::exists(skyboxFaces[0]))
         {
-            // 加载 Cubemap 纹理
-            auto skyboxCubemap = TextureCube::Create(skyboxFaces);
+            // 加载 Cubemap 纹理l
+            skyboxCubemap = TextureCube::Create(skyboxFaces);
+            //skyboxCubemap = TextureCube::CreateFromHDR("Assets/Textures/Skybox/forest.hdr");
 
             // 设置 Cubemap 纹理到材质
             s_Data.SkyboxMaterial->SetTextureCube("u_SkyboxMap", skyboxCubemap);
@@ -240,6 +247,15 @@ namespace Lucky
         
         s_Data.Pipeline.Init();
         
+        // ======== 初始化 IBL 预计算系统 ========
+        IBLPrecompute::Init();
+        
+        // 天空盒加载成功后，生成 IBL 数据
+        if (skyboxCubemap)
+        {
+            IBLPrecompute::GenerateFromCubemap(skyboxCubemap->GetRendererID());
+        }
+        
         // ======== 注册后处理效果到 PostProcessStack ========
         auto bloomEffect = CreateRef<BloomEffect>();
         bloomEffect->Order = 0;
@@ -260,6 +276,7 @@ namespace Lucky
 
     void Renderer3D::Shutdown()
     {
+        IBLPrecompute::Shutdown();
         s_Data.Pipeline.Shutdown();
     }
 
@@ -485,6 +502,14 @@ namespace Lucky
         }
         context.PostProcess = s_Data.PostProcess;
         
+        // IBL 数据
+        const IBLData& iblData = IBLPrecompute::GetIBLData();
+        context.IBLEnabled = iblData.Valid;
+        context.IrradianceMapID = iblData.IrradianceMapID;
+        context.PrefilterMapID = iblData.PrefilterMapID;
+        context.BRDFLUTID = iblData.BRDFLUTID;
+        context.PrefilterMaxMipLevel = static_cast<float>(iblData.PrefilterMaxMipLevel);
+        
         // ---- 执行 Shadow 分组（ShadowPass） ----
         s_Data.Pipeline.ExecuteGroup("Shadow", context);
         
@@ -613,6 +638,26 @@ namespace Lucky
     Ref<Material>& Renderer3D::GetSkyboxMaterial()
     {
         return s_Data.SkyboxMaterial;
+    }
+
+    void Renderer3D::SetSkyboxMaterial(const Ref<Material>& skyboxMaterial)
+    {
+        s_Data.SkyboxMaterial = skyboxMaterial;
+        
+        // 从天空盒材质中获取 Cubemap 纹理，重新生成 IBL 数据
+        if (skyboxMaterial)
+        {
+            Ref<TextureCube> cubemap = skyboxMaterial->GetTextureCube("u_SkyboxMap");
+            if (cubemap)
+            {
+                IBLPrecompute::GenerateFromCubemap(cubemap->GetRendererID());
+                LF_CORE_INFO("IBL data regenerated for new skybox");
+                return;
+            }
+        }
+        
+        // 天空盒为空，IBL 数据标记为无效
+        LF_CORE_WARN("SetSkyboxMaterial: No valid cubemap found, IBL disabled");
     }
 
     const Ref<Texture2D>& Renderer3D::GetDefaultTexture(TextureDefault type)

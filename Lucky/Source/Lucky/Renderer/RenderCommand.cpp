@@ -12,6 +12,7 @@ namespace Lucky
 
         // 一次性初始化设置（不属于每帧恢复的渲染状态）
         glEnable(GL_LINE_SMOOTH);
+        glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);     // 启用 Cubemap 无缝采样（消除 Cubemap 六面接缝）
     }
 
     void RenderCommand::SetClearColor(const glm::vec4& color)

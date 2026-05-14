@@ -193,4 +193,57 @@ vec3 CalcAllLights(vec3 N, vec3 V, vec3 worldPos, vec3 albedo, float metallic, f
     return Lo;
 }
 
+// ==================== IBL 环境光函数 ====================
+
+// ---- IBL 纹理（由 OpaquePass / TransparentPass 绑定） ----
+uniform samplerCube u_IrradianceMap;    // Irradiance Cubemap（漫反射 IBL）
+uniform samplerCube u_PrefilterMap;     // Prefiltered Environment Cubemap（镜面反射 IBL）
+uniform sampler2D u_BRDFLUT;            // BRDF LUT（Fresnel 积分查找表）
+uniform int u_IBLEnabled;               // IBL 开关（0 = 关闭, 1 = 开启）
+uniform float u_PrefilterMaxMipLevel;   // Prefiltered Map 最大 Mip Level
+
+// ---- Fresnel-Schlick 粗糙度修正版（IBL 使用） ----
+// 在掠射角时，粗糙表面的 Fresnel 反射不应该像光滑表面那样强
+vec3 FresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
+{
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}
+
+/// <summary>
+/// 计算 IBL 环境光（漫反射 + 镜面反射）
+/// </summary>
+/// <param name="N">世界空间法线（归一化）</param>
+/// <param name="V">视线方向（归一化，从片元指向相机）</param>
+/// <param name="albedo">基础颜色</param>
+/// <param name="metallic">金属度</param>
+/// <param name="roughness">粗糙度</param>
+/// <param name="F0">基础反射率</param>
+/// <param name="ao">环境光遮蔽</param>
+/// <returns>IBL 环境光贡献</returns>
+vec3 CalcIBLAmbient(vec3 N, vec3 V, vec3 albedo, float metallic, float roughness, vec3 F0, float ao)
+{
+    float NdotV = max(dot(N, V), 0.0);
+    
+    // Fresnel（使用粗糙度修正版）
+    vec3 F = FresnelSchlickRoughness(NdotV, F0, roughness);
+    
+    // 漫反射/镜面反射比例
+    vec3 kS = F;
+    vec3 kD = (1.0 - kS) * (1.0 - metallic);
+    
+    // ---- 漫反射 IBL ----
+    vec3 irradiance = texture(u_IrradianceMap, N).rgb;
+    vec3 diffuseIBL = kD * irradiance * albedo;
+    
+    // ---- 镜面反射 IBL ----
+    vec3 R = reflect(-V, N);
+    float lod = roughness * u_PrefilterMaxMipLevel;
+    vec3 prefilteredColor = textureLod(u_PrefilterMap, R, lod).rgb;
+    vec2 brdf = texture(u_BRDFLUT, vec2(NdotV, roughness)).rg;
+    vec3 specularIBL = prefilteredColor * (F * brdf.x + brdf.y);
+    
+    // ---- 合成 ----
+    return (diffuseIBL + specularIBL) * ao;
+}
+
 #endif // LUCKY_LIGHTING_GLSL

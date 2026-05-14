@@ -25,7 +25,13 @@ namespace Lucky
             "u_TranslucentShadowEnabled", // Translucent Shadow 开关
             "u_DebugCSMVisualize",      // CSM 调试可视化开关
             // ---- 天空盒系统：由 SkyboxPass 自动计算设置 ----
-            "u_SkyboxVP",              // 天空盒 VP 矩阵（移除 View 平移分量）
+            "u_SkyboxVP",               // 天空盒 VP 矩阵（移除 View 平移分量）
+            // ---- IBL 系统：由 OpaquePass/TransparentPass 设置 ----
+            "u_IrradianceMap",          // Irradiance Cubemap（纹理槽位 10）
+            "u_PrefilterMap",           // Prefiltered Environment Cubemap（纹理槽位 11）
+            "u_BRDFLUT",                // BRDF LUT（纹理槽位 12）
+            "u_IBLEnabled",             // IBL 开关
+            "u_PrefilterMaxMipLevel",   // Prefiltered Map 最大 Mip Level
         };
 
         // 检查精确匹配

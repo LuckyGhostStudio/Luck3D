@@ -122,6 +122,13 @@ namespace Lucky
         Ref<Framebuffer> HDR_FBO;               // HDR FBO（由 PostProcessPass 提供，Main 分组 Pass 渲染到此 FBO）
         PostProcessSettings PostProcess;        // 后处理参数
         
+        // ---- IBL 数据 ----
+        bool IBLEnabled = false;                    // 是否启用 IBL
+        uint32_t IrradianceMapID = 0;               // Irradiance Cubemap 纹理 ID
+        uint32_t PrefilterMapID = 0;                // Prefiltered Environment Cubemap 纹理 ID
+        uint32_t BRDFLUTID = 0;                     // BRDF LUT Texture2D 纹理 ID
+        float PrefilterMaxMipLevel = 4.0f;          // Prefiltered Map 最大 Mip Level
+        
         // ---- 调试标志 ----
         bool DebugCSMVisualize = false;         // CSM 级联颜色可视化（由 ShadowPass 控制）
         

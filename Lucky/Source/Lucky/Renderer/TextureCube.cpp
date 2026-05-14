@@ -46,8 +46,11 @@ namespace Lucky
         GLenum internalFormat = (channels == 4) ? GL_RGBA8 : GL_RGB8;
         GLenum dataFormat = (channels == 4) ? GL_RGBA : GL_RGB;
         
-        // 分配存储
-        glTextureStorage2D(m_RendererID, 1, internalFormat, m_Resolution, m_Resolution);
+        // 计算完整 Mipmap 级数
+        uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(m_Resolution, m_Resolution)))) + 1;
+        
+        // 分配存储（带完整 Mipmap chain，用于 IBL Prefilter 采样）
+        glTextureStorage2D(m_RendererID, mipLevels, internalFormat, m_Resolution, m_Resolution);
         
         // 上传第一面（+X）
         glTextureSubImage3D(m_RendererID, 0, 0, 0, 0, m_Resolution, m_Resolution, 1, dataFormat, GL_UNSIGNED_BYTE, data);
@@ -65,6 +68,9 @@ namespace Lucky
         
         // 设置纹理参数
         SetTextureParameters();
+        
+        // 生成 Mipmap（用于 IBL Prefilter 的 textureLod 采样）
+        glGenerateTextureMipmap(m_RendererID);
     }
     
     // ======== 从 HDR 全景图构造（Equirectangular -> Cubemap 转换） ========
@@ -91,7 +97,10 @@ namespace Lucky
         
         // 2. 创建 Cubemap 纹理（HDR 使用 GL_RGB16F 半精度浮点格式）
         glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &m_RendererID);
-        glTextureStorage2D(m_RendererID, 1, GL_RGB16F, m_Resolution, m_Resolution);
+        
+        // 计算完整 Mipmap 级数（用于 IBL Prefilter 的 textureLod 采样）
+        uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(m_Resolution, m_Resolution)))) + 1;
+        glTextureStorage2D(m_RendererID, mipLevels, GL_RGB16F, m_Resolution, m_Resolution);
         
         // 3. 对每个面执行 Equirectangular -> Cubemap 转换
         //    面顺序（OpenGL Cubemap 标准）：+X, -X, +Y, -Y, +Z, -Z
@@ -174,6 +183,9 @@ namespace Lucky
         // 5. 设置纹理参数
         SetTextureParameters();
         
+        // 6. 生成 Mipmap（用于 IBL Prefilter 的 textureLod 采样）
+        glGenerateTextureMipmap(m_RendererID);
+        
         LF_CORE_INFO("TextureCube::CreateFromHDR() - Cubemap created successfully ({0}x{0} per face)", m_Resolution);
     }
     
@@ -211,7 +223,7 @@ namespace Lucky
     
     void TextureCube::SetTextureParameters()
     {
-        glTextureParameteri(m_RendererID, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(m_RendererID, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);  // 三线性过滤（支持 Mipmap）
         glTextureParameteri(m_RendererID, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTextureParameteri(m_RendererID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTextureParameteri(m_RendererID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);

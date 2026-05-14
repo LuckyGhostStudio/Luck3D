@@ -150,6 +150,13 @@ namespace Lucky
         static const Ref<Texture2D>& GetDefaultTexture(TextureDefault type);
         
         /// <summary>
+        /// 设置天空盒材质并重新生成 IBL 数据
+        /// 当天空盒 Cubemap 变更时调用
+        /// </summary>
+        /// <param name="skyboxMaterial">新的天空盒材质</param>
+        static void SetSkyboxMaterial(const Ref<Material>& skyboxMaterial);
+        
+        /// <summary>
         /// 设置主 FBO 引用（描边合成后需要重新绑定）
         /// 在 SceneViewportPanel::OnUpdate 中调用，位于 Framebuffer::Bind() 之后
         /// </summary>

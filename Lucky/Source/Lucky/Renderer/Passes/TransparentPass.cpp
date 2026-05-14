@@ -3,6 +3,7 @@
 #include "Lucky/Renderer/RenderContext.h"
 #include "Lucky/Renderer/RenderCommand.h"
 #include "Lucky/Renderer/RenderState.h"
+#include "Lucky/Renderer/IBLPrecompute.h"
 
 namespace Lucky
 {
@@ -29,6 +30,22 @@ namespace Lucky
             {
                 RenderCommand::BindTextureUnit(8, context.TranslucentShadowMapTextureID);
             }
+        }
+        
+        // ---- 绑定 IBL 纹理（始终绑定，避免 sampler 未绑定导致未定义行为） ----
+        if (context.IBLEnabled)
+        {
+            RenderCommand::BindTextureUnit(10, context.IrradianceMapID);
+            RenderCommand::BindTextureUnit(11, context.PrefilterMapID);
+            RenderCommand::BindTextureUnit(12, context.BRDFLUTID);
+        }
+        else
+        {
+            // IBL 关闭时绑定默认黑色纹理，确保 sampler 始终有效
+            const IBLData& iblData = IBLPrecompute::GetIBLData();
+            RenderCommand::BindTextureUnit(10, iblData.DefaultBlackCubemapID);
+            RenderCommand::BindTextureUnit(11, iblData.DefaultBlackCubemapID);
+            RenderCommand::BindTextureUnit(12, iblData.DefaultBlack2DID);
         }
         
         // ---- 批量绘制透明物体（DrawCommands 已按距离从远到近排序） ----
@@ -115,6 +132,13 @@ namespace Lucky
                 cmd.MaterialData->GetShader()->SetInt("u_ShadowEnabled", 0);
                 cmd.MaterialData->GetShader()->SetInt("u_TranslucentShadowEnabled", 0);
             }
+            
+            // 设置 IBL 相关 uniform（始终设置采样器绑定，确保 sampler 指向有效纹理单元）
+            cmd.MaterialData->GetShader()->SetInt("u_IBLEnabled", context.IBLEnabled ? 1 : 0);
+            cmd.MaterialData->GetShader()->SetInt("u_IrradianceMap", 10);
+            cmd.MaterialData->GetShader()->SetInt("u_PrefilterMap", 11);
+            cmd.MaterialData->GetShader()->SetInt("u_BRDFLUT", 12);
+            cmd.MaterialData->GetShader()->SetFloat("u_PrefilterMaxMipLevel", context.PrefilterMaxMipLevel);
             
             // 绘制
             RenderCommand::DrawIndexedRange(

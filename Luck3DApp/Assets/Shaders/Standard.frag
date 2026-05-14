@@ -89,8 +89,16 @@ void main()
     // ---- 光照计算（一行调用，引擎自动处理所有光源 + 阴影） ----
     vec3 Lo = CalcAllLights(N, V, v_Input.WorldPos, albedo, metallic, roughness, F0);
 
-    // ---- 环境光（简单常量，无 IBL） ----
-    vec3 ambient = vec3(AMBIENT_STRENGTH) * albedo * ao;
+    // ---- 环境光（IBL 或常量 fallback） ----
+    vec3 ambient;
+    if (u_IBLEnabled != 0)
+    {
+        ambient = CalcIBLAmbient(N, V, albedo, metallic, roughness, F0, ao);
+    }
+    else
+    {
+        ambient = vec3(AMBIENT_STRENGTH) * albedo * ao;
+    }
 
     // ---- 最终颜色 = 环境光 + 直接光照 + 自发光 ----
     vec3 color = ambient + Lo + emission;
