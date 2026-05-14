@@ -202,6 +202,12 @@ uniform sampler2D u_BRDFLUT;            // BRDF LUT（Fresnel 积分查找表）
 uniform int u_IBLEnabled;               // IBL 开关（0 = 关闭, 1 = 开启）
 uniform float u_PrefilterMaxMipLevel;   // Prefiltered Map 最大 Mip Level
 
+// ---- 环境设置 uniform ----
+uniform int u_AmbientSource;            // 环境光来源（0 = Skybox, 1 = Color）
+uniform vec3 u_AmbientColor;            // 纯色环境光颜色（Source=Color 时使用）
+uniform float u_IBLDiffuseIntensity;    // IBL 漫反射强度乘数（默认 1.0）
+uniform float u_IBLSpecularIntensity;   // IBL 镜面反射强度乘数（默认 1.0）
+
 // ---- Fresnel-Schlick 粗糙度修正版（IBL 使用） ----
 // 在掠射角时，粗糙表面的 Fresnel 反射不应该像光滑表面那样强
 vec3 FresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
@@ -233,14 +239,14 @@ vec3 CalcIBLAmbient(vec3 N, vec3 V, vec3 albedo, float metallic, float roughness
     
     // ---- 漫反射 IBL ----
     vec3 irradiance = texture(u_IrradianceMap, N).rgb;
-    vec3 diffuseIBL = kD * irradiance * albedo;
+    vec3 diffuseIBL = kD * irradiance * albedo * u_IBLDiffuseIntensity;
     
     // ---- 镜面反射 IBL ----
     vec3 R = reflect(-V, N);
     float lod = roughness * u_PrefilterMaxMipLevel;
     vec3 prefilteredColor = textureLod(u_PrefilterMap, R, lod).rgb;
     vec2 brdf = texture(u_BRDFLUT, vec2(NdotV, roughness)).rg;
-    vec3 specularIBL = prefilteredColor * (F * brdf.x + brdf.y);
+    vec3 specularIBL = prefilteredColor * (F * brdf.x + brdf.y) * u_IBLSpecularIntensity;
     
     // ---- 合成 ----
     return (diffuseIBL + specularIBL) * ao;

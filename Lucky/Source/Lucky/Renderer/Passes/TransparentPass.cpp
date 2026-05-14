@@ -140,6 +140,12 @@ namespace Lucky
             cmd.MaterialData->GetShader()->SetInt("u_BRDFLUT", 12);
             cmd.MaterialData->GetShader()->SetFloat("u_PrefilterMaxMipLevel", context.PrefilterMaxMipLevel);
             
+            // 设置环境设置 uniform
+            cmd.MaterialData->GetShader()->SetInt("u_AmbientSource", static_cast<int>(context.EnvironmentSource));
+            cmd.MaterialData->GetShader()->SetFloat3("u_AmbientColor", context.AmbientColor);
+            cmd.MaterialData->GetShader()->SetFloat("u_IBLDiffuseIntensity", context.IBLDiffuseIntensity);
+            cmd.MaterialData->GetShader()->SetFloat("u_IBLSpecularIntensity", context.IBLSpecularIntensity);
+            
             // 绘制
             RenderCommand::DrawIndexedRange(
                 cmd.MeshData->GetVertexArray(),

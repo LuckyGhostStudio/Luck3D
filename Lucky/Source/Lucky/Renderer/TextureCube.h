@@ -68,6 +68,11 @@ namespace Lucky
         void SetData(void* data, uint32_t size) override;
         void Bind(uint32_t slot = 0) const override;
         
+        /// <summary>
+        /// 是否为 HDR 全景图来源（用于序列化时区分加载方式）
+        /// </summary>
+        bool IsHDR() const { return m_IsHDR; }
+        
     private:
         /// <summary>
         /// 设置 Cubemap 纹理采样参数（内部辅助方法）

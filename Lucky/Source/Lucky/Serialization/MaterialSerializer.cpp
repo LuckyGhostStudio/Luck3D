@@ -21,15 +21,16 @@ namespace Lucky
     {
         switch (type)
         {
-        case ShaderUniformType::Float:      return "Float";
-        case ShaderUniformType::Float2:     return "Float2";
-        case ShaderUniformType::Float3:     return "Float3";
-        case ShaderUniformType::Float4:     return "Float4";
-        case ShaderUniformType::Int:        return "Int";
-        case ShaderUniformType::Mat3:       return "Mat3";
-        case ShaderUniformType::Mat4:       return "Mat4";
-        case ShaderUniformType::Sampler2D:  return "Sampler2D";
-        default:                            return "None";
+        case ShaderUniformType::Float:          return "Float";
+        case ShaderUniformType::Float2:         return "Float2";
+        case ShaderUniformType::Float3:         return "Float3";
+        case ShaderUniformType::Float4:         return "Float4";
+        case ShaderUniformType::Int:            return "Int";
+        case ShaderUniformType::Mat3:           return "Mat3";
+        case ShaderUniformType::Mat4:           return "Mat4";
+        case ShaderUniformType::Sampler2D:      return "Sampler2D";
+        case ShaderUniformType::SamplerCube:    return "SamplerCube";
+        default:                                return "None";
         }
     }
     
@@ -40,14 +41,15 @@ namespace Lucky
     /// <returns>Shader Uniform 类型</returns>
     static ShaderUniformType StringToShaderUniformType(const std::string& str)
     {
-        if (str == "Float")     return ShaderUniformType::Float;
-        if (str == "Float2")    return ShaderUniformType::Float2;
-        if (str == "Float3")    return ShaderUniformType::Float3;
-        if (str == "Float4")    return ShaderUniformType::Float4;
-        if (str == "Int")       return ShaderUniformType::Int;
-        if (str == "Mat3")      return ShaderUniformType::Mat3;
-        if (str == "Mat4")      return ShaderUniformType::Mat4;
-        if (str == "Sampler2D") return ShaderUniformType::Sampler2D;
+        if (str == "Float")         return ShaderUniformType::Float;
+        if (str == "Float2")        return ShaderUniformType::Float2;
+        if (str == "Float3")        return ShaderUniformType::Float3;
+        if (str == "Float4")        return ShaderUniformType::Float4;
+        if (str == "Int")           return ShaderUniformType::Int;
+        if (str == "Mat3")          return ShaderUniformType::Mat3;
+        if (str == "Mat4")          return ShaderUniformType::Mat4;
+        if (str == "Sampler2D")     return ShaderUniformType::Sampler2D;
+        if (str == "SamplerCube")   return ShaderUniformType::SamplerCube;
     
         return ShaderUniformType::None;
     }
@@ -122,6 +124,29 @@ namespace Lucky
                     texturePath = relPath.generic_string();  // 使用正斜杠
                 }
                 out << YAML::Key << "Value" << YAML::Value << texturePath;
+                break;
+            }
+            case ShaderUniformType::SamplerCube:
+            {
+                // Cubemap 纹理序列化：保存路径和来源类型（HDR 或 6 面贴图）
+                const Ref<TextureCube>& cubemap = std::get<Ref<TextureCube>>(prop.Value);
+                out << YAML::Key << "Value" << YAML::Value;
+                out << YAML::BeginMap;
+                if (cubemap && !cubemap->GetPath().empty())
+                {
+                    std::filesystem::path absPath(cubemap->GetPath());
+                    std::filesystem::path relPath = std::filesystem::relative(absPath);
+                    out << YAML::Key << "Path" << YAML::Value << relPath.generic_string();
+                    out << YAML::Key << "IsHDR" << YAML::Value << cubemap->IsHDR();
+                    out << YAML::Key << "Resolution" << YAML::Value << cubemap->GetWidth();
+                }
+                else
+                {
+                    out << YAML::Key << "Path" << YAML::Value << "";
+                    out << YAML::Key << "IsHDR" << YAML::Value << false;
+                    out << YAML::Key << "Resolution" << YAML::Value << 1024;
+                }
+                out << YAML::EndMap;
                 break;
             }
             default:
@@ -209,6 +234,69 @@ namespace Lucky
 
                     Ref<Texture2D> texture = Texture2D::Create(absolutePath);
                     material->SetTexture(propName, texture);
+                }
+                break;
+            }
+            case ShaderUniformType::SamplerCube:
+            {
+                // 从 YAML Map 反序列化 Cubemap 纹理
+                if (!valueNode.IsMap())
+                {
+                    break;
+                }
+
+                std::string cubemapPath = "";
+                if (valueNode["Path"])
+                {
+                    cubemapPath = valueNode["Path"].as<std::string>();
+                }
+
+                if (cubemapPath.empty())
+                {
+                    break;
+                }
+
+                bool isHDR = false;
+                if (valueNode["IsHDR"])
+                {
+                    isHDR = valueNode["IsHDR"].as<bool>();
+                }
+
+                uint32_t resolution = 1024;
+                if (valueNode["Resolution"])
+                {
+                    resolution = valueNode["Resolution"].as<uint32_t>();
+                }
+
+                std::filesystem::path path(cubemapPath);
+                std::string absolutePath = std::filesystem::absolute(path).string();
+
+                Ref<TextureCube> cubemap = nullptr;
+                if (isHDR)
+                {
+                    // HDR 全景图来源
+                    cubemap = TextureCube::CreateFromHDR(absolutePath, resolution);
+                }
+                else
+                {
+                    // 6 面贴图来源：路径指向第一张图片，需要推导其余 5 面路径
+                    // 约定：6 面文件名为 right/left/up/down/front/back + 相同扩展名
+                    std::filesystem::path dir = path.parent_path();
+                    std::string ext = path.extension().string();
+                    std::array<std::string, 6> facePaths = {
+                        std::filesystem::absolute(dir / ("right" + ext)).string(),
+                        std::filesystem::absolute(dir / ("left" + ext)).string(),
+                        std::filesystem::absolute(dir / ("up" + ext)).string(),
+                        std::filesystem::absolute(dir / ("down" + ext)).string(),
+                        std::filesystem::absolute(dir / ("front" + ext)).string(),
+                        std::filesystem::absolute(dir / ("back" + ext)).string()
+                    };
+                    cubemap = TextureCube::Create(facePaths);
+                }
+
+                if (cubemap)
+                {
+                    material->SetTextureCube(propName, cubemap);
                 }
                 break;
             }

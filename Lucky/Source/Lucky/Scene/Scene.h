@@ -5,6 +5,7 @@
 #include "Lucky/Core/DeltaTime.h"
 #include "Lucky/Core/UUID.h"
 #include "Lucky/Renderer/EditorCamera.h"
+#include "Lucky/Renderer/RenderContext.h"
 
 namespace Lucky
 {
@@ -85,6 +86,10 @@ namespace Lucky
         }
         
         void ClearAllEntities();
+        
+        // ---- 环境设置 ----
+        EnvironmentSettings& GetEnvironmentSettings() { return m_EnvironmentSettings; }
+        const EnvironmentSettings& GetEnvironmentSettings() const { return m_EnvironmentSettings; }
     private:
         /// <summary>
         /// entity 添加 TComponent 组件时调用
@@ -108,5 +113,7 @@ namespace Lucky
         uint32_t m_ViewportHeight = 720;    // 场景视口高
 
         bool m_IsRunning = false;
+        
+        EnvironmentSettings m_EnvironmentSettings;  // 环境设置参数
     };
 }

@@ -11,7 +11,6 @@
 #define MAX_SPOT_LIGHTS 4
 
 const float PI = 3.14159265359;
-const float AMBIENT_STRENGTH = 0.1;   // 常量环境光强度（无 IBL 时的替代方案）
 
 // ---- 光源结构体 ----
 

@@ -219,6 +219,31 @@ namespace Lucky
         
         out << YAML::Key << "Scene" << YAML::Value << m_Scene->GetName();   // 场景：场景名
         
+        // ---- 环境设置 ----
+        {
+            const EnvironmentSettings& env = m_Scene->GetEnvironmentSettings();
+            out << YAML::Key << "EnvironmentSettings" << YAML::Value;
+            out << YAML::BeginMap;
+            
+            // 天空盒材质
+            out << YAML::Key << "SkyboxMaterial" << YAML::Value;
+            if (env.SkyboxMaterial)
+            {
+                MaterialSerializer::Serialize(out, env.SkyboxMaterial);
+            }
+            else
+            {
+                out << YAML::Null;
+            }
+            
+            out << YAML::Key << "AmbientSource" << YAML::Value << static_cast<int>(env.Source);
+            out << YAML::Key << "AmbientColor" << YAML::Value << env.AmbientColor;
+            out << YAML::Key << "DiffuseIntensity" << YAML::Value << env.DiffuseIntensity;
+            out << YAML::Key << "SpecularIntensity" << YAML::Value << env.SpecularIntensity;
+            out << YAML::Key << "ReflectionResolution" << YAML::Value << env.ReflectionResolution;
+            out << YAML::EndMap;
+        }
+        
         out << YAML::Key << "Entitys" << YAML::Value << YAML::BeginSeq;     // 实体序列：开始实体序列
 
         // 遍历场景注册表所有实体
@@ -260,6 +285,33 @@ namespace Lucky
         m_Scene->SetName(sceneName);
 
         LF_CORE_TRACE("Deserializing scene '{0}'", sceneName);
+
+        // ---- 反序列化环境设置 ----
+        YAML::Node envNode = data["EnvironmentSettings"];
+        if (envNode)
+        {
+            EnvironmentSettings& env = m_Scene->GetEnvironmentSettings();
+            
+            // 反序列化天空盒材质
+            YAML::Node skyboxMatNode = envNode["SkyboxMaterial"];
+            if (skyboxMatNode && !skyboxMatNode.IsNull())
+            {
+                Ref<Material> skyboxMat = MaterialSerializer::Deserialize(skyboxMatNode);
+                if (skyboxMat)
+                {
+                    env.SkyboxMaterial = skyboxMat;
+                }
+            }
+            
+            env.Source = static_cast<AmbientSource>(envNode["AmbientSource"].as<int>());
+            env.AmbientColor = envNode["AmbientColor"].as<glm::vec3>();
+            env.DiffuseIntensity = envNode["DiffuseIntensity"].as<float>();
+            env.SpecularIntensity = envNode["SpecularIntensity"].as<float>();
+            if (envNode["ReflectionResolution"])
+            {
+                env.ReflectionResolution = envNode["ReflectionResolution"].as<int>();
+            }
+        }
 
         YAML::Node entitys = data["Entitys"];   // 实体序列结点
         

@@ -13,6 +13,7 @@ namespace Lucky
 {
     class RenderPipeline;       // 前向声明
     struct PostProcessSettings; // 前向声明
+    struct EnvironmentSettings; // 前向声明
 
     constexpr static int s_MaxDirectionalLights = 4;
     constexpr static int s_MaxPointLights = 8;
@@ -201,5 +202,10 @@ namespace Lucky
         /// 设置后处理参数（由 Scene 收集 Volume 后调用）
         /// </summary>
 		static void SetPostProcessSettings(const PostProcessSettings& settings);
+        
+        /// <summary>
+        /// 设置环境设置参数（由 Scene 每帧调用）
+        /// </summary>
+        static void SetEnvironmentSettings(const EnvironmentSettings& settings);
     };
 }

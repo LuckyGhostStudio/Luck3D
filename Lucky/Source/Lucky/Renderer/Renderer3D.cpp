@@ -45,7 +45,6 @@ namespace Lucky
         Ref<Shader> SkyboxShader;               // 默认天空盒着色器
         Ref<Material> InternalErrorMaterial;    // 内部错误材质（材质丢失时使用：材质被意外删除等情况）
         Ref<Material> DefaultMaterial;          // 默认材质
-        Ref<Material> SkyboxMaterial;           // 默认天空盒材质（nullptr 不渲染天空盒）
 
         // 全局默认纹理表 只在初始化时修改一次
         std::unordered_map<TextureDefault, Ref<Texture2D>> DefaultTextures;
@@ -121,6 +120,9 @@ namespace Lucky
         
         // ======== 后处理参数 ========
         PostProcessSettings PostProcess;    // 后处理参数（由 Scene 收集 Volume 后传入）
+        
+        // ======== 环境设置 ========
+        EnvironmentSettings Environment;    // 环境设置参数（由 Scene 传入）
     };
 
     static Renderer3DData s_Data;   // 渲染器数据
@@ -156,7 +158,7 @@ namespace Lucky
         // 创建内部材质
         s_Data.InternalErrorMaterial = CreateRef<Material>("InternalError", s_Data.InternalErrorShader);    // 内部错误材质
         s_Data.DefaultMaterial = CreateRef<Material>("Default", s_Data.StandardShader);                     // 默认材质
-        s_Data.SkyboxMaterial = CreateRef<Material>("Default-Skybox", s_Data.ShaderLib->Get("Skybox"));     // 默认天空盒材质
+        s_Data.Environment.SkyboxMaterial = CreateRef<Material>("Default-Skybox", s_Data.ShaderLib->Get("Skybox"));     // 默认天空盒材质
         
         // ======== 天空盒测试（硬编码加载 6 面 Cubemap） ========
         // 天空盒纹理路径（放置在 Assets/Textures/Skybox/ 目录下）
@@ -179,9 +181,9 @@ namespace Lucky
             //skyboxCubemap = TextureCube::CreateFromHDR("Assets/Textures/Skybox/forest.hdr");
 
             // 设置 Cubemap 纹理到材质
-            s_Data.SkyboxMaterial->SetTextureCube("u_SkyboxMap", skyboxCubemap);
-            s_Data.SkyboxMaterial->SetFloat("u_Exposure", 1.0f);
-            s_Data.SkyboxMaterial->SetFloat4("u_Tint", glm::vec4(1.0f));
+            s_Data.Environment.SkyboxMaterial->SetTextureCube("u_SkyboxMap", skyboxCubemap);
+            s_Data.Environment.SkyboxMaterial->SetFloat("u_Exposure", 1.0f);
+            s_Data.Environment.SkyboxMaterial->SetFloat4("u_Tint", glm::vec4(1.0f));
             
             LF_INFO("Skybox loaded successfully from: {0}", skyboxDir);
         }
@@ -250,10 +252,10 @@ namespace Lucky
         // ======== 初始化 IBL 预计算系统 ========
         IBLPrecompute::Init();
         
-        // 天空盒加载成功后，生成 IBL 数据
+        // 天空盒加载成功后，生成 IBL 数据（使用默认分辨率）
         if (skyboxCubemap)
         {
-            IBLPrecompute::GenerateFromCubemap(skyboxCubemap->GetRendererID());
+            IBLPrecompute::GenerateFromCubemap(skyboxCubemap->GetRendererID(), s_Data.Environment.ReflectionResolution);
         }
         
         // ======== 注册后处理效果到 PostProcessStack ========
@@ -490,7 +492,7 @@ namespace Lucky
         }
         
         // 天空盒数据
-        context.SkyboxMaterial = s_Data.SkyboxMaterial;
+        context.SkyboxMaterial = s_Data.Environment.SkyboxMaterial;
         context.SkyboxViewMatrix = s_Data.CameraViewMatrix;
         context.SkyboxProjectionMatrix = s_Data.CameraProjectionMatrix;
         
@@ -509,6 +511,12 @@ namespace Lucky
         context.PrefilterMapID = iblData.PrefilterMapID;
         context.BRDFLUTID = iblData.BRDFLUTID;
         context.PrefilterMaxMipLevel = static_cast<float>(iblData.PrefilterMaxMipLevel);
+        
+        // 环境设置
+        context.EnvironmentSource = s_Data.Environment.Source;
+        context.AmbientColor = s_Data.Environment.AmbientColor;
+        context.IBLDiffuseIntensity = s_Data.Environment.DiffuseIntensity;
+        context.IBLSpecularIntensity = s_Data.Environment.SpecularIntensity;
         
         // ---- 执行 Shadow 分组（ShadowPass） ----
         s_Data.Pipeline.ExecuteGroup("Shadow", context);
@@ -637,12 +645,12 @@ namespace Lucky
 
     Ref<Material>& Renderer3D::GetSkyboxMaterial()
     {
-        return s_Data.SkyboxMaterial;
+        return s_Data.Environment.SkyboxMaterial;
     }
 
     void Renderer3D::SetSkyboxMaterial(const Ref<Material>& skyboxMaterial)
     {
-        s_Data.SkyboxMaterial = skyboxMaterial;
+        s_Data.Environment.SkyboxMaterial = skyboxMaterial;
         
         // 从天空盒材质中获取 Cubemap 纹理，重新生成 IBL 数据
         if (skyboxMaterial)
@@ -650,7 +658,7 @@ namespace Lucky
             Ref<TextureCube> cubemap = skyboxMaterial->GetTextureCube("u_SkyboxMap");
             if (cubemap)
             {
-                IBLPrecompute::GenerateFromCubemap(cubemap->GetRendererID());
+                IBLPrecompute::GenerateFromCubemap(cubemap->GetRendererID(), s_Data.Environment.ReflectionResolution);
                 LF_CORE_INFO("IBL data regenerated for new skybox");
                 return;
             }
@@ -737,6 +745,40 @@ namespace Lucky
                 vignette->VignetteSmoothness = settings.VignetteSmoothness;
             }
         }
+    }
+
+    void Renderer3D::SetEnvironmentSettings(const EnvironmentSettings& settings)
+    {
+        bool needRegenerateIBL = false;
+        
+        // 检测 SkyboxMaterial 是否变化
+        if (s_Data.Environment.SkyboxMaterial != settings.SkyboxMaterial)
+        {
+            needRegenerateIBL = true;
+        }
+        
+        // 检测 Prefilter Map 分辨率是否变化
+        if (s_Data.Environment.ReflectionResolution != settings.ReflectionResolution)
+        {
+            needRegenerateIBL = true;
+        }
+        
+        // 需要重新生成 IBL 数据
+        if (needRegenerateIBL)
+        {
+            const Ref<Material>& skyboxMat = settings.SkyboxMaterial;
+            if (skyboxMat)
+            {
+                Ref<TextureCube> cubemap = skyboxMat->GetTextureCube("u_SkyboxMap");
+                if (cubemap)
+                {
+                    IBLPrecompute::GenerateFromCubemap(cubemap->GetRendererID(), settings.ReflectionResolution);
+                    LF_CORE_INFO("IBL data regenerated (skybox or resolution changed)");
+                }
+            }
+        }
+        
+        s_Data.Environment = settings;
     }
 
     void Renderer3D::RenderOutline()

@@ -13,6 +13,34 @@
 namespace Lucky
 {
     /// <summary>
+    /// 环境光来源
+    /// </summary>
+    enum class AmbientSource
+    {
+        Skybox = 0,     // 从天空盒 IBL 获取环境光（默认）
+        Color = 1       // 使用纯色环境光
+    };
+
+    /// <summary>
+    /// 环境设置参数（对标 Unity Lighting 面板 Environment 区域）
+    /// 由 LightingPanel 编辑，Scene 每帧传递给 Renderer3D
+    /// </summary>
+    struct EnvironmentSettings
+    {
+        // ---- Skybox ----
+        Ref<Material> SkyboxMaterial;                           // 天空盒材质（nullptr 不渲染天空盒）
+        
+        // ---- Environment Lighting ----
+        AmbientSource Source = AmbientSource::Skybox;           // 环境光来源（默认 Skybox）
+        glm::vec3 AmbientColor = glm::vec3(0.212f, 0.227f, 0.259f); // 纯色环境光颜色（Source=Color 时使用）
+        float DiffuseIntensity = 1.0f;                          // IBL 漫反射强度（Source=Skybox 时使用）
+
+        // ---- Environment Reflections ----
+        float SpecularIntensity = 1.0f;                         // IBL 镜面反射强度（对应 Unity 的 Intensity Multiplier）
+        int ReflectionResolution = 128;                         // 反射 Cubemap 分辨率（Prefilter Map）
+    };
+
+    /// <summary>
     /// Tonemapping 模式枚举
     /// </summary>
     enum class TonemapMode
@@ -128,6 +156,12 @@ namespace Lucky
         uint32_t PrefilterMapID = 0;                // Prefiltered Environment Cubemap 纹理 ID
         uint32_t BRDFLUTID = 0;                     // BRDF LUT Texture2D 纹理 ID
         float PrefilterMaxMipLevel = 4.0f;          // Prefiltered Map 最大 Mip Level
+        
+        // ---- 环境设置 ----
+        AmbientSource EnvironmentSource = AmbientSource::Skybox;    // 环境光来源
+        glm::vec3 AmbientColor = glm::vec3(0.1f, 0.1f, 0.1f);     // 纯色环境光颜色
+        float IBLDiffuseIntensity = 1.0f;                           // IBL 漫反射强度
+        float IBLSpecularIntensity = 1.0f;                          // IBL 镜面反射强度
         
         // ---- 调试标志 ----
         bool DebugCSMVisualize = false;         // CSM 级联颜色可视化（由 ShadowPass 控制）

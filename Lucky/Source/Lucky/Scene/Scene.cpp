@@ -12,7 +12,8 @@ namespace Lucky
     Scene::Scene(const std::string& name)
         : m_Name(name)
     {
-
+        // 从渲染器获取默认天空盒材质
+        m_EnvironmentSettings.SkyboxMaterial = Renderer3D::GetSkyboxMaterial();
     }
 
     Scene::~Scene()
@@ -187,6 +188,9 @@ namespace Lucky
                 }
             }
             Renderer3D::SetPostProcessSettings(postProcessSettings);
+            
+            // 传递环境设置到渲染器
+            Renderer3D::SetEnvironmentSettings(m_EnvironmentSettings);
 
             // 获取同时拥有 TransformComponent MeshFilterComponent MeshRendererComponent 的实体
             auto meshGroup = m_Registry.group<TransformComponent>(entt::get<MeshFilterComponent, MeshRendererComponent>);

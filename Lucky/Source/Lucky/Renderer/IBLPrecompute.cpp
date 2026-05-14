@@ -190,7 +190,7 @@ namespace Lucky
         LF_CORE_INFO("IBLPrecompute::Shutdown() - All IBL resources released");
     }
     
-    void IBLPrecompute::GenerateFromCubemap(uint32_t envCubemapID)
+    void IBLPrecompute::GenerateFromCubemap(uint32_t envCubemapID, int prefilterResolution)
     {
         if (envCubemapID == 0)
         {
@@ -216,14 +216,14 @@ namespace Lucky
         // 生成 Irradiance Map
         s_IBLData.Data.IrradianceMapID = GenerateIrradianceMap(envCubemapID);
         
-        // 生成 Prefiltered Environment Map
-        s_IBLData.Data.PrefilterMapID = GeneratePrefilterMap(envCubemapID);
+        // 生成 Prefiltered Environment Map（使用传入的分辨率）
+        s_IBLData.Data.PrefilterMapID = GeneratePrefilterMap(envCubemapID, prefilterResolution);
         
         s_IBLData.Data.Valid = true;
         
         RestoreRenderState();
         
-        LF_CORE_INFO("IBLPrecompute::GenerateFromCubemap() - IBL data generated successfully");
+        LF_CORE_INFO("IBLPrecompute::GenerateFromCubemap() - IBL data generated (prefilter resolution: {0})", prefilterResolution);
     }
     
     const IBLData& IBLPrecompute::GetIBLData()
@@ -359,10 +359,11 @@ namespace Lucky
         return irradianceMap;
     }
     
-    uint32_t IBLPrecompute::GeneratePrefilterMap(uint32_t envCubemap)
+    uint32_t IBLPrecompute::GeneratePrefilterMap(uint32_t envCubemap, int resolution)
     {
-        const uint32_t resolution = 128;
-        const uint32_t maxMipLevels = 5;
+        // 动态计算 Mip Level 数量：min(5, floor(log2(resolution)) + 1)
+        // 确保不超过 5 级（更高级别对视觉效果提升极小），且不超过分辨率允许的级数
+        const uint32_t maxMipLevels = std::min(5u, static_cast<uint32_t>(std::floor(std::log2(static_cast<float>(resolution)))) + 1);
         
         // 1. 创建带 Mipmap 的 Cubemap
         uint32_t prefilterMap;

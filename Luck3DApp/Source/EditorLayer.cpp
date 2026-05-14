@@ -50,7 +50,7 @@ namespace Lucky
         m_PanelManager->AddPanel<InspectorPanel>(INSPECTOR_PANEL_ID, "Inspector", true, m_Scene);
         m_PanelManager->AddPanel<RenderPipelinePanel>(RENDER_PIPELINE_PANEL_ID, "Render Pipeline", true);
         m_PanelManager->AddPanel<PreferencesPanel>(PREFERENCES_PANEL_ID, "Preferences", false);
-        m_PanelManager->AddPanel<LightingPanel>(LIGHTING_PANEL_ID, "Lighting", false, Renderer3D::GetSkyboxMaterial());
+        m_PanelManager->AddPanel<LightingPanel>(LIGHTING_PANEL_ID, "Lighting", false, m_Scene);
         
         // Temp ²âÊÔ Cube
         Entity cubeEntity = m_Scene->CreateEntity("Cube");
@@ -241,6 +241,7 @@ namespace Lucky
         m_PanelManager->GetPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID)->SetScene(m_Scene);
         m_PanelManager->GetPanel<SceneHierarchyPanel>(SCENE_HIERARCHY_PANEL_ID)->SetScene(m_Scene);
         m_PanelManager->GetPanel<InspectorPanel>(INSPECTOR_PANEL_ID)->SetScene(m_Scene);
+        m_PanelManager->GetPanel<LightingPanel>(LIGHTING_PANEL_ID)->SetScene(m_Scene);
     }
 
     void EditorLayer::OpenScene()
@@ -279,6 +280,7 @@ namespace Lucky
             m_PanelManager->GetPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID)->SetScene(m_Scene);
             m_PanelManager->GetPanel<SceneHierarchyPanel>(SCENE_HIERARCHY_PANEL_ID)->SetScene(m_Scene);
             m_PanelManager->GetPanel<InspectorPanel>(INSPECTOR_PANEL_ID)->SetScene(m_Scene);
+            m_PanelManager->GetPanel<LightingPanel>(LIGHTING_PANEL_ID)->SetScene(m_Scene);
         }
     }
 

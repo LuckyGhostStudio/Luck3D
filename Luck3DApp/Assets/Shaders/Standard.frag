@@ -86,18 +86,25 @@ void main()
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metallic);
     
-    // ---- 光照计算（一行调用，引擎自动处理所有光源 + 阴影） ----
+    // ---- 光照计算（引擎自动处理所有光源 + 阴影） ----
     vec3 Lo = CalcAllLights(N, V, v_Input.WorldPos, albedo, metallic, roughness, F0);
 
-    // ---- 环境光（IBL 或常量 fallback） ----
+    // ---- 环境光（根据 Source 选择 IBL 或纯色） ----
     vec3 ambient;
-    if (u_IBLEnabled != 0)
+    if (u_AmbientSource == 0 && u_IBLEnabled != 0)
     {
+        // Source = Skybox：使用 IBL 环境光
         ambient = CalcIBLAmbient(N, V, albedo, metallic, roughness, F0, ao);
+    }
+    else if (u_AmbientSource == 1)
+    {
+        // Source = Color：使用纯色环境光
+        ambient = u_AmbientColor * albedo * ao;
     }
     else
     {
-        ambient = vec3(AMBIENT_STRENGTH) * albedo * ao;
+        // Fallback：IBL 未就绪时使用纯色环境光
+        ambient = u_AmbientColor * albedo * ao;
     }
 
     // ---- 最终颜色 = 环境光 + 直接光照 + 自发光 ----

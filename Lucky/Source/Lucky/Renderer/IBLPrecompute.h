@@ -59,7 +59,8 @@ namespace Lucky
         /// 天空盒变更时调用此方法重新生成
         /// </summary>
         /// <param name="envCubemapID">原始环境 Cubemap 的 OpenGL 纹理 ID</param>
-        static void GenerateFromCubemap(uint32_t envCubemapID);
+        /// <param name="prefilterResolution">Prefilter Map 分辨率（每面，默认 128）</param>
+        static void GenerateFromCubemap(uint32_t envCubemapID, int prefilterResolution = 128);
         
         /// <summary>
         /// 获取 IBL 预计算数据（3 张纹理 ID）
@@ -88,8 +89,10 @@ namespace Lucky
         static uint32_t GenerateIrradianceMap(uint32_t envCubemap);
         
         /// <summary>
-        /// 生成 Prefiltered Environment Map（128×128 per face，RGB16F Cubemap，5 Mip Levels）
+        /// 生成 Prefiltered Environment Map（RGB16F Cubemap，Mip Levels 根据分辨率动态计算）
         /// </summary>
-        static uint32_t GeneratePrefilterMap(uint32_t envCubemap);
+        /// <param name="envCubemap">原始环境 Cubemap 的 OpenGL 纹理 ID</param>
+        /// <param name="resolution">Prefilter Map 分辨率（每面）</param>
+        static uint32_t GeneratePrefilterMap(uint32_t envCubemap, int resolution);
     };
 }

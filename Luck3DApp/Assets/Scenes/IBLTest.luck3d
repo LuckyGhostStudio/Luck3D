@@ -1,27 +1,37 @@
 Scene: New Scene
+EnvironmentSettings:
+  SkyboxMaterial:
+    Name: Default-Skybox
+    Shader: Skybox
+    RenderState:
+      RenderingMode: 0
+      CullMode: 0
+      DepthWrite: true
+      DepthTest: 0
+      BlendMode: 0
+      RenderQueue: 2000
+    Properties:
+      - Name: u_Exposure
+        Type: Float
+        Value: 1
+      - Name: u_Rotation
+        Type: Float
+        Value: 5.9000001
+      - Name: u_SkyboxMap
+        Type: SamplerCube
+        Value:
+          Path: Assets/Textures/Skybox/right.jpg
+          IsHDR: false
+          Resolution: 1024
+      - Name: u_Tint
+        Type: Float4
+        Value: [1, 1, 1, 1]
+  AmbientSource: 0
+  AmbientColor: [0.211999997, 0.226999998, 0.259000003]
+  DiffuseIntensity: 1
+  SpecularIntensity: 1
+  ReflectionResolution: 128
 Entitys:
-  - Entity: 16258431774329732947
-    NameComponent:
-      Name: Directional Light
-    TransformComponent:
-      Position: [0, 0, 0]
-      Rotation: [0.406246752, -0.249812275, 0.116489381, 0.871198952]
-      Scale: [1, 1, 1]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    LightComponent:
-      Type: 0
-      Color: [1, 1, 1]
-      Intensity: 1
-      Shadows: 1
-      ShadowBias: 0.000300000014
-      ShadowStrength: 1
-      CascadeCount: 4
-      ShadowDistance: 150
-      ShadowMapResolution: 2048
-      CascadeSplits: [0.0670000017, 0.200000003, 0.467000008, 1]
   - Entity: 3813951859062872817
     NameComponent:
       Name: Sphere
@@ -84,3 +94,25 @@ Entitys:
             - Name: u_RoughnessMap
               Type: Sampler2D
               Value: ""
+  - Entity: 16258431774329732947
+    NameComponent:
+      Name: Directional Light
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0.406246752, -0.249812275, 0.116489381, 0.871198952]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    LightComponent:
+      Type: 0
+      Color: [1, 1, 1]
+      Intensity: 1
+      Shadows: 1
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1
+      CascadeCount: 4
+      ShadowDistance: 150
+      ShadowMapResolution: 2048
+      CascadeSplits: [0.0670000017, 0.200000003, 0.467000008, 1]

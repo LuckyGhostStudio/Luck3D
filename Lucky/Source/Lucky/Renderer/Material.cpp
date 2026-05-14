@@ -32,6 +32,11 @@ namespace Lucky
             "u_BRDFLUT",                // BRDF LUT（纹理槽位 12）
             "u_IBLEnabled",             // IBL 开关
             "u_PrefilterMaxMipLevel",   // Prefiltered Map 最大 Mip Level
+            // ---- 环境设置系统：由 OpaquePass/TransparentPass 设置 ----
+            "u_AmbientSource",          // 环境光来源（0=Skybox, 1=Color）
+            "u_AmbientColor",           // 纯色环境光颜色
+            "u_IBLDiffuseIntensity",    // IBL 漫反射强度乘数
+            "u_IBLSpecularIntensity",   // IBL 镜面反射强度乘数
         };
 
         // 检查精确匹配
