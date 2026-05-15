@@ -10,6 +10,7 @@
 #include "Panels/LightingPanel.h"
 
 #include "Lucky/Renderer/MeshFactory.h"
+#include "Lucky/Renderer/Renderer3D.h"
 
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/SelectionManager.h"
@@ -19,6 +20,7 @@
 #include "Lucky/Serialization//SceneSerializer.h"
 #include "Lucky/Asset/MeshImporter.h"
 #include "Lucky/Asset/AssetManager.h"
+#include "Lucky/Serialization/MaterialSerializer.h"
 
 #include <filesystem>
 
@@ -147,6 +149,13 @@ namespace Lucky
                 if (ImGui::MenuItem("Import Model..."))
                 {
                     ImportModel();
+                }
+                
+                ImGui::Separator();
+                
+                if (ImGui::MenuItem("Create Material..."))
+                {
+                    CreateMaterial();
                 }
                 
                 ImGui::Separator();
@@ -372,14 +381,35 @@ namespace Lucky
         auto& meshRenderer = entity.AddComponent<MeshRendererComponent>();
         if (result.Success)
         {
-            // 为每个导入的材质注册到资产系统并设置 Handle
-            for (auto& material : result.Materials)
+            // 为每个导入的材质保存为独立 .mat 文件并注册到资产系统
+            std::filesystem::path materialsDir = relPath.parent_path() / "Materials";
+            
+            for (size_t i = 0; i < result.Materials.size(); ++i)
             {
-                if (material)
+                auto& material = result.Materials[i];
+                if (!material) continue;
+                
+                // 生成材质文件名：模型名_材质名.mat
+                std::string matName = material->GetName();
+                if (matName.empty())
                 {
-                    // 材质继承 Asset，设置一个临时 Handle（内存中的材质，尚无独立 .mat 文件）
-                    material->SetHandle(AssetHandle::Generate());
+                    matName = std::format("{0}_Material_{1}", name, i);
+                    material->SetName(matName);
                 }
+                
+                // 生成 Handle 并设置
+                AssetHandle matHandle = AssetHandle::Generate();
+                material->SetHandle(matHandle);
+                
+                // 保存为 .mat 文件
+                std::filesystem::path matFilePath = materialsDir / (matName + ".mat");
+                std::string matFilePathStr = matFilePath.generic_string();
+                std::string absoluteMatPath = std::filesystem::absolute(matFilePath).string();
+                
+                MaterialSerializer::SerializeToFile(material, absoluteMatPath);
+                
+                // 注册到资产系统
+                AssetManager::ImportAsset(matFilePathStr, AssetType::Material);
             }
             meshRenderer.Materials = result.Materials;
         }
@@ -390,5 +420,52 @@ namespace Lucky
         AssetManager::SaveRegistry();
         
         LF_CORE_INFO("Imported model: {0} ({1} SubMeshes, {2} Materials)", name, mesh->GetSubMeshes().size(), meshRenderer.Materials.size());
+    }
+
+    void EditorLayer::CreateMaterial()
+    {
+        // 打开保存文件对话框
+        std::string filepath = FileDialogs::SaveFile("Material (*.mat)\0*.mat\0");
+        
+        if (filepath.empty())
+        {
+            return;
+        }
+        
+        // 确保扩展名为 .mat
+        std::filesystem::path path(filepath);
+        if (path.extension() != ".mat")
+        {
+            path.replace_extension(".mat");
+            filepath = path.string();
+        }
+        
+        // 创建默认材质（使用 Standard Shader）
+        Ref<ShaderLibrary>& shaderLib = Renderer3D::GetShaderLibrary();
+        Ref<Shader> standardShader = shaderLib->Get("Standard");
+        
+        std::string materialName = path.stem().string();
+        Ref<Material> material = CreateRef<Material>(materialName, standardShader);
+        
+        // 生成 AssetHandle
+        AssetHandle handle = AssetHandle::Generate();
+        material->SetHandle(handle);
+        
+        // 序列化到文件
+        if (!MaterialSerializer::SerializeToFile(material, filepath))
+        {
+            LF_CORE_ERROR("Failed to create material file: '{0}'", filepath);
+            return;
+        }
+        
+        // 注册到资产系统
+        std::filesystem::path relPath = std::filesystem::relative(path);
+        std::string normalizedPath = relPath.generic_string();
+        AssetManager::ImportAsset(normalizedPath, AssetType::Material);
+        
+        // 保存 Registry
+        AssetManager::SaveRegistry();
+        
+        LF_CORE_INFO("Created material: '{0}' at '{1}'", materialName, normalizedPath);
     }
 }

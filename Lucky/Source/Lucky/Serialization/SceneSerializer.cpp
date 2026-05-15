@@ -233,15 +233,15 @@ namespace Lucky
             out << YAML::Key << "EnvironmentSettings" << YAML::Value;
             out << YAML::BeginMap;
             
-            // 天空盒材质
+            // 天空盒材质（通过 AssetHandle 引用）
             out << YAML::Key << "SkyboxMaterial" << YAML::Value;
-            if (env.SkyboxMaterial)
+            if (env.SkyboxMaterial && env.SkyboxMaterial->GetHandle().IsValid())
             {
-                MaterialSerializer::Serialize(out, env.SkyboxMaterial);
+                out << static_cast<uint64_t>(env.SkyboxMaterial->GetHandle());
             }
             else
             {
-                out << YAML::Null;
+                out << static_cast<uint64_t>(0);
             }
             
             out << YAML::Key << "AmbientSource" << YAML::Value << static_cast<int>(env.Source);
@@ -300,14 +300,23 @@ namespace Lucky
         {
             EnvironmentSettings& env = m_Scene->GetEnvironmentSettings();
             
-            // 反序列化天空盒材质
+            // 反序列化天空盒材质（通过 AssetHandle 引用）
             YAML::Node skyboxMatNode = envNode["SkyboxMaterial"];
             if (skyboxMatNode && !skyboxMatNode.IsNull())
             {
-                Ref<Material> skyboxMat = MaterialSerializer::Deserialize(skyboxMatNode);
-                if (skyboxMat)
+                uint64_t skyboxHandleValue = skyboxMatNode.as<uint64_t>();
+                AssetHandle skyboxHandle(skyboxHandleValue);
+                if (skyboxHandle.IsValid())
                 {
-                    env.SkyboxMaterial = skyboxMat;
+                    Ref<Material> skyboxMat = AssetManager::GetAsset<Material>(skyboxHandle);
+                    if (skyboxMat)
+                    {
+                        env.SkyboxMaterial = skyboxMat;
+                    }
+                    else
+                    {
+                        LF_CORE_WARN("SceneSerializer: Failed to load skybox material asset [{0}]", skyboxHandleValue);
+                    }
                 }
             }
             

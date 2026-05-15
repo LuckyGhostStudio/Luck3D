@@ -143,6 +143,23 @@ namespace Lucky
         /// </summary>
         bool IsTransparent() const { return m_RenderState.IsTransparent(); }
 
+        // ---- 脏标记（用于编辑器手动保存工作流）----
+
+        /// <summary>
+        /// 材质是否被修改过（未保存）
+        /// </summary>
+        bool IsDirty() const { return m_Dirty; }
+
+        /// <summary>
+        /// 标记材质为已修改
+        /// </summary>
+        void MarkDirty() { m_Dirty = true; }
+
+        /// <summary>
+        /// 清除脏标记（保存后调用）
+        /// </summary>
+        void ClearDirty() { m_Dirty = false; }
+
     private:
         /// <summary>
         /// 根据当前 Shader 的 uniform 列表重建属性列表
@@ -163,5 +180,6 @@ namespace Lucky
         
         RenderState m_RenderState;                              // 渲染状态
         RenderingMode m_RenderingMode = RenderingMode::Opaque;  // 渲染模式预设
+        bool m_Dirty = false;                                   // 脏标记（是否有未保存的修改）
     };
 }

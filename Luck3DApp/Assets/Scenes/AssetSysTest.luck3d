@@ -1,55 +1,13 @@
 Scene: New Scene
 EnvironmentSettings:
-  SkyboxMaterial:
-    Name: Default-Skybox
-    Shader: Skybox
-    RenderState:
-      RenderingMode: 0
-      CullMode: 0
-      DepthWrite: true
-      DepthTest: 0
-      BlendMode: 0
-      RenderQueue: 2000
-    Properties:
-      - Name: u_Exposure
-        Type: Float
-        Value: 1
-      - Name: u_Rotation
-        Type: Float
-        Value: 0
-      - Name: u_SkyboxMap
-        Type: SamplerCube
-        Value:
-          Path: Assets/Textures/Skybox/right.jpg
-          IsHDR: false
-          Resolution: 1024
-      - Name: u_Tint
-        Type: Float4
-        Value: [1, 1, 1, 1]
+  SkyboxMaterial: 0
   AmbientSource: 0
   AmbientColor: [0.211999997, 0.226999998, 0.259000003]
   DiffuseIntensity: 1
   SpecularIntensity: 1
   ReflectionResolution: 128
 Entitys:
-  - Entity: 4813854028348512663
-    NameComponent:
-      Name: Sphere
-    TransformComponent:
-      Position: [0.593902647, 0.92968744, -0.961853027]
-      Rotation: [0, 0, 0, 1]
-      Scale: [1, 1, 1]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    MeshFilterComponent:
-      PrimitiveType: 3
-      MeshAsset: 0
-    MeshRendererComponent:
-      Materials:
-        - AssetHandle: 0
-  - Entity: 8550387988077089492
+  - Entity: 4926679776848894833
     NameComponent:
       Name: Directional Light
     TransformComponent:
@@ -71,7 +29,7 @@ Entitys:
       ShadowDistance: 150
       ShadowMapResolution: 2048
       CascadeSplits: [0.0670000017, 0.200000003, 0.467000008, 1]
-  - Entity: 8061066986618484808
+  - Entity: 8108867234030518469
     NameComponent:
       Name: Cube
     TransformComponent:

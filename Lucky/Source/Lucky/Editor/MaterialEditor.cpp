@@ -5,6 +5,9 @@
 #include "Lucky/Scene/SelectionManager.h"
 #include "Lucky/Renderer/Renderer3D.h"
 
+#include "Lucky/Asset/AssetManager.h"
+#include "Lucky/Serialization/MaterialSerializer.h"
+
 #include "Lucky/UI/PropertyGrid.h"
 #include "Lucky/UI/Widgets.h"
 #include "Lucky/UI/DrawUtils.h"
@@ -15,6 +18,7 @@
 #include "Lucky/Utils/PlatformUtils.h"
 
 #include <imgui.h>
+#include <filesystem>
 
 namespace Lucky
 {
@@ -123,6 +127,13 @@ namespace Lucky
                 UI::ScopedFont boldFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO 封装 Fonts
                 const std::string& displayMaterialName = std::format("{0} (Material)", material->GetName());
                 ImGui::Text(displayMaterialName.c_str());
+                
+                // 脏标记显示
+                if (material->IsDirty())
+                {
+                    ImGui::SameLine();
+                    ImGui::TextColored({1.0f, 0.6f, 0.0f, 1.0f}, " *");
+                }
             }
 
             ImGui::Indent(-UI::Theme::Layout::IndentSpacing);
@@ -132,6 +143,22 @@ namespace Lucky
         
         if (opened)
         {
+            // ---- 保存按钮 ----
+            if (material->GetHandle().IsValid() && material->IsDirty())
+            {
+                if (ImGui::Button("Save Material"))
+                {
+                    const std::string& filepath = AssetManager::GetAssetFilePath(material->GetHandle());
+                    if (!filepath.empty())
+                    {
+                        std::string absolutePath = std::filesystem::absolute(filepath).string();
+                        MaterialSerializer::SerializeToFile(material, absolutePath);
+                        material->ClearDirty();
+                    }
+                }
+                ImGui::Separator();
+            }
+
             // ---- Shader ----
         
             // 所有用户可见 Shader 名称（排除引擎内部 Shader）
@@ -164,6 +191,7 @@ namespace Lucky
             {
                 const Ref<Shader>& newShader = Renderer3D::GetShaderLibrary()->Get(shaderNames[currentShaderIndex]);
                 material->SetShader(newShader);  // 设置 Shader 触发属性重建
+                material->MarkDirty();
             }
             
             // ---- 渲染状态 ----
@@ -178,6 +206,7 @@ namespace Lucky
                 if (UI::PropertyCombo("Rendering Mode", currentMode, renderingModes, IM_ARRAYSIZE(renderingModes)))
                 {
                     material->SetRenderingMode(static_cast<RenderingMode>(currentMode));
+                    material->MarkDirty();
                 }
                 
                 // CullMode 下拉框
@@ -186,10 +215,14 @@ namespace Lucky
                 if (UI::PropertyCombo("Cull Mode", currentCull, cullModes, IM_ARRAYSIZE(cullModes)))
                 {
                     state.Cull = static_cast<CullMode>(currentCull);
+                    material->MarkDirty();
                 }
                 
                 // ZWrite 复选框
-                UI::PropertyCheckbox("Depth Write", state.DepthWrite);
+                if (UI::PropertyCheckbox("Depth Write", state.DepthWrite))
+                {
+                    material->MarkDirty();
+                }
                 
                 // ZTest 下拉框
                 const char* depthFuncs[] = { "Less", "LessEqual", "Greater", "GreaterEqual", "Equal", "NotEqual", "Always", "Never" };
@@ -197,6 +230,7 @@ namespace Lucky
                 if (UI::PropertyCombo("Depth Test", currentDepth, depthFuncs, IM_ARRAYSIZE(depthFuncs)))
                 {
                     state.DepthTest = static_cast<DepthCompareFunc>(currentDepth);
+                    material->MarkDirty();
                 }
                 
                 // BlendMode 下拉框
@@ -205,9 +239,13 @@ namespace Lucky
                 if (UI::PropertyCombo("Blend Mode", currentBlend, blendModes, IM_ARRAYSIZE(blendModes)))
                 {
                     state.Blend = static_cast<BlendMode>(currentBlend);
+                    material->MarkDirty();
                 }
                 
-                UI::PropertyInt("Render Queue", state.Queue, 1, 0, 5000);
+                if (UI::PropertyInt("Render Queue", state.Queue, 1, 0, 5000))
+                {
+                    material->MarkDirty();
+                }
                 
                 UI::EndCollapsing();
             }
@@ -233,6 +271,7 @@ namespace Lucky
                         if (UI::PropertyFloat(displayName.c_str(), value, 0.1f))
                         {
                             material->SetFloat(prop.Name, value);
+                            material->MarkDirty();
                         }
                         break;
                     }
@@ -242,6 +281,7 @@ namespace Lucky
                         if (UI::PropertyFloat2(displayName.c_str(), value, 0.1f))
                         {
                             material->SetFloat2(prop.Name, value);
+                            material->MarkDirty();
                         }
                         break;
                     }
@@ -253,6 +293,7 @@ namespace Lucky
                             if (UI::PropertyColor(displayName.c_str(), value))
                             {
                                 material->SetFloat3(prop.Name, value);
+                                material->MarkDirty();
                             }
                         }
                         else
@@ -260,6 +301,7 @@ namespace Lucky
                             if (UI::PropertyFloat3(displayName.c_str(), value, 0.1f))
                             {
                                 material->SetFloat3(prop.Name, value);
+                                material->MarkDirty();
                             }
                         }
                         break;
@@ -272,6 +314,7 @@ namespace Lucky
                             if (UI::PropertyColor(displayName.c_str(), value))
                             {
                                 material->SetFloat4(prop.Name, value);
+                                material->MarkDirty();
                             }
                         }
                         else
@@ -279,6 +322,7 @@ namespace Lucky
                             if (UI::PropertyFloat4(displayName.c_str(), value, 0.1f))
                             {
                                 material->SetFloat4(prop.Name, value);
+                                material->MarkDirty();
                             }
                         }
                         break;
@@ -289,6 +333,7 @@ namespace Lucky
                         if (UI::PropertyInt(displayName.c_str(), value))
                         {
                             material->SetInt(prop.Name, value);
+                            material->MarkDirty();
                         }
                         break;
                     }
@@ -306,6 +351,7 @@ namespace Lucky
                             if (!filepath.empty())
                             {
                                 material->SetTexture(prop.Name, Texture2D::Create(filepath));
+                                material->MarkDirty();
                             }
                         }
                             

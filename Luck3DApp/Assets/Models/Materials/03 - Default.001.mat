@@ -1,0 +1,49 @@
+Version: 1
+Material:
+  Handle: 5762959203786649916
+  Name: 03 - Default.001
+  Shader: Standard
+  RenderState:
+    RenderingMode: 0
+    CullMode: 0
+    DepthWrite: true
+    DepthTest: 0
+    BlendMode: 0
+    RenderQueue: 2000
+  Properties:
+    - Name: u_AO
+      Type: Float
+      Value: 1
+    - Name: u_AOMap
+      Type: Sampler2D
+      Value: ""
+    - Name: u_Albedo
+      Type: Float4
+      Value: [0.588235319, 0.588235319, 0.588235319, 1]
+    - Name: u_AlbedoMap
+      Type: Sampler2D
+      Value: ""
+    - Name: u_Emission
+      Type: Float3
+      Value: [0, 0, 0]
+    - Name: u_EmissionIntensity
+      Type: Float
+      Value: 1
+    - Name: u_EmissionMap
+      Type: Sampler2D
+      Value: ""
+    - Name: u_Metallic
+      Type: Float
+      Value: 0
+    - Name: u_MetallicMap
+      Type: Sampler2D
+      Value: ""
+    - Name: u_NormalMap
+      Type: Sampler2D
+      Value: ""
+    - Name: u_Roughness
+      Type: Float
+      Value: 0.899999976
+    - Name: u_RoughnessMap
+      Type: Sampler2D
+      Value: ""

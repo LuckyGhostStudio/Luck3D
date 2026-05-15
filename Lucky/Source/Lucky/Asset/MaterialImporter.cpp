@@ -4,7 +4,6 @@
 #include "Lucky/Serialization/MaterialSerializer.h"
 
 #include <filesystem>
-#include <yaml-cpp/yaml.h>
 
 namespace Lucky
 {
@@ -12,21 +11,16 @@ namespace Lucky
     {
         std::string absolutePath = std::filesystem::absolute(metadata.FilePath).string();
 
-        if (!std::filesystem::exists(absolutePath))
-        {
-            LF_CORE_ERROR("MaterialImporter: File not found: '{0}'", absolutePath);
-            return nullptr;
-        }
+        Ref<Material> material = MaterialSerializer::DeserializeFromFile(absolutePath);
 
-        YAML::Node data = YAML::LoadFile(absolutePath);
-
-        // .mat 文件的根节点就是材质数据
-        Ref<Material> material = MaterialSerializer::Deserialize(data);
         if (!material)
         {
-            LF_CORE_ERROR("MaterialImporter: Failed to deserialize material: '{0}'", absolutePath);
+            LF_CORE_ERROR("MaterialImporter: Failed to load material from '{0}'", metadata.FilePath);
             return nullptr;
         }
+
+        // 设置 Handle（确保与 Registry 中一致）
+        material->SetHandle(metadata.Handle);
 
         return material;
     }

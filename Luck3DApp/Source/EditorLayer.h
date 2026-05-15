@@ -68,6 +68,11 @@ namespace Lucky
         /// </summary>
         /// <param name="filepath">文件路径</param>
         void ImportModel(const std::filesystem::path& filepath);
+        
+        /// <summary>
+        /// 创建材质
+        /// </summary>
+        void CreateMaterial();
     private:
         EditorDockSpace m_EditorDockSpace;  // 停靠空间
 

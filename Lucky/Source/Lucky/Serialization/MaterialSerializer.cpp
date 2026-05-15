@@ -5,6 +5,8 @@
 #include "Lucky/Renderer/Renderer3D.h"
 #include "Lucky/Renderer/RenderState.h"
 
+#include "Lucky/Asset/AssetHandle.h"
+
 #include "YamlHelpers.h"
 
 #include <filesystem>
@@ -463,6 +465,137 @@ namespace Lucky
                 // 反序列化属性值
                 DeserializeMaterialPropertyValue(material, propName, propType, propNode["Value"]);
             }
+        }
+
+        return material;
+    }
+
+    bool MaterialSerializer::SerializeToFile(const Ref<Material>& material, const std::string& filepath)
+    {
+        if (!material)
+        {
+            LF_CORE_ERROR("MaterialSerializer::SerializeToFile - Material is null!");
+            return false;
+        }
+
+        YAML::Emitter out;
+        out << YAML::BeginMap;
+
+        // 文件格式版本
+        out << YAML::Key << "Version" << YAML::Value << 1;
+
+        // 材质数据
+        out << YAML::Key << "Material" << YAML::Value;
+        out << YAML::BeginMap;
+
+        // AssetHandle
+        out << YAML::Key << "Handle" << YAML::Value << static_cast<uint64_t>(material->GetHandle());
+
+        // 材质名称
+        out << YAML::Key << "Name" << YAML::Value << material->GetName();
+
+        // Shader 名称
+        std::string shaderName = "";
+        if (material->GetShader())
+        {
+            shaderName = material->GetShader()->GetName();
+        }
+        out << YAML::Key << "Shader" << YAML::Value << shaderName;
+
+        // 渲染状态
+        const RenderState& state = material->GetRenderState();
+        out << YAML::Key << "RenderState" << YAML::BeginMap;
+        out << YAML::Key << "RenderingMode" << YAML::Value << static_cast<int>(material->GetRenderingMode());
+        out << YAML::Key << "CullMode" << YAML::Value << static_cast<int>(state.Cull);
+        out << YAML::Key << "DepthWrite" << YAML::Value << state.DepthWrite;
+        out << YAML::Key << "DepthTest" << YAML::Value << static_cast<int>(state.DepthTest);
+        out << YAML::Key << "BlendMode" << YAML::Value << static_cast<int>(state.Blend);
+        out << YAML::Key << "RenderQueue" << YAML::Value << state.Queue;
+        out << YAML::EndMap;
+
+        // 材质属性列表
+        out << YAML::Key << "Properties" << YAML::Value << YAML::BeginSeq;
+        const auto& propertyOrder = material->GetPropertyOrder();
+        const auto& propertyMap = material->GetPropertyMap();
+
+        for (const std::string& propName : propertyOrder)
+        {
+            auto it = propertyMap.find(propName);
+            if (it == propertyMap.end()) continue;
+
+            const MaterialProperty& prop = it->second;
+            out << YAML::BeginMap;
+            out << YAML::Key << "Name" << YAML::Value << prop.Name;
+            out << YAML::Key << "Type" << YAML::Value << ShaderUniformTypeToString(prop.Type);
+            SerializeMaterialPropertyValue(out, prop);
+            out << YAML::EndMap;
+        }
+        out << YAML::EndSeq;
+
+        out << YAML::EndMap;    // Material
+        out << YAML::EndMap;    // Root
+
+        // 确保目录存在
+        std::filesystem::path path(filepath);
+        if (path.has_parent_path())
+        {
+            std::filesystem::create_directories(path.parent_path());
+        }
+
+        // 写入文件
+        std::ofstream fout(filepath);
+        if (!fout.is_open())
+        {
+            LF_CORE_ERROR("MaterialSerializer::SerializeToFile - Failed to open file: {0}", filepath);
+            return false;
+        }
+
+        fout << out.c_str();
+        fout.close();
+
+        LF_CORE_INFO("MaterialSerializer: Saved material '{0}' to '{1}'", material->GetName(), filepath);
+        return true;
+    }
+
+    Ref<Material> MaterialSerializer::DeserializeFromFile(const std::string& filepath)
+    {
+        if (!std::filesystem::exists(filepath))
+        {
+            LF_CORE_ERROR("MaterialSerializer::DeserializeFromFile - File not found: {0}", filepath);
+            return nullptr;
+        }
+
+        YAML::Node data;
+        try
+        {
+            data = YAML::LoadFile(filepath);
+        }
+        catch (const YAML::Exception& e)
+        {
+            LF_CORE_ERROR("MaterialSerializer::DeserializeFromFile - YAML parse error: {0}", e.what());
+            return nullptr;
+        }
+
+        YAML::Node materialNode = data["Material"];
+        if (!materialNode)
+        {
+            LF_CORE_ERROR("MaterialSerializer::DeserializeFromFile - No 'Material' node in file: {0}", filepath);
+            return nullptr;
+        }
+
+        // 使用现有的反序列化逻辑
+        Ref<Material> material = Deserialize(materialNode);
+
+        if (material)
+        {
+            // 设置 Handle（从文件中读取）
+            if (materialNode["Handle"])
+            {
+                uint64_t handleValue = materialNode["Handle"].as<uint64_t>();
+                material->SetHandle(AssetHandle(handleValue));
+            }
+
+            LF_CORE_INFO("MaterialSerializer: Loaded material '{0}' from '{1}'", material->GetName(), filepath);
         }
 
         return material;

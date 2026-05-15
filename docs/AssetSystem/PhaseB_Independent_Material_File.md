@@ -1208,24 +1208,239 @@ Luck3D/
 
 ---
 
-## 十四、验证清单
+## 十四、验证步骤
 
-| # | 验证项 | 预期结果 |
-|---|--------|--------|
-| 1 | 编译通过 | 无编译错误和警告 |
-| 2 | 创建材质 | 编辑器菜单创建材质，生成 .mat 文件 |
-| 3 | .mat 文件内容正确 | YAML 格式，包含 Handle/Name/Shader/RenderState/Properties |
-| 4 | 加载材质 | AssetManager::GetAsset\<Material\>(handle) 正确加载 .mat 文件 |
-| 5 | 材质缓存 | 多次获取同一 Handle 返回同一实例 |
-| 6 | 材质共享 | 两个实体引用同一 Handle，修改一个另一个同步变化 |
-| 7 | 场景保存 | MeshRendererComponent 中材质序列化为 AssetHandle |
-| 8 | 场景加载 | 反序列化时通过 AssetManager 正确获取材质 |
-| 9 | 材质丢失处理 | Handle 无效或文件不存在时，使用错误材质 |
-| 10 | 脏标记 | 修改材质属性后显示"未保存"标记 |
-| 11 | 保存材质 | 点击保存按钮后 .mat 文件更新，脏标记清除 |
-| 12 | Registry 持久化 | .mat 文件注册到 Registry，重启后仍可查到 |
-| 13 | 纹理路径正确 | .mat 文件中纹理路径为相对路径，加载时正确解析 |
-| 14 | SkyboxMaterial 外部化 | 天空盒材质也通过 AssetHandle 引用 |
+### 14.0 编译验证
+
+#### 14.0.1 重新生成项目文件
+
+```bash
+# 在项目根目录 Luck3D 下执行
+premake5 vs2022
+```
+
+#### 14.0.2 编译项目
+
+在 Visual Studio 中打开 `Luck3D.sln`，选择 **Debug** 配置，**Build → Build Solution (Ctrl+Shift+B)**。
+
+**预期**：编译通过，无错误。
+
+**常见编译问题排查**：
+
+| 错误 | 原因 | 解决 |
+|------|------|------|
+| `IsDirty` / `MarkDirty` 未定义 | `Material.h` 修改未生效 | 确认 `m_Dirty` 字段和 `IsDirty()` / `MarkDirty()` / `ClearDirty()` 方法已添加 |
+| `SerializeToFile` / `DeserializeFromFile` 未定义 | `MaterialSerializer.h` 声明缺失 | 确认新增了文件级接口声明 |
+| `AssetHandle` 未定义（在 MaterialSerializer.cpp 中） | 缺少头文件 | 确认 `#include "Lucky/Asset/AssetHandle.h"` 已添加 |
+| 链接错误 `GetAsset<T>` | 模板显式实例化缺失 | 检查 `AssetManager.cpp` 底部的 `template Ref<...>` 实例化 |
+
+---
+
+### 14.1 启动与关闭验证
+
+| 步骤 | 操作 | 预期结果 |
+|------|------|---------|
+| 1 | 启动编辑器 | 控制台输出 `AssetManager initialized. Registry: 0 assets, Importers: 3 registered.`（首次启动） |
+| 2 | 确认默认 Cube 正常渲染 | 场景中有一个 Cube 和一个方向光，渲染正常 |
+| 3 | 关闭编辑器 | 控制台输出 `AssetRegistry: Saved 0 assets to 'Assets.lreg'` 和 `AssetManager shutdown.` |
+| 4 | 检查项目根目录 | 生成了 `Assets.lreg` 文件 |
+
+---
+
+### 14.2 创建材质验证
+
+| 步骤 | 操作 | 预期结果 |
+|------|------|---------|
+| 5 | **File → Create Material...** | 弹出保存文件对话框 |
+| 6 | 选择路径保存为 `Assets/Materials/TestMetal.mat` | 控制台输出 `MaterialSerializer: Saved material 'TestMetal' to '...'` 和 `Created material: 'TestMetal' at '...'` |
+| 7 | 用文本编辑器打开 `TestMetal.mat` | 内容为 YAML 格式，包含 `Version: 1`、`Material:` 节点下有 `Handle`（非零）、`Name: TestMetal`、`Shader: Standard`、`RenderState`、`Properties` |
+| 8 | 检查 `Assets.lreg` | 包含 `TestMetal.mat` 的注册条目（Handle、Type: Material、FilePath） |
+
+#### 验证 .mat 文件格式
+
+打开 `TestMetal.mat`，确认结构类似：
+
+```yaml
+Version: 1
+Material:
+  Handle: <非零数字>
+  Name: TestMetal
+  Shader: Standard
+  RenderState:
+    RenderingMode: 0
+    CullMode: 0
+    DepthWrite: true
+    DepthTest: 1
+    BlendMode: 0
+    RenderQueue: 2000
+  Properties:
+    - Name: _Albedo
+      Type: Float4
+      Value: [...]
+    - Name: _Metallic
+      Type: Float
+      Value: ...
+    ...
+```
+
+---
+
+### 14.3 场景保存与加载验证
+
+#### 14.3.1 保存含内置图元的场景
+
+| 步骤 | 操作 | 预期结果 |
+|------|------|---------|
+| 9 | 选中场景中的 Cube 实体 | Inspector 显示 MeshFilter 和 MeshRenderer 组件 |
+| 10 | **File → Save As...** 保存为 `Assets/Scenes/Test.luck3d` | 保存成功 |
+| 11 | 用文本编辑器打开 `Test.luck3d` | MeshRendererComponent 中 Materials 使用 `AssetHandle: <数字>` 格式（不再内嵌材质数据） |
+
+#### 14.3.2 加载场景
+
+| 步骤 | 操作 | 预期结果 |
+|------|------|---------|
+| 12 | **File → New** 创建空场景 | 场景清空 |
+| 13 | **File → Open...** 打开刚保存的 `Test.luck3d` | 场景加载成功，Cube 正常显示 |
+| 14 | 确认内置图元的 Mesh 正确 | Cube 形状正确渲染 |
+
+> ?? **注意**：如果 Cube 的默认材质 Handle 为 0（未注册到 Registry），加载时会显示 Error Material（品红色），这是正常的——内置图元的默认材质尚未保存为 `.mat` 文件。
+
+---
+
+### 14.4 模型导入完整流程验证
+
+#### 14.4.1 导入模型
+
+| 步骤 | 操作 | 预期结果 |
+|------|------|---------|
+| 15 | **File → Import Model...** 选择一个 `.fbx` 或 `.obj` 文件 | 模型出现在场景中 |
+| 16 | 检查控制台日志 | 输出 `AssetRegistry: Registered asset [...] type=Mesh`，以及每个材质的 `MaterialSerializer: Saved material '...'` |
+| 17 | 检查模型文件所在目录 | 出现 `Materials/` 子目录，内含 `.mat` 文件（每个材质一个） |
+| 18 | 用文本编辑器打开生成的 `.mat` 文件 | 格式正确，包含从模型导入的材质属性（颜色、纹理路径等） |
+| 19 | 检查 `Assets.lreg` | 包含 Mesh 和所有 Material 的注册条目 |
+
+#### 14.4.2 保存并重新加载
+
+| 步骤 | 操作 | 预期结果 |
+|------|------|---------|
+| 20 | **File → Save As...** 保存场景 | 保存成功 |
+| 21 | 用文本编辑器打开 `.luck3d` 文件 | MeshFilterComponent 中 `MeshAsset: <非零Handle>`；MeshRendererComponent 中每个材质有 `AssetHandle: <非零Handle>` |
+| 22 | 关闭编辑器 → 重新启动 | 控制台输出 `AssetRegistry: Loaded N assets from 'Assets.lreg'`（N > 0） |
+| 23 | **File → Open...** 打开刚保存的场景 | 模型正确加载，材质正确显示（颜色/纹理与导入时一致） |
+
+---
+
+### 14.5 材质编辑与保存验证
+
+#### 14.5.1 脏标记
+
+| 步骤 | 操作 | 预期结果 |
+|------|------|---------|
+| 24 | 选中导入的模型实体 | Inspector 显示材质编辑器 |
+| 25 | 修改材质的任意属性（如 Albedo 颜色） | 材质名称旁出现橙色 ` *` 标记，同时出现 **"Save Material"** 按钮 |
+| 26 | 渲染视口中实时反映修改 | 颜色变化立即可见 |
+
+#### 14.5.2 保存材质
+
+| 步骤 | 操作 | 预期结果 |
+|------|------|---------|
+| 27 | 点击材质编辑器中的 **"Save Material"** 按钮 | 控制台输出 `MaterialSerializer: Saved material '...'`，`*` 标记消失，按钮消失 |
+| 28 | 用文本编辑器打开对应 `.mat` 文件 | 属性值已更新为修改后的值 |
+
+#### 14.5.3 验证保存持久化
+
+| 步骤 | 操作 | 预期结果 |
+|------|------|---------|
+| 29 | 关闭编辑器 → 重新启动 → 打开场景 | 材质属性保持为上次保存的值（不是导入时的原始值） |
+
+---
+
+### 14.6 材质共享验证
+
+| 步骤 | 操作 | 预期结果 |
+|------|------|---------|
+| 30 | 导入同一模型两次（创建两个实体） | 两个实体使用相同的 Mesh Handle 和 Material Handle |
+| 31 | 修改其中一个实体的材质属性 | **两个实体的材质同时变化**（因为共享同一 `Ref<Material>` 实例，通过 AssetManager 缓存保证） |
+
+---
+
+### 14.7 材质缓存验证
+
+| 步骤 | 操作 | 预期结果 |
+|------|------|---------|
+| 32 | 导入一个模型，保存场景 | 正常 |
+| 33 | 关闭编辑器 → 重新启动 → 打开场景 | 模型加载成功 |
+| 34 | 检查控制台日志 | 每个材质只输出一次 `MaterialSerializer: Loaded material '...'`（不会重复加载） |
+
+---
+
+### 14.8 错误处理验证
+
+| 步骤 | 操作 | 预期结果 |
+|------|------|---------|
+| 35 | 手动删除一个 `.mat` 文件，然后打开引用它的场景 | 控制台输出错误日志（`File not found` 或 `Failed to load material`），材质显示为 Error Material（品红色），**不崩溃** |
+| 36 | 手动编辑 `.luck3d` 文件，将某个 `AssetHandle` 改为不存在的值 | 加载时输出 `Handle not found in registry` 错误，使用 Error Material，**不崩溃** |
+| 37 | 手动编辑 `.luck3d` 文件，将 `AssetHandle` 设为 `0` | 使用 Error Material，**不崩溃** |
+
+---
+
+### 14.9 SkyboxMaterial 外部化验证
+
+| 步骤 | 操作 | 预期结果 |
+|------|------|---------|
+| 38 | 在 Lighting 面板中配置天空盒材质 | 天空盒正常渲染 |
+| 39 | 保存场景，用文本编辑器打开 `.luck3d` 文件 | `EnvironmentSettings` 中 `SkyboxMaterial` 为一个数字（AssetHandle），不再内嵌材质数据 |
+| 40 | 关闭编辑器 → 重新启动 → 打开场景 | 天空盒材质通过 AssetHandle 正确加载，渲染正常 |
+
+---
+
+### 14.10 纹理路径验证
+
+| 步骤 | 操作 | 预期结果 |
+|------|------|---------|
+| 41 | 创建一个材质，为其设置纹理贴图 | 纹理正常显示 |
+| 42 | 保存材质，用文本编辑器打开 `.mat` 文件 | 纹理属性的 `Value` 为相对路径（如 `Assets/Textures/Metal_Albedo.png`），使用正斜杠 |
+| 43 | 关闭编辑器 → 重新启动 → 打开场景 | 纹理正确加载显示 |
+
+---
+
+### 14.11 Registry 持久化验证
+
+| 步骤 | 操作 | 预期结果 |
+|------|------|---------|
+| 44 | 创建材质 + 导入模型 | `Assets.lreg` 中包含所有注册的资产条目 |
+| 45 | 关闭编辑器 | 控制台输出 `AssetRegistry: Saved N assets to 'Assets.lreg'` |
+| 46 | 重新启动编辑器 | 控制台输出 `AssetRegistry: Loaded N assets from 'Assets.lreg'`，N 与关闭时一致 |
+
+---
+
+### 14.12 快速测试流程（推荐顺序）
+
+如果时间有限，按以下最小流程验证核心功能：
+
+```
+1.  重新生成项目 → 编译通过                        ← 编译验证
+2.  启动编辑器 → 确认 "AssetManager initialized"    ← Phase A 启动
+3.  File → Create Material... → 保存为 .mat        ← 创建材质
+4.  打开 .mat 文件确认格式正确                      ← .mat 格式验证
+5.  File → Import Model... → 导入一个 .fbx          ← 模型导入 + 材质自动保存
+6.  确认 Materials/ 目录下生成了 .mat 文件           ← 材质独立文件验证
+7.  修改材质属性 → 确认出现 * 标记                  ← 脏标记验证
+8.  点击 Save Material → 确认 * 消失               ← 保存验证
+9.  File → Save As... → 保存场景                   ← 场景序列化验证
+10. 关闭 → 重启 → 打开场景                         ← 完整持久化验证
+11. 确认模型和材质正确加载                          ← 端到端验证
+```
+
+---
+
+### ?? 重要注意事项
+
+1. **旧场景文件不兼容**：不要尝试打开 Phase A/B 之前保存的旧 `.luck3d` 文件，它们使用旧格式（`MeshFilePath` + 内嵌材质），会导致加载异常。需要创建全新场景来测试。
+
+2. **首次启动 Registry 为空**：第一次启动时 `Assets.lreg` 不存在或为空，这是正常的。导入模型或创建材质后才会有注册条目。
+
+3. **内置图元材质**：默认 Cube 的材质是渲染管线内部创建的，没有注册到资产系统，保存场景时其 `AssetHandle` 为 `0`。重新加载时会显示 Error Material。如果需要正常显示，需要先通过 `File → Create Material...` 创建一个 `.mat` 文件，然后手动赋值给 Cube（当前版本暂不支持 UI 赋值，需要 Phase C 的 Content Browser 拖拽功能）。
 
 ---
 
