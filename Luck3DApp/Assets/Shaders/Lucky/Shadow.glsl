@@ -309,4 +309,131 @@ float GetSpotLightShadow(int lightIndex, vec3 worldPos, vec3 normal, vec3 lightD
     return 1.0;  // 该光源不投射阴影
 }
 
+// ==================== Shadow Atlas 点光源阴影 ====================
+
+#define MAX_POINT_SHADOW_LIGHTS 2
+
+// ---- 点光源阴影数据 ----
+uniform int u_PointShadowCount;                                                     // 投射阴影的点光源数量
+uniform int u_PointShadowLightIndex[MAX_POINT_SHADOW_LIGHTS];                       // 对应的光源索引
+uniform mat4 u_PointShadowLightSpaceMatrices[MAX_POINT_SHADOW_LIGHTS * 6];          // 6 面 Light Space Matrix
+uniform vec4 u_PointShadowAtlasScaleBias[MAX_POINT_SHADOW_LIGHTS * 6];              // 6 面 Atlas UV 变换
+uniform float u_PointShadowBias[MAX_POINT_SHADOW_LIGHTS];                           // 阴影偏移
+uniform float u_PointShadowStrength[MAX_POINT_SHADOW_LIGHTS];                       // 阴影强度
+uniform int u_PointShadowType[MAX_POINT_SHADOW_LIGHTS];                             // 阴影类型
+uniform float u_PointShadowFarPlane[MAX_POINT_SHADOW_LIGHTS];                       // 远平面（= Range）
+uniform vec3 u_PointShadowLightPos[MAX_POINT_SHADOW_LIGHTS];                        // 光源位置
+
+/// <summary>
+/// 根据光源到片段的方向向量选择 Cubemap 面索引
+/// 选择绝对值最大的轴作为主轴
+/// </summary>
+int SelectPointLightFace(vec3 fragToLight)
+{
+    vec3 absDir = abs(fragToLight);
+
+    if (absDir.x >= absDir.y && absDir.x >= absDir.z)
+    {
+        return fragToLight.x > 0.0 ? 0 : 1;   // +X or -X
+    }
+    else if (absDir.y >= absDir.x && absDir.y >= absDir.z)
+    {
+        return fragToLight.y > 0.0 ? 2 : 3;   // +Y or -Y
+    }
+    else
+    {
+        return fragToLight.z > 0.0 ? 4 : 5;   // +Z or -Z
+    }
+}
+
+/// <summary>
+/// 计算点光源阴影因子
+/// 使用线性深度比较（距离/远平面）
+/// 返回 float：1.0 = 完全不在阴影中，0.0 = 完全在阴影中
+/// </summary>
+float CalcPointLightShadow(int shadowIndex, vec3 worldPos, vec3 lightPos, vec3 normal)
+{
+    vec3 fragToLight = worldPos - lightPos;
+    int faceIndex = SelectPointLightFace(fragToLight);
+
+    int tileIndex = shadowIndex * 6 + faceIndex;
+    mat4 lightSpaceMatrix = u_PointShadowLightSpaceMatrices[tileIndex];
+    vec4 atlasScaleBias = u_PointShadowAtlasScaleBias[tileIndex];
+
+    // 变换到 Atlas UV 空间
+    vec3 atlasUV = WorldToAtlasUV(worldPos, lightSpaceMatrix, atlasScaleBias);
+
+    // 超出范围检查
+    if (atlasUV.z > 1.0 || atlasUV.z < 0.0)
+    {
+        return 1.0;
+    }
+
+    // 检查是否在 Tile 范围内（防止采样到相邻 Tile）
+    vec2 tileMin = atlasScaleBias.zw;
+    vec2 tileMax = atlasScaleBias.zw + atlasScaleBias.xy;
+    if (atlasUV.x < tileMin.x || atlasUV.x > tileMax.x ||
+        atlasUV.y < tileMin.y || atlasUV.y > tileMax.y)
+    {
+        return 1.0;
+    }
+
+    // 计算线性深度（当前片段到光源的距离 / 远平面）
+    float currentLinearDepth = length(worldPos - lightPos) / u_PointShadowFarPlane[shadowIndex];
+
+    // 动态 Bias（点光源需要更大的 bias）
+    vec3 lightDir = normalize(lightPos - worldPos);
+    float NdotL = dot(normal, lightDir);
+    float bias = u_PointShadowBias[shadowIndex] * (1.0 + 9.0 * (1.0 - clamp(NdotL, 0.0, 1.0)));
+
+    // 读取 Atlas 中存储的线性深度
+    float closestLinearDepth = texture(u_ShadowAtlas, atlasUV.xy).r;
+
+    // 根据阴影类型选择采样方式
+    float shadow = 0.0;
+    if (u_PointShadowType[shadowIndex] == 1)    // Hard
+    {
+        shadow = currentLinearDepth - bias > closestLinearDepth ? 1.0 : 0.0;
+    }
+    else    // Soft（PCF 5×5）
+    {
+        vec2 atlasTexelSize = 1.0 / vec2(textureSize(u_ShadowAtlas, 0));
+        vec2 pcfTileMin = atlasScaleBias.zw + atlasTexelSize;
+        vec2 pcfTileMax = atlasScaleBias.zw + atlasScaleBias.xy - atlasTexelSize;
+
+        for (int x = -2; x <= 2; ++x)
+        {
+            for (int y = -2; y <= 2; ++y)
+            {
+                vec2 sampleUV = clamp(
+                    atlasUV.xy + vec2(x, y) * atlasTexelSize,
+                    pcfTileMin, pcfTileMax
+                );
+                float pcfDepth = texture(u_ShadowAtlas, sampleUV).r;
+                shadow += currentLinearDepth - bias > pcfDepth ? 1.0 : 0.0;
+            }
+        }
+        shadow /= 25.0;
+    }
+
+    shadow *= u_PointShadowStrength[shadowIndex];
+    return 1.0 - shadow;
+}
+
+/// <summary>
+/// 获取点光源阴影因子（供 Lighting.glsl 调用）
+/// lightIndex: 点光源在 u_Lights.PointLights[] 中的索引
+/// </summary>
+float GetPointLightShadow(int lightIndex, vec3 worldPos, vec3 lightPos, vec3 normal)
+{
+    for (int i = 0; i < u_PointShadowCount; ++i)
+    {
+        if (u_PointShadowLightIndex[i] == lightIndex)
+        {
+            return CalcPointLightShadow(i, worldPos, lightPos, normal);
+        }
+    }
+    return 1.0;
+}
+
 #endif // LUCKY_SHADOW_GLSL

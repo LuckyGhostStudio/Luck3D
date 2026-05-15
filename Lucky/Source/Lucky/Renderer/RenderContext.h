@@ -205,6 +205,7 @@ namespace Lucky
             struct PointLightShadow
             {
                 int LightIndex = -1;                            // 在 PointLights[] 中的索引
+                glm::vec3 LightPos = glm::vec3(0.0f);           // 点光源世界空间位置
                 glm::mat4 LightSpaceMatrices[6];                // 6 面 Light Space Matrix
                 glm::vec4 AtlasScaleBias[6];                    // 6 面在 Atlas 中的 UV 变换
                 float ShadowBias = 0.05f;

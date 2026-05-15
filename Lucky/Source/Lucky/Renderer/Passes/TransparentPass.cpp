@@ -32,8 +32,8 @@ namespace Lucky
             }
         }
         
-        // ---- 绑定 Shadow Atlas 纹理（聚光灯阴影） ----
-        if (context.ShadowData.SpotLightShadowCount > 0 && context.ShadowAtlasTextureID != 0)
+        // ---- 绑定 Shadow Atlas 纹理（聚光灯 + 点光源阴影） ----
+        if ((context.ShadowData.SpotLightShadowCount > 0 || context.ShadowData.PointLightShadowCount > 0) && context.ShadowAtlasTextureID != 0)
         {
             RenderCommand::BindTextureUnit(14, context.ShadowAtlasTextureID);
         }
@@ -162,6 +162,38 @@ namespace Lucky
             else
             {
                 cmd.MaterialData->GetShader()->SetInt("u_SpotShadowCount", 0);
+            }
+            
+            // ---- 点光源阴影 uniform ----
+            if (context.ShadowData.PointLightShadowCount > 0)
+            {
+                cmd.MaterialData->GetShader()->SetInt("u_ShadowAtlas", 14);
+                cmd.MaterialData->GetShader()->SetFloat("u_ShadowAtlasSize", static_cast<float>(context.ShadowAtlasSize));
+                cmd.MaterialData->GetShader()->SetInt("u_PointShadowCount", context.ShadowData.PointLightShadowCount);
+
+                for (int i = 0; i < context.ShadowData.PointLightShadowCount; ++i)
+                {
+                    const auto& pointShadow = context.ShadowData.PointLights[i];
+                    std::string idx = std::to_string(i);
+
+                    cmd.MaterialData->GetShader()->SetInt("u_PointShadowLightIndex[" + idx + "]", pointShadow.LightIndex);
+                    cmd.MaterialData->GetShader()->SetFloat("u_PointShadowBias[" + idx + "]", pointShadow.ShadowBias);
+                    cmd.MaterialData->GetShader()->SetFloat("u_PointShadowStrength[" + idx + "]", pointShadow.ShadowStrength);
+                    cmd.MaterialData->GetShader()->SetInt("u_PointShadowType[" + idx + "]", pointShadow.ShadowType);
+                    cmd.MaterialData->GetShader()->SetFloat("u_PointShadowFarPlane[" + idx + "]", pointShadow.FarPlane);
+                    cmd.MaterialData->GetShader()->SetFloat3("u_PointShadowLightPos[" + idx + "]", pointShadow.LightPos);
+
+                    for (int face = 0; face < 6; ++face)
+                    {
+                        std::string tileIdx = std::to_string(i * 6 + face);
+                        cmd.MaterialData->GetShader()->SetMat4("u_PointShadowLightSpaceMatrices[" + tileIdx + "]", pointShadow.LightSpaceMatrices[face]);
+                        cmd.MaterialData->GetShader()->SetFloat4("u_PointShadowAtlasScaleBias[" + tileIdx + "]", pointShadow.AtlasScaleBias[face]);
+                    }
+                }
+            }
+            else
+            {
+                cmd.MaterialData->GetShader()->SetInt("u_PointShadowCount", 0);
             }
             
             // 设置 IBL 相关 uniform（始终设置采样器绑定，确保 sampler 指向有效纹理单元）

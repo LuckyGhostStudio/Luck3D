@@ -41,6 +41,8 @@ namespace Lucky
             "u_ShadowAtlas",            // Shadow Atlas 深度纹理（纹理槽位 14）
             "u_ShadowAtlasSize",        // Atlas 纹理尺寸
             "u_SpotShadowCount",        // 投射阴影的聚光灯数量
+            // ---- Shadow Atlas 点光源阴影：由 OpaquePass/TransparentPass 设置 ----
+            "u_PointShadowCount",       // 投射阴影的点光源数量
         };
 
         // 检查精确匹配
@@ -51,6 +53,23 @@ namespace Lucky
 
         // 检查数组 uniform（u_CascadeLightSpaceMatrices[0] ~ [3]、u_CascadeFarPlanes[0] ~ [3]）
         if (name.find("u_CascadeLightSpaceMatrices") == 0 || name.find("u_CascadeFarPlanes") == 0)
+        {
+            return true;
+        }
+
+        // 检查聚光灯阴影数组 uniform
+        if (name.find("u_SpotShadowLightIndex") == 0 || name.find("u_SpotShadowLightSpaceMatrices") == 0 ||
+            name.find("u_SpotShadowAtlasScaleBias") == 0 || name.find("u_SpotShadowBias") == 0 ||
+            name.find("u_SpotShadowStrength") == 0 || name.find("u_SpotShadowType") == 0)
+        {
+            return true;
+        }
+
+        // 检查点光源阴影数组 uniform
+        if (name.find("u_PointShadowLightIndex") == 0 || name.find("u_PointShadowLightSpaceMatrices") == 0 ||
+            name.find("u_PointShadowAtlasScaleBias") == 0 || name.find("u_PointShadowBias") == 0 ||
+            name.find("u_PointShadowStrength") == 0 || name.find("u_PointShadowType") == 0 ||
+            name.find("u_PointShadowFarPlane") == 0 || name.find("u_PointShadowLightPos") == 0)
         {
             return true;
         }

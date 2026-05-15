@@ -28,6 +28,7 @@
 #include <glm/ext/matrix_clip_space.hpp>
 
 #include <limits>
+#include <array>
 #include <filesystem>
 
 namespace Lucky
@@ -124,6 +125,20 @@ namespace Lucky
         SpotShadowCacheData SpotShadowData[ShadowAtlas::s_MaxSpotLightShadows];
         int SpotShadowCount = 0;
         
+        // ---- 点光源阴影数据 ----
+        struct PointShadowCacheData
+        {
+            int LightIndex = -1;                            // 在 PointLights[] 中的索引
+            glm::vec3 LightPos = glm::vec3(0.0f);           // 点光源世界空间位置
+            float FarPlane = 25.0f;                         // 远平面距离（= Range）
+            glm::mat4 LightSpaceMatrices[6];                // 6 面 Light Space Matrix
+            float ShadowBias = 0.05f;                       // 阴影偏移
+            float ShadowStrength = 1.0f;                    // 阴影强度
+            int ShadowType = 1;                             // 1=Hard, 2=Soft
+        };
+        PointShadowCacheData PointShadowData[ShadowAtlas::s_MaxPointLightShadows];
+        int PointShadowCount = 0;
+        
         // ======== 清屏颜色 ========
         glm::vec4 ClearColor = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);  // 视口清屏颜色（由外部设置）
         
@@ -150,6 +165,7 @@ namespace Lucky
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/Outline/Silhouette");           // 描边轮廓着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/Outline/OutlineComposite");     // 描边合成着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/Shadow/Shadow");                // 阴影着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Shadow/PointShadow");           // 点光源阴影着色器（线性深度）
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/Tonemapping");      // Tonemapping 着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/BrightExtract");    // 亮度提取着色器（Bloom）
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/GaussianBlur");     // 高斯模糊着色器（Bloom）
@@ -293,6 +309,33 @@ namespace Lucky
     {
         IBLPrecompute::Shutdown();
         s_Data.Pipeline.Shutdown();
+    }
+
+    /// <summary>
+    /// 计算点光源 6 面的 Light Space Matrix
+    /// 使用 90° FOV 透视投影，覆盖 Cubemap 的每个面
+    /// </summary>
+    static std::array<glm::mat4, 6> CalcPointLightMatrices(const glm::vec3& lightPos, float farPlane)
+    {
+        float nearPlane = 0.1f;
+        glm::mat4 projection = glm::perspective(glm::radians(90.0f), 1.0f, nearPlane, farPlane);
+
+        std::array<glm::mat4, 6> matrices;
+
+        // +X：看向右方
+        matrices[0] = projection * glm::lookAt(lightPos, lightPos + glm::vec3( 1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+        // -X：看向左方
+        matrices[1] = projection * glm::lookAt(lightPos, lightPos + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+        // +Y：看向上方
+        matrices[2] = projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        // -Y：看向下方
+        matrices[3] = projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,-1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
+        // +Z：看向前方
+        matrices[4] = projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+        // -Z：看向后方
+        matrices[5] = projection * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f, 0.0f,-1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+
+        return matrices;
     }
 
     void Renderer3D::BeginScene(const EditorCamera& camera, const SceneLightData& lightData)
@@ -441,6 +484,35 @@ namespace Lucky
 
         }
         
+        // ======== 点光源阴影矩阵计算 ========
+        s_Data.PointShadowCount = 0;
+        for (int i = 0; i < lightData.PointLightCount && s_Data.PointShadowCount < ShadowAtlas::s_MaxPointLightShadows; ++i)
+        {
+            if (lightData.PointLightShadows[i].Shadows != ShadowType::None)
+            {
+                const PointLightData& pointLight = lightData.PointLights[i];
+                float farPlane = pointLight.Range;
+                glm::vec3 lightPos = pointLight.Position;
+
+                // 计算 6 面 Light Space Matrix
+                std::array<glm::mat4, 6> matrices = CalcPointLightMatrices(lightPos, farPlane);
+
+                s_Data.PointShadowData[s_Data.PointShadowCount].LightIndex = i;
+                s_Data.PointShadowData[s_Data.PointShadowCount].LightPos = lightPos;
+                s_Data.PointShadowData[s_Data.PointShadowCount].FarPlane = farPlane;
+                s_Data.PointShadowData[s_Data.PointShadowCount].ShadowBias = lightData.PointLightShadows[i].ShadowBias;
+                s_Data.PointShadowData[s_Data.PointShadowCount].ShadowStrength = lightData.PointLightShadows[i].ShadowStrength;
+                s_Data.PointShadowData[s_Data.PointShadowCount].ShadowType = static_cast<int>(lightData.PointLightShadows[i].Shadows);
+
+                for (int face = 0; face < 6; ++face)
+                {
+                    s_Data.PointShadowData[s_Data.PointShadowCount].LightSpaceMatrices[face] = matrices[face];
+                }
+
+                ++s_Data.PointShadowCount;
+            }
+        }
+
         // ======== 聚光灯阴影矩阵计算 ========
         s_Data.SpotShadowCount = 0;
         for (int i = 0; i < lightData.SpotLightCount && s_Data.SpotShadowCount < ShadowAtlas::s_MaxSpotLightShadows; ++i)
@@ -562,6 +634,30 @@ namespace Lucky
             {
                 int tileIdx = shadowPass->GetShadowAtlas().GetSpotLightTileIndex(i);
                 context.ShadowData.SpotLights[i].AtlasScaleBias = shadowPass->GetShadowAtlas().GetTile(tileIdx).ViewportScaleBias;
+            }
+        }
+        
+        // ---- 点光源阴影数据 ----
+        context.ShadowData.PointLightShadowCount = s_Data.PointShadowCount;
+        for (int i = 0; i < s_Data.PointShadowCount; ++i)
+        {
+            context.ShadowData.PointLights[i].LightIndex = s_Data.PointShadowData[i].LightIndex;
+            context.ShadowData.PointLights[i].LightPos = s_Data.PointShadowData[i].LightPos;
+            context.ShadowData.PointLights[i].FarPlane = s_Data.PointShadowData[i].FarPlane;
+            context.ShadowData.PointLights[i].ShadowBias = s_Data.PointShadowData[i].ShadowBias;
+            context.ShadowData.PointLights[i].ShadowStrength = s_Data.PointShadowData[i].ShadowStrength;
+            context.ShadowData.PointLights[i].ShadowType = s_Data.PointShadowData[i].ShadowType;
+
+            for (int face = 0; face < 6; ++face)
+            {
+                context.ShadowData.PointLights[i].LightSpaceMatrices[face] = s_Data.PointShadowData[i].LightSpaceMatrices[face];
+
+                // 从 ShadowAtlas 获取 Tile 的 ViewportScaleBias
+                if (shadowPass)
+                {
+                    int tileIdx = shadowPass->GetShadowAtlas().GetPointLightTileStart(i) + face;
+                    context.ShadowData.PointLights[i].AtlasScaleBias[face] = shadowPass->GetShadowAtlas().GetTile(tileIdx).ViewportScaleBias;
+                }
             }
         }
         

@@ -131,6 +131,11 @@ namespace Lucky
                         pointLight.Intensity = light.Intensity;
                         pointLight.Range = light.Range;
 
+                        // 收集点光源阴影参数
+                        sceneLightData.PointLightShadows[sceneLightData.PointLightCount].Shadows = light.Shadows;
+                        sceneLightData.PointLightShadows[sceneLightData.PointLightCount].ShadowBias = light.ShadowBias;
+                        sceneLightData.PointLightShadows[sceneLightData.PointLightCount].ShadowStrength = light.ShadowStrength;
+
                         sceneLightData.PointLightCount++;
                         break;
                     }

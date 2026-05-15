@@ -68,10 +68,16 @@ namespace Lucky
         /// </summary>
         void RenderSpotLightShadows(const RenderContext& context);
 
+        /// <summary>
+        /// 渲染所有点光源阴影到 Shadow Atlas（每个点光源 6 面，使用线性深度）
+        /// </summary>
+        void RenderPointLightShadows(const RenderContext& context);
+
         // ---- CSM 资源（方向光，保留现有实现） ----
         Ref<Framebuffer> m_CSMFramebuffer;              // CSM Texture2DArray FBO（多层深度纹理）
         Ref<Framebuffer> m_TranslucentShadowFBO;        // Translucent Shadow Map FBO（RGBA8 Array 颜色 + 深度 Array，所有级联）
         Ref<Shader> m_ShadowShader;                     // Shadow Pass Shader
+        Ref<Shader> m_PointShadowShader;                // 点光源 Shadow Shader（线性深度）
         uint32_t m_ShadowMapResolution = 2048;          // Shadow Map 分辨率
         int m_CascadeCount = 4;                         // 当前级联数量
 

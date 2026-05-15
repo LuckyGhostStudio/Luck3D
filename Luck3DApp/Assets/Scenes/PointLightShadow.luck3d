@@ -32,12 +32,12 @@ EnvironmentSettings:
   SpecularIntensity: 1
   ReflectionResolution: 128
 Entitys:
-  - Entity: 10692458358831742295
+  - Entity: 12351622372979418215
     NameComponent:
       Name: Spot Light
     TransformComponent:
-      Position: [0, 5.36825991, 3.22464705]
-      Rotation: [0.918533921, 0, 0, 0.395342171]
+      Position: [-0.101908103, 2.38270569, -0.600312769]
+      Rotation: [0.471866101, 0, 0, 0.881670237]
       Scale: [1, 1, 1]
     RelationshipComponent:
       Parent: 0
@@ -46,18 +46,37 @@ Entitys:
     LightComponent:
       Type: 2
       Color: [1, 1, 1]
-      Intensity: 10.4099998
+      Intensity: 1.90999997
       Range: 10
-      InnerCutoffAngle: 23
-      OuterCutoffAngle: 26.5
+      InnerCutoffAngle: 12.5
+      OuterCutoffAngle: 38
       Shadows: 1
       ShadowBias: 0.000300000014
       ShadowStrength: 1
-  - Entity: 5839154882431917896
+  - Entity: 15382272025743545056
+    NameComponent:
+      Name: Point Light (1)
+    TransformComponent:
+      Position: [0.704830408, 1.78072166, -0.560762644]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    LightComponent:
+      Type: 1
+      Color: [1, 1, 1]
+      Intensity: 1.63999999
+      Range: 10
+      Shadows: 1
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1
+  - Entity: 13919040721883898697
     NameComponent:
       Name: Cube
     TransformComponent:
-      Position: [0, 1.19732237, 0]
+      Position: [0, 0.765659213, 0]
       Rotation: [0, 0, 0, 1]
       Scale: [1, 1, 1]
     RelationshipComponent:
@@ -115,34 +134,32 @@ Entitys:
             - Name: u_RoughnessMap
               Type: Sampler2D
               Value: ""
-  - Entity: 10558773710253981006
+  - Entity: 1416789579016861881
     NameComponent:
-      Name: Spolt Light
+      Name: Point Light
     TransformComponent:
-      Position: [1.52347767, 3.4262023, -2.43807411]
-      Rotation: [0.406246752, -0.249812275, 0.116489381, 0.871198952]
+      Position: [-0.0216607749, 1.75130653, 1.20385814]
+      Rotation: [0, 0, 0, 1]
       Scale: [1, 1, 1]
     RelationshipComponent:
       Parent: 0
       Children:
         []
     LightComponent:
-      Type: 2
+      Type: 1
       Color: [1, 1, 1]
-      Intensity: 3.02999997
+      Intensity: 2.25999999
       Range: 10
-      InnerCutoffAngle: 12.5
-      OuterCutoffAngle: 33
-      Shadows: 1
+      Shadows: 2
       ShadowBias: 0.000300000014
       ShadowStrength: 1
-  - Entity: 10466138652629213686
+  - Entity: 15212951753771079853
     NameComponent:
       Name: Plane
     TransformComponent:
       Position: [0, 0, 0]
       Rotation: [0, 0, 0, 1]
-      Scale: [17.90131, 17.90131, 17.90131]
+      Scale: [12.1269989, 12.1269989, 12.1269989]
     RelationshipComponent:
       Parent: 0
       Children:

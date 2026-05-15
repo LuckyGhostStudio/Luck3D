@@ -181,7 +181,16 @@ vec3 CalcAllLights(vec3 N, vec3 V, vec3 worldPos, vec3 albedo, float metallic, f
     // 点光源
     for (int i = 0; i < u_Lights.PointLightCount; ++i)
     {
-        Lo += CalcPointLight(u_Lights.PointLights[i], N, V, worldPos, albedo, metallic, roughness, F0);
+        vec3 contribution = CalcPointLight(u_Lights.PointLights[i], N, V, worldPos, albedo, metallic, roughness, F0);
+
+        // 应用点光源阴影
+        if (u_PointShadowCount > 0)
+        {
+            float shadowFactor = GetPointLightShadow(i, worldPos, u_Lights.PointLights[i].Position, N);
+            contribution *= shadowFactor;
+        }
+
+        Lo += contribution;
     }
 
     // 聚光灯

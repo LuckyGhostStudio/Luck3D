@@ -68,13 +68,13 @@ namespace Lucky
             switch (type)
             {
                 case LightType::Directional:
-                    Shadows = ShadowType::Hard;     // 方向光默认开启硬阴影
+                    Shadows = ShadowType::Hard;
                     break;
                 case LightType::Point:
-                    Shadows = ShadowType::None;
+                    Shadows = ShadowType::Hard;
                     break;
                 case LightType::Spot:
-                    Shadows = ShadowType::None;
+                    Shadows = ShadowType::Hard;
                     break;
             }
         }
