@@ -1,8 +1,8 @@
 # Luck3D 引擎功能盘点与状态追踪
 
-> **文档版本**：v1.3  
+> **文档版本**：v1.4  
 > **创建日期**：2026-04-29  
-> **更新日期**：2026-05-06  
+> **更新日期**：2026-05-14  
 > **文档说明**：本文档全面盘点 Luck3D 引擎的功能实现状态，对标简化版 Unity / 通用 3D 游戏引擎的功能集，追踪距离第一个可发布版本（MVP）的差距。**每次功能更新后请同步更新本文档。**
 
 ---
@@ -11,6 +11,7 @@
 
 | 日期 | 版本 | 更新内容 |
 |------|------|----------|
+| 2026-05-14 | v1.4 | 完成 R-TODO-05 级联阴影 CSM、R-TODO-06 IBL 环境光，移至已实现；新增 R-TODO-12 多光源阴影投射、R-TODO-13 点光源/聚光灯阴影（未实现）；更新阴影系统说明，明确当前仅支持方向光阴影 |
 | 2026-05-06 | v1.3 | 完成 R-TODO-07 天空盒渲染（SkyboxPass + TextureCube + Material 驱动），移至已实现 |
 | 2026-04-30 | v1.2 | 完成 R-TODO-03 透明物体渲染、R21 Translucent Shadow Map，移至已实现；新增 R-TODO-MAT1 Material Semantic Mapping（设计文档已完成，代码待实现） |
 | 2026-04-30 | v1.1 | 完成 R-TODO-01 HDR+Tonemapping、R-TODO-02 后处理框架（Bloom/FXAA/Vignette）、R-TODO-04 Per-Material RenderState，移至已实现 |
@@ -51,7 +52,7 @@
 | 模块 | 完成度 | 已实现 | 未实现 | 说明 |
 |------|--------|--------|--------|------|
 | 核心基础设施（Core） | ?? 90% | 10 | 1 | 基本完善，缺少异步事件队列 |
-| 渲染系统（Renderer） | ?? 90% | 31 | 6 | 核心管线完整，HDR/后处理/Per-Material RenderState/透明渲染/Translucent Shadow/天空盒已完成，缺 IBL/CSM/Material Semantic |
+| 渲染系统（Renderer） | ?? 93% | 40 | 7 | 核心管线完整，CSM/IBL/HDR/后处理/透明渲染/Translucent Shadow/天空盒已完成，缺多光源阴影/点光源聚光灯阴影/视锥体剔除/Material Semantic |
 | 场景与 ECS（Scene） | ?? 65% | 9 | 6 | 基础完善，缺 Camera 组件/Play Mode |
 | 序列化系统（Serialization） | ?? 85% | 6 | 1 | 基本完善，缺独立材质文件 |
 | 编辑器（Editor） | ?? 60% | 14 | 10 | 框架完善，缺 Undo/Console/ContentBrowser |
@@ -141,8 +142,15 @@
 
 | # | 功能 | 状态 | 关键文件 | 说明 |
 |---|------|------|----------|------|
-| R-22 | 方向光 Shadow Map | ? 已完成 | `Renderer/Passes/ShadowPass.h/cpp` | 方向光阴影贴图 |
+| R-22 | 方向光 Shadow Map | ? 已完成 | `Renderer/Passes/ShadowPass.h/cpp` | 方向光阴影贴图（仅方向光，点光源/聚光灯阴影未实现） |
 | R-23 | 硬阴影 / 软阴影 (PCF) | ? 已完成 | `Shaders/Lucky/Shadow.glsl` | 硬阴影 + PCF 3×3 软阴影 + 动态 Bias |
+| R-39 | 级联阴影 (CSM) | ? 已完成 | `Renderer/Renderer3D.cpp`、`Renderer/Passes/ShadowPass.h/cpp`、`Shaders/Lucky/Shadow.glsl` | 视锥体分割 + 多级 Light Space Matrix + Texture2DArray + 级联选择 + CSM 调试可视化 + Inspector UI 参数（CascadeCount/ShadowDistance/CascadeSplits/Resolution） |
+
+#### IBL 环境光
+
+| # | 功能 | 状态 | 关键文件 | 说明 |
+|---|------|------|----------|------|
+| R-40 | IBL 环境光 | ? 已完成 | `Renderer/IBLPrecompute.h/cpp`、`Shaders/Internal/IBL/BRDFIntegration.frag`、`IrradianceConvolution.frag`、`PrefilterConvolution.frag` | BRDF LUT（512×512）+ Irradiance Map（32×32）+ Prefiltered Map（多 Mip）+ 天空盒变更自动重新生成 + Skybox/Color 双模式环境光 + 漫反射/镜面反射强度控制 + 默认 fallback 纹理 |
 
 #### 编辑器渲染功能
 
@@ -255,12 +263,12 @@
 
 | # | 功能 | 优先级 | 说明 | 参考引擎 |
 |---|------|--------|------|----------|
-| R-TODO-05 | **级联阴影 (CSM)** | ?? P1 | 当前阴影使用固定正交范围，大场景精度不足 | Unity |
-| R-TODO-06 | **IBL 环境光** | ?? P1 | 当前环境光为简单常量 `vec3(0.03)`，缺乏环境反射。需要：HDR→Cubemap 转换、Irradiance Map、Prefiltered Map、BRDF LUT | Unity / Hazel |
 | R-TODO-08 | **视锥体剔除** | ?? P1 | 所有物体都提交 GPU，无剔除优化 | Unity |
 | R-TODO-09 | **LOD 系统** | ?? P2 | 无多级细节 | Unity |
 | R-TODO-10 | **Deferred Rendering** | ?? P2 | 当前 Forward 渲染，光源多时性能差 | 可选架构 |
 | R-TODO-11 | **GPU Instancing** | ?? P2 | 无实例化渲染 | Unity |
+| R-TODO-12 | **多光源阴影投射** | ?? P1 | 当前仅第一个方向光投射阴影，其余方向光及所有点光源/聚光灯均无阴影。需要支持多个光源同时投射阴影 | Unity |
+| R-TODO-13 | **点光源 / 聚光灯阴影** | ?? P1 | 点光源需要 Omnidirectional Shadow Map（Cubemap 或 Dual-Paraboloid），聚光灯需要透视投影 Shadow Map。当前 ShadowPass 仅支持方向光正交投影 | Unity |
 | R-TODO-MAT1 | **Material Semantic Mapping** | ?? P1 | ShadowPass 硬编码 u_Albedo/u_AlbedoMap 属性名，需通过语义映射兼容自定义 Shader。设计文档已完成（PhaseR22），代码待实现 | Unity / Unreal |
 
 ---
@@ -506,7 +514,7 @@ Phase 4：脚本与发布（约 3-4 周）
 
 1. **渲染管线架构**（RenderPass / RenderPipeline / DrawCommand 排序）— 架构清晰，扩展性好
 2. **PBR 材质系统**（Shader 内省 + 自动属性发现 + PropertyMap）— 设计优秀，用户无需手动注册属性
-3. **阴影系统**（Hard/Soft + 动态 Bias + ShadowPass）— 功能完整
+3. **阴影系统**（CSM 级联阴影 + Hard/Soft + 动态 Bias + Translucent Shadow + IBL 环境光）— 方向光阴影功能完整，点光源/聚光灯阴影待实现
 4. **选中描边**（Silhouette + 边缘检测 + 叶/非叶节点颜色区分）— 效果完整
 5. **Gizmo 渲染**（无限网格 + 灯光可视化 + 坐标轴指示器）— 编辑体验良好
 6. **模型导入**（Assimp 集成 + 多格式支持）— 已可用
