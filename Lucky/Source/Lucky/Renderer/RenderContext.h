@@ -163,6 +163,59 @@ namespace Lucky
         float IBLDiffuseIntensity = 1.0f;                           // IBL 漫反射强度
         float IBLSpecularIntensity = 1.0f;                          // IBL 镜面反射强度
         
+        // ======== Shadow Atlas 数据（为多光源阴影提供基础设施） ========
+        uint32_t ShadowAtlasTextureID = 0;          // Shadow Atlas 深度纹理 ID
+        uint32_t ShadowAtlasSize = 4096;            // Atlas 纹理尺寸
+
+        /// <summary>
+        /// Shader 端需要的每光源阴影数据
+        /// 由 Renderer3D::EndScene() 从 ShadowAtlas 中提取，传递给 OpaquePass/TransparentPass
+        /// </summary>
+        struct ShaderShadowData
+        {
+            // ---- 方向光阴影（最多 2 个方向光 × 4 级联） ----
+            int DirLightShadowCount = 0;                        // 投射阴影的方向光数量
+            struct DirLightShadow
+            {
+                int CascadeCount = 4;
+                glm::mat4 LightSpaceMatrices[4];                // 每级 Light Space Matrix
+                glm::vec4 AtlasScaleBias[4];                    // 每级在 Atlas 中的 UV 变换
+                float CascadeFarPlanes[4] = { 0.0f };           // 每级远平面距离（视图空间）
+                float ShadowBias = 0.0003f;
+                float ShadowStrength = 1.0f;
+                int ShadowType = 1;                             // 1=Hard, 2=Soft
+            };
+            DirLightShadow DirLights[2];                        // 最多 2 个方向光投射阴影
+
+            // ---- 聚光灯阴影（最多 4 个） ----
+            int SpotLightShadowCount = 0;
+            struct SpotLightShadow
+            {
+                int LightIndex = -1;                            // 在 SpotLights[] 中的索引
+                glm::mat4 LightSpaceMatrix;                     // 光源空间 VP 矩阵
+                glm::vec4 AtlasScaleBias;                       // 在 Atlas 中的 UV 变换
+                float ShadowBias = 0.001f;
+                float ShadowStrength = 1.0f;
+                int ShadowType = 1;
+            };
+            SpotLightShadow SpotLights[4];
+
+            // ---- 点光源阴影（最多 2 个 × 6 面） ----
+            int PointLightShadowCount = 0;
+            struct PointLightShadow
+            {
+                int LightIndex = -1;                            // 在 PointLights[] 中的索引
+                glm::mat4 LightSpaceMatrices[6];                // 6 面 Light Space Matrix
+                glm::vec4 AtlasScaleBias[6];                    // 6 面在 Atlas 中的 UV 变换
+                float ShadowBias = 0.05f;
+                float ShadowStrength = 1.0f;
+                int ShadowType = 1;
+                float FarPlane = 25.0f;                         // 点光源阴影远平面（= Range）
+            };
+            PointLightShadow PointLights[2];
+        };
+        ShaderShadowData ShadowData;
+
         // ---- 调试标志 ----
         bool DebugCSMVisualize = false;         // CSM 级联颜色可视化（由 ShadowPass 控制）
         

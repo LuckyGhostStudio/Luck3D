@@ -163,6 +163,24 @@ namespace Lucky
         glBindTextureUnit(slot, textureID);
     }
 
+    void RenderCommand::SetScissorTest(bool enable)
+    {
+        if (enable)
+        {
+            glEnable(GL_SCISSOR_TEST);
+        }
+        else
+        {
+            glDisable(GL_SCISSOR_TEST);
+        }
+    }
+
+    void RenderCommand::SetScissor(int x, int y, int width, int height)
+    {
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(x, y, width, height);
+    }
+
     void RenderCommand::ResetDefaultRenderState()
     {
         SetCullMode(CullMode::Back);            // 背面剔除
@@ -171,5 +189,6 @@ namespace Lucky
         SetDepthFunc(DepthCompareFunc::Less);   // 深度比较函数：Less
         SetBlendMode(BlendMode::None);          // 关闭混合
         SetColorMask(true, true, true, true);   // 开启所有颜色通道写入
+        SetScissorTest(false);                  // 关闭裁剪测试
     }
 }

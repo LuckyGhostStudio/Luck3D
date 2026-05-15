@@ -124,6 +124,22 @@ namespace Lucky
         static void BindTextureUnit(uint32_t slot, uint32_t textureID);
 
         /// <summary>
+        /// 设置裁剪测试开关
+        /// </summary>
+        /// <param name="enable">是否启用裁剪测试</param>
+        static void SetScissorTest(bool enable);
+
+        /// <summary>
+        /// 设置裁剪矩形区域（同时启用裁剪测试）
+        /// 仅在裁剪矩形内的像素会被写入帧缓冲
+        /// </summary>
+        /// <param name="x">裁剪区域左下角 X（像素）</param>
+        /// <param name="y">裁剪区域左下角 Y（像素）</param>
+        /// <param name="width">裁剪区域宽度（像素）</param>
+        /// <param name="height">裁剪区域高度（像素）</param>
+        static void SetScissor(int x, int y, int width, int height);
+
+        /// <summary>
         /// 恢复默认渲染状态
         /// 将面剔除、深度测试、深度写入、深度比较函数、混合模式、颜色写入掩码
         /// 重置为引擎初始化时的默认值。

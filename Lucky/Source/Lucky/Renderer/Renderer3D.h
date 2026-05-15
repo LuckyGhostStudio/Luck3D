@@ -71,13 +71,53 @@ namespace Lucky
         int SpotLightCount = 0;
         SpotLightData SpotLights[s_MaxSpotLights];                      // 聚光灯数组
         
-        // ---- 阴影参数（CPU 端传递，不影响 UBO 布局） ----
-        // 仅使用第一个方向光的阴影参数
+        // ======== 每光源阴影参数（支持多光源阴影） ========
+
+        /// <summary>
+        /// 方向光阴影参数（每个方向光独立）
+        /// </summary>
+        struct DirLightShadowParams
+        {
+            ShadowType Shadows = ShadowType::None;                              // 阴影类型
+            float ShadowBias = 0.0003f;                                         // 阴影偏移
+            float ShadowStrength = 1.0f;                                        // 阴影强度 [0, 1]
+            int CascadeCount = 4;                                               // 级联数量 [1, 4]
+            float ShadowDistance = 150.0f;                                      // 阴影最大距离
+            float CascadeSplits[s_MaxCascadeCount] = { 0.067f, 0.2f, 0.467f, 1.0f };  // 级联分割比例
+            int ShadowMapResolution = 1024;                                     // Atlas 中每级 Tile 分辨率
+        };
+        DirLightShadowParams DirLightShadows[s_MaxDirectionalLights];
+
+        /// <summary>
+        /// 聚光灯阴影参数（每个聚光灯独立）
+        /// </summary>
+        struct SpotLightShadowParams
+        {
+            ShadowType Shadows = ShadowType::None;      // 阴影类型
+            float ShadowBias = 0.001f;                  // 阴影偏移
+            float ShadowStrength = 1.0f;                // 阴影强度 [0, 1]
+            int ShadowMapResolution = 512;              // Atlas 中 Tile 分辨率
+        };
+        SpotLightShadowParams SpotLightShadows[s_MaxSpotLights];
+
+        /// <summary>
+        /// 点光源阴影参数（每个点光源独立）
+        /// </summary>
+        struct PointLightShadowParams
+        {
+            ShadowType Shadows = ShadowType::None;      // 阴影类型
+            float ShadowBias = 0.05f;                   // 阴影偏移（点光源需要更大的 bias）
+            float ShadowStrength = 1.0f;                // 阴影强度 [0, 1]
+            int ShadowMapResolution = 512;              // Atlas 中每面 Tile 分辨率
+        };
+        PointLightShadowParams PointLightShadows[s_MaxPointLights];
+
+        // ---- 向后兼容（过渡期保留，R29 完成后删除） ----
         ShadowType DirLightShadowType = ShadowType::None;  // 方向光阴影类型
         float DirLightShadowBias = 0.005f;                  // 方向光阴影偏移
         float DirLightShadowStrength = 1.0f;                // 方向光阴影强度 [0, 1]
 
-        // ---- CSM 参数 ----
+        // ---- CSM 参数（过渡期保留，R29 完成后删除） ----
         int CascadeCount = 4;                                                       // 级联数量
         float ShadowDistance = 150.0f;                                              // 阴影最大距离
         float CascadeSplits[s_MaxCascadeCount] = { 0.067f, 0.2f, 0.467f, 1.0f };    // 级联分割比例
