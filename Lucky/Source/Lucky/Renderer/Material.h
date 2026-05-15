@@ -8,6 +8,8 @@
 #include "TextureCube.h"
 #include "RenderState.h"
 
+#include "Lucky/Asset/Asset.h"
+
 namespace Lucky
 {
     /// <summary>
@@ -38,9 +40,11 @@ namespace Lucky
     /// <summary>
     /// 材质：持有一个 Shader 和一组材质属性
     /// </summary>
-    class Material
+    class Material : public Asset
     {
     public:
+        AssetType GetAssetType() const override { return AssetType::Material; }
+
         /// <summary>
         /// 创建材质
         /// </summary>

@@ -5,6 +5,8 @@
 #include "Buffer.h"
 #include "VertexArray.h"
 
+#include "Lucky/Asset/Asset.h"
+
 namespace Lucky
 {
     struct Vertex
@@ -24,9 +26,11 @@ namespace Lucky
         uint32_t MaterialIndex; // ²ÄÖÊË÷Òı
     };
     
-    class Mesh
+    class Mesh : public Asset
     {
     public:
+        AssetType GetAssetType() const override { return AssetType::Mesh; }
+
         Mesh() = default;
         Mesh(const Mesh&) = default;
         Mesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);

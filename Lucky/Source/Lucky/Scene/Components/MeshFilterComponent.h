@@ -9,10 +9,8 @@ namespace Lucky
     
     struct MeshFilterComponent
     {
-        MeshRef Mesh;
-        PrimitiveType Primitive = PrimitiveType::None;  // Temp TODO Remove
-        
-        std::string MeshFilePath;                       // 模型文件路径
+        MeshRef Mesh;                                       // 运行时 Mesh 实例（Mesh 继承 Asset，内含 Handle）
+        PrimitiveType Primitive = PrimitiveType::None;      // 内置图元类型（None 表示使用外部模型）
         
         MeshFilterComponent() = default;
         MeshFilterComponent(const MeshFilterComponent& other) = default;

@@ -19,6 +19,8 @@ namespace Lucky
     class TextureCube : public Texture
     {
     public:
+        AssetType GetAssetType() const override { return AssetType::None; }  // TextureCube 暂不纳入资产管理（预留）
+
         /// <summary>
         /// 从 6 面图片文件创建 Cubemap
         /// 面顺序：+X(Right), -X(Left), +Y(Top), -Y(Bottom), +Z(Front), -Z(Back)

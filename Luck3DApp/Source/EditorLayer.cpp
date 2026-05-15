@@ -18,6 +18,7 @@
 
 #include "Lucky/Serialization//SceneSerializer.h"
 #include "Lucky/Asset/MeshImporter.h"
+#include "Lucky/Asset/AssetManager.h"
 
 #include <filesystem>
 
@@ -40,6 +41,9 @@ namespace Lucky
     void EditorLayer::OnAttach()
     {
         LF_TRACE("EditorLayer::OnAttach");
+
+        // 初始化资产系统
+        AssetManager::Init();
 
         m_Scene = CreateRef<Scene>("New Scene");
         
@@ -84,6 +88,9 @@ namespace Lucky
     void EditorLayer::OnDetach()
     {
         LF_TRACE("EditorLayer::OnDetach");
+
+        // 关闭资产系统
+        AssetManager::Shutdown();
     }
 
     void EditorLayer::OnUpdate(DeltaTime dt)
@@ -330,31 +337,58 @@ namespace Lucky
         // TODO 检查文件类型
         // TODO 导入设置面板
         
-        MeshImportResult result = MeshImporter::Import(filepath.string());
+        // 通过 AssetManager 导入模型资产
+        std::filesystem::path relPath = std::filesystem::relative(filepath);
+        std::string normalizedPath = relPath.generic_string();
         
+        AssetHandle meshHandle = AssetManager::ImportAsset(normalizedPath, AssetType::Mesh);
+        if (!meshHandle.IsValid())
+        {
+            LF_CORE_ERROR("Failed to import model: '{0}'", normalizedPath);
+            return;
+        }
+        
+        // 通过 AssetManager 加载 Mesh
+        Ref<Mesh> mesh = AssetManager::GetAsset<Mesh>(meshHandle);
+        if (!mesh)
+        {
+            LF_CORE_ERROR("Failed to load mesh asset: '{0}'", normalizedPath);
+            return;
+        }
+        
+        // 创建实体
+        std::string name = filepath.stem().string();
+        Entity entity = m_Scene->CreateEntity(name);
+        
+        // 添加 MeshFilter
+        auto& meshFilterComponent = entity.AddComponent<MeshFilterComponent>();
+        meshFilterComponent.Mesh = mesh;
+        
+        // 添加 MeshRenderer
+        // 导入模型时同时获取材质（通过 MeshImporter 的结果）
+        // 注意：当前 MeshAssetImporter 只返回 Mesh，材质需要单独处理
+        // 暂时使用 MeshImporter 直接获取材质列表
+        MeshImportResult result = MeshImporter::Import(filepath.string());
+        auto& meshRenderer = entity.AddComponent<MeshRendererComponent>();
         if (result.Success)
         {
-            // 创建实体
-            std::string name = filepath.stem().string();
-            Entity entity = m_Scene->CreateEntity(name);
-        
-            // 添加 MeshFilter
-            std::filesystem::path relPath = std::filesystem::relative(filepath);    // 存储相对路径
-            auto& meshFilterComponent = entity.AddComponent<MeshFilterComponent>();
-            meshFilterComponent.MeshFilePath = relPath.string();
-            meshFilterComponent.Mesh = result.MeshData;
-            
-            // 添加 MeshRenderer（使用导入的材质）
-            auto& meshRenderer = entity.AddComponent<MeshRendererComponent>();
+            // 为每个导入的材质注册到资产系统并设置 Handle
+            for (auto& material : result.Materials)
+            {
+                if (material)
+                {
+                    // 材质继承 Asset，设置一个临时 Handle（内存中的材质，尚无独立 .mat 文件）
+                    material->SetHandle(AssetHandle::Generate());
+                }
+            }
             meshRenderer.Materials = result.Materials;
-            
-            SelectionManager::Select(entity.GetUUID()); // 选中当前实体
+        }
         
-            LF_CORE_INFO("Imported model: {0} ({1} SubMeshes, {2} Materials)", name, result.MeshData->GetSubMeshes().size(), result.Materials.size());
-        }
-        else
-        {
-            LF_CORE_ERROR("Failed to import model: {0}", result.ErrorMessage);
-        }
+        SelectionManager::Select(entity.GetUUID()); // 选中当前实体
+        
+        // 保存 Registry
+        AssetManager::SaveRegistry();
+        
+        LF_CORE_INFO("Imported model: {0} ({1} SubMeshes, {2} Materials)", name, mesh->GetSubMeshes().size(), meshRenderer.Materials.size());
     }
 }

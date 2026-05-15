@@ -9,6 +9,7 @@
 #include "Lucky/Renderer/Renderer3D.h"
 
 #include "Lucky/Asset/MeshImporter.h"
+#include "Lucky/Asset/AssetManager.h"
 #include "YamlHelpers.h"
 
 #include <fstream>
@@ -137,7 +138,16 @@ namespace Lucky
             out << YAML::BeginMap;
             
             out << YAML::Key << "PrimitiveType" << YAML::Value << static_cast<int>(meshFilterComponent.Primitive);
-            out << YAML::Key << "MeshFilePath" << YAML::Value << meshFilterComponent.MeshFilePath;
+            
+            // 外部模型：通过 Mesh 实例获取 AssetHandle
+            if (meshFilterComponent.Mesh && meshFilterComponent.Primitive == PrimitiveType::None)
+            {
+                out << YAML::Key << "MeshAsset" << YAML::Value << static_cast<uint64_t>(meshFilterComponent.Mesh->GetHandle());
+            }
+            else
+            {
+                out << YAML::Key << "MeshAsset" << YAML::Value << static_cast<uint64_t>(0);
+            }
             
             out << YAML::EndMap;
         }
@@ -151,24 +161,22 @@ namespace Lucky
             
             out << YAML::BeginMap;
             
-            // 序列化材质列表
+            // 序列化材质列表（使用 AssetHandle 引用）
             out << YAML::Key << "Materials" << YAML::Value << YAML::BeginSeq;
 
             for (const auto& material : meshRendererComponent.Materials)
             {
+                out << YAML::BeginMap;
                 if (material)
                 {
-                    MaterialSerializer::Serialize(out, material);   // 序列化材质
+                    // 通过 Material 实例获取 AssetHandle（Material 继承 Asset，自带 Handle）
+                    out << YAML::Key << "AssetHandle" << YAML::Value << static_cast<uint64_t>(material->GetHandle());
                 }
                 else
                 {
-                    // 空材质占位（保持索引对应关系）
-                    out << YAML::BeginMap;
-                    out << YAML::Key << "Name" << YAML::Value << "";
-                    out << YAML::Key << "Shader" << YAML::Value << "";
-                    out << YAML::Key << "Properties" << YAML::Value << YAML::BeginSeq << YAML::EndSeq;
-                    out << YAML::EndMap;
+                    out << YAML::Key << "AssetHandle" << YAML::Value << static_cast<uint64_t>(0);
                 }
+                out << YAML::EndMap;
             }
 
             out << YAML::EndSeq;    // 材质列表结束
@@ -420,20 +428,38 @@ namespace Lucky
                 YAML::Node meshFilterComponentNode = entity["MeshFilterComponent"];
                 if (meshFilterComponentNode)
                 {
-                    
                     PrimitiveType primitiveType = static_cast<PrimitiveType>(meshFilterComponentNode["PrimitiveType"].as<int>());
-                    auto& meshFilterComponent = deserializedEntity.AddComponent<MeshFilterComponent>(primitiveType);
                     
-                    std::string path = meshFilterComponentNode["MeshFilePath"].as<std::string>();
-                    if (!path.empty())
+                    if (primitiveType != PrimitiveType::None)
                     {
-                        std::string absolutePath = std::filesystem::absolute(path).string();    // 绝对路径
-                        MeshImportResult result = MeshImporter::Import(absolutePath);
-                        if (result.Success)
+                        // 内置图元：通过 MeshFactory 创建
+                        deserializedEntity.AddComponent<MeshFilterComponent>(primitiveType);
+                    }
+                    else if (meshFilterComponentNode["MeshAsset"])
+                    {
+                        // 外部模型：通过 AssetManager 加载
+                        uint64_t meshHandleValue = meshFilterComponentNode["MeshAsset"].as<uint64_t>();
+                        AssetHandle meshHandle(meshHandleValue);
+                        
+                        auto& meshFilterComponent = deserializedEntity.AddComponent<MeshFilterComponent>();
+                        
+                        if (meshHandle.IsValid())
                         {
-                            meshFilterComponent.MeshFilePath = path;
-                            meshFilterComponent.Mesh = result.MeshData;
+                            Ref<Mesh> mesh = AssetManager::GetAsset<Mesh>(meshHandle);
+                            if (mesh)
+                            {
+                                meshFilterComponent.Mesh = mesh;
+                            }
+                            else
+                            {
+                                LF_CORE_ERROR("SceneSerializer: Failed to load mesh asset [{0}]", meshHandleValue);
+                            }
                         }
+                    }
+                    else
+                    {
+                        // 无图元也无资产引用，添加空组件
+                        deserializedEntity.AddComponent<MeshFilterComponent>();
                     }
                 }
                 
@@ -443,7 +469,7 @@ namespace Lucky
                 {
                     auto& meshRendererComponent = deserializedEntity.AddComponent<MeshRendererComponent>();
                     
-                    // 反序列化材质列表
+                    // 反序列化材质列表（通过 AssetHandle 引用）
                     YAML::Node materialsNode = meshRendererComponentNode["Materials"];
                     if (materialsNode && materialsNode.IsSequence())
                     {
@@ -452,15 +478,36 @@ namespace Lucky
 
                         for (auto materialNode : materialsNode)
                         {
-                            Ref<Material> material = MaterialSerializer::Deserialize(materialNode);  // 反序列化材质
-
-                            if (!material)
+                            if (materialNode["AssetHandle"])
                             {
-                                // 反序列化失败，材质丢失 使用错误材质
-                                material = Renderer3D::GetInternalErrorMaterial();
+                                // 新格式：通过 AssetHandle 从 AssetManager 获取材质
+                                uint64_t handleValue = materialNode["AssetHandle"].as<uint64_t>();
+                                AssetHandle handle(handleValue);
+                                
+                                Ref<Material> material = nullptr;
+                                if (handle.IsValid())
+                                {
+                                    material = AssetManager::GetAsset<Material>(handle);
+                                }
+                                
+                                if (!material)
+                                {
+                                    LF_CORE_ERROR("SceneSerializer: Failed to load material asset [{0}]", handleValue);
+                                    material = Renderer3D::GetInternalErrorMaterial();
+                                }
+                                
+                                meshRendererComponent.Materials.push_back(material);
                             }
-
-                            meshRendererComponent.Materials.push_back(material);
+                            else
+                            {
+                                // 兼容旧格式：内嵌材质数据
+                                Ref<Material> material = MaterialSerializer::Deserialize(materialNode);
+                                if (!material)
+                                {
+                                    material = Renderer3D::GetInternalErrorMaterial();
+                                }
+                                meshRendererComponent.Materials.push_back(material);
+                            }
                         }
                     }
                 }

@@ -2,6 +2,8 @@
 
 #include "Lucky/Core/Base.h"
 
+#include "Lucky/Asset/Asset.h"
+
 typedef unsigned int GLenum;
 
 namespace Lucky
@@ -9,7 +11,7 @@ namespace Lucky
     /// <summary>
     /// 纹理
     /// </summary>
-    class Texture
+    class Texture : public Asset
     {
     public:
         virtual ~Texture() = default;
@@ -39,6 +41,8 @@ namespace Lucky
     class Texture2D : public Texture
     {
     public:
+        AssetType GetAssetType() const override { return AssetType::Texture2D; }
+
         /// <summary>
         /// 创建 2D 纹理
         /// </summary>
