@@ -10,6 +10,7 @@
 
 #include "Passes/ShadowPass.h"
 #include "Passes/OpaquePass.h"
+#include "ShadowAtlas.h"
 #include "Passes/SkyboxPass.h"
 #include "Passes/TransparentPass.h"
 #include "Passes/PickingPass.h"
@@ -110,6 +111,18 @@ namespace Lucky
         glm::mat4 CascadeLightSpaceMatrices[s_MaxCascadeCount];                  // 每级 Light Space Matrix
         float CascadeFarPlanes[s_MaxCascadeCount] = { 0.0f };                    // 每级远平面距离（视图空间）
         int ShadowMapResolution = 2048;                                          // 每级 Shadow Map 分辨率
+        
+        // ---- 聚光灯阴影数据 ----
+        struct SpotShadowCacheData
+        {
+            int LightIndex = -1;                            // 在 SpotLights[] 中的索引
+            glm::mat4 LightSpaceMatrix = glm::mat4(1.0f);   // 光源空间 VP 矩阵
+            float ShadowBias = 0.001f;                      // 阴影偏移
+            float ShadowStrength = 1.0f;                    // 阴影强度
+            int ShadowType = 1;                             // 1=Hard, 2=Soft
+        };
+        SpotShadowCacheData SpotShadowData[ShadowAtlas::s_MaxSpotLightShadows];
+        int SpotShadowCount = 0;
         
         // ======== 清屏颜色 ========
         glm::vec4 ClearColor = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);  // 视口清屏颜色（由外部设置）
@@ -428,6 +441,45 @@ namespace Lucky
 
         }
         
+        // ======== 聚光灯阴影矩阵计算 ========
+        s_Data.SpotShadowCount = 0;
+        for (int i = 0; i < lightData.SpotLightCount && s_Data.SpotShadowCount < ShadowAtlas::s_MaxSpotLightShadows; ++i)
+        {
+            if (lightData.SpotLightShadows[i].Shadows != ShadowType::None)
+            {
+                const SpotLightData& spotLight = lightData.SpotLights[i];
+                
+                // 计算聚光灯 Light Space Matrix（透视投影）
+                float halfFov = glm::acos(spotLight.OuterCutoff);
+                float fov = halfFov * 2.0f;
+                float aspectRatio = 1.0f;
+                float nearPlane = 0.1f;
+                float farPlane = spotLight.Range;
+                
+                glm::mat4 projection = glm::perspective(fov, aspectRatio, nearPlane, farPlane);
+                
+                glm::vec3 direction = glm::normalize(spotLight.Direction);
+                glm::vec3 target = spotLight.Position + direction;
+                
+                glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+                if (std::abs(glm::dot(direction, up)) > 0.99f)
+                {
+                    up = glm::vec3(0.0f, 0.0f, 1.0f);
+                }
+                
+                glm::mat4 view = glm::lookAt(spotLight.Position, target, up);
+                glm::mat4 lightSpaceMatrix = projection * view;
+                
+                s_Data.SpotShadowData[s_Data.SpotShadowCount].LightIndex = i;
+                s_Data.SpotShadowData[s_Data.SpotShadowCount].LightSpaceMatrix = lightSpaceMatrix;
+                s_Data.SpotShadowData[s_Data.SpotShadowCount].ShadowBias = lightData.SpotLightShadows[i].ShadowBias;
+                s_Data.SpotShadowData[s_Data.SpotShadowCount].ShadowStrength = lightData.SpotLightShadows[i].ShadowStrength;
+                s_Data.SpotShadowData[s_Data.SpotShadowCount].ShadowType = static_cast<int>(lightData.SpotLightShadows[i].Shadows);
+                
+                ++s_Data.SpotShadowCount;
+            }
+        }
+        
         // 清空绘制命令列表
         s_Data.OpaqueDrawCommands.clear();
         s_Data.TransparentDrawCommands.clear();
@@ -489,6 +541,28 @@ namespace Lucky
             bool hasTransparentObjects = context.TransparentDrawCommands && !context.TransparentDrawCommands->empty();
             context.TranslucentShadowEnabled = hasTransparentObjects;
             context.DebugCSMVisualize = shadowPass->IsDebugCSMVisualize();
+            
+            // Shadow Atlas 数据
+            context.ShadowAtlasTextureID = shadowPass->GetShadowAtlasTextureID();
+            context.ShadowAtlasSize = shadowPass->GetShadowAtlasSize();
+        }
+        
+        // ---- 聚光灯阴影数据 ----
+        context.ShadowData.SpotLightShadowCount = s_Data.SpotShadowCount;
+        for (int i = 0; i < s_Data.SpotShadowCount; ++i)
+        {
+            context.ShadowData.SpotLights[i].LightIndex = s_Data.SpotShadowData[i].LightIndex;
+            context.ShadowData.SpotLights[i].LightSpaceMatrix = s_Data.SpotShadowData[i].LightSpaceMatrix;
+            context.ShadowData.SpotLights[i].ShadowBias = s_Data.SpotShadowData[i].ShadowBias;
+            context.ShadowData.SpotLights[i].ShadowStrength = s_Data.SpotShadowData[i].ShadowStrength;
+            context.ShadowData.SpotLights[i].ShadowType = s_Data.SpotShadowData[i].ShadowType;
+            
+            // 从 ShadowAtlas 获取 Tile 的 ViewportScaleBias
+            if (shadowPass)
+            {
+                int tileIdx = shadowPass->GetShadowAtlas().GetSpotLightTileIndex(i);
+                context.ShadowData.SpotLights[i].AtlasScaleBias = shadowPass->GetShadowAtlas().GetTile(tileIdx).ViewportScaleBias;
+            }
         }
         
         // 天空盒数据

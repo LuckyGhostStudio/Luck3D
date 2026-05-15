@@ -177,4 +177,136 @@ vec3 ShadowCalculation(vec3 worldPos, vec3 normal, vec3 lightDir)
     return min(vec3(baseShadow), translucentColor);
 }
 
+// ==================== Shadow Atlas 聚光灯阴影 ====================
+
+#define MAX_SPOT_SHADOW_LIGHTS 4
+
+// ---- Shadow Atlas 纹理 ----
+uniform sampler2D u_ShadowAtlas;                                        // Shadow Atlas 深度纹理
+uniform float u_ShadowAtlasSize;                                        // Atlas 纹理尺寸
+
+// ---- 聚光灯阴影数据 ----
+uniform int u_SpotShadowCount;                                          // 投射阴影的聚光灯数量
+uniform int u_SpotShadowLightIndex[MAX_SPOT_SHADOW_LIGHTS];             // 对应的光源索引
+uniform mat4 u_SpotShadowLightSpaceMatrices[MAX_SPOT_SHADOW_LIGHTS];    // Light Space Matrix
+uniform vec4 u_SpotShadowAtlasScaleBias[MAX_SPOT_SHADOW_LIGHTS];        // Atlas UV 变换
+uniform float u_SpotShadowBias[MAX_SPOT_SHADOW_LIGHTS];                 // 阴影偏移
+uniform float u_SpotShadowStrength[MAX_SPOT_SHADOW_LIGHTS];             // 阴影强度
+uniform int u_SpotShadowType[MAX_SPOT_SHADOW_LIGHTS];                   // 阴影类型
+
+/// <summary>
+/// 将世界空间坐标变换到 Atlas UV 空间
+/// </summary>
+vec3 WorldToAtlasUV(vec3 worldPos, mat4 lightSpaceMatrix, vec4 atlasScaleBias)
+{
+    vec4 lightSpacePos = lightSpaceMatrix * vec4(worldPos, 1.0);
+    vec3 projCoords = lightSpacePos.xyz / lightSpacePos.w;
+    projCoords = projCoords * 0.5 + 0.5;   // [-1,1] -> [0,1]
+
+    // 应用 Atlas 缩放和偏移
+    projCoords.xy = projCoords.xy * atlasScaleBias.xy + atlasScaleBias.zw;
+
+    return projCoords;
+}
+
+/// <summary>
+/// Atlas 硬阴影采样（单次采样）
+/// </summary>
+float AtlasShadowSampleHard(vec3 atlasUV, float bias)
+{
+    float currentDepth = atlasUV.z;
+    float closestDepth = texture(u_ShadowAtlas, atlasUV.xy).r;
+    return currentDepth - bias > closestDepth ? 1.0 : 0.0;
+}
+
+/// <summary>
+/// Atlas 软阴影采样（PCF 5×5，带边界保护）
+/// </summary>
+float AtlasShadowSampleSoft(vec3 atlasUV, float bias, vec4 atlasScaleBias)
+{
+    float currentDepth = atlasUV.z;
+    float shadow = 0.0;
+    vec2 atlasTexelSize = 1.0 / vec2(textureSize(u_ShadowAtlas, 0));
+
+    // Tile 边界（留 1 像素边距防止采样溢出）
+    vec2 tileMin = atlasScaleBias.zw + atlasTexelSize;
+    vec2 tileMax = atlasScaleBias.zw + atlasScaleBias.xy - atlasTexelSize;
+
+    for (int x = -2; x <= 2; ++x)
+    {
+        for (int y = -2; y <= 2; ++y)
+        {
+            vec2 sampleUV = clamp(
+                atlasUV.xy + vec2(x, y) * atlasTexelSize,
+                tileMin, tileMax
+            );
+            float pcfDepth = texture(u_ShadowAtlas, sampleUV).r;
+            shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+        }
+    }
+    return shadow / 25.0;
+}
+
+/// <summary>
+/// 计算聚光灯阴影因子
+/// 返回 float：1.0 = 完全不在阴影中，0.0 = 完全在阴影中
+/// </summary>
+float CalcSpotLightShadow(int shadowIndex, vec3 worldPos, vec3 normal, vec3 lightDir)
+{
+    mat4 lightSpaceMatrix = u_SpotShadowLightSpaceMatrices[shadowIndex];
+    vec4 atlasScaleBias = u_SpotShadowAtlasScaleBias[shadowIndex];
+
+    vec3 atlasUV = WorldToAtlasUV(worldPos, lightSpaceMatrix, atlasScaleBias);
+
+    // 超出 Shadow Map 范围（透视投影的 z 可能 > 1 或 < 0）
+    if (atlasUV.z > 1.0 || atlasUV.z < 0.0)
+    {
+        return 1.0;
+    }
+
+    // 检查是否在 Tile 范围内（防止采样到相邻 Tile）
+    vec2 tileMin = atlasScaleBias.zw;
+    vec2 tileMax = atlasScaleBias.zw + atlasScaleBias.xy;
+    if (atlasUV.x < tileMin.x || atlasUV.x > tileMax.x ||
+        atlasUV.y < tileMin.y || atlasUV.y > tileMax.y)
+    {
+        return 1.0;
+    }
+
+    // 动态 Bias
+    float NdotL = dot(normal, lightDir);
+    float bias = u_SpotShadowBias[shadowIndex] * (1.0 + 9.0 * (1.0 - clamp(NdotL, 0.0, 1.0)));
+
+    // 根据阴影类型选择采样方式
+    float shadow = 0.0;
+    if (u_SpotShadowType[shadowIndex] == 1)     // Hard
+    {
+        shadow = AtlasShadowSampleHard(atlasUV, bias);
+    }
+    else    // Soft
+    {
+        shadow = AtlasShadowSampleSoft(atlasUV, bias, atlasScaleBias);
+    }
+
+    shadow *= u_SpotShadowStrength[shadowIndex];
+    return 1.0 - shadow;
+}
+
+/// <summary>
+/// 获取聚光灯阴影因子（供 Lighting.glsl 调用）
+/// lightIndex: 聚光灯在 u_Lights.SpotLights[] 中的索引
+/// </summary>
+float GetSpotLightShadow(int lightIndex, vec3 worldPos, vec3 normal, vec3 lightDir)
+{
+    // 查找该聚光灯对应的阴影索引
+    for (int i = 0; i < u_SpotShadowCount; ++i)
+    {
+        if (u_SpotShadowLightIndex[i] == lightIndex)
+        {
+            return CalcSpotLightShadow(i, worldPos, normal, lightDir);
+        }
+    }
+    return 1.0;  // 该光源不投射阴影
+}
+
 #endif // LUCKY_SHADOW_GLSL

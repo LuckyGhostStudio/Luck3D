@@ -37,6 +37,10 @@ namespace Lucky
             "u_AmbientColor",           // 纯色环境光颜色
             "u_IBLDiffuseIntensity",    // IBL 漫反射强度乘数
             "u_IBLSpecularIntensity",   // IBL 镜面反射强度乘数
+            // ---- Shadow Atlas 聚光灯阴影：由 OpaquePass/TransparentPass 设置 ----
+            "u_ShadowAtlas",            // Shadow Atlas 深度纹理（纹理槽位 14）
+            "u_ShadowAtlasSize",        // Atlas 纹理尺寸
+            "u_SpotShadowCount",        // 投射阴影的聚光灯数量
         };
 
         // 检查精确匹配

@@ -32,6 +32,12 @@ namespace Lucky
             }
         }
         
+        // ---- 绑定 Shadow Atlas 纹理（聚光灯阴影） ----
+        if (context.ShadowData.SpotLightShadowCount > 0 && context.ShadowAtlasTextureID != 0)
+        {
+            RenderCommand::BindTextureUnit(14, context.ShadowAtlasTextureID);
+        }
+        
         // ---- 绑定 IBL 纹理（始终绑定，避免 sampler 未绑定导致未定义行为） ----
         if (context.IBLEnabled)
         {
@@ -131,6 +137,31 @@ namespace Lucky
             {
                 cmd.MaterialData->GetShader()->SetInt("u_ShadowEnabled", 0);
                 cmd.MaterialData->GetShader()->SetInt("u_TranslucentShadowEnabled", 0);
+            }
+            
+            // ---- 聚光灯阴影 uniform ----
+            if (context.ShadowData.SpotLightShadowCount > 0)
+            {
+                cmd.MaterialData->GetShader()->SetInt("u_ShadowAtlas", 14);
+                cmd.MaterialData->GetShader()->SetFloat("u_ShadowAtlasSize", static_cast<float>(context.ShadowAtlasSize));
+                cmd.MaterialData->GetShader()->SetInt("u_SpotShadowCount", context.ShadowData.SpotLightShadowCount);
+
+                for (int i = 0; i < context.ShadowData.SpotLightShadowCount; ++i)
+                {
+                    const auto& spotShadow = context.ShadowData.SpotLights[i];
+                    std::string idx = std::to_string(i);
+
+                    cmd.MaterialData->GetShader()->SetInt("u_SpotShadowLightIndex[" + idx + "]", spotShadow.LightIndex);
+                    cmd.MaterialData->GetShader()->SetMat4("u_SpotShadowLightSpaceMatrices[" + idx + "]", spotShadow.LightSpaceMatrix);
+                    cmd.MaterialData->GetShader()->SetFloat4("u_SpotShadowAtlasScaleBias[" + idx + "]", spotShadow.AtlasScaleBias);
+                    cmd.MaterialData->GetShader()->SetFloat("u_SpotShadowBias[" + idx + "]", spotShadow.ShadowBias);
+                    cmd.MaterialData->GetShader()->SetFloat("u_SpotShadowStrength[" + idx + "]", spotShadow.ShadowStrength);
+                    cmd.MaterialData->GetShader()->SetInt("u_SpotShadowType[" + idx + "]", spotShadow.ShadowType);
+                }
+            }
+            else
+            {
+                cmd.MaterialData->GetShader()->SetInt("u_SpotShadowCount", 0);
             }
             
             // 设置 IBL 相关 uniform（始终设置采样器绑定，确保 sampler 指向有效纹理单元）

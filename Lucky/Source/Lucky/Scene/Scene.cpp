@@ -150,6 +150,11 @@ namespace Lucky
                         spotLight.InnerCutoff = glm::cos(glm::radians(light.InnerCutoffAngle));
                         spotLight.OuterCutoff = glm::cos(glm::radians(light.OuterCutoffAngle));
 
+                        // 收集聚光灯阴影参数
+                        sceneLightData.SpotLightShadows[sceneLightData.SpotLightCount].Shadows = light.Shadows;
+                        sceneLightData.SpotLightShadows[sceneLightData.SpotLightCount].ShadowBias = light.ShadowBias;
+                        sceneLightData.SpotLightShadows[sceneLightData.SpotLightCount].ShadowStrength = light.ShadowStrength;
+
                         sceneLightData.SpotLightCount++;
                         break;
                     }

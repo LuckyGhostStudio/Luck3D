@@ -1,0 +1,215 @@
+Scene: New Scene
+EnvironmentSettings:
+  SkyboxMaterial:
+    Name: Default-Skybox
+    Shader: Skybox
+    RenderState:
+      RenderingMode: 0
+      CullMode: 0
+      DepthWrite: true
+      DepthTest: 0
+      BlendMode: 0
+      RenderQueue: 2000
+    Properties:
+      - Name: u_Exposure
+        Type: Float
+        Value: 1
+      - Name: u_Rotation
+        Type: Float
+        Value: 0
+      - Name: u_SkyboxMap
+        Type: SamplerCube
+        Value:
+          Path: Assets/Textures/Skybox/right.jpg
+          IsHDR: false
+          Resolution: 1024
+      - Name: u_Tint
+        Type: Float4
+        Value: [1, 1, 1, 1]
+  AmbientSource: 1
+  AmbientColor: [0.211999997, 0.226999998, 0.259000003]
+  DiffuseIntensity: 1
+  SpecularIntensity: 1
+  ReflectionResolution: 128
+Entitys:
+  - Entity: 10466138652629213686
+    NameComponent:
+      Name: Plane
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [17.90131, 17.90131, 17.90131]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 2
+      MeshFilePath: ""
+    MeshRendererComponent:
+      Materials:
+        - Name: Default
+          Shader: Standard
+          RenderState:
+            RenderingMode: 0
+            CullMode: 0
+            DepthWrite: true
+            DepthTest: 0
+            BlendMode: 0
+            RenderQueue: 2000
+          Properties:
+            - Name: u_AO
+              Type: Float
+              Value: 1
+            - Name: u_AOMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Albedo
+              Type: Float4
+              Value: [0.800000012, 0.800000012, 0.800000012, 1]
+            - Name: u_AlbedoMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Emission
+              Type: Float3
+              Value: [0, 0, 0]
+            - Name: u_EmissionIntensity
+              Type: Float
+              Value: 1
+            - Name: u_EmissionMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Metallic
+              Type: Float
+              Value: 0
+            - Name: u_MetallicMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_NormalMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Roughness
+              Type: Float
+              Value: 0.5
+            - Name: u_RoughnessMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_SpotShadowAtlasScaleBias[0]
+              Type: Float4
+              Value: [0, 0, 0, 1]
+            - Name: u_SpotShadowBias[0]
+              Type: Float
+              Value: 0
+            - Name: u_SpotShadowLightIndex[0]
+              Type: Int
+              Value: 0
+            - Name: u_SpotShadowLightSpaceMatrices[0]
+              Type: Mat4
+              Value: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+            - Name: u_SpotShadowStrength[0]
+              Type: Float
+              Value: 0
+            - Name: u_SpotShadowType[0]
+              Type: Int
+              Value: 0
+  - Entity: 10558773710253981006
+    NameComponent:
+      Name: Spolt Light
+    TransformComponent:
+      Position: [1.52347767, 3.4262023, -2.43807411]
+      Rotation: [0.406246752, -0.249812275, 0.116489381, 0.871198952]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    LightComponent:
+      Type: 2
+      Color: [1, 1, 1]
+      Intensity: 2.26999998
+      Range: 10
+      InnerCutoffAngle: 12.5
+      OuterCutoffAngle: 33
+      Shadows: 1
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1
+  - Entity: 5839154882431917896
+    NameComponent:
+      Name: Cube
+    TransformComponent:
+      Position: [0, 1.19732237, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 1
+      MeshFilePath: ""
+    MeshRendererComponent:
+      Materials:
+        - Name: Default
+          Shader: Standard
+          RenderState:
+            RenderingMode: 0
+            CullMode: 0
+            DepthWrite: true
+            DepthTest: 0
+            BlendMode: 0
+            RenderQueue: 2000
+          Properties:
+            - Name: u_AO
+              Type: Float
+              Value: 1
+            - Name: u_AOMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Albedo
+              Type: Float4
+              Value: [0.800000012, 0.800000012, 0.800000012, 1]
+            - Name: u_AlbedoMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Emission
+              Type: Float3
+              Value: [0, 0, 0]
+            - Name: u_EmissionIntensity
+              Type: Float
+              Value: 1
+            - Name: u_EmissionMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Metallic
+              Type: Float
+              Value: 0
+            - Name: u_MetallicMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_NormalMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_Roughness
+              Type: Float
+              Value: 0.5
+            - Name: u_RoughnessMap
+              Type: Sampler2D
+              Value: ""
+            - Name: u_SpotShadowAtlasScaleBias[0]
+              Type: Float4
+              Value: [0, 0, 0, 1]
+            - Name: u_SpotShadowBias[0]
+              Type: Float
+              Value: 0
+            - Name: u_SpotShadowLightIndex[0]
+              Type: Int
+              Value: 0
+            - Name: u_SpotShadowLightSpaceMatrices[0]
+              Type: Mat4
+              Value: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+            - Name: u_SpotShadowStrength[0]
+              Type: Float
+              Value: 0
+            - Name: u_SpotShadowType[0]
+              Type: Int
+              Value: 0

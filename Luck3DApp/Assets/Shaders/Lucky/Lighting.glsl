@@ -187,7 +187,17 @@ vec3 CalcAllLights(vec3 N, vec3 V, vec3 worldPos, vec3 albedo, float metallic, f
     // 聚光灯
     for (int i = 0; i < u_Lights.SpotLightCount; ++i)
     {
-        Lo += CalcSpotLight(u_Lights.SpotLights[i], N, V, worldPos, albedo, metallic, roughness, F0);
+        vec3 contribution = CalcSpotLight(u_Lights.SpotLights[i], N, V, worldPos, albedo, metallic, roughness, F0);
+
+        // 应用聚光灯阴影
+        if (u_SpotShadowCount > 0)
+        {
+            vec3 lightDir = normalize(u_Lights.SpotLights[i].Position - worldPos);
+            float shadowFactor = GetSpotLightShadow(i, worldPos, N, lightDir);
+            contribution *= shadowFactor;
+        }
+
+        Lo += contribution;
     }
 
     return Lo;

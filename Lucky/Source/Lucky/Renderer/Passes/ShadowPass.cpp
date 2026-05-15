@@ -15,6 +15,9 @@ namespace Lucky
     {
         m_ShadowShader = Renderer3D::GetShaderLibrary()->Get("Shadow");
         RecreateFBOs();
+
+        // 初始化 Shadow Atlas
+        m_ShadowAtlas.Init(4096);
     }
 
     void ShadowPass::RecreateFBOs()
@@ -43,22 +46,25 @@ namespace Lucky
 
     void ShadowPass::Execute(const RenderContext& context)
     {
-        // 条件执行：仅当阴影启用且有可渲染物体时执行
+        // 条件执行：仅当有可渲染物体时执行
         bool hasOpaque = context.OpaqueDrawCommands && !context.OpaqueDrawCommands->empty();
         bool hasTransparent = context.TransparentDrawCommands && !context.TransparentDrawCommands->empty();
 
-        if (!context.ShadowEnabled || (!hasOpaque && !hasTransparent))
+        if (!hasOpaque && !hasTransparent)
         {
             return;
         }
 
-        // 检查是否需要重建 FBO（分辨率或级联数量变化）
-        if (context.ShadowMapResolution != (int)m_ShadowMapResolution || context.CascadeCount != m_CascadeCount)
+        // ======== 阶段 1 & 2：方向光 CSM（仅当方向光阴影启用时） ========
+        if (context.ShadowEnabled)
         {
-            m_ShadowMapResolution = context.ShadowMapResolution;
-            m_CascadeCount = context.CascadeCount;
-            RecreateFBOs();
-        }
+            // 检查是否需要重建 FBO（分辨率或级联数量变化）
+            if (context.ShadowMapResolution != (int)m_ShadowMapResolution || context.CascadeCount != m_CascadeCount)
+            {
+                m_ShadowMapResolution = context.ShadowMapResolution;
+                m_CascadeCount = context.CascadeCount;
+                RecreateFBOs();
+            }
 
         // ======== 阶段 1：CSM 深度渲染（所有级联，仅不透明物体） ========
         m_CSMFramebuffer->Bind();
@@ -200,6 +206,14 @@ namespace Lucky
             m_TranslucentShadowFBO->Unbind();
         }
 
+        } // end if (context.ShadowEnabled)
+
+        // ======== 阶段 3：聚光灯阴影（Shadow Atlas） ========
+        if (context.ShadowData.SpotLightShadowCount > 0 && hasOpaque)
+        {
+            RenderSpotLightShadows(context);
+        }
+
         // ---- 恢复主 FBO 视口 ----
         if (context.TargetFramebuffer)
         {
@@ -212,6 +226,71 @@ namespace Lucky
     void ShadowPass::Resize(uint32_t width, uint32_t height)
     {
         // Shadow Map 分辨率固定，不随视口变化
+    }
+
+    void ShadowPass::RenderSpotLightShadows(const RenderContext& context)
+    {
+        // 重置 Atlas 帧状态
+        m_ShadowAtlas.BeginFrame();
+
+        // 绑定 Atlas FBO
+        m_ShadowAtlas.GetFramebuffer()->Bind();
+
+        // 清除整个 Atlas 深度为 1.0（最远）
+        RenderCommand::SetViewport(0, 0, m_ShadowAtlas.GetAtlasSize(), m_ShadowAtlas.GetAtlasSize());
+        RenderCommand::Clear();
+
+        // 启用 Scissor Test（防止渲染溢出到相邻 Tile）
+        RenderCommand::SetScissorTest(true);
+        RenderCommand::SetCullMode(CullMode::Off);
+
+        m_ShadowShader->Bind();
+        m_ShadowShader->SetInt("u_AlphaTestEnabled", 0);
+        m_ShadowShader->SetInt("u_TranslucentShadowEnabled", 0);
+
+        // 逐聚光灯渲染
+        for (int i = 0; i < context.ShadowData.SpotLightShadowCount; ++i)
+        {
+            const auto& spotShadow = context.ShadowData.SpotLights[i];
+            int tileIdx = m_ShadowAtlas.GetSpotLightTileIndex(i);
+            const ShadowAtlasTile& tile = m_ShadowAtlas.GetTile(tileIdx);
+
+            // 激活 Tile（设置 LightSpaceMatrix）
+            m_ShadowAtlas.ActivateSpotTile(i, spotShadow.LightSpaceMatrix);
+
+            // 设置视口和裁剪区域到 Tile 范围
+            RenderCommand::SetViewport(tile.X, tile.Y, tile.Width, tile.Height);
+            RenderCommand::SetScissor(tile.X, tile.Y, tile.Width, tile.Height);
+
+            // 清除当前 Tile 区域的深度
+            RenderCommand::Clear();
+
+            // 设置 Light Space Matrix
+            m_ShadowShader->SetMat4("u_LightSpaceMatrix", spotShadow.LightSpaceMatrix);
+
+            // 渲染所有不透明物体
+            for (const DrawCommand& cmd : *context.OpaqueDrawCommands)
+            {
+                m_ShadowShader->SetMat4("u_ObjectToWorldMatrix", cmd.Transform);
+
+                RenderCommand::DrawIndexedRange(
+                    cmd.MeshData->GetVertexArray(),
+                    cmd.SubMeshPtr->IndexOffset,
+                    cmd.SubMeshPtr->IndexCount
+                );
+            }
+        }
+
+        // 关闭 Scissor Test
+        RenderCommand::SetScissorTest(false);
+
+        // 解绑 Atlas FBO
+        m_ShadowAtlas.GetFramebuffer()->Unbind();
+    }
+
+    uint32_t ShadowPass::GetShadowAtlasTextureID() const
+    {
+        return m_ShadowAtlas.GetAtlasTextureID();
     }
 
     uint32_t ShadowPass::GetShadowMapTextureID() const
