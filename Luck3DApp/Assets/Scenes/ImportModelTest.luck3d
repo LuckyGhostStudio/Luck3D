@@ -1,34 +1,15 @@
 Scene: New Scene
 EnvironmentSettings:
   SkyboxMaterial: 7865802476581088480
-  AmbientSource: 1
+  AmbientSource: 0
   AmbientColor: [0.211999997, 0.226999998, 0.259000003]
   DiffuseIntensity: 1
   SpecularIntensity: 1
   ReflectionResolution: 128
 Entitys:
-  - Entity: 18173386129366882209
+  - Entity: 8832802562580145054
     NameComponent:
-      Name: Point Light
-    TransformComponent:
-      Position: [0.548474014, 0.672519207, 0.145478725]
-      Rotation: [0, 0, 0, 1]
-      Scale: [1, 1, 1]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    LightComponent:
-      Type: 1
-      Color: [1, 1, 1]
-      Intensity: 1
-      Range: 7.5
-      Shadows: 2
-      ShadowBias: 0.000300000014
-      ShadowStrength: 1
-  - Entity: 16624814836261967429
-    NameComponent:
-      Name: Railgun
+      Name: Hornet_Track
     TransformComponent:
       Position: [0, 0, 0]
       Rotation: [0, 0, 0, 1]
@@ -39,24 +20,7 @@ Entitys:
         []
     MeshFilterComponent:
       PrimitiveType: 0
-      MeshAsset: 15937996615583574040
-    MeshRendererComponent:
-      Materials:
-        - AssetHandle: 11848252517640597707
-  - Entity: 12589913712226712698
-    NameComponent:
-      Name: Plane
-    TransformComponent:
-      Position: [0, -0.284017622, 0]
-      Rotation: [0, 0, 0, 1]
-      Scale: [5.44999933, 5.44999933, 5.44999933]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    MeshFilterComponent:
-      PrimitiveType: 2
-      MeshAsset: 0
+      MeshAsset: 10765404371136769226
     MeshRendererComponent:
       Materials:
         - AssetHandle: 8845964786894531549
@@ -77,9 +41,26 @@ Entitys:
     MeshRendererComponent:
       Materials:
         - AssetHandle: 8845964786894531549
-  - Entity: 8832802562580145054
+  - Entity: 12589913712226712698
     NameComponent:
-      Name: Hornet_Track
+      Name: Plane
+    TransformComponent:
+      Position: [0, -0.284017622, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [5.44999933, 5.44999933, 5.44999933]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 2
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 8845964786894531549
+  - Entity: 16624814836261967429
+    NameComponent:
+      Name: Railgun
     TransformComponent:
       Position: [0, 0, 0]
       Rotation: [0, 0, 0, 1]
@@ -90,7 +71,26 @@ Entitys:
         []
     MeshFilterComponent:
       PrimitiveType: 0
-      MeshAsset: 10765404371136769226
+      MeshAsset: 15937996615583574040
     MeshRendererComponent:
       Materials:
-        - AssetHandle: 8845964786894531549
+        - AssetHandle: 11848252517640597707
+  - Entity: 18173386129366882209
+    NameComponent:
+      Name: Point Light
+    TransformComponent:
+      Position: [0.548474014, 0.672519207, 0.145478725]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    LightComponent:
+      Type: 1
+      Color: [1, 1, 1]
+      Intensity: 1
+      Range: 7.5
+      Shadows: 2
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1

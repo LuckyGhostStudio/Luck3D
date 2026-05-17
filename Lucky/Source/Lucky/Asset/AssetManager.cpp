@@ -150,6 +150,11 @@ namespace Lucky
         return s_Data.Registry.Register(metadata);
     }
 
+    AssetHandle AssetManager::GetAssetHandle(const std::string& filepath)
+    {
+        return s_Data.Registry.GetHandle(filepath);
+    }
+
     template<typename T>
     Ref<T> AssetManager::GetAsset(AssetHandle handle)
     {

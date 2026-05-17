@@ -33,13 +33,13 @@ namespace Lucky
     {
         std::string sceneName = m_Scene->GetName();
         
-        // 树结点标志
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth;
-        flags |= ImGuiTreeNodeFlags_DefaultOpen;
-
         const std::string& strSceneID = std::format("{0}##{1}", sceneName, typeid(Scene).hash_code());
-        // 哈希值作为结点 id
-        if (UI::BeginTreeNode(strSceneID.c_str(), true))
+        
+        ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO 封装 Fonts
+        bool opened = UI::BeginTreeNode(strSceneID.c_str(), true);
+        ImGui::PopFont();
+        
+        if (opened)
         {
             for (auto entityID : m_Scene->GetAllEntitiesWith<IDComponent, RelationshipComponent>())
             {

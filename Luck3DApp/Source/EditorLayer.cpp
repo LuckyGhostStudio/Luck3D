@@ -5,6 +5,7 @@
 #include "Panels/SceneHierarchyPanel.h"
 #include "Panels/SceneViewportPanel.h"
 #include "Panels/InspectorPanel.h"
+#include "Panels/ProjectAssetsPanel.h"
 #include "Panels/RenderPipelinePanel.h"
 #include "Panels/PreferencesPanel.h"
 #include "Panels/LightingPanel.h"
@@ -20,7 +21,6 @@
 #include "Lucky/Serialization//SceneSerializer.h"
 #include "Lucky/Asset/MeshImporter.h"
 #include "Lucky/Asset/AssetManager.h"
-#include "Lucky/Serialization/MaterialSerializer.h"
 
 #include <filesystem>
 
@@ -29,6 +29,7 @@ namespace Lucky
 #define SCENE_HIERARCHY_PANEL_ID "SceneHierarchyPanel"
 #define SCENE_VIEWPORT_PANEL_ID "SceneViewportPanel"
 #define INSPECTOR_PANEL_ID "InspectorPanel"
+#define PROJECT_ASSETS_PANEL_ID "ProjectAssetsPanel"
 #define RENDER_PIPELINE_PANEL_ID "RenderPipelinePanel"
     
 #define PREFERENCES_PANEL_ID "PreferencesPanel"
@@ -51,6 +52,7 @@ namespace Lucky
         m_PanelManager->AddPanel<SceneHierarchyPanel>(SCENE_HIERARCHY_PANEL_ID, "Hierarchy", true, m_Scene);
         m_PanelManager->AddPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID, "Scene", true, m_Scene);
         m_PanelManager->AddPanel<InspectorPanel>(INSPECTOR_PANEL_ID, "Inspector", true, m_Scene);
+        m_PanelManager->AddPanel<ProjectAssetsPanel>(PROJECT_ASSETS_PANEL_ID, "Project", true);
         m_PanelManager->AddPanel<RenderPipelinePanel>(RENDER_PIPELINE_PANEL_ID, "Render Pipeline", true);
         m_PanelManager->AddPanel<PreferencesPanel>(PREFERENCES_PANEL_ID, "Preferences", false);
         m_PanelManager->AddPanel<LightingPanel>(LIGHTING_PANEL_ID, "Lighting", false, m_Scene);
@@ -197,6 +199,13 @@ namespace Lucky
                     if (ImGui::MenuItem("Scene"))
                     {
                         uint32_t panelID = Hash::GenerateFNVHash(SCENE_VIEWPORT_PANEL_ID);
+                        PanelData* panelData = m_PanelManager->GetPanelData(panelID);
+                        panelData->IsOpen = true;
+                    }
+                    
+                    if (ImGui::MenuItem("Project"))
+                    {
+                        uint32_t panelID = Hash::GenerateFNVHash(PROJECT_ASSETS_PANEL_ID);
                         PanelData* panelData = m_PanelManager->GetPanelData(panelID);
                         panelData->IsOpen = true;
                     }

@@ -58,6 +58,8 @@ namespace Lucky
 
         // ---- 资产获取 ----
 
+        static AssetHandle GetAssetHandle(const std::string& filepath);
+        
         /// <summary>
         /// 获取资产：通过 Handle 获取资产实例
         /// 如果未加载，自动触发加载；如果已缓存，直接返回缓存
