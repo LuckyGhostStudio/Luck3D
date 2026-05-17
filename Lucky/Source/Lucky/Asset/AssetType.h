@@ -10,7 +10,7 @@ namespace Lucky
     enum class AssetType : uint8_t
     {
         None = 0,       // 无效类型
-        Material,       // 材质（.mat）
+        Material,       // 材质（.lmat）
         Mesh,           // 网格/模型（.obj/.fbx/.gltf/.glb/.dae/.3ds/.blend）
         Texture2D,      // 2D 纹理（.png/.jpg/.tga/.bmp/.hdr）
         Scene,          // 场景（.luck3d）
@@ -49,12 +49,12 @@ namespace Lucky
     /// <summary>
     /// 根据文件扩展名推断资产类型
     /// </summary>
-    /// <param name="extension">文件扩展名（含点号，如 ".mat"、".obj"）</param>
+    /// <param name="extension">文件扩展名（含点号，如 ".lmat"、".obj"）</param>
     /// <returns>推断的资产类型，未知扩展名返回 None</returns>
     inline AssetType GetAssetTypeFromExtension(const std::string& extension)
     {
         // 材质
-        if (extension == ".mat")
+        if (extension == ".lmat")
         {
             return AssetType::Material;
         }

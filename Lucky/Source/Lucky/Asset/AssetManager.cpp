@@ -11,6 +11,8 @@
 #include "Lucky/Renderer/Mesh.h"
 #include "Lucky/Renderer/Texture.h"
 
+#include "Lucky/Serialization/MaterialSerializer.h"
+
 #include <filesystem>
 
 namespace Lucky
@@ -22,7 +24,7 @@ namespace Lucky
         std::unordered_map<AssetHandle, Ref<void>> Cache;               // 强引用缓存
         std::unordered_map<AssetType, Scope<AssetImporter>> Importers;  // Importer 注册表
 
-        std::string RegistryFilePath = "Assets.lreg";                   // Registry 文件路径
+        std::string RegistryFilePath = "AssetRegistry.lcr";             // Registry 文件路径
     };
 
     static AssetManagerData s_Data;
@@ -63,6 +65,53 @@ namespace Lucky
         s_Data.Cache.clear();
         s_Data.Importers.clear();
         LF_CORE_INFO("AssetManager shutdown.");
+    }
+
+    AssetHandle AssetManager::CreateAsset(const Ref<Asset>& asset, const std::string& filepath)
+    {
+        std::filesystem::path relPath = std::filesystem::relative(filepath);
+        std::string assetName = relPath.stem().string();
+        std::string normalizedPath = relPath.generic_string();
+        
+        AssetType assetType = asset->GetAssetType();
+        
+        // 注册到资产系统
+        AssetHandle assetHandle = ImportAsset(normalizedPath, assetType);
+        
+        asset->SetHandle(assetHandle);
+        
+        // 序列化到文件
+        switch (assetType)
+        {
+            case AssetType::Material:
+            {
+                const Ref<Material>& material = RefAs<Asset, Material>(asset);
+                
+                // 序列化材质
+                if (!MaterialSerializer::SerializeToFile(material, filepath))
+                {
+                    LF_CORE_ERROR("Failed to create material file: '{0}'", filepath);
+                    return NullAssetHandle;
+                }
+                    
+                break;
+            }
+            case AssetType::Mesh:
+                break;
+            case AssetType::Texture2D:
+                break;
+            case AssetType::Scene:
+                break;
+            case AssetType::Shader:
+                break;
+        }
+        
+        // 保存资产注册表到文件
+        SaveRegistry();
+        
+        LF_CORE_INFO("Created asset: '{0} ({1})' at '{2}'", assetName, AssetTypeToString(assetType), normalizedPath);
+        
+        return assetHandle;
     }
 
     AssetHandle AssetManager::ImportAsset(const std::string& filepath)
@@ -121,8 +170,7 @@ namespace Lucky
 
         if (metadata->Type != expectedType)
         {
-            LF_CORE_ERROR("AssetManager::GetAsset - Type mismatch! Expected {0}, got {1}",
-                          AssetTypeToString(expectedType), AssetTypeToString(metadata->Type));
+            LF_CORE_ERROR("AssetManager::GetAsset - Type mismatch! Expected {0}, got {1}", AssetTypeToString(expectedType), AssetTypeToString(metadata->Type));
             return nullptr;
         }
 

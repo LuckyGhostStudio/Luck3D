@@ -1,0 +1,28 @@
+Version: 1
+Material:
+  Handle: 7865802476581088480
+  Name: Default-Skybox
+  Shader: Skybox
+  RenderState:
+    RenderingMode: 0
+    CullMode: 0
+    DepthWrite: true
+    DepthTest: 0
+    BlendMode: 0
+    RenderQueue: 2000
+  Properties:
+    - Name: u_Exposure
+      Type: Float
+      Value: 1
+    - Name: u_Rotation
+      Type: Float
+      Value: 0
+    - Name: u_SkyboxMap
+      Type: SamplerCube
+      Value:
+        Path: Assets/Textures/Skybox/right.jpg
+        IsHDR: false
+        Resolution: 1024
+    - Name: u_Tint
+      Type: Float4
+      Value: [1, 1, 1, 1]

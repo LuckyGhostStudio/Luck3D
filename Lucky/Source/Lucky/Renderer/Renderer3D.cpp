@@ -24,11 +24,12 @@
 
 #include "IBLPrecompute.h"
 
+#include "Lucky/Asset/AssetManager.h"
+
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 
 #include <limits>
-#include <array>
 #include <filesystem>
 
 namespace Lucky
@@ -186,8 +187,16 @@ namespace Lucky
         
         // 创建内部材质
         s_Data.InternalErrorMaterial = CreateRef<Material>("InternalError", s_Data.InternalErrorShader);    // 内部错误材质
-        s_Data.DefaultMaterial = CreateRef<Material>("Default", s_Data.StandardShader);                     // 默认材质
+        s_Data.DefaultMaterial = CreateRef<Material>("Default-Material", s_Data.StandardShader);            // 默认材质
         s_Data.Environment.SkyboxMaterial = CreateRef<Material>("Default-Skybox", s_Data.ShaderLib->Get("Skybox"));     // 默认天空盒材质
+        
+        // PBR 默认参数
+        s_Data.DefaultMaterial->SetFloat4("u_Albedo", glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
+        s_Data.DefaultMaterial->SetFloat("u_Metallic", 0.0f);
+        s_Data.DefaultMaterial->SetFloat("u_Roughness", 0.5f);
+        s_Data.DefaultMaterial->SetFloat("u_AO", 1.0f);
+        s_Data.DefaultMaterial->SetFloat3("u_Emission", glm::vec3(0.0f));
+        s_Data.DefaultMaterial->SetFloat("u_EmissionIntensity", 1.0f);
         
         // ======== 天空盒测试（硬编码加载 6 面 Cubemap） ========
         // 天空盒纹理路径（放置在 Assets/Textures/Skybox/ 目录下）
@@ -220,6 +229,10 @@ namespace Lucky
         {
             LF_WARN("Skybox textures not found at: {0} (skipping skybox)", skyboxDir);
         }
+        
+        // 创建内部材质资产
+        AssetManager::CreateAsset(s_Data.DefaultMaterial, "Assets/Internal/Materials/Default-Material.lmat");
+        AssetManager::CreateAsset(s_Data.Environment.SkyboxMaterial, "Assets/Internal/Materials/Default-Skybox.lmat");
 
         // 创建全局默认纹理
         // White: (255, 255, 255, 255)
@@ -236,16 +249,6 @@ namespace Lucky
         uint32_t normalData = 0xFFFF8080;
         s_Data.DefaultTextures[TextureDefault::Normal] = Texture2D::Create(1, 1);
         s_Data.DefaultTextures[TextureDefault::Normal]->SetData(&normalData, sizeof(uint32_t));
-        
-        // TODO 默认材质参数保存到 .mat 中
-        
-        // PBR 默认参数
-        s_Data.DefaultMaterial->SetFloat4("u_Albedo", glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
-        s_Data.DefaultMaterial->SetFloat("u_Metallic", 0.0f);
-        s_Data.DefaultMaterial->SetFloat("u_Roughness", 0.5f);
-        s_Data.DefaultMaterial->SetFloat("u_AO", 1.0f);
-        s_Data.DefaultMaterial->SetFloat3("u_Emission", glm::vec3(0.0f));
-        s_Data.DefaultMaterial->SetFloat("u_EmissionIntensity", 1.0f);
         
         s_Data.CameraUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::CameraUBOData), 0);  // 创建相机 Uniform 缓冲区
         s_Data.LightUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::LightUBOData), 1);    // 创建光照 Uniform 缓冲区

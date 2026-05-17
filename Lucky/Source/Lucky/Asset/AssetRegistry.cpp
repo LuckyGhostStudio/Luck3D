@@ -102,7 +102,7 @@ namespace Lucky
         YAML::Emitter out;
 
         out << YAML::BeginMap;
-        out << YAML::Key << "AssetRegistry" << YAML::Value << YAML::BeginSeq;
+        out << YAML::Key << "Assets" << YAML::Value << YAML::BeginSeq;
 
         for (const auto& [handle, metadata] : m_Registry)
         {
@@ -132,7 +132,7 @@ namespace Lucky
 
         YAML::Node data = YAML::LoadFile(filepath);
 
-        if (!data["AssetRegistry"])
+        if (!data["Assets"])
         {
             LF_CORE_ERROR("AssetRegistry: Invalid registry file '{0}'", filepath);
             return false;
@@ -141,7 +141,7 @@ namespace Lucky
         m_Registry.clear();
         m_PathToHandle.clear();
 
-        YAML::Node assetsNode = data["AssetRegistry"];
+        YAML::Node assetsNode = data["Assets"];
         for (auto assetNode : assetsNode)
         {
             AssetMetadata metadata;

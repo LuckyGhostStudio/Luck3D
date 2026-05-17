@@ -75,7 +75,7 @@ namespace Lucky
         /// <summary>
         /// 保存 Registry 到文件
         /// </summary>
-        /// <param name="filepath">输出文件路径（如 "Assets.lreg"）</param>
+        /// <param name="filepath">输出文件路径（如 "AssetRegistry.lcr"）</param>
         void Save(const std::string& filepath) const;
 
         /// <summary>

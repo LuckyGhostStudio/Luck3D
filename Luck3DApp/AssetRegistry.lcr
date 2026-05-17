@@ -1,0 +1,25 @@
+Assets:
+  - Handle: 18139247743970091234
+    Type: Material
+    FilePath: Assets/Internal/Materials/Default-Material.lmat
+  - Handle: 7865802476581088480
+    Type: Material
+    FilePath: Assets/Internal/Materials/Default-Skybox.lmat
+  - Handle: 15937996615583574040
+    Type: Mesh
+    FilePath: Assets/Models/Railgun.fbx
+  - Handle: 3256352951629368989
+    Type: Mesh
+    FilePath: Assets/Models/Hornet.fbx
+  - Handle: 11848252517640597707
+    Type: Material
+    FilePath: Assets/Models/Materials/Default.lmat
+  - Handle: 12654340601597598847
+    Type: Material
+    FilePath: Assets/Models/Materials/03 - Default.001.lmat
+  - Handle: 10765404371136769226
+    Type: Mesh
+    FilePath: Assets/Models/Hornet_Track.fbx
+  - Handle: 8845964786894531549
+    Type: Material
+    FilePath: Assets/Models/Materials/06 - Default.lmat

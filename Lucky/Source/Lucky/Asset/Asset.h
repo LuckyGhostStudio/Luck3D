@@ -29,7 +29,6 @@ namespace Lucky
         /// 获取资产类型（纯虚函数，派生类必须实现）
         /// </summary>
         virtual AssetType GetAssetType() const = 0;
-
     private:
         AssetHandle m_Handle;
     };

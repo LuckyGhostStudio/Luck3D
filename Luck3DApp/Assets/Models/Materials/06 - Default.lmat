@@ -1,7 +1,7 @@
 Version: 1
 Material:
-  Handle: 14646663475005777154
-  Name: TestMat
+  Handle: 8845964786894531549
+  Name: 06 - Default
   Shader: Standard
   RenderState:
     RenderingMode: 0
@@ -13,13 +13,13 @@ Material:
   Properties:
     - Name: u_AO
       Type: Float
-      Value: 0
+      Value: 1
     - Name: u_AOMap
       Type: Sampler2D
       Value: ""
     - Name: u_Albedo
       Type: Float4
-      Value: [0, 0, 0, 1]
+      Value: [0.588235319, 0.588235319, 0.588235319, 1]
     - Name: u_AlbedoMap
       Type: Sampler2D
       Value: ""
@@ -28,7 +28,7 @@ Material:
       Value: [0, 0, 0]
     - Name: u_EmissionIntensity
       Type: Float
-      Value: 0
+      Value: 1
     - Name: u_EmissionMap
       Type: Sampler2D
       Value: ""
@@ -43,7 +43,7 @@ Material:
       Value: ""
     - Name: u_Roughness
       Type: Float
-      Value: 0
+      Value: 0.899999976
     - Name: u_RoughnessMap
       Type: Sampler2D
       Value: ""

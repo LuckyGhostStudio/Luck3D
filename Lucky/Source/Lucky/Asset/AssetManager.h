@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Asset.h"
 #include "AssetHandle.h"
 #include "AssetType.h"
 #include "AssetRegistry.h"
@@ -25,6 +26,16 @@ namespace Lucky
         /// 关闭资产系统（保存 Registry，清空缓存）
         /// </summary>
         static void Shutdown();
+        
+        // ---- 资产创建 ----
+        
+        /// <summary>
+        /// 创建资产
+        /// </summary>
+        /// <param name="asset">资产引用</param>
+        /// <param name="filepath">路径</param>
+        /// <returns>资产 Handle（失败返回 NullAssetHandle）</returns>
+        static AssetHandle CreateAsset(const Ref<Asset>& asset, const std::string& filepath);
 
         // ---- 资产导入 ----
 

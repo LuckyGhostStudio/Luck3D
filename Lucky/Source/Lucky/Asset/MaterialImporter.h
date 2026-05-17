@@ -5,7 +5,7 @@
 namespace Lucky
 {
     /// <summary>
-    /// 材质导入器：从 .mat 文件加载材质
+    /// 材质导入器：从 .lmat 文件加载材质
     /// </summary>
     class MaterialImporter : public AssetImporter
     {

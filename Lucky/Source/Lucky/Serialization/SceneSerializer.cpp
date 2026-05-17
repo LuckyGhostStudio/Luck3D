@@ -170,7 +170,7 @@ namespace Lucky
                 if (material)
                 {
                     // 通过 Material 实例获取 AssetHandle（Material 继承 Asset，自带 Handle）
-                    out << YAML::Key << "AssetHandle" << YAML::Value << static_cast<uint64_t>(material->GetHandle());
+                    out << YAML::Key << "AssetHandle" << YAML::Value << material->GetHandle();
                 }
                 else
                 {
