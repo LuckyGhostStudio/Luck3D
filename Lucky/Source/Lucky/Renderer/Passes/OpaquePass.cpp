@@ -223,6 +223,12 @@ namespace Lucky
             cmd.MaterialData->GetShader()->SetFloat3("u_AmbientColor", context.AmbientColor);
             cmd.MaterialData->GetShader()->SetFloat("u_IBLDiffuseIntensity", context.IBLDiffuseIntensity);
             cmd.MaterialData->GetShader()->SetFloat("u_IBLSpecularIntensity", context.IBLSpecularIntensity);
+
+            // 设置天空盒材质参数到 PBR Shader 的 IBL 采样位置（每帧从 SkyboxMaterial 同步）
+            // 这样修改天空盒材质的 Exposure/Tint/Rotation 时，IBL 光照能实时变化，无需重新卷积
+            cmd.MaterialData->GetShader()->SetFloat("u_SkyExposure", context.SkyExposure);
+            cmd.MaterialData->GetShader()->SetFloat3("u_SkyTint", context.SkyTint);
+            cmd.MaterialData->GetShader()->SetFloat("u_SkyRotation", context.SkyRotation);
             
             // 绘制
             RenderCommand::DrawIndexedRange(

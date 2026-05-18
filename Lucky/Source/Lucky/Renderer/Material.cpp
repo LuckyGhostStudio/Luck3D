@@ -37,6 +37,10 @@ namespace Lucky
             "u_AmbientColor",           // 纯色环境光颜色
             "u_IBLDiffuseIntensity",    // IBL 漫反射强度乘数
             "u_IBLSpecularIntensity",   // IBL 镜面反射强度乘数
+            // ---- 天空盒材质参数同步到 IBL 采样：由 OpaquePass/TransparentPass 每帧从 SkyboxMaterial 同步 ----
+            "u_SkyExposure",            // 天空盒曝光（与 SkyboxMaterial.u_Exposure 同步）
+            "u_SkyTint",                // 天空盒色调 RGB（与 SkyboxMaterial.u_Tint.rgb 同步）
+            "u_SkyRotation",            // 天空盒 Y 轴旋转角度（与 SkyboxMaterial.u_Rotation 同步）
             // ---- Shadow Atlas 聚光灯阴影：由 OpaquePass/TransparentPass 设置 ----
             "u_ShadowAtlas",            // Shadow Atlas 深度纹理（纹理槽位 14）
             "u_ShadowAtlasSize",        // Atlas 纹理尺寸

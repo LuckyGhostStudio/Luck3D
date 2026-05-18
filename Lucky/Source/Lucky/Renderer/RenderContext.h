@@ -162,7 +162,12 @@ namespace Lucky
         glm::vec3 AmbientColor = glm::vec3(0.1f, 0.1f, 0.1f);     // 纯色环境光颜色
         float IBLDiffuseIntensity = 1.0f;                           // IBL 漫反射强度
         float IBLSpecularIntensity = 1.0f;                          // IBL 镜面反射强度
-        
+
+        // ---- 天空盒材质参数（每帧从 SkyboxMaterial 同步，IBL 采样时叠加，保证视觉与天空盒一致） ----
+        float SkyExposure = 1.0f;                                   // 天空盒曝光（Skybox.frag 的 u_Exposure）
+        glm::vec3 SkyTint = glm::vec3(1.0f);                        // 天空盒色调（Skybox.frag 的 u_Tint.rgb）
+        float SkyRotation = 0.0f;                                   // 天空盒 Y 轴旋转角度（度，Skybox.vert 的 u_Rotation）
+
         // ======== Shadow Atlas 数据（为多光源阴影提供基础设施） ========
         uint32_t ShadowAtlasTextureID = 0;          // Shadow Atlas 深度纹理 ID
         uint32_t ShadowAtlasSize = 4096;            // Atlas 纹理尺寸

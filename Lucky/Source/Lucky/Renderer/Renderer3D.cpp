@@ -691,6 +691,24 @@ namespace Lucky
         context.IBLDiffuseIntensity = s_Data.Environment.DiffuseIntensity;
         context.IBLSpecularIntensity = s_Data.Environment.SpecularIntensity;
         
+        // 天空盒材质参数同步（轻参数路径：每帧从 SkyboxMaterial 拉取，
+        // 让 PBR Shader 在 IBL 采样时叠加 Exposure/Tint/Rotation，
+        // 避免对每个参数变化都重新执行昂贵的 IBL 卷积）
+        if (s_Data.Environment.SkyboxMaterial)
+        {
+            const auto& skyMat = s_Data.Environment.SkyboxMaterial;
+            context.SkyExposure = skyMat->GetFloat("u_Exposure");
+            const glm::vec4 tint4 = skyMat->GetFloat4("u_Tint");
+            context.SkyTint = glm::vec3(tint4);
+            context.SkyRotation = skyMat->GetFloat("u_Rotation");
+        }
+        else
+        {
+            context.SkyExposure = 1.0f;
+            context.SkyTint = glm::vec3(1.0f);
+            context.SkyRotation = 0.0f;
+        }
+        
         // ---- 执行 Shadow 分组（ShadowPass） ----
         s_Data.Pipeline.ExecuteGroup("Shadow", context);
         

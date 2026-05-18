@@ -227,6 +227,26 @@ uniform vec3 u_AmbientColor;            // 纯色环境光颜色（Source=Color 时使用）
 uniform float u_IBLDiffuseIntensity;    // IBL 漫反射强度乘数（默认 1.0）
 uniform float u_IBLSpecularIntensity;   // IBL 镜面反射强度乘数（默认 1.0）
 
+// ---- 天空盒材质同步参数（每帧由引擎从 SkyboxMaterial 拉取并上传） ----
+// 这三个参数在 IBL 采样时叠加（采样时合成方案），无需重新卷积 IBL 即可让 IBL 与天空盒视觉同步
+uniform float u_SkyExposure;            // 天空盒曝光（默认 1.0）
+uniform vec3  u_SkyTint;                // 天空盒色调 RGB（默认 (1,1,1)）
+uniform float u_SkyRotation;            // 天空盒 Y 轴旋转角度（度，默认 0.0）
+
+// ---- 与 Skybox.vert 完全一致的 Y 轴旋转 ----
+// 用于在 IBL 采样时对采样向量做与天空盒相同的旋转，保证 IBL 与天空盒方向一致
+vec3 RotateAroundY(vec3 v, float degrees)
+{
+    float rad = radians(degrees);
+    float c = cos(rad);
+    float s = sin(rad);
+    return vec3(
+        v.x * c + v.z * s,
+        v.y,
+       -v.x * s + v.z * c
+    );
+}
+
 // ---- Fresnel-Schlick 粗糙度修正版（IBL 使用） ----
 // 在掠射角时，粗糙表面的 Fresnel 反射不应该像光滑表面那样强
 vec3 FresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
@@ -257,13 +277,20 @@ vec3 CalcIBLAmbient(vec3 N, vec3 V, vec3 albedo, float metallic, float roughness
     vec3 kD = (1.0 - kS) * (1.0 - metallic);
     
     // ---- 漫反射 IBL ----
-    vec3 irradiance = texture(u_IrradianceMap, N).rgb;
+    // 采样向量做与天空盒相同的 Y 轴旋转，保证旋转后两者方向一致
+    vec3 nSample = RotateAroundY(N, u_SkyRotation);
+    vec3 irradiance = texture(u_IrradianceMap, nSample).rgb;
+    // 在采样时叠加 Exposure × Tint（采样时合成方案，无需重新卷积 IBL）
+    irradiance *= u_SkyExposure * u_SkyTint;
     vec3 diffuseIBL = kD * irradiance * albedo * u_IBLDiffuseIntensity;
     
     // ---- 镜面反射 IBL ----
+    // 反射向量同样做天空盒 Y 轴旋转
     vec3 R = reflect(-V, N);
+    R = RotateAroundY(R, u_SkyRotation);
     float lod = roughness * u_PrefilterMaxMipLevel;
     vec3 prefilteredColor = textureLod(u_PrefilterMap, R, lod).rgb;
+    prefilteredColor *= u_SkyExposure * u_SkyTint;
     vec2 brdf = texture(u_BRDFLUT, vec2(NdotV, roughness)).rg;
     vec3 specularIBL = prefilteredColor * (F * brdf.x + brdf.y) * u_IBLSpecularIntensity;
     
