@@ -16,7 +16,7 @@ Material:
       Value: 1
     - Name: u_Rotation
       Type: Float
-      Value: 20.6000004
+      Value: 0
     - Name: u_SkyboxMap
       Type: SamplerCube
       Value:

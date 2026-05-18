@@ -298,4 +298,57 @@ vec3 CalcIBLAmbient(vec3 N, vec3 V, vec3 albedo, float metallic, float roughness
     return (diffuseIBL + specularIBL) * ao;
 }
 
+// ==================== 统一环境光接口（高级 API） ====================
+
+/// <summary>
+/// 统一环境光计算（推荐用户使用的高级 API）
+/// 内部根据引擎内部 uniform u_AmbientSource / u_IBLEnabled 自动选择：
+///   - Source = Skybox 且 IBL 已就绪 → 走 IBL 环境光（CalcIBLAmbient）
+///   - Source = Color，或 IBL 未就绪 → 走纯色环境光（u_AmbientColor）
+/// 用户层 Shader 不需要也不应该感知 u_AmbientSource / u_IBLEnabled 的存在，
+/// 这两个 uniform 已被加入 s_InternalUniforms 白名单，对 Inspector 不可见。
+/// </summary>
+/// <param name="N">世界空间法线（归一化）</param>
+/// <param name="V">视线方向（归一化，从片元指向相机）</param>
+/// <param name="albedo">基础颜色</param>
+/// <param name="metallic">金属度</param>
+/// <param name="roughness">粗糙度</param>
+/// <param name="F0">基础反射率</param>
+/// <param name="ao">环境光遮蔽</param>
+/// <returns>环境光（间接光）贡献</returns>
+vec3 CalcAmbient(vec3 N, vec3 V, vec3 albedo, float metallic, float roughness, vec3 F0, float ao)
+{
+    // Source = Skybox 且 IBL 已就绪 → IBL 环境光
+    if (u_AmbientSource == 0 && u_IBLEnabled != 0)
+    {
+        return CalcIBLAmbient(N, V, albedo, metallic, roughness, F0, ao);
+    }
+
+    // Source = Color，或 IBL 未就绪 → Fallback 到纯色环境光
+    return u_AmbientColor * albedo * ao;
+}
+
+// ==================== 一站式顶层接口 ====================
+
+/// <summary>
+/// 一站式 PBR 光照计算（顶层 API，参考 Unity URP 的 UniversalFragmentPBR）
+/// 同时计算"直接光照（含阴影）+ 间接光照（环境光/IBL）"，是用户调用的最便捷入口。
+/// 不含 emission，emission 仍由用户在外层自行加上。
+/// </summary>
+/// <param name="N">世界空间法线（归一化）</param>
+/// <param name="V">视线方向（归一化，从片元指向相机）</param>
+/// <param name="worldPos">片元世界空间位置</param>
+/// <param name="albedo">基础颜色</param>
+/// <param name="metallic">金属度</param>
+/// <param name="roughness">粗糙度</param>
+/// <param name="F0">基础反射率</param>
+/// <param name="ao">环境光遮蔽</param>
+/// <returns>直接光照 + 间接光照（环境光）合成结果</returns>
+vec3 CalcDirectAndIndirectLighting(vec3 N, vec3 V, vec3 worldPos, vec3 albedo, float metallic, float roughness, vec3 F0, float ao)
+{
+    vec3 direct   = CalcAllLights(N, V, worldPos, albedo, metallic, roughness, F0);
+    vec3 indirect = CalcAmbient(N, V, albedo, metallic, roughness, F0, ao);
+    return direct + indirect;
+}
+
 #endif // LUCKY_LIGHTING_GLSL
