@@ -195,6 +195,20 @@ namespace Lucky
                         PanelData* panelData = m_PanelManager->GetPanelData(panelID);
                         panelData->IsOpen = true;
                     }
+
+                    if (ImGui::MenuItem("Lighting"))
+                    {
+                        uint32_t panelID = Hash::GenerateFNVHash(LIGHTING_PANEL_ID);
+                        PanelData* panelData = m_PanelManager->GetPanelData(panelID);
+                        panelData->IsOpen = true;
+                    }
+
+                    if (ImGui::MenuItem("Project"))
+                    {
+                        uint32_t panelID = Hash::GenerateFNVHash(PROJECT_ASSETS_PANEL_ID);
+                        PanelData* panelData = m_PanelManager->GetPanelData(panelID);
+                        panelData->IsOpen = true;
+                    }
                     
                     if (ImGui::MenuItem("Scene"))
                     {
@@ -203,15 +217,36 @@ namespace Lucky
                         panelData->IsOpen = true;
                     }
                     
-                    if (ImGui::MenuItem("Project"))
-                    {
-                        uint32_t panelID = Hash::GenerateFNVHash(PROJECT_ASSETS_PANEL_ID);
-                        PanelData* panelData = m_PanelManager->GetPanelData(panelID);
-                        panelData->IsOpen = true;
-                    }
-                    
                     ImGui::EndMenu();
                 }
+
+                ImGui::Separator();
+
+                if (ImGui::BeginMenu("Layouts"))
+                {
+                    if (ImGui::MenuItem("Default"))
+                    {
+                        m_EditorDockSpace.ResetToDefaultLayout();
+
+                        // 确保默认布局中的面板都处于打开状态
+                        auto OpenPanel = [this](const char* panelID)
+                            {
+                                uint32_t id = Hash::GenerateFNVHash(panelID);
+                                PanelData* data = m_PanelManager->GetPanelData(id);
+                                data->IsOpen = true;
+                            };
+
+                        OpenPanel(SCENE_HIERARCHY_PANEL_ID);
+                        OpenPanel(SCENE_VIEWPORT_PANEL_ID);
+                        OpenPanel(INSPECTOR_PANEL_ID);
+                        OpenPanel(PROJECT_ASSETS_PANEL_ID);
+                        OpenPanel(RENDER_PIPELINE_PANEL_ID);
+                    }
+
+                    ImGui::EndMenu();
+                }
+
+                ImGui::Separator();
                 
                 if (ImGui::BeginMenu("Rendering"))
                 {

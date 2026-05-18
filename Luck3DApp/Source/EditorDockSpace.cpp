@@ -58,9 +58,31 @@ namespace Lucky
 
             if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
             {
-                ImGui::DockSpace(ImGui::GetID("EditorDockSpace"), ImVec2(0.0f, 0.0f), m_Flags | ImGuiDockNodeFlags_NoWindowMenuButton | ImGuiDockNodeFlags_NoCloseButton);
+                ImGuiID dockspaceID = ImGui::GetID("EditorDockSpace");
+                ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), m_Flags | ImGuiDockNodeFlags_NoWindowMenuButton | ImGuiDockNodeFlags_NoCloseButton);
+
+                // ---- 布局管理 ----
+
+                // 首次启动检测：节点不存在或无子节点分割，说明没有已保存的布局
+                ImGuiDockNode* node = ImGui::DockBuilderGetNode(dockspaceID);
+                if (node == nullptr || !node->IsSplitNode())
+                {
+                    m_LayoutManager.ApplyDefaultLayout(dockspaceID);
+                }
+
+                // 请求重置布局
+                if (m_ResetLayout)
+                {
+                    m_LayoutManager.ApplyDefaultLayout(dockspaceID);
+                    m_ResetLayout = false;
+                }
             }
         }
         ImGui::End();
+    }
+
+    void EditorDockSpace::ResetToDefaultLayout()
+    {
+        m_ResetLayout = true;
     }
 }

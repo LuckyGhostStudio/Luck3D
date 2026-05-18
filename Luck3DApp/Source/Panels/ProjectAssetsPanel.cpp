@@ -27,45 +27,46 @@ namespace Lucky
 
     void ProjectAssetsPanel::OnGUI()
     {
-        ImGui::BeginTable("##ProjectAssets Table", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadInnerX);
-        
-        float panelWidth = ImGui::GetContentRegionAvail().x;
-        m_TreePanelWidth = panelWidth * 0.3f;
-        ImGui::TableSetupColumn("Categories Column", 0, m_TreePanelWidth);
-        ImGui::TableSetupColumn("Content Column", ImGuiTableColumnFlags_WidthStretch);
-        
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0);
-        
-        // 左侧：目录树
-        ImGui::BeginChild("##DirectoryTree", { 0, 0 });
+        if (ImGui::BeginTable("##ProjectAssets Table", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadInnerX))
         {
-            DrawDirectoryTreeNode(m_RootNode);
-            
-            // 点击鼠标 && 鼠标悬停在该窗口（点击空白位置）
-            if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered())
+            float panelWidth = ImGui::GetContentRegionAvail().x;
+            m_TreePanelWidth = panelWidth * 0.3f;
+            ImGui::TableSetupColumn("Categories Column", 0, m_TreePanelWidth);
+            ImGui::TableSetupColumn("Content Column", ImGuiTableColumnFlags_WidthStretch);
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+
+            // 左侧：目录树
+            ImGui::BeginChild("##DirectoryTree", { 0, 0 });
             {
-                m_CurrentDirectory.clear();  // 取消选中：置空当前浏览目录
+                DrawDirectoryTreeNode(m_RootNode);
+
+                // 点击鼠标 && 鼠标悬停在该窗口（点击空白位置）
+                if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered())
+                {
+                    m_CurrentDirectory.clear();  // 取消选中：置空当前浏览目录
+                }
             }
-        }
-        ImGui::EndChild();
-        
-        ImGui::TableSetColumnIndex(1);
-        
-        // 右侧：内容区
-        ImGui::BeginChild("##ContentArea", { 0, 0 });
-        {
-            DrawContentArea();
-            
-            // 点击鼠标 && 鼠标悬停在该窗口（点击空白位置）
-            if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered())
+            ImGui::EndChild();
+
+            ImGui::TableSetColumnIndex(1);
+
+            // 右侧：内容区
+            ImGui::BeginChild("##ContentArea", { 0, 0 });
             {
-                m_SelectionPath.clear();  // 取消选中：置空当前选中文件路径
+                DrawContentArea();
+
+                // 点击鼠标 && 鼠标悬停在该窗口（点击空白位置）
+                if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered())
+                {
+                    m_SelectionPath.clear();  // 取消选中：置空当前选中文件路径
+                }
             }
+            ImGui::EndChild();
+
+            ImGui::EndTable();
         }
-        ImGui::EndChild();
-        
-        ImGui::EndTable();
     }
 
     void ProjectAssetsPanel::OnEvent(Event& event)

@@ -26,46 +26,47 @@ namespace Lucky
 
     void PreferencesPanel::OnGUI()
     {
-        ImGui::BeginTable("##Preferences Table", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadInnerX);
-        
-        float panelWidth = ImGui::GetContentRegionAvail().x;
-        float categoriesWidth = panelWidth * 0.3f;
-        ImGui::TableSetupColumn("Categories Column", 0, categoriesWidth);   // TODO 停靠在 docking 时切换 Inspector 界面会崩溃
-        ImGui::TableSetupColumn("Content Column", ImGuiTableColumnFlags_WidthStretch);
-        
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0);
-        
-        // ---- 左侧分类列表 ----
-        ImGui::BeginChild("Categories", ImVec2(0, 0));
+        if (ImGui::BeginTable("##Preferences Table", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadInnerX))
         {
-            // TODO X 对齐比例有点问题
-            UI::ScopedStyle textAlign(ImGuiStyleVar_SelectableTextAlign, { UI::Theme::Layout::FramePaddingX / categoriesWidth, 0 });
-            if (ImGui::Selectable("Colors", m_SelectedCategory == 0))
+            float panelWidth = ImGui::GetContentRegionAvail().x;
+            float categoriesWidth = panelWidth * 0.3f;
+            ImGui::TableSetupColumn("Categories Column", 0, categoriesWidth);   // TODO 停靠在 docking 时切换 Inspector 界面会崩溃
+            ImGui::TableSetupColumn("Content Column", ImGuiTableColumnFlags_WidthStretch);
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+
+            // ---- 左侧分类列表 ----
+            ImGui::BeginChild("Categories", ImVec2(0, 0));
             {
-                m_SelectedCategory = 0;
+                // TODO X 对齐比例有点问题
+                UI::ScopedStyle textAlign(ImGuiStyleVar_SelectableTextAlign, { UI::Theme::Layout::FramePaddingX / categoriesWidth, 0 });
+                if (ImGui::Selectable("Colors", m_SelectedCategory == 0))
+                {
+                    m_SelectedCategory = 0;
+                }
+
+                // TODO 其他分类
             }
-            
-            // TODO 其他分类
-        }
-        ImGui::EndChild();
-        
-        // TODO 分割线拖动到最右边会卡住
-        ImGui::TableSetColumnIndex(1);
-        
-        // ---- 右侧设置内容 ----
-        ImGui::BeginChild("Content", ImVec2(0, 0));
-        {
-            switch (m_SelectedCategory)
+            ImGui::EndChild();
+
+            // TODO 分割线拖动到最右边会卡住
+            ImGui::TableSetColumnIndex(1);
+
+            // ---- 右侧设置内容 ----
+            ImGui::BeginChild("Content", ImVec2(0, 0));
             {
-            case 0:
-                DrawColorsPage();
-                break;
+                switch (m_SelectedCategory)
+                {
+                case 0:
+                    DrawColorsPage();
+                    break;
+                }
             }
+            ImGui::EndChild();
+
+            ImGui::EndTable();
         }
-        ImGui::EndChild();
-        
-        ImGui::EndTable();
     }
 
     void PreferencesPanel::OnEvent(Event& event)
