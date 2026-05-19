@@ -23,6 +23,18 @@ Material:
     - Name: u_AlbedoMap
       Type: Sampler2D
       Value: ""
+    - Name: u_DetailAlbedoMap
+      Type: Sampler2D
+      Value: ""
+    - Name: u_DetailMask
+      Type: Sampler2D
+      Value: ""
+    - Name: u_DetailNormalMap
+      Type: Sampler2D
+      Value: ""
+    - Name: u_DetailNormalScale
+      Type: Float
+      Value: 0
     - Name: u_Emission
       Type: Float3
       Value: [0, 0, 0]
@@ -32,6 +44,12 @@ Material:
     - Name: u_EmissionMap
       Type: Sampler2D
       Value: ""
+    - Name: u_HeightMap
+      Type: Sampler2D
+      Value: ""
+    - Name: u_HeightScale
+      Type: Float
+      Value: 0
     - Name: u_Metallic
       Type: Float
       Value: 0
