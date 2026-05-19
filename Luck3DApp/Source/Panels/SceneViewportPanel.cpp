@@ -4,6 +4,7 @@
 #include "Lucky/Renderer/Renderer3D.h"
 #include "Lucky/Renderer/RenderPipeline.h"
 #include "Lucky/Renderer/Passes/PostProcessPass.h"
+#include "Lucky/Renderer/Passes/DebugVisualizePass.h"
 
 #include "Lucky/Core/Input/Input.h"
 #include "Lucky/Scene/SelectionManager.h"
@@ -209,6 +210,32 @@ namespace Lucky
                     checked = !checked;
                 
                     m_ShowGrid = !m_ShowGrid;
+                }
+
+                // ---- CSM 级联调试勾选按钮 ----
+                ImGui::SameLine();
+                UI::ShiftCursorX(2.0f);
+
+                auto debugPass = Renderer3D::GetPipeline().GetPass<DebugVisualizePass>();
+                bool csmChecked = debugPass && debugPass->GetMode() == DebugVisualizeMode::CSMCascades;
+
+                ImVec4 csmColor        = csmChecked ? ImVec4{ 0.275f, 0.377f, 0.486f, 1.0f } : ImVec4{ 0.345f, 0.345f, 0.345f, 1.0f };
+                ImVec4 csmHoveredColor = csmChecked ? ImVec4{ 0.275f, 0.377f, 0.486f, 1.0f } : ImVec4{ 0.404f, 0.404f, 0.404f, 1.0f };
+                ImVec4 csmActiveColor  = csmChecked ? ImVec4{ 0.275f, 0.377f, 0.486f, 1.0f } : ImVec4{ 0.404f, 0.404f, 0.404f, 1.0f };
+
+                UI::ScopedColor csmButtonColor(ImGuiCol_Button, csmColor);
+                UI::ScopedColor csmButtonHoveredColor(ImGuiCol_ButtonHovered, csmHoveredColor);
+                UI::ScopedColor csmButtonActiveColor(ImGuiCol_ButtonActive, csmActiveColor);
+                if (ImGui::Button("CSM", { 0, buttonSize }))
+                {
+                    if (debugPass)
+                    {
+                        debugPass->SetMode(csmChecked ? DebugVisualizeMode::None : DebugVisualizeMode::CSMCascades);
+                    }
+                }
+                if (ImGui::IsItemHovered())
+                {
+                    ImGui::SetTooltip("Toggle CSM Cascade Visualization\nRed=C0  Green=C1  Blue=C2  Yellow=C3");
                 }
             }
             ImGui::EndChild();

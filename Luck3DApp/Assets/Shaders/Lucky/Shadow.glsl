@@ -24,9 +24,6 @@ uniform int u_ShadowType;           // ÒõÓ°ÀàĞÍ£¨1 = Hard Ó²ÒõÓ°, 2 = Soft ÈíÒõÓ
 uniform sampler2DArray u_TranslucentShadowMap;   // Translucent Shadow Map ÑÕÉ«ÎÆÀí£¨Texture2DArray£¬ËùÓĞ¼¶Áª£©
 uniform int u_TranslucentShadowEnabled;     // ÊÇ·ñÆôÓÃ Translucent Shadow£¨0 = ¹Ø±Õ, 1 = ¿ªÆô£©
 
-// ---- µ÷ÊÔ ----
-uniform int u_DebugCSMVisualize;    // CSM ¼¶ÁªÑÕÉ«¿ÉÊÓ»¯£¨0 = ¹Ø±Õ, 1 = ¿ªÆô£©
-
 // ==================== ÒõÓ°¼ÆËã ====================
 
 /// <summary>
@@ -84,17 +81,6 @@ float ShadowCalculationSoft(vec3 projCoords, float bias, int cascadeIndex)
     }
     shadow /= 25.0;
     return shadow;
-}
-
-/// <summary>
-/// »ñÈ¡¼¶Áªµ÷ÊÔÑÕÉ«
-/// </summary>
-vec3 GetCascadeDebugColor(int cascadeIndex)
-{
-    if (cascadeIndex == 0) return vec3(1.0, 0.0, 0.0);  // ºìÉ«
-    if (cascadeIndex == 1) return vec3(0.0, 1.0, 0.0);  // ÂÌÉ«
-    if (cascadeIndex == 2) return vec3(0.0, 0.0, 1.0);  // À¶É«
-    return vec3(1.0, 1.0, 0.0);                         // »ÆÉ«
 }
 
 /// <summary>

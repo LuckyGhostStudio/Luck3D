@@ -222,9 +222,6 @@ namespace Lucky
         };
         ShaderShadowData ShadowData;
 
-        // ---- 调试标志 ----
-        bool DebugCSMVisualize = false;         // CSM 级联颜色可视化（由 ShadowPass 控制）
-        
         // ---- 统计数据（可写） ----
         Renderer3D::Statistics* Stats = nullptr;    // 渲染统计（DrawCalls、TriangleCount）
     };

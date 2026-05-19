@@ -6,9 +6,6 @@
 #include "Lucky/Renderer/Material.h"
 #include "Lucky/Renderer/Texture.h"
 
-#include "Lucky/UI/DrawUtils.h"
-#include "Lucky/UI/PropertyGrid.h"
-
 namespace Lucky
 {
     void ShadowPass::Init()
@@ -368,18 +365,5 @@ namespace Lucky
     uint32_t ShadowPass::GetTranslucentShadowMapTextureID() const
     {
         return m_TranslucentShadowFBO->GetColorArrayTextureID(0);
-    }
-
-    void ShadowPass::OnDebugGUI()
-    {
-        UI::Draw::HorizontalLine();
-        UI::PropertyCheckbox("Cascade Visualization", m_DebugCSMVisualize);
-
-        // 显示当前 Shadow Map 信息（只读）
-        std::string resolution = std::to_string(m_ShadowMapResolution) + "x" + std::to_string(m_ShadowMapResolution);
-        UI::PropertyReadOnlyString("Resolution", resolution.c_str());
-        
-        std::string cascades = std::to_string(m_CascadeCount) + " cascades";
-        UI::PropertyReadOnlyString("Cascades", cascades.c_str());
     }
 }

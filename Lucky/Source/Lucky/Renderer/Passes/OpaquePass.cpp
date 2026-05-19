@@ -208,9 +208,6 @@ namespace Lucky
                 cmd.MaterialData->GetShader()->SetInt("u_PointShadowCount", 0);
             }
             
-            // CSM 调试可视化
-            cmd.MaterialData->GetShader()->SetInt("u_DebugCSMVisualize", context.DebugCSMVisualize ? 1 : 0);
-            
             // 设置 IBL 相关 uniform（始终设置采样器绑定，确保 sampler 指向有效纹理单元）
             cmd.MaterialData->GetShader()->SetInt("u_IBLEnabled", context.IBLEnabled ? 1 : 0);
             cmd.MaterialData->GetShader()->SetInt("u_IrradianceMap", 10);

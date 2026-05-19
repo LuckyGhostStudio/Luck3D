@@ -54,13 +54,6 @@ namespace Lucky
         }
         
         /// <summary>
-        /// 绘制调试 GUI（在 RenderPipelinePanel 中 Pass 展开区域内调用）
-        /// 子类可重写以提供自定义调试选项（如 CSM 级联可视化开关）
-        /// 默认不绘制任何内容
-        /// </summary>
-        virtual void OnDebugGUI() {}
-        
-        /// <summary>
         /// 是否启用此 Pass
         /// </summary>
         bool Enabled = true;

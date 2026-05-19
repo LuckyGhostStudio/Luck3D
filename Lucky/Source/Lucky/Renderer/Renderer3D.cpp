@@ -17,6 +17,7 @@
 #include "Passes/PostProcessPass.h"
 #include "Passes/SilhouettePass.h"
 #include "Passes/OutlineCompositePass.h"
+#include "Passes/DebugVisualizePass.h"
 
 #include "Effects/BloomEffect.h"
 #include "Effects/FXAAEffect.h"
@@ -59,9 +60,10 @@ namespace Lucky
         /// </summary>
         struct CameraUBOData
         {
-            glm::mat4 ViewProjectionMatrix; // VP 矩阵
-            glm::vec3 Position;             // 相机位置
-            char padding[4];                // 填充到 16 字节对齐
+            glm::mat4 ViewProjectionMatrix;     // VP 矩阵
+            glm::mat4 InvProjectionMatrix;      // 投影矩阵的逆（用于屏幕空间效果重建视图坐标，如 CSM 调试可视化）
+            glm::vec3 Position;                 // 相机位置
+            char padding[4];                    // 填充到 16 字节对齐
         };
 
         /// <summary>
@@ -173,6 +175,7 @@ namespace Lucky
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/BloomComposite");   // Bloom 合成着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/FXAA");             // FXAA 着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/Vignette");         // Vignette 着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Debug/DebugCSMVisualize");      // CSM 级联调试可视化着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/IBL/BRDFIntegration");          // BRDF LUT 生成着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/IBL/IrradianceConvolution");    // Irradiance 卷积着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Internal/IBL/PrefilterConvolution");     // Prefilter 卷积着色器
@@ -259,6 +262,7 @@ namespace Lucky
         auto skyboxPass = CreateRef<SkyboxPass>();
         auto transparentPass = CreateRef<TransparentPass>();
         auto pickingPass = CreateRef<PickingPass>();
+        auto debugVisualizePass = CreateRef<DebugVisualizePass>();
         auto postProcessPass = CreateRef<PostProcessPass>();
         auto silhouettePass = CreateRef<SilhouettePass>();
         auto outlineCompositePass = CreateRef<OutlineCompositePass>();
@@ -275,6 +279,7 @@ namespace Lucky
         s_Data.Pipeline.AddPass(skyboxPass);
         s_Data.Pipeline.AddPass(transparentPass);
         s_Data.Pipeline.AddPass(pickingPass);
+        s_Data.Pipeline.AddPass(debugVisualizePass);
         s_Data.Pipeline.AddPass(postProcessPass);
         s_Data.Pipeline.AddPass(silhouettePass);
         s_Data.Pipeline.AddPass(outlineCompositePass);
@@ -345,6 +350,7 @@ namespace Lucky
     {
         // 设置 Camera Uniform 缓冲区数据
         s_Data.CameraBuffer.ViewProjectionMatrix = camera.GetViewProjectionMatrix();
+        s_Data.CameraBuffer.InvProjectionMatrix  = glm::inverse(camera.GetProjectionMatrix());
         s_Data.CameraBuffer.Position = camera.GetPosition();
         s_Data.CameraUniformBuffer->SetData(&s_Data.CameraBuffer, sizeof(Renderer3DData::CameraUBOData));
         
@@ -615,7 +621,6 @@ namespace Lucky
             // 避免删除最后一个透明物体后残留阴影数据被采样
             bool hasTransparentObjects = context.TransparentDrawCommands && !context.TransparentDrawCommands->empty();
             context.TranslucentShadowEnabled = hasTransparentObjects;
-            context.DebugCSMVisualize = shadowPass->IsDebugCSMVisualize();
             
             // Shadow Atlas 数据
             context.ShadowAtlasTextureID = shadowPass->GetShadowAtlasTextureID();
@@ -714,6 +719,9 @@ namespace Lucky
         
         // ---- 执行 Main 分组（OpaquePass + PickingPass -> HDR FBO） ----
         s_Data.Pipeline.ExecuteGroup("Main", context);
+
+        // ---- 执行 Debug 分组（DebugVisualizePass，可选） ----
+        s_Data.Pipeline.ExecuteGroup("Debug", context);
         
         // ---- 执行 PostProcess 分组（PostProcessPass -> 主 FBO） ----
         s_Data.Pipeline.ExecuteGroup("PostProcess", context);

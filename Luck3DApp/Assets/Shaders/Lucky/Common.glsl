@@ -48,7 +48,9 @@ struct SpotLight
 layout(std140, binding = 0) uniform Camera
 {
     mat4 ViewProjectionMatrix;
-    vec3 Position;  // 相机位置（用于计算视线向量）
+    mat4 InvProjectionMatrix;   // 投影矩阵的逆（用于屏幕空间效果重建视图坐标，如 CSM 调试可视化）
+    vec3 Position;              // 相机位置（用于计算视线向量）
+    float _padding;             // std140 对齐到 16 字节
 } u_Camera;
 
 // ---- 光照 Uniform 缓冲区 ----

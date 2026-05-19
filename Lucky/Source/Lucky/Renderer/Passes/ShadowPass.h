@@ -22,16 +22,6 @@ namespace Lucky
         const std::string& GetGroup() const override { static std::string group = "Shadow"; return group; }
 
         /// <summary>
-        /// 绘制调试 GUI（CSM 级联可视化开关等）
-        /// </summary>
-        void OnDebugGUI() override;
-
-        /// <summary>
-        /// 获取 CSM 级联可视化开关状态（供 OpaquePass 读取并传递给 Shader）
-        /// </summary>
-        bool IsDebugCSMVisualize() const { return m_DebugCSMVisualize; }
-
-        /// <summary>
         /// 获取 CSM Texture2DArray 深度纹理 ID（包含所有级联的深度数据）
         /// 供 OpaquePass/TransparentPass 绑定到纹理单元，Shader 使用 sampler2DArray 采样
         /// </summary>
@@ -83,8 +73,5 @@ namespace Lucky
 
         // ---- Shadow Atlas（聚光灯 + 后续点光源） ----
         ShadowAtlas m_ShadowAtlas;                      // Shadow Atlas 管理器
-
-        // ---- 调试选项 ----
-        bool m_DebugCSMVisualize = false;               // CSM 级联颜色可视化开关
     };
 }

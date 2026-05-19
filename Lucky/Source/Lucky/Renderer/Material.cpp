@@ -23,7 +23,6 @@ namespace Lucky
             "u_ShadowType",             // 阴影类型
             "u_TranslucentShadowMap",   // Translucent Shadow Map 纹理（纹理槽位 8）
             "u_TranslucentShadowEnabled", // Translucent Shadow 开关
-            "u_DebugCSMVisualize",      // CSM 调试可视化开关
             // ---- 天空盒系统：由 SkyboxPass 自动计算设置 ----
             "u_SkyboxVP",               // 天空盒 VP 矩阵（移除 View 平移分量）
             // ---- IBL 系统：由 OpaquePass/TransparentPass 设置 ----

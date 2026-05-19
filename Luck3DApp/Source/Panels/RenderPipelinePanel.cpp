@@ -66,9 +66,6 @@ namespace Lucky
                 {
                     UI::PropertyCheckbox("Enable", pass->Enabled);
                     
-                    // 调用 Pass 自定义调试 GUI
-                    pass->OnDebugGUI();
-                    
                     UI::EndCollapsing();
                 }
                 
