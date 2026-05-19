@@ -72,8 +72,44 @@ namespace Lucky
         m_EntityIDMap.erase(id);    // 从 m_EntityIDMap 移除
     }
     
+    void Scene::UpdateTransformHierarchy()
+    {
+        auto view = m_Registry.view<TransformComponent, RelationshipComponent>();
+        for (auto entityID : view)
+        {
+            auto& relationship = view.get<RelationshipComponent>(entityID);
+
+            // 只处理根节点（没有父节点的实体）
+            if (relationship.Parent == 0)
+            {
+                UpdateWorldTransformRecursive(Entity{ entityID, this }, glm::mat4(1.0f));
+            }
+        }
+    }
+
+    void Scene::UpdateWorldTransformRecursive(Entity entity, const glm::mat4& parentWorldTransform)
+    {
+        auto& transform = entity.GetComponent<TransformComponent>();
+
+        // 计算世界矩阵 = 父世界矩阵 × 局部矩阵
+        transform.WorldTransform = parentWorldTransform * transform.GetLocalTransform();
+
+        // 递归更新所有子节点
+        for (UUID childID : entity.GetChildren())
+        {
+            Entity child = TryGetEntityWithUUID(childID);
+            if (child)
+            {
+                UpdateWorldTransformRecursive(child, transform.WorldTransform);
+            }
+        }
+    }
+
     void Scene::OnUpdate(DeltaTime dt, EditorCamera& camera)
     {
+        // 每帧更新 Transform 层级
+        UpdateTransformHierarchy();
+
         // 收集所有光源数据
         SceneLightData sceneLightData;
         
@@ -94,7 +130,7 @@ namespace Lucky
                         }
 
                         DirectionalLightData& dirLight = sceneLightData.DirectionalLights[sceneLightData.DirectionalLightCount];
-                        dirLight.Direction = transform.GetForward();
+                        dirLight.Direction = transform.GetWorldForward();
                         dirLight.Color = light.Color;
                         dirLight.Intensity = light.Intensity;
 
@@ -126,7 +162,7 @@ namespace Lucky
                         }
 
                         PointLightData& pointLight = sceneLightData.PointLights[sceneLightData.PointLightCount];
-                        pointLight.Position = transform.Translation;
+                        pointLight.Position = transform.GetWorldPosition();
                         pointLight.Color = light.Color;
                         pointLight.Intensity = light.Intensity;
                         pointLight.Range = light.Range;
@@ -147,8 +183,8 @@ namespace Lucky
                         }
 
                         SpotLightData& spotLight = sceneLightData.SpotLights[sceneLightData.SpotLightCount];
-                        spotLight.Position = transform.Translation;
-                        spotLight.Direction = transform.GetForward();
+                        spotLight.Position = transform.GetWorldPosition();
+                        spotLight.Direction = transform.GetWorldForward();
                         spotLight.Color = light.Color;
                         spotLight.Intensity = light.Intensity;
                         spotLight.Range = light.Range;
@@ -209,7 +245,7 @@ namespace Lucky
             {
                 auto [transform, meshFilter, meshRenderer] = meshGroup.get<TransformComponent, MeshFilterComponent, MeshRendererComponent>(entity);
 
-                Renderer3D::DrawMesh(transform.GetTransform(), meshFilter.Mesh, meshRenderer.Materials, static_cast<int>(static_cast<uint32_t>(entity)));    // 绘制网格
+                Renderer3D::DrawMesh(transform.GetWorldTransform(), meshFilter.Mesh, meshRenderer.Materials, static_cast<int>(static_cast<uint32_t>(entity)));    // 绘制网格
             }
         }
         Renderer3D::EndScene();

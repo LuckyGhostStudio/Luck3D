@@ -1,0 +1,92 @@
+Scene: New Scene
+EnvironmentSettings:
+  SkyboxMaterial: 7865802476581088480
+  AmbientSource: 1
+  AmbientColor: [0.211999997, 0.226999998, 0.259000003]
+  DiffuseIntensity: 1
+  SpecularIntensity: 1
+  ReflectionResolution: 128
+Entitys:
+  - Entity: 18204072191719228222
+    NameComponent:
+      Name: Cube
+    TransformComponent:
+      Position: [0, 0.728625655, -0.280764759]
+      Rotation: [-0.360814065, 0, 0, 0.932637751]
+      Scale: [0.0794230774, 0.25, 0.119793147]
+    RelationshipComponent:
+      Parent: 10943159639578195702
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 1
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 18139247743970091234
+  - Entity: 9014579868867587017
+    NameComponent:
+      Name: Entity
+    TransformComponent:
+      Position: [-0.229588598, 3.3548696, -1.97869658]
+      Rotation: [0.44783169, 0, 0, 0.894117892]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        - Child: 7602046026518787506
+  - Entity: 7602046026518787506
+    NameComponent:
+      Name: Spot Light
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 9014579868867587017
+      Children:
+        []
+    LightComponent:
+      Type: 2
+      Color: [1, 1, 1]
+      Intensity: 1
+      Range: 10
+      InnerCutoffAngle: 12.5
+      OuterCutoffAngle: 17.5
+      Shadows: 1
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1
+  - Entity: 10943159639578195702
+    NameComponent:
+      Name: Cube
+    TransformComponent:
+      Position: [0, 0.970876336, 0]
+      Rotation: [-0.216602877, 0, 0, 0.976259768]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        - Child: 18204072191719228222
+    MeshFilterComponent:
+      PrimitiveType: 1
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 18139247743970091234
+  - Entity: 12209657461158073429
+    NameComponent:
+      Name: Plane
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [17.6528988, 17.6529007, 17.6528988]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 2
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 18139247743970091234

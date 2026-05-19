@@ -141,13 +141,13 @@ namespace Lucky
                 switch (light.Type)
                 {
                     case LightType::Directional:
-                        GizmoRenderer::DrawDirectionalLightGizmo(transform.Translation, transform.GetForward(), light.Color);
+                        GizmoRenderer::DrawDirectionalLightGizmo(transform.GetWorldPosition(), transform.GetWorldForward(), light.Color);
                         break;
                     case LightType::Point:
-                        GizmoRenderer::DrawPointLightGizmo(transform.Translation, light.Range, light.Color);
+                        GizmoRenderer::DrawPointLightGizmo(transform.GetWorldPosition(), light.Range, light.Color);
                         break;
                     case LightType::Spot:
-                        GizmoRenderer::DrawSpotLightGizmo(transform.Translation, transform.GetForward(), light.Range, light.InnerCutoffAngle, light.OuterCutoffAngle, light.Color);
+                        GizmoRenderer::DrawSpotLightGizmo(transform.GetWorldPosition(), transform.GetWorldForward(), light.Range, light.InnerCutoffAngle, light.OuterCutoffAngle, light.Color);
                         break;
                 }
             }
@@ -306,7 +306,7 @@ namespace Lucky
         {
             Entity entity = m_Scene->GetEntityWithUUID(selectionID);
             TransformComponent& transformComponent = entity.GetComponent<TransformComponent>();
-            glm::mat4 transform = transformComponent.GetTransform();
+            glm::mat4 transform = transformComponent.GetWorldTransform();
             
             ImGuizmo::SetOrthographic(false);   // 透视投影
             ImGuizmo::AllowAxisFlip(false);     // 禁用坐标轴翻转
@@ -336,7 +336,7 @@ namespace Lucky
                 glm::value_ptr(projectionMatrix),   // 投影矩阵
                 static_cast<ImGuizmo::OPERATION>(m_GizmoType),       // 操作类型
                 static_cast<ImGuizmo::MODE>(m_GizmoMode),            // 坐标系：本地|世界
-                glm::value_ptr(transform),          // transform 增量矩阵
+                glm::value_ptr(transform),          // transform 世界矩阵
                 nullptr,
                 span ? spanValues : nullptr             // 刻度捕捉值
             );
@@ -344,10 +344,21 @@ namespace Lucky
             // Gizmo 正在使用
             if (ImGuizmo::IsUsing())
             {
+                // 获取父节点的世界矩阵
+                glm::mat4 parentWorldTransform = glm::mat4(1.0f);
+                Entity parent = entity.GetParent();
+                if (parent)
+                {
+                    parentWorldTransform = parent.GetComponent<TransformComponent>().GetWorldTransform();
+                }
+
+                // 将 Gizmo 操作后的世界矩阵转回局部空间
+                glm::mat4 newLocalTransform = glm::inverse(parentWorldTransform) * transform;
+
                 glm::vec3 translation;
                 glm::quat rotation;
                 glm::vec3 scale;
-                Math::DecomposeTransform(transform, translation, rotation, scale); // 分解 transform 矩阵
+                Math::DecomposeTransform(newLocalTransform, translation, rotation, scale);
 
                 switch (m_GizmoType)
                 {
@@ -355,20 +366,7 @@ namespace Lucky
                         transformComponent.Translation = translation;   // 更新位置
                         break;
                     case ImGuizmo::OPERATION::ROTATE:
-                        glm::vec3 originalRotationEuler = transformComponent.GetRotationEuler();
-                    
-                        glm::vec3 deltaRotationEuler = glm::eulerAngles(rotation) - originalRotationEuler;  // 计算旋转增量（弧度）
-
-                        // 避免数值精度导致的漂移
-                        if (fabs(deltaRotationEuler.x) < 0.001) deltaRotationEuler.x = 0.0f;
-                        if (fabs(deltaRotationEuler.y) < 0.001) deltaRotationEuler.y = 0.0f;
-                        if (fabs(deltaRotationEuler.z) < 0.001) deltaRotationEuler.z = 0.0f;
-                    
-                        // 累积旋转
-                        glm::vec3 newRotationEuler = transformComponent.GetRotationEuler();
-                        newRotationEuler += deltaRotationEuler;
-                    
-                        transformComponent.SetRotationEuler(newRotationEuler);    // 更新旋转
+                        transformComponent.SetRotation(rotation);    // 更新旋转
                         break;
                     case ImGuizmo::OPERATION::SCALE:
                         transformComponent.Scale = scale;   // 更新缩放

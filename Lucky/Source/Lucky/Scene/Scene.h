@@ -7,6 +7,8 @@
 #include "Lucky/Renderer/EditorCamera.h"
 #include "Lucky/Renderer/RenderContext.h"
 
+#include <glm/glm.hpp>
+
 namespace Lucky
 {
     class Entity;
@@ -86,6 +88,12 @@ namespace Lucky
         }
         
         void ClearAllEntities();
+
+        /// <summary>
+        /// 更新 Transform 层级：从根节点递归计算所有实体的世界变换矩阵
+        /// 每帧在 OnUpdate 开头调用
+        /// </summary>
+        void UpdateTransformHierarchy();
         
         // ---- 环境设置 ----
         EnvironmentSettings& GetEnvironmentSettings() { return m_EnvironmentSettings; }
@@ -99,6 +107,13 @@ namespace Lucky
         /// <param name="component">组件</param>
         template<typename TComponent>
         void OnComponentAdded(Entity entity, TComponent& component);
+
+        /// <summary>
+        /// 递归更新实体及其子树的世界变换矩阵
+        /// </summary>
+        /// <param name="entity">当前实体</param>
+        /// <param name="parentWorldTransform">父节点的世界变换矩阵</param>
+        void UpdateWorldTransformRecursive(Entity entity, const glm::mat4& parentWorldTransform);
     private:
         friend class Entity;                // 友元类 Entity
         friend class SceneHierarchyPanel;   // 友元类 SceneHierarchyPanel

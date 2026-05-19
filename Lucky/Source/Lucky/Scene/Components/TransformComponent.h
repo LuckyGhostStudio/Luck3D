@@ -10,6 +10,8 @@
 
 namespace Lucky
 {
+    class Scene;
+
     struct TransformComponent
     {
         glm::vec3 Translation = { 0.0f, 0.0f, 0.0f };
@@ -32,6 +34,13 @@ namespace Lucky
         glm::vec3 RotationEuler = { 0.0f, 0.0f, 0.0f };
         glm::quat Rotation = { 1.0f, 0.0f, 0.0f, 0.0f };
 
+        // ======== 缓存的世界变换矩阵 ========
+        // 由 Scene::UpdateTransformHierarchy() 每帧更新
+        // 不参与序列化
+        glm::mat4 WorldTransform = glm::mat4(1.0f);
+
+        friend class Scene;
+
     public:
         TransformComponent() = default;
         TransformComponent(const TransformComponent& other) = default;
@@ -40,18 +49,105 @@ namespace Lucky
         {
         }
 
-        glm::mat4 GetTransform() const
+        // ======== Local Transform ========
+
+        /// <summary>
+        /// 获取局部变换矩阵（Translation * Rotation * Scale）
+        /// </summary>
+        glm::mat4 GetLocalTransform() const
         {
             return glm::translate(glm::mat4(1.0f), Translation)
                 * glm::toMat4(Rotation)
                 * glm::scale(glm::mat4(1.0f), Scale);
         }
 
-        void SetTransform(const glm::mat4& transform)
+        /// <summary>
+        /// 设置局部变换矩阵（分解为 Translation、Rotation、Scale）
+        /// </summary>
+        void SetLocalTransform(const glm::mat4& transform)
         {
             Math::DecomposeTransform(transform, Translation, Rotation, Scale);
             RotationEuler = glm::eulerAngles(Rotation);
         }
+
+        // ======== World Transform ========
+
+        /// <summary>
+        /// 获取世界变换矩阵（由 Scene::UpdateTransformHierarchy() 每帧更新）
+        /// </summary>
+        const glm::mat4& GetWorldTransform() const { return WorldTransform; }
+
+        /// <summary>
+        /// 获取世界位置
+        /// </summary>
+        glm::vec3 GetWorldPosition() const
+        {
+            return glm::vec3(WorldTransform[3]);
+        }
+
+        /// <summary>
+        /// 获取世界旋转（四元数）
+        /// </summary>
+        glm::quat GetWorldRotation() const
+        {
+            glm::vec3 worldTranslation;
+            glm::quat worldRotation;
+            glm::vec3 worldScale;
+            Math::DecomposeTransform(WorldTransform, worldTranslation, worldRotation, worldScale);
+            return worldRotation;
+        }
+
+        /// <summary>
+        /// 获取世界前方向（局部 +Z 轴经世界旋转后的方向）
+        /// </summary>
+        glm::vec3 GetWorldForward() const
+        {
+            return glm::normalize(glm::vec3(WorldTransform * glm::vec4(0.0f, 0.0f, 1.0f, 0.0f)));
+        }
+
+        /// <summary>
+        /// 获取世界上方向（局部 +Y 轴经世界旋转后的方向）
+        /// </summary>
+        glm::vec3 GetWorldUp() const
+        {
+            return glm::normalize(glm::vec3(WorldTransform * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f)));
+        }
+
+        /// <summary>
+        /// 获取世界右方向（局部 +X 轴经世界旋转后的方向）
+        /// </summary>
+        glm::vec3 GetWorldRight() const
+        {
+            return glm::normalize(glm::vec3(WorldTransform * glm::vec4(1.0f, 0.0f, 0.0f, 0.0f)));
+        }
+
+        // ======== Local 方向 ========
+
+        /// <summary>
+        /// 获取局部前方向（局部 +Z 轴经局部旋转后的方向）
+        /// </summary>
+        glm::vec3 GetLocalForward() const
+        {
+            return Rotation * glm::vec3(0.0f, 0.0f, 1.0f);
+        }
+
+        /// <summary>
+        /// 获取局部上方向（局部 +Y 轴经局部旋转后的方向）
+        /// </summary>
+        glm::vec3 GetLocalUp() const
+        {
+            return Rotation * glm::vec3(0.0f, 1.0f, 0.0f);
+        }
+
+        /// <summary>
+        /// 获取局部右方向（局部 +X 轴经局部旋转后的方向）
+        /// </summary>
+        glm::vec3 GetLocalRight() const
+        {
+            return Rotation * glm::vec3(1.0f, 0.0f, 0.0f);
+        }
+
+        // ======== Rotation ========
 
         glm::vec3 GetRotationEuler() const
         {
@@ -120,30 +216,6 @@ namespace Lucky
             }
 
             RotationEuler = wrapToPi(RotationEuler);
-        }
-        
-        /// <summary>
-        /// 获取前方向量（局部 +Z 轴经旋转后的方向）
-        /// </summary>
-        glm::vec3 GetForward() const
-        {
-            return Rotation * glm::vec3(0.0f, 0.0f, 1.0f);
-        }
-
-        /// <summary>
-        /// 获取上方向量（局部 +Y 轴经旋转后的方向）
-        /// </summary>
-        glm::vec3 GetUp() const
-        {
-            return Rotation * glm::vec3(0.0f, 1.0f, 0.0f);
-        }
-
-        /// <summary>
-        /// 获取右方向量（局部 +X 轴经旋转后的方向）
-        /// </summary>
-        glm::vec3 GetRight() const
-        {
-            return Rotation * glm::vec3(1.0f, 0.0f, 0.0f);
         }
     };
 }

@@ -1,6 +1,8 @@
 #include "lcpch.h"
 #include "Entity.h"
 
+#include "Components/TransformComponent.h"
+
 namespace Lucky
 {
     Entity::Entity(entt::entity entityID, Scene* scene)
@@ -22,6 +24,11 @@ namespace Lucky
             return;
         }
 
+        auto& transform = GetComponent<TransformComponent>();
+
+        // 保存当前世界矩阵（用于保持世界位置不变）
+        glm::mat4 currentWorldTransform = transform.GetWorldTransform();
+
         // 当前节点的父节点存在 则从父节点移除当前节点
         if (currentParent)
         {
@@ -29,7 +36,7 @@ namespace Lucky
         }
         
         // 设置父节点 UUID
-        SetParentUUID(parent.GetUUID());
+        SetParentUUID(parent ? parent.GetUUID() : UUID(0));
 
         if (parent)
         {
@@ -39,6 +46,16 @@ namespace Lucky
             {
                 parentChildren.emplace_back(GetUUID());    // 将当前节点添加到新父节点的子节点列表
             }
+
+            // 计算新的局部 Transform 以保持世界位置不变
+            glm::mat4 parentWorldTransform = parent.GetComponent<TransformComponent>().GetWorldTransform();
+            glm::mat4 newLocalTransform = glm::inverse(parentWorldTransform) * currentWorldTransform;
+            transform.SetLocalTransform(newLocalTransform);
+        }
+        else
+        {
+            // 无父节点：世界矩阵 = 局部矩阵
+            transform.SetLocalTransform(currentWorldTransform);
         }
     }
 
