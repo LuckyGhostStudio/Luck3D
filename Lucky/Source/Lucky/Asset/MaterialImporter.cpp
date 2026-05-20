@@ -24,4 +24,16 @@ namespace Lucky
 
         return material;
     }
+
+    bool MaterialImporter::Save(const Ref<Asset>& asset, const std::string& filepath)
+    {
+        Ref<Material> material = std::static_pointer_cast<Material>(asset);
+        if (!material)
+        {
+            LF_CORE_ERROR("MaterialImporter::Save - Asset is not a Material!");
+            return false;
+        }
+
+        return MaterialSerializer::SerializeToFile(material, filepath);
+    }
 }

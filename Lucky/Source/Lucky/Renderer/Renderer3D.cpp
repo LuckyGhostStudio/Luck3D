@@ -233,9 +233,9 @@ namespace Lucky
             LF_WARN("Skybox textures not found at: {0} (skipping skybox)", skyboxDir);
         }
         
-        // 创建内部材质资产
-        AssetManager::CreateAsset(s_Data.DefaultMaterial, "Assets/Internal/Materials/Default-Material.lmat");
-        AssetManager::CreateAsset(s_Data.Environment.SkyboxMaterial, "Assets/Internal/Materials/Default-Skybox.lmat");
+        // 确保内部材质资产存在（仅首次创建，后续启动不重复写入文件）
+        AssetManager::EnsureAsset(s_Data.DefaultMaterial, "Assets/Internal/Materials/Default-Material.lmat");
+        AssetManager::EnsureAsset(s_Data.Environment.SkyboxMaterial, "Assets/Internal/Materials/Default-Skybox.lmat");
 
         // 创建全局默认纹理
         // White: (255, 255, 255, 255)

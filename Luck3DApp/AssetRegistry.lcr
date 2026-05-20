@@ -23,3 +23,6 @@ Assets:
   - Handle: 8845964786894531549
     Type: Material
     FilePath: Assets/Models/Materials/06 - Default.lmat
+  - Handle: 8010669449625668216
+    Type: Material
+    FilePath: Assets/Materials/Test2.lmat

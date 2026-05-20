@@ -11,8 +11,6 @@
 #include "Lucky/Renderer/Mesh.h"
 #include "Lucky/Renderer/Texture.h"
 
-#include "Lucky/Serialization/MaterialSerializer.h"
-
 #include <filesystem>
 
 namespace Lucky
@@ -69,49 +67,95 @@ namespace Lucky
 
     AssetHandle AssetManager::CreateAsset(const Ref<Asset>& asset, const std::string& filepath)
     {
-        std::filesystem::path relPath = std::filesystem::relative(filepath);
-        std::string assetName = relPath.stem().string();
-        std::string normalizedPath = relPath.generic_string();
+        if (!asset)
+        {
+            LF_CORE_ERROR("AssetManager::CreateAsset - Asset is null!");
+            return NullAssetHandle;
+        }
+
+        // filepath 应为相对路径，规范化（统一正斜杠）
+        std::filesystem::path path(filepath);
+        std::string normalizedPath = path.generic_string();
+        std::string absolutePath = std::filesystem::absolute(path).string();
+        std::string assetName = path.stem().string();
         
         AssetType assetType = asset->GetAssetType();
         
-        // 注册到资产系统
+        // 1. 注册到 Registry（如果已注册则返回已有 Handle）
         AssetHandle assetHandle = ImportAsset(normalizedPath, assetType);
+        if (!assetHandle.IsValid())
+        {
+            LF_CORE_ERROR("AssetManager::CreateAsset - Failed to register asset: '{0}'", normalizedPath);
+            return NullAssetHandle;
+        }
         
         asset->SetHandle(assetHandle);
         
-        // 序列化到文件
-        switch (assetType)
+        // 2. 通过 Importer 序列化到文件
+        if (!SaveAssetToFile(asset, absolutePath))
         {
-            case AssetType::Material:
-            {
-                const Ref<Material>& material = RefAs<Asset, Material>(asset);
-                
-                // 序列化材质
-                if (!MaterialSerializer::SerializeToFile(material, filepath))
-                {
-                    LF_CORE_ERROR("Failed to create material file: '{0}'", filepath);
-                    return NullAssetHandle;
-                }
-                    
-                break;
-            }
-            case AssetType::Mesh:
-                break;
-            case AssetType::Texture2D:
-                break;
-            case AssetType::Scene:
-                break;
-            case AssetType::Shader:
-                break;
+            LF_CORE_ERROR("AssetManager::CreateAsset - Failed to save asset file: '{0}'", absolutePath);
+            return NullAssetHandle;
         }
         
-        // 保存资产注册表到文件
+        // 3. 放入缓存（避免后续 GetAsset 时重复加载）
+        s_Data.Cache[assetHandle] = std::static_pointer_cast<void>(asset);
+        
+        // 4. 保存 Registry
         SaveRegistry();
         
-        LF_CORE_INFO("Created asset: '{0} ({1})' at '{2}'", assetName, AssetTypeToString(assetType), normalizedPath);
+        LF_CORE_INFO("AssetManager::CreateAsset - Created '{0}' ({1}) at '{2}'", assetName, AssetTypeToString(assetType), normalizedPath);
         
         return assetHandle;
+    }
+
+    AssetHandle AssetManager::EnsureAsset(const Ref<Asset>& asset, const std::string& filepath)
+    {
+        if (!asset)
+        {
+            LF_CORE_ERROR("AssetManager::EnsureAsset - Asset is null!");
+            return NullAssetHandle;
+        }
+
+        // filepath 应为相对路径，规范化（统一正斜杠）
+        std::filesystem::path path(filepath);
+        std::string normalizedPath = path.generic_string();
+        std::string absolutePath = std::filesystem::absolute(path).string();
+
+        AssetType assetType = asset->GetAssetType();
+
+        // 如果文件已存在，仅注册并缓存，不重新写入文件
+        if (std::filesystem::exists(absolutePath))
+        {
+            AssetHandle handle = ImportAsset(normalizedPath, assetType);
+            if (!handle.IsValid())
+            {
+                LF_CORE_ERROR("AssetManager::EnsureAsset - Failed to register existing asset: '{0}'", normalizedPath);
+                return NullAssetHandle;
+            }
+
+            asset->SetHandle(handle);
+            s_Data.Cache[handle] = std::static_pointer_cast<void>(asset);
+            return handle;
+        }
+
+        // 文件不存在，走正常创建流程
+        return CreateAsset(asset, filepath);
+    }
+
+    bool AssetManager::SaveAssetToFile(const Ref<Asset>& asset, const std::string& absolutePath)
+    {
+        AssetType type = asset->GetAssetType();
+
+        auto it = s_Data.Importers.find(type);
+        if (it == s_Data.Importers.end())
+        {
+            // 没有注册 Importer 的类型（如 Texture2D、Shader），不需要序列化
+            LF_CORE_WARN("AssetManager::SaveAssetToFile - No importer registered for type: {0}, skipping save.", AssetTypeToString(type));
+            return true;
+        }
+
+        return it->second->Save(asset, absolutePath);
     }
 
     AssetHandle AssetManager::ImportAsset(const std::string& filepath)

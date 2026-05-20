@@ -230,11 +230,11 @@ namespace Lucky
 
                         // 确保默认布局中的面板都处于打开状态
                         auto OpenPanel = [this](const char* panelID)
-                            {
-                                uint32_t id = Hash::GenerateFNVHash(panelID);
-                                PanelData* data = m_PanelManager->GetPanelData(id);
-                                data->IsOpen = true;
-                            };
+                        {
+                            uint32_t id = Hash::GenerateFNVHash(panelID);
+                            PanelData* data = m_PanelManager->GetPanelData(id);
+                            data->IsOpen = true;
+                        };
 
                         OpenPanel(SCENE_HIERARCHY_PANEL_ID);
                         OpenPanel(SCENE_VIEWPORT_PANEL_ID);
@@ -435,12 +435,11 @@ namespace Lucky
                     material->SetName(matName);
                 }
                 
-                // 构造 .lmat 文件路径
+                // 构造 .lmat 文件路径（相对路径）
                 std::filesystem::path matFilePath = materialsDir / (matName + ".lmat");
                 std::string matFilePathStr = matFilePath.generic_string();
-                std::string absoluteMatPath = std::filesystem::absolute(matFilePath).string();
                 
-                AssetManager::CreateAsset(material, absoluteMatPath);  // 创建材质资产
+                AssetManager::CreateAsset(material, matFilePathStr);  // 创建材质资产
             }
             meshRenderer.Materials = result.Materials;
         }
@@ -465,16 +464,19 @@ namespace Lucky
         if (path.extension() != ".lmat")
         {
             path.replace_extension(".lmat");
-            filepath = path.string();
         }
+        
+        // 转为相对路径（CreateAsset 要求相对路径）
+        std::filesystem::path relPath = std::filesystem::relative(path);
+        std::string normalizedPath = relPath.generic_string();
         
         // 创建默认材质（使用 Standard Shader）
         Ref<ShaderLibrary>& shaderLib = Renderer3D::GetShaderLibrary();
         Ref<Shader> standardShader = shaderLib->Get("Standard");
         
-        std::string materialName = path.stem().string();
+        std::string materialName = relPath.stem().string();
         Ref<Material> material = CreateRef<Material>(materialName, standardShader);
         
-        AssetManager::CreateAsset(material, filepath);  // 创建材质资产
+        AssetManager::CreateAsset(material, normalizedPath);  // 创建材质资产
     }
 }

@@ -30,12 +30,25 @@ namespace Lucky
         // ---- 资产创建 ----
         
         /// <summary>
-        /// 创建资产
+        /// 创建资产：将内存中的资产实例序列化到文件，并注册到资产系统
+        /// 无条件创建/覆盖（类似 Unity AssetDatabase.CreateAsset）
+        /// 创建后资产自动放入缓存，后续 GetAsset 可直接获取
         /// </summary>
         /// <param name="asset">资产引用</param>
-        /// <param name="filepath">路径</param>
+        /// <param name="filepath">相对于项目根目录的路径（如 "Assets/Materials/Metal.lmat"）</param>
         /// <returns>资产 Handle（失败返回 NullAssetHandle）</returns>
         static AssetHandle CreateAsset(const Ref<Asset>& asset, const std::string& filepath);
+
+        /// <summary>
+        /// 确保资产存在（幂等操作）：
+        /// - 如果文件已存在：仅注册到 Registry 并放入缓存，不重新写入文件
+        /// - 如果文件不存在：创建资产文件并注册
+        /// 适用于引擎内部默认资产等"只需创建一次"的场景
+        /// </summary>
+        /// <param name="asset">资产引用</param>
+        /// <param name="filepath">相对于项目根目录的路径</param>
+        /// <returns>资产 Handle（失败返回 NullAssetHandle）</returns>
+        static AssetHandle EnsureAsset(const Ref<Asset>& asset, const std::string& filepath);
 
         // ---- 资产导入 ----
 
@@ -119,5 +132,14 @@ namespace Lucky
         /// 加载资产到内存（内部方法）
         /// </summary>
         static Ref<void> LoadAsset(const AssetMetadata& metadata);
+
+        /// <summary>
+        /// 将资产序列化到磁盘文件（内部方法）
+        /// 通过 Importer 注册表分发保存逻辑
+        /// </summary>
+        /// <param name="asset">资产实例</param>
+        /// <param name="absolutePath">绝对文件路径</param>
+        /// <returns>是否成功</returns>
+        static bool SaveAssetToFile(const Ref<Asset>& asset, const std::string& absolutePath);
     };
 }
