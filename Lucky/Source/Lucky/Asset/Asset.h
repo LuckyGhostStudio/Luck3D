@@ -3,6 +3,8 @@
 #include "AssetHandle.h"
 #include "AssetType.h"
 
+#include <string>
+
 namespace Lucky
 {
     /// <summary>
@@ -13,6 +15,8 @@ namespace Lucky
     class Asset
     {
     public:
+        Asset() = default;
+        Asset(const std::string& name) : m_Name(name) {}
         virtual ~Asset() = default;
 
         /// <summary>
@@ -29,7 +33,18 @@ namespace Lucky
         /// 获取资产类型（纯虚函数，派生类必须实现）
         /// </summary>
         virtual AssetType GetAssetType() const = 0;
+
+        /// <summary>
+        /// 获取资产名称
+        /// </summary>
+        const std::string& GetName() const { return m_Name; }
+
+        /// <summary>
+        /// 设置资产名称
+        /// </summary>
+        void SetName(const std::string& name) { m_Name = name; }
     private:
         AssetHandle m_Handle;
+        std::string m_Name;     // 资产名称
     };
 }

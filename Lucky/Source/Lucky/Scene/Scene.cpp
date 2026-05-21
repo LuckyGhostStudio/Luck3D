@@ -10,7 +10,7 @@
 namespace Lucky
 {
     Scene::Scene(const std::string& name)
-        : m_Name(name)
+        : Asset(name)
     {
         // 从渲染器获取默认天空盒材质
         m_EnvironmentSettings.SkyboxMaterial = Renderer3D::GetSkyboxMaterial();

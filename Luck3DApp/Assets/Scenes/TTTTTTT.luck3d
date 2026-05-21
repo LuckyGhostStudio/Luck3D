@@ -1,0 +1,11 @@
+Scene: TTTTTTT
+Handle: 6894491782827220427
+EnvironmentSettings:
+  SkyboxMaterial: 7865802476581088480
+  AmbientSource: 0
+  AmbientColor: [0.211999997, 0.226999998, 0.259000003]
+  DiffuseIntensity: 1
+  SpecularIntensity: 1
+  ReflectionResolution: 128
+Entitys:
+  []

@@ -31,7 +31,7 @@ namespace Lucky
         /// <summary>
         /// 创建新场景
         /// </summary>
-        void NewScene();
+        void CreateScene();
 
         /// <summary>
         /// 打开场景
@@ -48,11 +48,6 @@ namespace Lucky
         /// 保存场景到当前场景
         /// </summary>
         void SaveScene();
-
-        /// <summary>
-        /// 场景另存为
-        /// </summary>
-        void SaveSceneAs();
 
         /// <summary>
         /// 序列化场景
@@ -79,6 +74,5 @@ namespace Lucky
         Scope<PanelManager> m_PanelManager; // 编辑器面板管理器
         
         Ref<Scene> m_Scene;
-        std::filesystem::path m_SceneFilePath;
     };
 }

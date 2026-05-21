@@ -6,10 +6,12 @@
 #include "MaterialImporter.h"
 #include "MeshAssetImporter.h"
 #include "TextureImporter.h"
+#include "SceneImporter.h"
 
 #include "Lucky/Renderer/Material.h"
 #include "Lucky/Renderer/Mesh.h"
 #include "Lucky/Renderer/Texture.h"
+#include "Lucky/Scene/Scene.h"
 
 #include <filesystem>
 
@@ -40,6 +42,7 @@ namespace Lucky
         template<> AssetType GetExpectedAssetType<Material>() { return AssetType::Material; }
         template<> AssetType GetExpectedAssetType<Mesh>() { return AssetType::Mesh; }
         template<> AssetType GetExpectedAssetType<Texture2D>() { return AssetType::Texture2D; }
+        template<> AssetType GetExpectedAssetType<Scene>() { return AssetType::Scene; }
     }
 
     // ---- 公有接口实现 ----
@@ -50,6 +53,7 @@ namespace Lucky
         s_Data.Importers[AssetType::Material] = CreateScope<MaterialImporter>();
         s_Data.Importers[AssetType::Mesh] = CreateScope<MeshAssetImporter>();
         s_Data.Importers[AssetType::Texture2D] = CreateScope<TextureImporter>();
+        s_Data.Importers[AssetType::Scene] = CreateScope<SceneImporter>();
 
         // 加载 Registry
         s_Data.Registry.Load(s_Data.RegistryFilePath);
@@ -247,6 +251,7 @@ namespace Lucky
     template Ref<Material> AssetManager::GetAsset<Material>(AssetHandle handle);
     template Ref<Mesh> AssetManager::GetAsset<Mesh>(AssetHandle handle);
     template Ref<Texture2D> AssetManager::GetAsset<Texture2D>(AssetHandle handle);
+    template Ref<Scene> AssetManager::GetAsset<Scene>(AssetHandle handle);
 
     bool AssetManager::IsAssetLoaded(AssetHandle handle)
     {

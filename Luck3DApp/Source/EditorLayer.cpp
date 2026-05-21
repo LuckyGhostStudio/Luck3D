@@ -18,7 +18,7 @@
 
 #include "Lucky/Utils/PlatformUtils.h"
 
-#include "Lucky/Serialization//SceneSerializer.h"
+#include "Lucky/Serialization/SceneSerializer.h"
 #include "Lucky/Asset/MeshImporter.h"
 #include "Lucky/Asset/AssetManager.h"
 
@@ -120,7 +120,7 @@ namespace Lucky
             {
                 if (ImGui::MenuItem("New"))
                 {
-                    NewScene();
+                    CreateScene();
                 }
                 
                 if (ImGui::MenuItem("Open..."))
@@ -133,11 +133,6 @@ namespace Lucky
                 if (ImGui::MenuItem("Save"))
                 {
                     SaveScene();
-                }
-                
-                if (ImGui::MenuItem("Save As..."))
-                {
-                    SaveSceneAs();
                 }
                 
                 ImGui::Separator();
@@ -284,12 +279,38 @@ namespace Lucky
         }
     }
 
-    void EditorLayer::NewScene()
+    void EditorLayer::CreateScene()
     {
-        SelectionManager::Deselect();               // 清空选中项 防止创建新场景后当前选中的 UUID 无效
+        // 通过文件对话框指定保存路径
+        std::string filepath = FileDialogs::SaveFile("Luck3D Scene(*.luck3d)\0*.luck3d\0");
+        if (filepath.empty()) return;
         
-        m_Scene = CreateRef<Scene>();               // 创建新场景
-        m_SceneFilePath = std::filesystem::path();  // 场景路径
+        // 确保扩展名为 .luck3d
+        std::filesystem::path path(filepath);
+        if (path.extension() != ".luck3d")
+        {
+            path.replace_extension(".luck3d");
+        }
+        
+        SelectionManager::Deselect();               // 清空选中项
+        
+        // 创建新的空场景
+        Ref<Scene> scene = CreateRef<Scene>();
+        scene->SetName(path.stem().string());
+        
+        // 计算相对路径
+        std::filesystem::path relPath = std::filesystem::relative(path);
+        std::string normalizedPath = relPath.generic_string();
+        
+        // 通过 CreateAsset 创建资产文件并注册到 Registry
+        AssetHandle sceneHandle = AssetManager::CreateAsset(scene, normalizedPath);
+        if (!sceneHandle.IsValid())
+        {
+            LF_CORE_ERROR("Failed to create scene asset: '{0}'", normalizedPath);
+            return;
+        }
+        
+        m_Scene = scene;
 
         // 设置所有面板的场景上下文
         m_PanelManager->GetPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID)->SetScene(m_Scene);
@@ -319,54 +340,55 @@ namespace Lucky
             return;
         }
         
-        SelectionManager::Deselect();               // 清空选中项 防止创建新场景后当前选中的 UUID 无效
+        SelectionManager::Deselect();               // 清空选中项
 
-        Ref<Scene> newScene = CreateRef<Scene>();   // 创建新场景
-        SceneSerializer serializer(newScene);       // 场景序列化器
+        // 注册到资产系统（如果尚未注册）
+        std::filesystem::path relPath = std::filesystem::relative(filepath);
+        std::string normalizedPath = relPath.generic_string();
         
-        // 反序列化：加载文件场景到新场景
-        if (serializer.Deserialize(filepath.string()))
+        AssetHandle sceneHandle = AssetManager::ImportAsset(normalizedPath, AssetType::Scene);
+        if (!sceneHandle.IsValid())
         {
-            m_Scene = newScene;
-            m_SceneFilePath = filepath;     // 当前场景路径
-
-            // 设置所有面板的场景上下文
-            m_PanelManager->GetPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID)->SetScene(m_Scene);
-            m_PanelManager->GetPanel<SceneHierarchyPanel>(SCENE_HIERARCHY_PANEL_ID)->SetScene(m_Scene);
-            m_PanelManager->GetPanel<InspectorPanel>(INSPECTOR_PANEL_ID)->SetScene(m_Scene);
-            m_PanelManager->GetPanel<LightingPanel>(LIGHTING_PANEL_ID)->SetScene(m_Scene);
+            LF_CORE_ERROR("Failed to import scene: '{0}'", normalizedPath);
+            return;
         }
+        
+        // 通过 AssetManager 加载场景
+        // 场景不使用缓存（每次打开都是新实例）
+        AssetManager::UnloadAsset(sceneHandle);  // 清除旧缓存
+        Ref<Scene> scene = AssetManager::GetAsset<Scene>(sceneHandle);
+        if (!scene)
+        {
+            LF_CORE_ERROR("Failed to load scene asset: '{0}'", normalizedPath);
+            return;
+        }
+        
+        m_Scene = scene;
+
+        // 设置所有面板的场景上下文
+        m_PanelManager->GetPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID)->SetScene(m_Scene);
+        m_PanelManager->GetPanel<SceneHierarchyPanel>(SCENE_HIERARCHY_PANEL_ID)->SetScene(m_Scene);
+        m_PanelManager->GetPanel<InspectorPanel>(INSPECTOR_PANEL_ID)->SetScene(m_Scene);
+        m_PanelManager->GetPanel<LightingPanel>(LIGHTING_PANEL_ID)->SetScene(m_Scene);
     }
 
     void EditorLayer::SaveScene()
     {
-        if (!m_SceneFilePath.empty())
+        if (!m_Scene->GetHandle().IsValid())
         {
-            SerializeScene(m_Scene, m_SceneFilePath);   // 序列化场景到当前场景
+            LF_CORE_WARN("No scene to save (no valid handle).");
+            return;
         }
-        else
-        {
-            SaveSceneAs();  // 场景另存为
-        }
-    }
-
-    void EditorLayer::SaveSceneAs()
-    {
-        // 保存文件对话框（文件类型名\0 文件类型.luck3d）
-        std::string filepath = FileDialogs::SaveFile("Luck3D Scene(*.luck3d)\0*.luck3d\0");
-
-        // 路径不为空
-        if (!filepath.empty())
-        {
-            SerializeScene(m_Scene, filepath);    // 序列化场景
-            m_SceneFilePath = filepath;             // 记录当前场景路径
-        }
+        
+        const std::string& filepath = AssetManager::GetAssetFilePath(m_Scene->GetHandle());
+        std::string absolutePath = std::filesystem::absolute(filepath).string();
+        
+        SceneSerializer::Serialize(m_Scene, absolutePath);
     }
 
     void EditorLayer::SerializeScene(Ref<Scene> scene, const std::filesystem::path& filepath)
     {
-        SceneSerializer serializer(scene);          // 场景序列化器
-        serializer.Serialize(filepath.string());    // 序列化：保存场景
+        SceneSerializer::Serialize(scene, filepath.string());
     }
 
     void EditorLayer::ImportModel()

@@ -110,21 +110,19 @@ namespace Lucky
     }
 
     Material::Material(const Ref<Shader>& shader)
-        : m_Shader(shader)
+        : Asset("New Material"), m_Shader(shader)
     {
         if (m_Shader)
         {
-            m_Name = "New Material";
             RebuildProperties();
         }
     }
 
     Material::Material(const std::string& name, const Ref<Shader>& shader)
-        : m_Shader(shader)
+        : Asset(name), m_Shader(shader)
     {
         if (m_Shader)
         {
-            m_Name = name;
             RebuildProperties();
         }
     }
@@ -471,7 +469,7 @@ namespace Lucky
             m_PropertyOrder.push_back(uniform.Name);        // ¼ÇÂ¼ÉùÃ÷Ë³Ðò
         }
 
-        LF_CORE_INFO("Material '{0}' properties rebuilt: {1} properties", m_Name, m_PropertyMap.size());
+        LF_CORE_INFO("Material '{0}' properties rebuilt: {1} properties", GetName(), m_PropertyMap.size());
     }
 
     // ---- FindProperty ----

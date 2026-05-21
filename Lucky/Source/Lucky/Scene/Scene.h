@@ -6,6 +6,7 @@
 #include "Lucky/Core/UUID.h"
 #include "Lucky/Renderer/EditorCamera.h"
 #include "Lucky/Renderer/RenderContext.h"
+#include "Lucky/Asset/Asset.h"
 
 #include <glm/glm.hpp>
 
@@ -16,14 +17,14 @@ namespace Lucky
     /// <summary>
     /// 场景
     /// </summary>
-    class Scene
+    class Scene : public Asset
     {
     public:
+        AssetType GetAssetType() const override { return AssetType::Scene; }
+
         Scene(const std::string& name = "New Scene");
         ~Scene();
 
-        const std::string& GetName() const { return m_Name; }
-        void SetName(const std::string& name) { m_Name = name; }
 
         bool IsRunning() const { return m_IsRunning; }
         
@@ -122,7 +123,6 @@ namespace Lucky
         std::unordered_map<UUID, Entity> m_EntityIDMap; // UUID - entt 映射表
 
         entt::registry m_Registry;          // 实体集合：实体 id 集合（unsigned int 集合）
-        std::string m_Name;                 // 场景名
 
         uint32_t m_ViewportWidth = 1280;    // 场景视口宽
         uint32_t m_ViewportHeight = 720;    // 场景视口高

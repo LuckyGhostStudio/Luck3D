@@ -109,8 +109,7 @@ namespace Lucky
         /// </summary>
         const std::unordered_map<std::string, MaterialProperty>& GetPropertyMap() const { return m_PropertyMap; }
         
-        const std::string& GetName() const { return m_Name; }
-        void SetName(const std::string& name) { m_Name = name; }
+
 
         // ---- 渲染状态 ----
         
@@ -176,7 +175,7 @@ namespace Lucky
         Ref<Shader> m_Shader;                                               // 着色器
         std::unordered_map<std::string, MaterialProperty> m_PropertyMap;    // 材质属性 Map：属性名 - 属性
         std::vector<std::string> m_PropertyOrder;                           // 属性名有序列表（按 Shader uniform 声明顺序）
-        std::string m_Name;                                                 // 材质名称
+
         
         RenderState m_RenderState;                              // 渲染状态
         RenderingMode m_RenderingMode = RenderingMode::Opaque;  // 渲染模式预设

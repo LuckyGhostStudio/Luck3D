@@ -26,3 +26,9 @@ Assets:
   - Handle: 8010669449625668216
     Type: Material
     FilePath: Assets/Materials/Test2.lmat
+  - Handle: 6193259386259498848
+    Type: Scene
+    FilePath: Assets/Scenes/TestSceneAsset.luck3d
+  - Handle: 6894491782827220427
+    Type: Scene
+    FilePath: Assets/Scenes/TTTTTTT.luck3d

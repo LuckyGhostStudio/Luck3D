@@ -18,12 +18,6 @@
 
 namespace Lucky
 {
-    SceneSerializer::SceneSerializer(const Ref<Scene> scene)
-        : m_Scene(scene)
-    {
-
-    }
-
     /// <summary>
     /// 序列化实体
     /// </summary>
@@ -219,17 +213,20 @@ namespace Lucky
         out << YAML::EndMap;    // 结束实体 Map
     }
 
-    void SceneSerializer::Serialize(const std::string& filepath)
+    void SceneSerializer::Serialize(const Ref<Scene>& scene, const std::string& filepath)
     {
         YAML::Emitter out;      // 发射器
 
         out << YAML::BeginMap;
         
-        out << YAML::Key << "Scene" << YAML::Value << m_Scene->GetName();   // 场景：场景名
+        out << YAML::Key << "Scene" << YAML::Value << scene->GetName();   // 场景：场景名
+        
+        // 场景 AssetHandle
+        out << YAML::Key << "Handle" << YAML::Value << static_cast<uint64_t>(scene->GetHandle());
         
         // ---- 环境设置 ----
         {
-            const EnvironmentSettings& env = m_Scene->GetEnvironmentSettings();
+            const EnvironmentSettings& env = scene->GetEnvironmentSettings();
             out << YAML::Key << "EnvironmentSettings" << YAML::Value;
             out << YAML::BeginMap;
             
@@ -255,9 +252,9 @@ namespace Lucky
         out << YAML::Key << "Entitys" << YAML::Value << YAML::BeginSeq;     // 实体序列：开始实体序列
 
         // 遍历场景注册表所有实体
-        m_Scene->m_Registry.each([&](auto entityID)
+        scene->m_Registry.each([&](auto entityID)
         {
-            Entity entity = { entityID, m_Scene.get() };
+            Entity entity = { entityID, scene.get() };
             if (!entity)
             {
                 return;
@@ -274,12 +271,12 @@ namespace Lucky
         fout << out.c_str();            // 输出序列化结果到输出流文件
     }
 
-    void SceneSerializer::SerializeRuntime(const std::string& filepath)
+    void SceneSerializer::SerializeRuntime(const Ref<Scene>& scene, const std::string& filepath)
     {
         LF_CORE_ASSERT(false, "Not implemented!");
     }
 
-    bool SceneSerializer::Deserialize(const std::string& filepath)
+    bool SceneSerializer::Deserialize(const Ref<Scene>& scene, const std::string& filepath)
     {
         YAML::Node data = YAML::LoadFile(filepath); // 加载到 YMAL 结点
 
@@ -290,7 +287,7 @@ namespace Lucky
         }
 
         std::string sceneName = data["Scene"].as<std::string>();    // 场景名
-        m_Scene->SetName(sceneName);
+        scene->SetName(sceneName);
 
         LF_CORE_TRACE("Deserializing scene '{0}'", sceneName);
 
@@ -298,7 +295,7 @@ namespace Lucky
         YAML::Node envNode = data["EnvironmentSettings"];
         if (envNode)
         {
-            EnvironmentSettings& env = m_Scene->GetEnvironmentSettings();
+            EnvironmentSettings& env = scene->GetEnvironmentSettings();
             
             // 反序列化天空盒材质（通过 AssetHandle 引用）
             YAML::Node skyboxMatNode = envNode["SkyboxMaterial"];
@@ -350,7 +347,7 @@ namespace Lucky
 
                 LF_CORE_TRACE("Deserialized Entity: [UUID = {0}, Name = {1}]", uuid, entityName);
 
-                Entity deserializedEntity = m_Scene->CreateEntity(uuid, entityName);  // 创建实体
+                Entity deserializedEntity = scene->CreateEntity(uuid, entityName);  // 创建实体
 
                 // Transform 组件
                 YAML::Node transformComponentNode = entity["TransformComponent"];
@@ -554,7 +551,7 @@ namespace Lucky
         return true;
     }
 
-    bool SceneSerializer::DeserializeRuntime(const std::string& filepath)
+    bool SceneSerializer::DeserializeRuntime(const Ref<Scene>& scene, const std::string& filepath)
     {
         LF_CORE_ASSERT(false, "Not implemented!");
 
