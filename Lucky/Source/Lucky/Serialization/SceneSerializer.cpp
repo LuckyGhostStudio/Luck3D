@@ -8,7 +8,6 @@
 #include "Lucky/Serialization/MaterialSerializer.h"
 #include "Lucky/Renderer/Renderer3D.h"
 
-#include "Lucky/Asset/MeshImporter.h"
 #include "Lucky/Asset/AssetManager.h"
 #include "YamlHelpers.h"
 

@@ -4,7 +4,7 @@
 #include "Asset.h"
 #include "AssetImporter.h"
 #include "MaterialImporter.h"
-#include "MeshAssetImporter.h"
+#include "MeshImporter.h"
 #include "TextureImporter.h"
 #include "SceneImporter.h"
 
@@ -51,7 +51,7 @@ namespace Lucky
     {
         // зЂВс Importers
         s_Data.Importers[AssetType::Material] = CreateScope<MaterialImporter>();
-        s_Data.Importers[AssetType::Mesh] = CreateScope<MeshAssetImporter>();
+s_Data.Importers[AssetType::Mesh] = CreateScope<MeshImporter>();
         s_Data.Importers[AssetType::Texture2D] = CreateScope<TextureImporter>();
         s_Data.Importers[AssetType::Scene] = CreateScope<SceneImporter>();
 

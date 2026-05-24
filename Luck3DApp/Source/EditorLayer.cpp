@@ -19,7 +19,7 @@
 #include "Lucky/Utils/PlatformUtils.h"
 
 #include "Lucky/Serialization/SceneSerializer.h"
-#include "Lucky/Asset/MeshImporter.h"
+#include "Lucky/Asset/ModelLoader.h"
 #include "Lucky/Asset/AssetManager.h"
 
 #include <filesystem>
@@ -431,10 +431,10 @@ namespace Lucky
         meshFilterComponent.Mesh = mesh;
         
         // 添加 MeshRenderer
-        // 导入模型时同时获取材质（通过 MeshImporter 的结果）
-        // 注意：当前 MeshAssetImporter 只返回 Mesh，材质需要单独处理
-        // 暂时使用 MeshImporter 直接获取材质列表
-        MeshImportResult result = MeshImporter::Import(filepath.string());
+        // 导入模型时同时获取材质（通过 ModelLoader 的结果）
+        // 注意：当前 MeshImporter 只返回 Mesh，材质需要单独处理
+        // 暂时使用 ModelLoader 直接获取材质列表
+        ModelLoadResult result = ModelLoader::Load(filepath.string());
         auto& meshRenderer = entity.AddComponent<MeshRendererComponent>();
         if (result.Success)
         {
