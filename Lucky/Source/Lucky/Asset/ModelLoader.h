@@ -37,7 +37,6 @@ namespace Lucky
     /// <summary>
     /// 模型加载器：使用 Assimp 解析外部 3D 模型文件
     /// 支持格式：.obj, .fbx, .gltf, .glb, .dae, .3ds, .blend 等
-    /// 本质上是对 Assimp 的封装，类似于 stbi_load 对图片格式的解析
     /// </summary>
     class ModelLoader
     {

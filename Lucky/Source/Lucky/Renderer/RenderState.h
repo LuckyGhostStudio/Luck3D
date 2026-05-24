@@ -42,7 +42,7 @@ namespace Lucky
     };
 
     /// <summary>
-    /// 渲染模式预设（类似 Unity Standard Shader 的 RenderingMode）
+    /// 渲染模式预设
     /// 选择后会自动设置 BlendMode、DepthWrite、RenderQueue 等状态
     /// </summary>
     enum class RenderingMode : uint8_t

@@ -31,8 +31,7 @@ namespace Lucky
         
         /// <summary>
         /// 创建资产：将内存中的资产实例序列化到文件，并注册到资产系统
-        /// 无条件创建/覆盖（类似 Unity AssetDatabase.CreateAsset）
-        /// 创建后资产自动放入缓存，后续 GetAsset 可直接获取
+        /// 无条件创建/覆盖，创建后资产自动放入缓存，后续 GetAsset 可直接获取
         /// </summary>
         /// <param name="asset">资产引用</param>
         /// <param name="filepath">相对于项目根目录的路径（如 "Assets/Materials/Metal.lmat"）</param>

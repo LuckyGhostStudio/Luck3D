@@ -7,7 +7,6 @@ namespace Lucky
     /// <summary>
     /// 后处理 Volume 组件
     /// 挂载到场景实体上，控制后处理效果的参数
-    /// 类似 Unity 的 Volume 组件
     /// </summary>
     struct PostProcessVolumeComponent
     {
