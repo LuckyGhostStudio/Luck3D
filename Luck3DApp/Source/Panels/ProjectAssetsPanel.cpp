@@ -6,6 +6,7 @@
 
 #include "imgui/imgui.h"
 #include "Lucky/Asset/AssetManager.h"
+#include "Lucky/Editor/EditorIconManager.h"
 
 namespace Lucky
 {
@@ -80,12 +81,15 @@ namespace Lucky
         bool isRoot = node.FullPath == m_AssetsDirectory;    // 根目录默认展开
         bool isLeaf = node.SubDirectories.empty();
 
+        bool isCurrentDir = (m_CurrentDirectory == node.FullPath);
+        const Ref<Texture2D>& folderIcon = EditorIconManager::GetFolderIcon(isCurrentDir);
+
         if (isRoot)
         {
             ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO 封装 Fonts
         }
         
-        bool opened = UI::BeginTreeNode(strID.c_str(), isRoot, m_CurrentDirectory == node.FullPath, isLeaf);
+        bool opened = UI::BeginTreeNode(folderIcon, strID.c_str(), isRoot, isCurrentDir, isLeaf);
         
         if (isRoot)
         {
@@ -127,6 +131,9 @@ namespace Lucky
         std::string strID = path.stem().string();
         
         bool isDirectory = entry.is_directory();
+
+        // 获取图标
+        const Ref<Texture2D>& icon = isDirectory ? EditorIconManager::GetFolderIcon(false) : EditorIconManager::GetAssetTypeIcon(GetAssetTypeFromPath(path));
         
         if (!isDirectory)
         {
@@ -134,7 +141,7 @@ namespace Lucky
             strID = std::format("{}##{}", path.stem().string(), static_cast<uint32_t>(assetHandel));
         }
         
-        if (UI::BeginTreeNode(strID.c_str(), false, m_SelectionPath == path, true))
+        if (UI::BeginTreeNode(icon, strID.c_str(), false, m_SelectionPath == path, true))
         {
             UI::EndTreeNode();
         }

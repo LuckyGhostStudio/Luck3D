@@ -1,8 +1,10 @@
 #pragma once
 
 #include "Lucky/Editor/EditorPanel.h"
+#include "Lucky/Editor/EditorIconManager.h"
 #include "Lucky/Scene/Scene.h"
 #include "Lucky/Scene/Entity.h"
+#include "Lucky/Scene/Components/Components.h"
 #include "Lucky/Renderer/Material.h"
 
 #include "Lucky/UI/UICore.h"
@@ -76,12 +78,25 @@ namespace Lucky
             UI::ScopedStyle itemSpacing(ImGuiStyleVar_ItemSpacing, { 0, 0 });   // 树节点和底部水平线之间的 Spacing
             opened = ImGui::TreeNodeEx(strComponentID.c_str(), flags, "");
             
-            // 组件名
+            // 组件图标 + 组件名
             ImGui::SameLine();
-            UI::ShiftCursorX(8.0f);
+            UI::ShiftCursorX(UI::Theme::Layout::ComponentHeaderIconSpacing);
+
+            const Ref<Texture2D>& componentIcon = EditorIconManager::GetComponentIcon(ComponentTrait<TComponent>::Type);
+            if (componentIcon)
+            {
+                float iconSize = ImGui::GetTextLineHeight() - UI::Theme::Layout::TreeNodeIconSizeShrink;
+                ImTextureID texID = reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(componentIcon->GetRendererID()));
+                UI::ShiftCursorY(UI::Theme::Layout::ComponentHeaderIconOffsetY);
+                ImGui::Image(texID, ImVec2(iconSize, iconSize));
+                ImGui::SameLine();
+                UI::ShiftCursorX(UI::Theme::Layout::ComponentHeaderIconToTextSpacing);
+                UI::ShiftCursorY(-UI::Theme::Layout::ComponentHeaderIconOffsetY);
+            }
+
             {
                 UI::ScopedFont boldFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO 封装 Fonts
-                ImGui::Text(name.c_str());
+                ImGui::TextUnformatted(name.c_str());
             }
             
             ImGui::SameLine(contentRegionAvail.x - 18);

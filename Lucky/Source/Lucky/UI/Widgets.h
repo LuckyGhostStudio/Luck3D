@@ -24,12 +24,24 @@ namespace Lucky::UI
     /// <summary>
     /// 树节点 用于 Hierarchy / Assets 等面板的树形结构
     /// </summary>
-    /// <param name="defaultOpen">默认打开</param>
     /// <param name="name">名称</param>
+    /// <param name="defaultOpen">默认打开</param>
     /// <param name="selected">已选中</param>
     /// <param name="isLeaf">是叶节点</param>
-    /// <returns></returns>
+    /// <returns>是否展开</returns>
     bool BeginTreeNode(const char* name, bool defaultOpen = false, bool selected = false, bool isLeaf = false);
+
+    /// <summary>
+    /// 树节点（带图标版本）
+    /// </summary>
+    /// <param name="icon">节点图标（可为 nullptr，不显示图标）</param>
+    /// <param name="name">名称</param>
+    /// <param name="defaultOpen">默认打开</param>
+    /// <param name="selected">已选中</param>
+    /// <param name="isLeaf">是叶节点</param>
+    /// <returns>是否展开</returns>
+    bool BeginTreeNode(const Ref<Texture2D>& icon, const char* name, bool defaultOpen = false, bool selected = false, bool isLeaf = false);
+
     void EndTreeNode();
 
     /// <summary>

@@ -6,6 +6,8 @@
 #include "Theme.h"
 #include "UICore.h"
 
+#include <imgui/imgui_internal.h>
+
 namespace Lucky::UI
 {
     /// <summary>
@@ -40,10 +42,10 @@ namespace Lucky::UI
             
             // 组件名
             ImGui::SameLine();
-            ShiftCursorX(8.0f);
+            ShiftCursorX(Theme::Layout::ComponentHeaderIconSpacing);
             {
                 ScopedFont boldFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO 封装 Fonts
-                ImGui::Text(label);
+                ImGui::TextUnformatted(label);
             }
         
             ImGui::Indent(-Theme::Layout::IndentSpacing);
@@ -90,7 +92,12 @@ namespace Lucky::UI
     
     bool BeginTreeNode(const char* name, bool defaultOpen, bool selected, bool isLeaf)
     {
-        // TODO 图标
+        return BeginTreeNode(nullptr, name, defaultOpen, selected, isLeaf);
+    }
+
+    bool BeginTreeNode(const Ref<Texture2D>& icon, const char* name, bool defaultOpen, bool selected, bool isLeaf)
+    {
+        ImGui::PushID(name);
         
         ScopedStyle itemSpacing(ImGuiStyleVar_ItemSpacing, { 0, 0 });
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_SpanAvailWidth;
@@ -123,7 +130,45 @@ namespace Lucky::UI
 
         ScopedColor headerColor(ImGuiCol_Header, color);
         ScopedColor headerHoveredColor(ImGuiCol_HeaderHovered, hoveredColor);
-        return ImGui::TreeNodeEx(name, flags);
+        
+        bool opened = ImGui::TreeNodeEx("", flags);
+
+        // 保存 TreeNode 的 LastItemData，用于后续恢复
+        ImGuiContext& g = *GImGui;
+        const ImGuiLastItemData treeNodeItemData = g.LastItemData;
+
+        ImGui::SameLine();
+
+        ShiftCursorX(Theme::Layout::TreeNodeArrowToIconSpacing);
+        
+        float iconSize = ImGui::GetTextLineHeight() - Theme::Layout::TreeNodeIconSizeShrink;
+        ImTextureID texID = GetImTextureID(icon);
+        if (texID)
+        {
+            ShiftCursorY(Theme::Layout::TreeNodeIconOffsetY);
+            ImGui::Image(texID, ImVec2(iconSize, iconSize));
+            ImGui::SameLine();
+            ShiftCursorX(Theme::Layout::TreeNodeIconToTextSpacing);
+            ShiftCursorY(-Theme::Layout::TreeNodeIconOffsetY);
+        }
+
+        // 截断 ## 及其后面的 ID 部分，只显示可见文本
+        const char* hashPos = strstr(name, "##");
+        if (hashPos)
+        {
+            ImGui::TextUnformatted(name, hashPos);
+        }
+        else
+        {
+            ImGui::TextUnformatted(name);
+        }
+
+        // 恢复 TreeNode 为 LastItem，使调用方的 IsItemClicked 等交互检测正确工作
+        g.LastItemData = treeNodeItemData;
+        
+        ImGui::PopID();
+
+        return opened;
     }
     
     void EndTreeNode()

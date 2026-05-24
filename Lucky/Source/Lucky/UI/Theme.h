@@ -16,10 +16,18 @@ namespace Lucky::UI::Theme
         constexpr float PropertyLabelMinWidth = 80.0f;      // Label 列最小宽度
 
         // ---- 组件头部 ----
-        constexpr float ComponentHeaderPaddingX = 4.0f;         // 组件头部内边距 X
-        constexpr float ComponentHeaderPaddingY = 4.0f;         // 组件头部内边距 Y
+        //constexpr float ComponentHeaderPaddingX = 4.0f;         // 组件头部内边距 X
+        constexpr float ComponentHeaderIconOffsetY = 4.0f;      // 图标垂直偏移（使图标居中）
+        constexpr float ComponentHeaderIconSpacing = 10.0f;     // 组件头部箭头到图标的间距
+        constexpr float ComponentHeaderIconToTextSpacing = 8.0f;// 组件头部图标到文本的间距
         constexpr float ComponentSettingsButtonSize = 30.0f;    // 组件设置按钮尺寸
         constexpr float ComponentSettingsButtonOffset = 18.0f;  // 组件设置按钮右偏移
+
+        // ---- 树节点 ----
+        constexpr float TreeNodeArrowToIconSpacing = 8.0f;   // 箭头与图标的间距
+        constexpr float TreeNodeIconSizeShrink = 4.0f;       // 图标尺寸相对文本行高的缩减量
+        constexpr float TreeNodeIconOffsetY = 2.0f;          // 图标垂直偏移（使图标居中）
+        constexpr float TreeNodeIconToTextSpacing = 8.0f;    // 图标与文本的间距
 
         // ---- 纹理预览 ----
         constexpr float TexturePreviewSize = 64.0f; // 纹理预览图尺寸

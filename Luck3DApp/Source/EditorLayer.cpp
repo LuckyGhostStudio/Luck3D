@@ -22,6 +22,7 @@
 #include "Lucky/Serialization/MeshSerializer.h"
 #include "Lucky/Asset/ModelLoader.h"
 #include "Lucky/Asset/AssetManager.h"
+#include "Lucky/Editor/EditorIconManager.h"
 
 #include <filesystem>
 
@@ -45,6 +46,9 @@ namespace Lucky
     void EditorLayer::OnAttach()
     {
         LF_TRACE("EditorLayer::OnAttach");
+
+        // 初始化图标管理器（在创建面板之前）
+        EditorIconManager::Init();
 
         m_Scene = CreateRef<Scene>("New Scene");
         
@@ -90,6 +94,8 @@ namespace Lucky
     void EditorLayer::OnDetach()
     {
         LF_TRACE("EditorLayer::OnDetach");
+
+        EditorIconManager::Shutdown();
     }
 
     void EditorLayer::OnUpdate(DeltaTime dt)

@@ -8,6 +8,8 @@
 
 #include "Lucky/Scene/SelectionManager.h"
 
+#include "Lucky/Editor/EditorIconManager.h"
+
 #include "Lucky/UI/Widgets.h"
 #include "imgui/imgui.h"
 
@@ -35,8 +37,10 @@ namespace Lucky
         
         const std::string& strSceneID = std::format("{0}##{1}", sceneName, typeid(Scene).hash_code());
         
+        const Ref<Texture2D>& icon = EditorIconManager::GetAssetTypeIcon(AssetType::Scene);
+        
         ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO 封装 Fonts
-        bool opened = UI::BeginTreeNode(strSceneID.c_str(), true);
+        bool opened = UI::BeginTreeNode(icon, strSceneID.c_str(), true);
         ImGui::PopFont();
         
         if (opened)
@@ -76,8 +80,10 @@ namespace Lucky
         const std::string& strID = std::format("{0}##{1}", name, static_cast<uint64_t>(id));
 
         bool isLeaf = entity.GetChildren().empty(); // 是叶节点
+
+        const Ref<Texture2D>& icon = EditorIconManager::GetEntityIcon();
         
-        bool opened = UI::BeginTreeNode(strID.c_str(), false, SelectionManager::IsSelected(id), isLeaf);
+        bool opened = UI::BeginTreeNode(icon, strID.c_str(), false, SelectionManager::IsSelected(id), isLeaf);
         
         // 树结点被点击
         if (ImGui::IsItemClicked())
