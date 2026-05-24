@@ -8,12 +8,12 @@ Assets:
   - Handle: 15937996615583574040
     Type: Mesh
     FilePath: Assets/Models/Railgun.fbx
-  - Handle: 3256352951629368989
-    Type: Mesh
-    FilePath: Assets/Models/Hornet.fbx
   - Handle: 11848252517640597707
     Type: Material
     FilePath: Assets/Models/Materials/Default.lmat
+  - Handle: 3256352951629368989
+    Type: Mesh
+    FilePath: Assets/Models/Hornet.fbx
   - Handle: 12654340601597598847
     Type: Material
     FilePath: Assets/Models/Materials/03 - Default.001.lmat
@@ -32,3 +32,6 @@ Assets:
   - Handle: 6894491782827220427
     Type: Scene
     FilePath: Assets/Scenes/TTTTTTT.luck3d
+  - Handle: 14100480195015882752
+    Type: Material
+    FilePath: Assets/Materials/Test3.lmat

@@ -6,6 +6,7 @@
 #include "Lucky/Renderer/RenderState.h"
 
 #include "Lucky/Asset/AssetHandle.h"
+#include "Lucky/Asset/AssetManager.h"
 
 #include "YamlHelpers.h"
 
@@ -114,18 +115,31 @@ namespace Lucky
             }
             case ShaderUniformType::Sampler2D:
             {
-                // 纹理序列化为文件路径字符串，空纹理序列化为空字符串
+                // 纹理序列化为 Handle + Path 混合格式（Handle 用于稳定引用，Path 用于兜底和可读性）
                 const Ref<Texture2D>& texture = std::get<Ref<Texture2D>>(prop.Value);
-                std::string texturePath = "";
+                out << YAML::Key << "Value" << YAML::Value;
+                out << YAML::BeginMap;
+
                 if (texture && !texture->GetPath().empty())
                 {
                     // 绝对路径转换为相对于工作目录的相对路径
                     std::filesystem::path absPath(texture->GetPath());
                     std::filesystem::path relPath = std::filesystem::relative(absPath);
+                    std::string texturePath = relPath.generic_string();  // 使用正斜杠
 
-                    texturePath = relPath.generic_string();  // 使用正斜杠
+                    // 确保纹理已注册到 Registry（已注册则返回已有 Handle，否则注册新资产）
+                    AssetHandle textureHandle = AssetManager::ImportAsset(texturePath, AssetType::Texture2D);
+
+                    out << YAML::Key << "Handle" << YAML::Value << static_cast<uint64_t>(textureHandle);
+                    out << YAML::Key << "Path" << YAML::Value << texturePath;
                 }
-                out << YAML::Key << "Value" << YAML::Value << texturePath;
+                else
+                {
+                    out << YAML::Key << "Handle" << YAML::Value << static_cast<uint64_t>(0);
+                    out << YAML::Key << "Path" << YAML::Value << "";
+                }
+
+                out << YAML::EndMap;
                 break;
             }
             case ShaderUniformType::SamplerCube:
@@ -225,17 +239,57 @@ namespace Lucky
             }
             case ShaderUniformType::Sampler2D:
             {
-                // 从文件路径字符串反序列化纹理
-                std::string texturePath = valueNode.as<std::string>();
-                if (!texturePath.empty())
+                if (valueNode.IsMap())
                 {
-                    std::filesystem::path path(texturePath);
+                    // 新格式：Handle + Path 混合
+                    AssetHandle textureHandle;
+                    std::string texturePath;
 
-                    // 基于工作目录解析
-                    std::string absolutePath = std::filesystem::absolute(path).string();
+                    if (valueNode["Handle"])
+                    {
+                        textureHandle = AssetHandle(valueNode["Handle"].as<uint64_t>());
+                    }
+                    if (valueNode["Path"])
+                    {
+                        texturePath = valueNode["Path"].as<std::string>();
+                    }
 
-                    Ref<Texture2D> texture = Texture2D::Create(absolutePath);
-                    material->SetTexture(propName, texture);
+                    Ref<Texture2D> texture = nullptr;
+
+                    // 优先通过 Handle 从 AssetManager 加载（利用缓存）
+                    if (textureHandle.IsValid())
+                    {
+                        texture = AssetManager::GetAsset<Texture2D>(textureHandle);
+                    }
+
+                    // Handle 失效时回退到路径加载
+                    if (!texture && !texturePath.empty())
+                    {
+                        std::filesystem::path path(texturePath);
+                        std::string absolutePath = std::filesystem::absolute(path).string();
+                        if (std::filesystem::exists(absolutePath))
+                        {
+                            texture = Texture2D::Create(absolutePath);
+                            LF_CORE_WARN("MaterialSerializer: Texture loaded via fallback path: '{0}'", texturePath);
+                        }
+                    }
+
+                    if (texture)
+                    {
+                        material->SetTexture(propName, texture);
+                    }
+                }
+                else if (valueNode.IsScalar())
+                {
+                    // 旧格式兼容：纯路径字符串
+                    std::string texturePath = valueNode.as<std::string>();
+                    if (!texturePath.empty())
+                    {
+                        std::filesystem::path path(texturePath);
+                        std::string absolutePath = std::filesystem::absolute(path).string();
+                        Ref<Texture2D> texture = Texture2D::Create(absolutePath);
+                        material->SetTexture(propName, texture);
+                    }
                 }
                 break;
             }

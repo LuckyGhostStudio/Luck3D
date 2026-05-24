@@ -154,6 +154,9 @@ namespace Lucky
                         std::string absolutePath = std::filesystem::absolute(filepath).string();
                         MaterialSerializer::SerializeToFile(material, absolutePath);
                         material->ClearDirty();
+
+                        // 保存 Registry（序列化时可能注册了新的纹理资产）
+                        AssetManager::SaveRegistry();
                     }
                 }
                 ImGui::Separator();
