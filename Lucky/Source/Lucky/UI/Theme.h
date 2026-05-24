@@ -29,6 +29,11 @@ namespace Lucky::UI::Theme
         constexpr float TreeNodeIconOffsetY = 2.0f;          // 图标垂直偏移（使图标居中）
         constexpr float TreeNodeIconToTextSpacing = 8.0f;    // 图标与文本的间距
 
+        // ---- 树节点右侧组件图标 ----
+        constexpr float TreeNodeComponentIconSpacing = 4.0f;      // 组件图标之间的间距
+        constexpr float TreeNodeComponentIconMinGap = 8.0f;       // 名称与组件图标之间的最小间距
+        constexpr float TreeNodeComponentIconRightMargin = 4.0f;  // 组件图标列表距右边界的边距
+
         // ---- 纹理预览 ----
         constexpr float TexturePreviewSize = 64.0f; // 纹理预览图尺寸
 

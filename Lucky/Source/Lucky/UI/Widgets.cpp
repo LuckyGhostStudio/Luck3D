@@ -89,11 +89,6 @@ namespace Lucky::UI
         ImGui::TreePop();
         ImGui::Indent(-Theme::Layout::IndentSpacing);   // »Ö¸´Ëõ½ø
     }
-    
-    bool BeginTreeNode(const char* name, bool defaultOpen, bool selected, bool isLeaf)
-    {
-        return BeginTreeNode(nullptr, name, defaultOpen, selected, isLeaf);
-    }
 
     bool BeginTreeNode(const Ref<Texture2D>& icon, const char* name, bool defaultOpen, bool selected, bool isLeaf)
     {

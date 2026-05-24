@@ -18,6 +18,13 @@ namespace Lucky
         
         void OnGUI() override;
         void DrawEntityNode(Entity entity);
+
+        /// <summary>
+        /// 绘制实体右侧的组件图标列表
+        /// 在树节点行的右侧右对齐显示该实体拥有的非默认组件图标
+        /// </summary>
+        /// <param name="entity">实体</param>
+        void DrawEntityComponentIcons(Entity entity);
         
         /// <summary>
         /// 绘制实体创建菜单

@@ -2,6 +2,7 @@
 
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/Components/Components.h"
+#include "Lucky/Scene/Components/ComponentType.h"
 
 #include "Lucky/Renderer/MeshFactory.h"
 #include "Lucky/Renderer/Renderer3D.h"
@@ -11,7 +12,9 @@
 #include "Lucky/Editor/EditorIconManager.h"
 
 #include "Lucky/UI/Widgets.h"
+#include "Lucky/UI/Theme.h"
 #include "imgui/imgui.h"
+#include <imgui/imgui_internal.h>
 
 namespace Lucky
 {
@@ -84,6 +87,9 @@ namespace Lucky
         const Ref<Texture2D>& icon = EditorIconManager::GetEntityIcon();
         
         bool opened = UI::BeginTreeNode(icon, strID.c_str(), false, SelectionManager::IsSelected(id), isLeaf);
+
+        // 绘制右侧组件图标列表
+        DrawEntityComponentIcons(entity);
         
         // 树结点被点击
         if (ImGui::IsItemClicked())
@@ -271,6 +277,99 @@ namespace Lucky
         }
         
         ImGui::EndMenu();
+    }
+
+    void SceneHierarchyPanel::DrawEntityComponentIcons(Entity entity)
+    {
+        // 保存 TreeNode 的 LastItemData，绘制完图标后恢复，确保调用方的 IsItemClicked 等交互检测正确工作
+        ImGuiContext& g = *GImGui;
+        const ImGuiLastItemData savedItemData = g.LastItemData;
+
+        // 收集该实体拥有的非默认组件类型（排除 Transform）
+        std::vector<ComponentType> types;
+        if (entity.HasComponent<MeshFilterComponent>())         types.push_back(ComponentType::MeshFilter);
+        if (entity.HasComponent<MeshRendererComponent>())       types.push_back(ComponentType::MeshRenderer);
+        if (entity.HasComponent<LightComponent>())              types.push_back(ComponentType::Light);
+        if (entity.HasComponent<PostProcessVolumeComponent>())  types.push_back(ComponentType::PostProcessVolume);
+
+        if (types.empty())
+        {
+            g.LastItemData = savedItemData;
+            return;
+        }
+
+        float iconSize = ImGui::GetTextLineHeight() - UI::Theme::Layout::TreeNodeIconSizeShrink;
+        float iconSpacing = UI::Theme::Layout::TreeNodeComponentIconSpacing;
+        float minGap = UI::Theme::Layout::TreeNodeComponentIconMinGap;
+
+        // 计算图标区域总宽度
+        float totalIconWidth = types.size() * iconSize + (types.size() - 1) * iconSpacing;
+
+        // 获取可用区域右边界（使用窗口内相对坐标，减去右边距）
+        float contentRightLocal = ImGui::GetContentRegionMax().x - UI::Theme::Layout::TreeNodeComponentIconRightMargin;
+        float iconsStartLocal = contentRightLocal - totalIconWidth;
+
+        // 计算名称文本的实际右边界（窗口内相对坐标）
+        // 注意：GetItemRectMax 返回的是 TreeNode 的 Rect（SpanFullWidth 导致其跨越整行），
+        // 所以需要通过 TreeNode 左边界 + 缩进 + 箭头 + 图标 + 文本宽度 来计算名称的实际右边界
+        const std::string& name = entity.GetComponent<NameComponent>().Name;
+        float textWidth = ImGui::CalcTextSize(name.c_str()).x;
+
+        // TreeNode 的左边界（ItemRectMin 是屏幕坐标，转为窗口内坐标）
+        float itemLeftLocal = ImGui::GetItemRectMin().x - ImGui::GetWindowPos().x + ImGui::GetScrollX();
+        // 获取当前窗口的缩进量（TreePush/TreePop 会改变此值）
+        float indentWidth = ImGui::GetCurrentWindow()->DC.Indent.x;
+        // 箭头宽度（ImGui 内部箭头占 FontSize + FramePadding.x）
+        float arrowWidth = ImGui::GetTextLineHeight() + ImGui::GetStyle().FramePadding.x;
+        // 名称文本的右边界 = TreeNode左边界 + 缩进 + 箭头宽度 + 箭头到图标间距 + 图标尺寸 + 图标到文本间距 + 文本宽度
+        float nameEndLocal = itemLeftLocal + indentWidth + arrowWidth
+            + UI::Theme::Layout::TreeNodeArrowToIconSpacing
+            + iconSize
+            + UI::Theme::Layout::TreeNodeIconToTextSpacing
+            + textWidth;
+
+        // 碰撞检测：如果图标区域侵入名称区域，则从左侧开始移除图标
+        while (!types.empty() && iconsStartLocal < nameEndLocal + minGap)
+        {
+            types.erase(types.begin());
+            if (types.empty())
+            {
+                g.LastItemData = savedItemData;
+                return;
+            }
+            totalIconWidth = types.size() * iconSize + (types.size() - 1) * iconSpacing;
+            iconsStartLocal = contentRightLocal - totalIconWidth;
+        }
+
+        // 保存当前光标位置
+        ImVec2 savedCursorPos = ImGui::GetCursorPos();
+
+        // 定位到图标绘制位置（与当前行同行）
+        float lineY = ImGui::GetItemRectMin().y - ImGui::GetWindowPos().y + ImGui::GetScrollY();
+        float iconOffsetY = (ImGui::GetTextLineHeight() - iconSize) * 0.5f;
+
+        ImGui::SetCursorPos(ImVec2(iconsStartLocal, lineY + iconOffsetY));
+
+        for (size_t i = 0; i < types.size(); i++)
+        {
+            const Ref<Texture2D>& compIcon = EditorIconManager::GetComponentIcon(types[i]);
+            if (compIcon)
+            {
+                ImTextureID texID = reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(compIcon->GetRendererID()));
+                ImGui::Image(texID, ImVec2(iconSize, iconSize));
+            }
+
+            if (i < types.size() - 1)
+            {
+                ImGui::SameLine(0, iconSpacing);
+            }
+        }
+
+        // 恢复光标位置
+        ImGui::SetCursorPos(savedCursorPos);
+
+        // 恢复 LastItemData，使调用方的 IsItemClicked 等交互检测正确指向 TreeNode
+        g.LastItemData = savedItemData;
     }
 
     void SceneHierarchyPanel::OnEvent(Event& event)
