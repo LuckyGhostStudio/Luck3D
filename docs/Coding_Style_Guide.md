@@ -776,6 +776,51 @@ if (!material || !material->GetShader())
 - 优先使用 C++ 风格转换：`static_cast<uint32_t>(value)`
 - 简单的整数转换可使用 C 风格：`(uint32_t)m_EntityID`
 
+### 13.9 auto 关键字使用规范
+
+`auto` 的使用应遵循"类型是否显而易见"的原则，避免降低代码可读性。
+
+#### ? 适合使用 auto 的场景
+
+| 场景 | 示例 | 原因 |
+|------|------|------|
+| 迭代器类型 | `auto it = map.find(key);` | 迭代器类型冗长，auto 更清晰 |
+| 范围 for 循环元素 | `for (auto entityID : view)` | 类型由容器决定，上下文清晰 |
+| 右侧已明确表达类型 | `auto ptr = CreateRef<Shader>(path);` | 右侧构造函数/工厂已表明类型 |
+| Lambda 表达式 | `auto callback = [](int x) { ... };` | Lambda 类型无法手写 |
+
+#### ? 不适合使用 auto 的场景
+
+| 场景 | 错误写法 | 正确写法 |
+|------|---------|---------|
+| 函数返回值接收（类型不直观） | `const auto& icon = GetIcon();` | `const Ref<Texture2D>& icon = GetIcon();` |
+| 智能指针引用 | `auto& material = GetMaterial();` | `const Ref<Material>& material = GetMaterial();` |
+| 基本类型赋值 | `auto count = GetCount();` | `int count = GetCount();` |
+
+#### 判断原则
+
+1. **类型是否冗长？** ? 如果类型名很短（如 `Ref<Texture2D>`、`int`、`float`），写明类型不会增加视觉负担，应显式声明
+2. **右侧是否已表达类型？** ? 如果右侧是函数调用且返回类型不能从函数名直接推断，应显式声明
+3. **是否涉及所有权语义？** ? 智能指针（`Ref<T>`、`Scope<T>`）及其引用应显式声明，明确传达所有权/借用语义
+4. **项目一致性** ? 与项目中其他同类变量保持一致的声明风格
+
+```cpp
+// ? 正确：显式声明智能指针引用
+const Ref<Texture2D>& icon = EditorIconManager::GetEntityIcon();
+const Ref<Material>& material = Renderer3D::GetDefaultMaterial();
+
+// ? 正确：迭代器和范围 for 使用 auto
+auto it = s_IconData.AssetTypeIcons.find(type);
+for (auto entityID : m_Scene->GetAllEntitiesWith<IDComponent>())
+
+// ? 正确：右侧已明确类型
+auto shader = CreateRef<Shader>(filepath);
+
+// ? 错误：函数返回值类型不直观
+const auto& icon = EditorIconManager::GetEntityIcon();
+auto count = entity.GetChildren().size();
+```
+
 ---
 
 ## 附录：常用类型速查
