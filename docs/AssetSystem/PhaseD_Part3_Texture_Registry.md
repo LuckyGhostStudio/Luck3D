@@ -41,6 +41,7 @@
 |------|------|------|
 | Phase A 资产系统核心框架 | ? 已完成 | AssetHandle / AssetRegistry / AssetManager / AssetImporter |
 | Phase B 独立材质文件 | ? 已完成 | MaterialSerializer::SerializeToFile/DeserializeFromFile |
+| Phase D-Part1 Scene 纳入资产系统 | ? 已完成 | Scene 继承 Asset + SceneImporter + AssetManager 管理 |
 | TextureImporter | ? 已完成 | 图片文件加载为 Texture2D |
 
 ---
@@ -71,22 +72,17 @@ Properties:
 ### 方案 A：自动注册（导入时）（? 推荐）
 
 纹理在以下时机自动注册到 Registry：
-1. **导入模型时**：模型引用的纹理自动注册
-2. **创建/保存材质时**：材质引用的纹理自动注册
-3. **AssetManager::Init 时**：扫描 Assets 目录中的图片文件自动注册
+1. **创建/保存材质时**：材质引用的纹理自动注册（**主要时机**）
+2. **用户手动导入纹理时**：通过 ProjectAssetsPanel 导入图片文件
+3. **AssetManager::Init 时**：扫描 Assets 目录中的图片文件自动注册（可选）
+
+> **关于"导入模型时注册纹理"**：当前项目的模型导入采用"白膜"策略（与 Unity 一致）?? 导入模型时仅提取几何数据和基础材质参数（颜色/金属度/粗糙度），**不提取也不注册纹理**。原因是：模型原始材质的 Shader 与引擎内部标准 Shader 不同，材质基本都是在引擎内重新制作的，因此导入模型时不需要处理纹理。纹理的注册时机应该是用户在引擎内编辑材质并指定纹理时。
 
 ```cpp
-// 纹理注册辅助函数
+// 纹理注册辅助函数（语义化封装，内部复用现有 ImportAsset 接口）
 AssetHandle AssetManager::EnsureTextureRegistered(const std::string& texturePath)
 {
-    // 检查是否已注册
-    AssetHandle existing = GetAssetHandle(texturePath);
-    if (existing.IsValid())
-    {
-        return existing;
-    }
-    
-    // 注册新纹理
+    // 直接复用现有接口：已注册则返回已有 Handle，否则注册新资产
     return ImportAsset(texturePath, AssetType::Texture2D);
 }
 ```
@@ -215,12 +211,12 @@ case ShaderUniformType::Sampler2D:
     
     if (texture && !texture->GetPath().empty())
     {
-        // 确保纹理已注册到 Registry
+        // 确保纹理已注册到 Registry（直接使用 ImportAsset，已注册则返回已有 Handle）
         std::filesystem::path absPath(texture->GetPath());
         std::filesystem::path relPath = std::filesystem::relative(absPath);
         std::string texturePath = relPath.generic_string();
         
-        AssetHandle textureHandle = AssetManager::EnsureTextureRegistered(texturePath);
+        AssetHandle textureHandle = AssetManager::ImportAsset(texturePath, AssetType::Texture2D);
         
         out << YAML::Key << "Handle" << YAML::Value << static_cast<uint64_t>(textureHandle);
         out << YAML::Key << "Path" << YAML::Value << texturePath;
@@ -303,10 +299,11 @@ case ShaderUniformType::Sampler2D:
 
 | 文件路径 | 修改内容 |
 |---------|----------|
-| `Lucky/Source/Lucky/Asset/AssetManager.h` | 新增 `EnsureTextureRegistered()` 接口 |
-| `Lucky/Source/Lucky/Asset/AssetManager.cpp` | 实现 `EnsureTextureRegistered()` |
+| `Lucky/Source/Lucky/Asset/AssetManager.h` | （可选）新增 `EnsureTextureRegistered()` 语义化封装接口 |
+| `Lucky/Source/Lucky/Asset/AssetManager.cpp` | （可选）实现 `EnsureTextureRegistered()`（内部直接调用 `ImportAsset`） |
 | `Lucky/Source/Lucky/Serialization/MaterialSerializer.cpp` | 纹理属性序列化改为 Handle+Path 混合格式；反序列化支持新旧两种格式 |
-| `Luck3DApp/Source/EditorLayer.cpp` | ImportModel 时自动注册纹理 |
+
+> **注意**：`EditorLayer.cpp` 中的 `ImportModel` 不需要修改。当前模型导入采用"白膜"策略，不提取也不注册纹理（与 Unity 行为一致：模型原始材质的 Shader 与引擎标准 Shader 不同，材质基本都是在引擎内重新制作的）。
 
 ---
 
@@ -314,11 +311,10 @@ case ShaderUniformType::Sampler2D:
 
 | 步骤 | 内容 | 依赖 | 预估工作量 |
 |------|------|------|-----------|
-| Step 1 | AssetManager 新增 `EnsureTextureRegistered()` | 无 | 极小 |
+| Step 1 | （可选）AssetManager 新增 `EnsureTextureRegistered()` 语义化封装，或直接使用 `ImportAsset` | 无 | 极小 |
 | Step 2 | MaterialSerializer 纹理序列化改造（Handle+Path） | Step 1 | 小 |
 | Step 3 | MaterialSerializer 纹理反序列化改造（支持新旧格式） | Step 1 | 小 |
-| Step 4 | EditorLayer::ImportModel 中自动注册纹理 | Step 1 | 极小 |
-| Step 5 | 编译测试 + 验证 | 全部 | 小 |
+| Step 4 | 编译测试 + 验证 | 全部 | 小 |
 
 ---
 
@@ -333,7 +329,7 @@ case ShaderUniformType::Sampler2D:
 | 5 | 多个材质引用同一纹理 | 只创建一个 GPU 纹理对象（AssetManager 缓存） |
 | 6 | 旧格式 .lmat 兼容 | 旧格式（纯路径）的 .lmat 文件仍可正确加载 |
 | 7 | Handle 失效回退 | 手动删除 Registry 条目后，通过 Path 回退加载成功 |
-| 8 | 导入模型时纹理自动注册 | 模型引用的纹理自动注册到 Registry |
+| 8 | 保存材质时纹理自动注册 | 材质引用的纹理在保存时自动注册到 Registry |
 
 ---
 
@@ -341,8 +337,10 @@ case ShaderUniformType::Sampler2D:
 
 | 限制 | 影响 | 后续优化方向 |
 |------|------|-------------|
+| 本次仅改造 Sampler2D | SamplerCube（Cubemap）纹理仍通过路径引用，不纳入 Registry | 后续扩展 TextureCubeImporter 并统一管理 |
 | 纹理无 Import Settings | 无压缩格式/Mipmap 配置 | 后续添加 .meta 文件存储导入设置 |
 | 无 TextureCube 注册 | Cubemap 纹理未纳入管理 | 后续扩展 TextureCubeImporter |
 | 无资产删除同步 | 删除文件后 Registry 残留 | Phase C 中实现 Refresh 功能 |
 | 无纹理格式转换 | 不支持 BC/ASTC 压缩纹理 | 后续添加纹理导入管线 |
 | 路径兜底可能产生重复纹理 | Handle 失效后通过路径加载不走缓存 | 加载后重新注册并更新缓存 |
+| 模型导入不处理纹理 | 导入模型为"白膜"，不提取纹理 | 后续可选添加"提取纹理"功能（仅提取文件，不自动应用到材质） |

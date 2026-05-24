@@ -12,7 +12,7 @@
 - [四、MeshSerializer 设计](#四meshserializer-设计)
 - [五、导入流程改造](#五导入流程改造)
 - [六、内置图元持久化](#六内置图元持久化)
-- [七、MeshAssetImporter 改造](#七meshassetimporter-改造)
+- [七、MeshImporter 改造](#七meshimporter-改造)
 - [八、涉及的文件清单](#八涉及的文件清单)
 - [九、分步实施策略](#九分步实施策略)
 - [十、验证清单](#十验证清单)
@@ -36,14 +36,14 @@
 2. ? 实现 `MeshSerializer`（序列化/反序列化 Mesh 到 `.lmesh`）
 3. ? 导入外部模型时，转换为 `.lmesh` 内部格式
 4. ? 内置图元可保存为 `.lmesh` 文件
-5. ? `MeshAssetImporter` 改为加载 `.lmesh` 文件
+5. ? `MeshImporter`（资产系统层）改为加载 `.lmesh` 文件
 
 ### 1.3 前置依赖
 
 | 依赖 | 状态 | 说明 |
 |------|------|------|
 | Phase A 资产系统核心框架 | ? 已完成 | AssetHandle / AssetRegistry / AssetManager / AssetImporter |
-| MeshImporter (Assimp) | ? 已完成 | 外部模型文件导入 |
+| ModelLoader (Assimp) | ? 已完成 | 外部模型文件解析（原 MeshImporter，已重命名） |
 | Mesh 类 | ? 已完成 | 顶点/索引/SubMesh 数据结构 |
 | MeshFactory | ? 已完成 | 内置图元生成 |
 
@@ -51,9 +51,10 @@
 
 | 术语 | 定义 |
 |------|------|
-| **.lmesh** | Luck3D 内部 Mesh 资产文件格式（二进制） |
-| **源文件** | 外部导入的原始文件（.fbx/.obj 等） |
-| **导入产物** | 从源文件转换生成的内部格式文件（.lmesh） |
+| **.lmesh** | Luck3D 引擎唯一认识的内部 Mesh 资产格式（二进制），所有 Mesh 引用（MeshFilter、AssetField\<Mesh\>、脚本等）都指向它 |
+| **源文件** | 外部导入的原始文件（.fbx/.obj 等），不进入 Assets 目录，仅在导入时从外部路径读取 |
+| **ModelLoader** | 底层模型解析器（Assimp 封装），负责解析外部 3D 模型文件，类似于 stbi_load 对图片格式的解析 |
+| **MeshImporter** | 资产系统层的 Mesh 导入器（继承 AssetImporter），负责加载 .lmesh 文件 |
 
 ---
 
@@ -62,10 +63,10 @@
 当前 Mesh 资产直接引用外部模型文件（`.fbx/.obj`），每次加载都需要 Assimp 重新解析：
 
 ```cpp
-// 当前 MeshAssetImporter.cpp
-Ref<void> MeshAssetImporter::Load(const AssetMetadata& metadata)
+// 当前 MeshImporter.cpp（资产系统层）
+Ref<void> MeshImporter::Load(const AssetMetadata& metadata)
 {
-    MeshImportResult result = MeshImporter::Import(absolutePath);  // 每次都调用 Assimp
+    ModelLoadResult result = ModelLoader::Load(absolutePath);  // 每次都调用 Assimp
     return result.MeshData;
 }
 ```
@@ -376,29 +377,39 @@ namespace Lucky
 导入外部模型时，流程变为：
 
 ```
-外部 .fbx/.obj → Assimp 解析 → Mesh 内存对象 → MeshSerializer 序列化 → .lmesh 文件
-                                                                              ↓
-                                                              注册到 Registry（AssetType::Mesh）
+外部 .fbx/.obj（不在 Assets 目录中）
+    ↓ ModelLoader::Load()（Assimp 解析）
+Mesh 内存对象
+    ↓ MeshSerializer::Serialize()
+Assets/Meshes/xxx.lmesh（引擎内部 Mesh 资产，唯一注册到 Registry 的文件）
 ```
+
+**关键设计决策**：
+- 原始 `.fbx/.obj` 文件**不复制到 Assets 目录**，导入时直接从外部路径读取并转换
+- Assets 目录中只存在 `.lmesh` 文件，它是引擎唯一认识的 Mesh 格式
+- 所有 Mesh 引用（MeshFilter、场景序列化、AssetField 等）都通过 AssetHandle 指向 `.lmesh` 文件
+- 如果未来需要重新导入（如美术修改了模型），用户需重新指定外部 `.fbx` 路径
+- 资产扫描流程**不识别** `.fbx/.obj` 等外部模型格式??即使用户手动将 `.fbx` 放入 Assets 目录，扫描时也会被忽略（当作引擎不认识的文件，不注册）
+- 模型导入**只能通过编辑器主动触发**（菜单/拖拽到编辑器窗口），不支持被动扫描导入
+- 这与 Texture 不同：`.png/.jpg` 是引擎可直接使用的格式，可以被动扫描注册；`.fbx` 不是，必须先转换为 `.lmesh`
 
 ### EditorLayer::ImportModel 改造
 
 ```cpp
-void EditorLayer::ImportModel(const std::filesystem::path& filepath)
+void EditorLayer::ImportModel(const std::filesystem::path& externalFilepath)
 {
-    // 1. 通过 Assimp 导入
-    MeshImportResult result = MeshImporter::Import(filepath.string());
+    // 1. 通过 ModelLoader 解析外部模型文件（不在 Assets 目录中）
+    ModelLoadResult result = ModelLoader::Load(externalFilepath.string());
     if (!result.Success) { /* 错误处理 */ return; }
     
-    // 2. 将 Mesh 保存为 .lmesh 文件
-    std::filesystem::path relPath = std::filesystem::relative(filepath);
-    std::filesystem::path lmeshPath = relPath;
-    lmeshPath.replace_extension(".lmesh");
+    // 2. 确定 .lmesh 输出路径（在 Assets 目录中）
+    std::string meshName = externalFilepath.stem().string();
+    std::filesystem::path lmeshPath = "Assets/Meshes/" + meshName + ".lmesh";
     
     std::string absoluteLmeshPath = std::filesystem::absolute(lmeshPath).string();
     MeshSerializer::Serialize(result.MeshData, absoluteLmeshPath);
     
-    // 3. 注册 .lmesh 文件到资产系统（而非原始 .fbx）
+    // 3. 注册 .lmesh 文件到资产系统（原始 .fbx 不注册）
     std::string normalizedPath = lmeshPath.generic_string();
     AssetHandle meshHandle = AssetManager::ImportAsset(normalizedPath, AssetType::Mesh);
     
@@ -480,12 +491,18 @@ void AssetManager::InitBuiltinMeshAssets()
 
 ---
 
-## 七、MeshAssetImporter 改造
+## 七、MeshImporter 改造
+
+> **注意**：此处的 `MeshImporter` 是资产系统层的导入器（继承 `AssetImporter`），
+> 原名 `MeshAssetImporter`，已重命名以与 `TextureImporter`、`MaterialImporter` 等保持一致。
+>
+> `MeshImporter` **只负责加载 `.lmesh` 文件**，不兼容任何外部模型格式（`.fbx/.obj` 等）。
+> 外部模型的解析由 `ModelLoader` 在导入阶段完成，导入完成后 Assets 中只存在 `.lmesh`。
 
 ```cpp
-// MeshAssetImporter.cpp 改造后
+// MeshImporter.cpp 改造后（资产系统层）
 #include "lcpch.h"
-#include "MeshAssetImporter.h"
+#include "MeshImporter.h"
 
 #include "Lucky/Serialization/MeshSerializer.h"
 
@@ -493,32 +510,18 @@ void AssetManager::InitBuiltinMeshAssets()
 
 namespace Lucky
 {
-    Ref<void> MeshAssetImporter::Load(const AssetMetadata& metadata)
+    Ref<void> MeshImporter::Load(const AssetMetadata& metadata)
     {
         std::string absolutePath = std::filesystem::absolute(metadata.FilePath).string();
-        std::string extension = std::filesystem::path(metadata.FilePath).extension().string();
 
-        // .lmesh 文件：直接二进制加载（快速）
-        if (extension == ".lmesh")
+        // 只支持 .lmesh 格式（引擎内部 Mesh 资产格式）
+        Ref<Mesh> mesh = MeshSerializer::Deserialize(absolutePath);
+        if (!mesh)
         {
-            Ref<Mesh> mesh = MeshSerializer::Deserialize(absolutePath);
-            if (!mesh)
-            {
-                LF_CORE_ERROR("MeshAssetImporter: Failed to load .lmesh: '{0}'", absolutePath);
-                return nullptr;
-            }
-            return mesh;
+            LF_CORE_ERROR("MeshImporter: Failed to load .lmesh: '{0}'", absolutePath);
+            return nullptr;
         }
-
-        // 外部模型文件（.fbx/.obj 等）：通过 Assimp 加载（兼容旧注册）
-        MeshImportResult result = MeshImporter::Import(absolutePath);
-        if (result.Success)
-        {
-            return result.MeshData;
-        }
-
-        LF_CORE_ERROR("MeshAssetImporter: Failed to load mesh: '{0}'", absolutePath);
-        return nullptr;
+        return mesh;
     }
 }
 ```
@@ -532,10 +535,10 @@ namespace Lucky
 | `Lucky/Source/Lucky/Serialization/MeshSerializer.h`（新建） | MeshSerializer + LMeshHeader 声明 |
 | `Lucky/Source/Lucky/Serialization/MeshSerializer.cpp`（新建） | Serialize / Deserialize 实现 |
 | `Lucky/Source/Lucky/Renderer/Mesh.h` | 新增 `GetIndices()` 公有接口（暴露索引数据） |
-| `Lucky/Source/Lucky/Asset/MeshAssetImporter.cpp` | 改造：优先加载 .lmesh，兼容外部格式 |
+| `Lucky/Source/Lucky/Asset/MeshImporter.cpp` | 改造：只加载 .lmesh 格式，不兼容外部模型格式 |
 | `Lucky/Source/Lucky/Asset/AssetType.h` | 添加 `.lmesh` 扩展名映射 |
 | `Lucky/Source/Lucky/Asset/AssetManager.cpp` | 新增 `InitBuiltinMeshAssets()` |
-| `Luck3DApp/Source/EditorLayer.cpp` | ImportModel 改造：导入后保存为 .lmesh |
+| `Luck3DApp/Source/EditorLayer.cpp` | ImportModel 改造：从外部路径读取模型，转换为 .lmesh 保存到 Assets |
 
 ---
 
@@ -546,8 +549,8 @@ namespace Lucky
 | Step 1 | Mesh.h 新增 `GetIndices()` 公有接口 | 无 | 极小 |
 | Step 2 | 创建 MeshSerializer.h/cpp | Step 1 | 中 |
 | Step 3 | AssetType.h 添加 `.lmesh` 扩展名映射 | 无 | 极小 |
-| Step 4 | MeshAssetImporter.cpp 改造（支持 .lmesh） | Step 2, 3 | 小 |
-| Step 5 | EditorLayer::ImportModel 改造（导入后保存 .lmesh） | Step 2 | 小 |
+| Step 4 | MeshImporter.cpp 改造（支持 .lmesh） | Step 2, 3 | 小 |
+| Step 5 | EditorLayer::ImportModel 改造（从外部路径导入，保存 .lmesh 到 Assets） | Step 2 | 小 |
 | Step 6 | AssetManager 内置图元持久化 | Step 2 | 小 |
 | Step 7 | 编译测试 + 验证 | 全部 | 小 |
 
@@ -558,12 +561,13 @@ namespace Lucky
 | # | 验证项 | 预期结果 |
 |---|--------|--------|
 | 1 | 编译通过 | 无编译错误 |
-| 2 | 导入模型 | 生成 .lmesh 文件，注册到 Registry |
+| 2 | 导入外部模型 | 从外部路径读取 .fbx，在 Assets/Meshes/ 下生成 .lmesh 文件，注册到 Registry |
 | 3 | .lmesh 文件大小合理 | 二进制格式，体积远小于 YAML |
 | 4 | 重启后加载 .lmesh | 从 .lmesh 快速加载（不调用 Assimp），模型正确显示 |
 | 5 | 内置图元 .lmesh | Assets/Meshes/Builtin/ 下生成 5 个 .lmesh 文件 |
 | 6 | 内置图元通过 AssetManager 加载 | Cube/Sphere 等有 AssetHandle，可在 Registry 中查到 |
-| 7 | 场景保存/加载 | MeshAsset Handle 引用 .lmesh 文件，加载正确 |
+| 7 | 场景保存/加载 | MeshFilter 的 AssetHandle 引用 .lmesh 文件，加载正确 |
+| 8 | 原始 .fbx 不在 Assets 目录中 | Assets 目录下只有 .lmesh 文件，无 .fbx/.obj 等外部格式 |
 
 ---
 
