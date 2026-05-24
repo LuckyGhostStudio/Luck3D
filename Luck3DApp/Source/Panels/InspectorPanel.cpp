@@ -2,8 +2,6 @@
 
 #include "Lucky/Scene/SelectionManager.h"
 
-#include "Lucky/Scene/Components/Components.h"
-
 #include "Lucky/Renderer/Renderer3D.h"
 #include "Lucky/Renderer/RenderContext.h"
 
