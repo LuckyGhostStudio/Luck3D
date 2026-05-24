@@ -10,7 +10,9 @@
 
 #include "Lucky/Renderer/Material.h"
 #include "Lucky/Renderer/Mesh.h"
+#include "Lucky/Renderer/MeshFactory.h"
 #include "Lucky/Renderer/Texture.h"
+#include "Lucky/Serialization/MeshSerializer.h"
 #include "Lucky/Scene/Scene.h"
 
 #include <filesystem>
@@ -51,12 +53,15 @@ namespace Lucky
     {
         // 注册 Importers
         s_Data.Importers[AssetType::Material] = CreateScope<MaterialImporter>();
-s_Data.Importers[AssetType::Mesh] = CreateScope<MeshImporter>();
+        s_Data.Importers[AssetType::Mesh] = CreateScope<MeshImporter>();
         s_Data.Importers[AssetType::Texture2D] = CreateScope<TextureImporter>();
         s_Data.Importers[AssetType::Scene] = CreateScope<SceneImporter>();
 
         // 加载 Registry
         s_Data.Registry.Load(s_Data.RegistryFilePath);
+
+        // 初始化内置图元 Mesh 资产
+        InitBuiltinMeshAssets();
 
         LF_CORE_INFO("AssetManager initialized. Registry: {0} assets, Importers: {1} registered.", s_Data.Registry.GetAssetCount(), s_Data.Importers.size());
     }
@@ -309,5 +314,44 @@ s_Data.Importers[AssetType::Mesh] = CreateScope<MeshImporter>();
         }
 
         return it->second->Load(metadata);
+    }
+
+    void AssetManager::InitBuiltinMeshAssets()
+    {
+        const std::string builtinDir = "Assets/Meshes/Builtin/";
+
+        struct BuiltinMeshDef
+        {
+            PrimitiveType Type;
+            const char* Name;
+        };
+
+        BuiltinMeshDef builtins[] = {
+            { PrimitiveType::Cube, "Cube" },
+            { PrimitiveType::Sphere, "Sphere" },
+            { PrimitiveType::Plane, "Plane" },
+            { PrimitiveType::Cylinder, "Cylinder" },
+            { PrimitiveType::Capsule, "Capsule" },
+        };
+
+        for (const auto& def : builtins)
+        {
+            std::string filepath = builtinDir + def.Name + ".lmesh";
+            std::string absolutePath = std::filesystem::absolute(filepath).string();
+
+            // 如果文件不存在则生成
+            if (!std::filesystem::exists(absolutePath))
+            {
+                Ref<Mesh> mesh = MeshFactory::CreatePrimitive(def.Type);
+                mesh->SetName(def.Name);
+                MeshSerializer::Serialize(mesh, absolutePath);
+                LF_CORE_INFO("AssetManager: Generated builtin mesh '{0}'", def.Name);
+            }
+
+            // 注册到资产系统
+            std::filesystem::path path(filepath);
+            std::string normalizedPath = path.generic_string();
+            ImportAsset(normalizedPath, AssetType::Mesh);
+        }
     }
 }

@@ -11,7 +11,7 @@ namespace Lucky
     {
         None = 0,       // 无效类型
         Material,       // 材质（.lmat）
-        Mesh,           // 网格/模型（.obj/.fbx/.gltf/.glb/.dae/.3ds/.blend）
+        Mesh,           // 网格（.lmesh）
         Texture2D,      // 2D 纹理（.png/.jpg/.tga/.bmp/.hdr）
         Scene,          // 场景（.luck3d）
         Shader          // 着色器（预留）
@@ -59,11 +59,8 @@ namespace Lucky
             return AssetType::Material;
         }
 
-        // 模型
-        if (extension == ".obj" || extension == ".fbx" ||
-            extension == ".gltf" || extension == ".glb" ||
-            extension == ".dae" || extension == ".3ds" ||
-            extension == ".blend")
+        // 网格（引擎内部格式）
+        if (extension == ".lmesh")
         {
             return AssetType::Mesh;
         }

@@ -79,6 +79,7 @@ namespace Lucky
         bool UpdateSubMesh(uint32_t index, const SubMesh& subMesh);
         
         const std::vector<Vertex>& GetVertices() const { return m_Vertices; }
+        const std::vector<uint32_t>& GetIndices() const { return m_VertexIndices; }
         void SetVertexBufferData(const void* data, uint32_t size);
         
         const Ref<VertexArray>& GetVertexArray() const { return m_VertexArray; }

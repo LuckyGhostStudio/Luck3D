@@ -19,6 +19,7 @@
 #include "Lucky/Utils/PlatformUtils.h"
 
 #include "Lucky/Serialization/SceneSerializer.h"
+#include "Lucky/Serialization/MeshSerializer.h"
 #include "Lucky/Asset/ModelLoader.h"
 #include "Lucky/Asset/AssetManager.h"
 
@@ -403,44 +404,53 @@ namespace Lucky
 
     void EditorLayer::ImportModel(const std::filesystem::path& filepath)
     {
-        // 通过 AssetManager 导入模型资产
-        std::filesystem::path relPath = std::filesystem::relative(filepath);
-        std::string normalizedPath = relPath.generic_string();
-        
-        AssetHandle meshHandle = AssetManager::ImportAsset(normalizedPath, AssetType::Mesh);
+        // 1. 通过 ModelLoader 解析外部模型文件
+        ModelLoadResult result = ModelLoader::Load(filepath.string());
+        if (!result.Success)
+        {
+            LF_CORE_ERROR("Failed to load model: '{0}' - {1}", filepath.string(), result.ErrorMessage);
+            return;
+        }
+
+        // 2. 确定 .lmesh 输出路径（在 Assets 目录中）
+        std::string meshName = filepath.stem().string();
+        std::filesystem::path lmeshRelPath = std::filesystem::path("Assets/Meshes") / (meshName + ".lmesh");
+        std::string absoluteLmeshPath = std::filesystem::absolute(lmeshRelPath).string();
+
+        // 3. 序列化 Mesh 到 .lmesh 文件
+        result.MeshData->SetName(meshName);
+        if (!MeshSerializer::Serialize(result.MeshData, absoluteLmeshPath))
+        {
+            LF_CORE_ERROR("Failed to serialize mesh to .lmesh: '{0}'", absoluteLmeshPath);
+            return;
+        }
+
+        // 4. 注册 .lmesh 文件到资产系统
+        std::string normalizedLmeshPath = lmeshRelPath.generic_string();
+        AssetHandle meshHandle = AssetManager::ImportAsset(normalizedLmeshPath, AssetType::Mesh);
         if (!meshHandle.IsValid())
         {
-            LF_CORE_ERROR("Failed to import model: '{0}'", normalizedPath);
+            LF_CORE_ERROR("Failed to register .lmesh asset: '{0}'", normalizedLmeshPath);
             return;
         }
-        
-        // 通过 AssetManager 加载 Mesh
-        Ref<Mesh> mesh = AssetManager::GetAsset<Mesh>(meshHandle);
-        if (!mesh)
-        {
-            LF_CORE_ERROR("Failed to load mesh asset: '{0}'", normalizedPath);
-            return;
-        }
-        
-        // 创建实体
-        std::string name = filepath.stem().string();
-        Entity entity = m_Scene->CreateEntity(name);
-        
+
+        // 5. 设置 Handle 并缓存
+        result.MeshData->SetHandle(meshHandle);
+
+        // 6. 创建实体
+        Entity entity = m_Scene->CreateEntity(meshName);
+
         // 添加 MeshFilter
         auto& meshFilterComponent = entity.AddComponent<MeshFilterComponent>();
-        meshFilterComponent.Mesh = mesh;
-        
-        // 添加 MeshRenderer
-        // 导入模型时同时获取材质（通过 ModelLoader 的结果）
-        // 注意：当前 MeshImporter 只返回 Mesh，材质需要单独处理
-        // 暂时使用 ModelLoader 直接获取材质列表
-        ModelLoadResult result = ModelLoader::Load(filepath.string());
+        meshFilterComponent.Mesh = result.MeshData;
+
+        // 7. 材质处理
         auto& meshRenderer = entity.AddComponent<MeshRendererComponent>();
-        if (result.Success)
+        if (!result.Materials.empty())
         {
             // 为每个导入的材质保存为独立 .lmat 文件并注册到资产系统
-            std::filesystem::path materialsDir = relPath.parent_path() / "Materials";
-            
+            std::filesystem::path materialsDir = "Assets/Materials";
+
             for (size_t i = 0; i < result.Materials.size(); ++i)
             {
                 auto& material = result.Materials[i];
@@ -448,27 +458,27 @@ namespace Lucky
                 {
                     continue;
                 }
-                
+
                 // 构造材质文件名：模型名_材质名.lmat
                 std::string matName = material->GetName();
                 if (matName.empty())
                 {
-                    matName = std::format("{0}_Material_{1}", name, i);
+                    matName = std::format("{0}_Material_{1}", meshName, i);
                     material->SetName(matName);
                 }
-                
+
                 // 构造 .lmat 文件路径（相对路径）
                 std::filesystem::path matFilePath = materialsDir / (matName + ".lmat");
                 std::string matFilePathStr = matFilePath.generic_string();
-                
+
                 AssetManager::CreateAsset(material, matFilePathStr);  // 创建材质资产
             }
             meshRenderer.Materials = result.Materials;
         }
-        
+
         SelectionManager::Select(entity.GetUUID()); // 选中当前实体
-        
-        LF_CORE_INFO("Imported model: {0} ({1} SubMeshes, {2} Materials)", name, mesh->GetSubMeshes().size(), meshRenderer.Materials.size());
+
+        LF_CORE_INFO("Imported model: {0} ({1} SubMeshes, {2} Materials)", meshName, result.MeshData->GetSubMeshes().size(), meshRenderer.Materials.size());
     }
 
     void EditorLayer::CreateMaterial()

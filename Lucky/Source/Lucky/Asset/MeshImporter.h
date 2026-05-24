@@ -5,8 +5,8 @@
 namespace Lucky
 {
     /// <summary>
-    /// Mesh 资产导入器：从模型文件（.obj/.fbx/.gltf 等）加载网格
-    /// 内部委托给 ModelLoader（Assimp 封装）
+    /// Mesh 资产导入器：加载 .lmesh 格式的引擎内部网格资产
+    /// 不兼容外部模型格式（.fbx/.obj 等），外部模型由 ModelLoader 在导入阶段转换
     /// </summary>
     class MeshImporter : public AssetImporter
     {

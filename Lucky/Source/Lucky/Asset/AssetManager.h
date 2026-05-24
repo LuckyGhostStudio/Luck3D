@@ -129,6 +129,11 @@ namespace Lucky
 
     private:
         /// <summary>
+        /// 初始化内置图元 Mesh 资产（启动时自动生成 .lmesh 文件）
+        /// </summary>
+        static void InitBuiltinMeshAssets();
+
+        /// <summary>
         /// 加载资产到内存（内部方法）
         /// </summary>
         static Ref<void> LoadAsset(const AssetMetadata& metadata);

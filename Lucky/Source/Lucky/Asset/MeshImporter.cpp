@@ -1,7 +1,7 @@
 #include "lcpch.h"
 #include "MeshImporter.h"
 
-#include "ModelLoader.h"
+#include "Lucky/Serialization/MeshSerializer.h"
 
 #include <filesystem>
 
@@ -11,13 +11,13 @@ namespace Lucky
     {
         std::string absolutePath = std::filesystem::absolute(metadata.FilePath).string();
 
-        ModelLoadResult result = ModelLoader::Load(absolutePath);
-        if (result.Success)
+        // 只支持 .lmesh 格式（引擎内部 Mesh 资产格式）
+        Ref<Mesh> mesh = MeshSerializer::Deserialize(absolutePath);
+        if (!mesh)
         {
-            return result.MeshData;
+            LF_CORE_ERROR("MeshImporter: Failed to load .lmesh: '{0}'", absolutePath);
+            return nullptr;
         }
-
-        LF_CORE_ERROR("MeshImporter: Failed to load mesh: '{0}' - {1}", absolutePath, result.ErrorMessage);
-        return nullptr;
+        return mesh;
     }
 }
