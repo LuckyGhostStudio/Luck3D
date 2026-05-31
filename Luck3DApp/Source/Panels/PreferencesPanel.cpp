@@ -30,7 +30,7 @@ namespace Lucky
         {
             float panelWidth = ImGui::GetContentRegionAvail().x;
             float categoriesWidth = panelWidth * 0.3f;
-            ImGui::TableSetupColumn("Categories Column", 0, categoriesWidth);   // TODO 停靠在 docking 时切换 Inspector 界面会崩溃
+            ImGui::TableSetupColumn("Categories Column", 0, categoriesWidth);
             ImGui::TableSetupColumn("Content Column", ImGuiTableColumnFlags_WidthStretch);
 
             ImGui::TableNextRow();
