@@ -4,6 +4,9 @@
 #include "Theme.h"
 #include "ScopedGuards.h"
 
+#include "Lucky/Core/Base.h"
+#include "Lucky/Renderer/Texture.h"
+
 #include <imgui/imgui.h>
 #include <imgui/misc/cpp/imgui_stdlib.h>
 
@@ -288,5 +291,70 @@ namespace Lucky::UI
         // Field Icon
 
         return changed;
+    }
+    
+    // ---- AssetField：资产引用控件 ----
+    // 显示 [图标] [资产名称] 的样式，用于资产引用属性
+    // icon: 资产类型图标（可为 nullptr）
+    // displayName: 显示的资产名称（如 "Metal.lmat"），无资产时传 "None (Material)" 等
+    // 返回值：是否被点击（预留给未来资产选择弹窗）
+    inline bool AssetField(const char* id, const Ref<Texture2D>& icon, const char* displayName)
+    {
+        float width = std::max(ImGui::GetContentRegionAvail().x - Theme::Layout::WindowPaddingX, 1.0f);
+        float height = Theme::Layout::AssetFieldHeight;
+        
+        // 布局参数
+        float iconSize = Theme::Layout::AssetFieldIconSize;
+        float iconPaddingX = Theme::Layout::AssetFieldIconPaddingX;
+        float iconToText = Theme::Layout::AssetFieldIconToTextSpacing;
+        float textOffsetX = iconPaddingX + iconSize + iconToText;
+        
+        // 绘制背景框（使用 FrameBg 颜色）
+        ImVec2 cursorPos = ImGui::GetCursorScreenPos();
+        ImVec2 rectMin = cursorPos;
+        ImVec2 rectMax = ImVec2(cursorPos.x + width, cursorPos.y + height);
+        
+        ImVec4 frameBgColor = ImGui::GetStyleColorVec4(ImGuiCol_FrameBg);
+        ImU32 bgColor = ImGui::ColorConvertFloat4ToU32(frameBgColor);
+        
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        float rounding = Theme::Layout::FrameRounding;
+        drawList->AddRectFilled(rectMin, rectMax, bgColor, rounding);
+        
+        // 使用 InvisibleButton 处理点击交互
+        std::string buttonID = std::string("##AssetField_") + id;
+        bool clicked = ImGui::InvisibleButton(buttonID.c_str(), { width, height });
+        
+        // 绘制图标
+        if (icon)
+        {
+            float iconY = rectMin.y + (height - iconSize) * 0.5f;
+            float iconX = rectMin.x + iconPaddingX;
+            
+            drawList->AddImage(
+                reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(icon->GetRendererID())),
+                ImVec2(iconX, iconY),
+                ImVec2(iconX + iconSize, iconY + iconSize),
+                ImVec2(0, 1), ImVec2(1, 0)  // OpenGL Y 翻转
+            );
+        }
+        
+        // 绘制文本（精确像素定位，不受文本长度影响）
+        {
+            float textX = rectMin.x + textOffsetX;
+            float textY = rectMin.y + (height - ImGui::GetTextLineHeight()) * 0.5f;
+            
+            // 裁剪文本，防止超出控件右边界
+            ImVec4 clipRect(textX, rectMin.y, rectMax.x - Theme::Layout::FramePaddingX, rectMax.y);
+            drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(),
+                ImVec2(textX, textY),
+                ImGui::ColorConvertFloat4ToU32(ImGui::GetStyleColorVec4(ImGuiCol_Text)),
+                displayName, nullptr, 0.0f, &clipRect);
+        }
+        
+        Draw::ItemTopShadow();
+        DrawItemActivityOutline();
+        
+        return clicked;
     }
 }

@@ -20,6 +20,7 @@ namespace Lucky
     class Scene : public Asset
     {
     public:
+        static AssetType StaticAssetType() { return AssetType::Scene; }
         AssetType GetAssetType() const override { return AssetType::Scene; }
 
         Scene(const std::string& name = "New Scene");

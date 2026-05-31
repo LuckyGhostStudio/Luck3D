@@ -166,9 +166,9 @@ namespace Lucky
         static std::string meshName;
         DrawComponent<MeshFilterComponent>(meshName + " (Mesh Filter)", entity, [](MeshFilterComponent& meshFilter)
         {
-            meshName = meshFilter.Mesh->GetName();
+            meshName = meshFilter.Mesh ? meshFilter.Mesh->GetName() : "";
             
-            UI::PropertyObject("Mesh", meshName.c_str());
+            UI::PropertyAsset("Mesh", meshFilter.Mesh);
         });
 
         // MeshRenderer ×é¼þ
@@ -186,9 +186,8 @@ namespace Lucky
                 for (int i = 0; i < materialSize; i++)
                 {
                     const std::string& label = std::format("Element {0}", i);
-                    const std::string& materialName = meshRenderer.Materials[i]->GetName();
                 
-                    UI::PropertyObject(label.c_str(), materialName.c_str());
+                    UI::PropertyAsset(label.c_str(), meshRenderer.Materials[i]);
                 }
                 
                 UI::EndCollapsing();

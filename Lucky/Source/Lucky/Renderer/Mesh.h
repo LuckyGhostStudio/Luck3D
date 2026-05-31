@@ -29,6 +29,7 @@ namespace Lucky
     class Mesh : public Asset
     {
     public:
+        static AssetType StaticAssetType() { return AssetType::Mesh; }
         AssetType GetAssetType() const override { return AssetType::Mesh; }
 
         Mesh() = default;

@@ -41,6 +41,7 @@ namespace Lucky
     class Texture2D : public Texture
     {
     public:
+        static AssetType StaticAssetType() { return AssetType::Texture2D; }
         AssetType GetAssetType() const override { return AssetType::Texture2D; }
 
         /// <summary>

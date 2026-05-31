@@ -1,8 +1,16 @@
 #pragma once
 
 #include "Lucky/Renderer/Texture.h"
+#include "Lucky/Asset/Asset.h"
+#include "Lucky/Asset/AssetManager.h"
+#include "Lucky/Editor/EditorIconManager.h"
+
+#include "Controls.h"
+#include "UICore.h"
+#include "Theme.h"
 
 #include <glm/glm.hpp>
+#include <type_traits>
 
 namespace Lucky::UI
 {
@@ -17,6 +25,23 @@ namespace Lucky::UI
     /// 结束 PropertyGrid 两列布局
     /// </summary>
     void EndPropertyGrid();
+
+    // ---- 内部辅助函数（供模板使用，外部不应直接调用） ----
+
+    /// <summary>
+    /// 绘制 Property 行的 Label 列
+    /// </summary>
+    void PropertyLabel(const char* label);
+
+    /// <summary>
+    /// 开始绘制 Property 行的 Value 列
+    /// </summary>
+    void PropertyValueBegin();
+
+    /// <summary>
+    /// 结束绘制 Property 行的 Value 列
+    /// </summary>
+    void PropertyValueEnd();
 
     // ========================================================================
     // Property 语义化控件
@@ -128,6 +153,57 @@ namespace Lucky::UI
     /// <param name="texture">纹理引用</param>
     /// <returns>纹理是否被修改</returns>
     bool PropertyTexture(const char* label, const Ref<Texture2D>& texture);
+
+    // ---- Asset 引用 ----
+
+    /// <summary>
+    /// 资产引用属性（AssetField）
+    /// 显示资产类型图标 + 资产名称，支持拖拽赋值（后续实现）
+    /// </summary>
+    /// <typeparam name="T">资产类型（Material / Mesh / Texture2D 等，必须继承自 Asset 且提供 StaticAssetType()）</typeparam>
+    /// <param name="label">属性名（显示在左侧 Label 列）</param>
+    /// <param name="assetRef">资产引用（可被拖拽赋值修改）</param>
+    /// <returns>资产引用是否被修改</returns>
+    template<typename T>
+        requires std::is_base_of_v<Asset, T>
+    bool PropertyAsset(const char* label, Ref<T>& assetRef)
+    {
+        AssetType assetType = T::StaticAssetType();
+
+        BeginPropertyGrid();
+        
+        PropertyLabel(label);
+        PropertyValueBegin();
+
+        // 获取资产类型图标
+        const Ref<Texture2D>& icon = EditorIconManager::GetAssetTypeIcon(assetType);
+        
+        // 构建显示名称：有资产时显示名称，无资产时显示 "None (Type)"
+        std::string displayName = assetRef ? assetRef->GetName() : std::string("None (") + AssetTypeToString(assetType) + ")";
+        
+        bool clicked = AssetField(GenerateID(), icon, displayName.c_str());
+
+        // TODO: 拖拽接收（后续实现）
+        // if (ImGui::BeginDragDropTarget())
+        // {
+        //     if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_DRAG"))
+        //     {
+        //         AssetHandle handle = *(AssetHandle*)payload->Data;
+        //         if (AssetManager::GetAssetType(handle) == assetType)
+        //         {
+        //             assetRef = AssetManager::GetAsset<T>(handle);
+        //             modified = true;
+        //         }
+        //     }
+        //     ImGui::EndDragDropTarget();
+        // }
+
+        PropertyValueEnd();
+        
+        EndPropertyGrid();
+        
+        return clicked;
+    }
     
     // ---- Object TODO ----
     

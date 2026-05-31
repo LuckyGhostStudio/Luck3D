@@ -34,6 +34,12 @@ namespace Lucky::UI::Theme
         constexpr float TreeNodeComponentIconMinGap = 8.0f;       // 名称与组件图标之间的最小间距
         constexpr float TreeNodeComponentIconRightMargin = 4.0f;  // 组件图标列表距右边界的边距
 
+        // ---- AssetField ----
+        constexpr float AssetFieldHeight = 28.0f;               // AssetField 控件高度
+        constexpr float AssetFieldIconSize = 18.0f;             // AssetField 内图标尺寸
+        constexpr float AssetFieldIconPaddingX = 6.0f;          // AssetField 图标左侧内边距
+        constexpr float AssetFieldIconToTextSpacing = 6.0f;     // AssetField 图标与文本的间距
+
         // ---- 纹理预览 ----
         constexpr float TexturePreviewSize = 64.0f; // 纹理预览图尺寸
 

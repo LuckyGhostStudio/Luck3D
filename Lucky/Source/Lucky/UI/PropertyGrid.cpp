@@ -45,7 +45,7 @@ namespace Lucky::UI
     /// <summary>
     /// 绘制 Property 行的 Label 列
     /// </summary>
-    static void PropertyLabel(const char* label)
+    void PropertyLabel(const char* label)
     {
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
@@ -57,7 +57,7 @@ namespace Lucky::UI
     /// <summary>
     /// 开始绘制 Property 行的 Value 列
     /// </summary>
-    static void PropertyValueBegin()
+    void PropertyValueBegin()
     {
         ImGui::TableSetColumnIndex(1);
         ShiftCursorY(Theme::Layout::PropertyValueOffsetY);
@@ -67,7 +67,7 @@ namespace Lucky::UI
     /// <summary>
     /// 结束绘制 Property 行的 Value 列
     /// </summary>
-    static void PropertyValueEnd()
+    void PropertyValueEnd()
     {
         ImGui::PopItemWidth();
     }
@@ -336,6 +336,8 @@ namespace Lucky::UI
         return modified;
     }
     
+    // ---- Asset 引用 ----
+
     bool PropertyObject(const char* label, const char* valueName)
     {
         BeginPropertyGrid();

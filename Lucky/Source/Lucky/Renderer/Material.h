@@ -43,6 +43,7 @@ namespace Lucky
     class Material : public Asset
     {
     public:
+        static AssetType StaticAssetType() { return AssetType::Material; }
         AssetType GetAssetType() const override { return AssetType::Material; }
 
         /// <summary>
