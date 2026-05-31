@@ -90,10 +90,11 @@ namespace Lucky::UI
         ImGui::Indent(-Theme::Layout::IndentSpacing);   // 恢复缩进
     }
 
-    bool BeginTreeNode(const Ref<Texture2D>& icon, const char* name, bool defaultOpen, bool selected, bool isLeaf)
+    /// <summary>
+    /// 内部实现：树节点核心逻辑
+    /// </summary>
+    static bool BeginTreeNodeInternal(const Ref<Texture2D>& icon, const char* name, bool defaultOpen, bool selected, bool isLeaf)
     {
-        ImGui::PushID(name);
-        
         ScopedStyle itemSpacing(ImGuiStyleVar_ItemSpacing, { 0, 0 });
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_SpanAvailWidth;
 
@@ -141,7 +142,7 @@ namespace Lucky::UI
         if (texID)
         {
             ShiftCursorY(Theme::Layout::TreeNodeIconOffsetY);
-            ImGui::Image(texID, ImVec2(iconSize, iconSize));
+            ImGui::Image(texID, ImVec2(iconSize, iconSize), ImVec2(0, 1), ImVec2(1, 0));   // OpenGL Y 翻转
             ImGui::SameLine();
             ShiftCursorX(Theme::Layout::TreeNodeIconToTextSpacing);
             ShiftCursorY(-Theme::Layout::TreeNodeIconOffsetY);
@@ -160,9 +161,31 @@ namespace Lucky::UI
 
         // 恢复 TreeNode 为 LastItem，使调用方的 IsItemClicked 等交互检测正确工作
         g.LastItemData = treeNodeItemData;
-        
-        ImGui::PopID();
 
+        return opened;
+    }
+
+    bool BeginTreeNode(const Ref<Texture2D>& icon, const char* name, bool defaultOpen, bool selected, bool isLeaf)
+    {
+        ImGui::PushID(name);
+        bool opened = BeginTreeNodeInternal(icon, name, defaultOpen, selected, isLeaf);
+        ImGui::PopID();
+        return opened;
+    }
+
+    bool BeginTreeNode(const Ref<Texture2D>& closedIcon, const Ref<Texture2D>& openIcon, const char* name, bool defaultOpen, bool selected, bool isLeaf)
+    {
+        ImGui::PushID(name);
+
+        // 先查询节点当前的展开状态，以选择正确的图标
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
+        ImGuiID storageID = window->GetID("");
+        bool isNodeOpen = window->DC.StateStorage->GetInt(storageID, defaultOpen ? 1 : 0) != 0;
+
+        const Ref<Texture2D>& icon = isNodeOpen ? openIcon : closedIcon;
+        bool opened = BeginTreeNodeInternal(icon, name, defaultOpen, selected, isLeaf);
+        ImGui::PopID();
+        
         return opened;
     }
     

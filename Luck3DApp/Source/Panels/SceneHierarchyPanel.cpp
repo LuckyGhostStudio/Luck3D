@@ -285,14 +285,18 @@ namespace Lucky
         ImGuiContext& g = *GImGui;
         const ImGuiLastItemData savedItemData = g.LastItemData;
 
-        // 收集该实体拥有的非默认组件类型（排除 Transform）
-        std::vector<ComponentType> types;
-        if (entity.HasComponent<MeshFilterComponent>())         types.push_back(ComponentType::MeshFilter);
-        if (entity.HasComponent<MeshRendererComponent>())       types.push_back(ComponentType::MeshRenderer);
-        if (entity.HasComponent<LightComponent>())              types.push_back(ComponentType::Light);
-        if (entity.HasComponent<PostProcessVolumeComponent>())  types.push_back(ComponentType::PostProcessVolume);
+        // 收集该实体拥有的非默认组件图标（排除 Transform）
+        std::vector<const Ref<Texture2D>*> icons;
+        if (entity.HasComponent<MeshFilterComponent>())         icons.push_back(&EditorIconManager::GetComponentIcon(ComponentType::MeshFilter));
+        if (entity.HasComponent<MeshRendererComponent>())       icons.push_back(&EditorIconManager::GetComponentIcon(ComponentType::MeshRenderer));
+        if (entity.HasComponent<LightComponent>())
+        {
+            LightType lightType = entity.GetComponent<LightComponent>().Type;
+            icons.push_back(&EditorIconManager::GetLightIcon(lightType));
+        }
+        if (entity.HasComponent<PostProcessVolumeComponent>())  icons.push_back(&EditorIconManager::GetComponentIcon(ComponentType::PostProcessVolume));
 
-        if (types.empty())
+        if (icons.empty())
         {
             g.LastItemData = savedItemData;
             return;
@@ -303,7 +307,7 @@ namespace Lucky
         float minGap = UI::Theme::Layout::TreeNodeComponentIconMinGap;
 
         // 计算图标区域总宽度
-        float totalIconWidth = types.size() * iconSize + (types.size() - 1) * iconSpacing;
+        float totalIconWidth = icons.size() * iconSize + (icons.size() - 1) * iconSpacing;
 
         // 获取可用区域右边界（使用窗口内相对坐标，减去右边距）
         float contentRightLocal = ImGui::GetContentRegionMax().x - UI::Theme::Layout::TreeNodeComponentIconRightMargin;
@@ -329,15 +333,15 @@ namespace Lucky
             + textWidth;
 
         // 碰撞检测：如果图标区域侵入名称区域，则从左侧开始移除图标
-        while (!types.empty() && iconsStartLocal < nameEndLocal + minGap)
+        while (!icons.empty() && iconsStartLocal < nameEndLocal + minGap)
         {
-            types.erase(types.begin());
-            if (types.empty())
+            icons.erase(icons.begin());
+            if (icons.empty())
             {
                 g.LastItemData = savedItemData;
                 return;
             }
-            totalIconWidth = types.size() * iconSize + (types.size() - 1) * iconSpacing;
+            totalIconWidth = icons.size() * iconSize + (icons.size() - 1) * iconSpacing;
             iconsStartLocal = contentRightLocal - totalIconWidth;
         }
 
@@ -350,16 +354,15 @@ namespace Lucky
 
         ImGui::SetCursorPos(ImVec2(iconsStartLocal, lineY + iconOffsetY));
 
-        for (size_t i = 0; i < types.size(); i++)
+        for (size_t i = 0; i < icons.size(); i++)
         {
-            const Ref<Texture2D>& compIcon = EditorIconManager::GetComponentIcon(types[i]);
+            const Ref<Texture2D>& compIcon = *icons[i];
             if (compIcon)
             {
-                ImTextureID texID = reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(compIcon->GetRendererID()));
-                ImGui::Image(texID, ImVec2(iconSize, iconSize));
+                UI::ImageFlipped(compIcon, ImVec2(iconSize, iconSize));
             }
 
-            if (i < types.size() - 1)
+            if (i < icons.size() - 1)
             {
                 ImGui::SameLine(0, iconSpacing);
             }

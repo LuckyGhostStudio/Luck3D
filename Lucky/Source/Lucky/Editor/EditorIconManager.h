@@ -4,9 +4,7 @@
 #include "Lucky/Renderer/Texture.h"
 #include "Lucky/Asset/AssetType.h"
 #include "Lucky/Scene/Components/ComponentType.h"
-
-#include <string>
-#include <unordered_map>
+#include "Lucky/Scene/Components/LightComponent.h"
 
 namespace Lucky
 {
@@ -45,6 +43,13 @@ namespace Lucky
         /// <returns>对应的图标纹理，未知组件返回 nullptr</returns>
         static const Ref<Texture2D>& GetComponentIcon(ComponentType type);
 
+        /// <summary>
+        /// 获取光源组件图标（根据光源子类型）
+        /// </summary>
+        /// <param name="lightType">光源类型（Directional/Point/Spot）</param>
+        /// <returns>对应光源类型的图标纹理</returns>
+        static const Ref<Texture2D>& GetLightIcon(LightType lightType);
+
         // ======== 实体图标 ========
 
         /// <summary>
@@ -67,5 +72,33 @@ namespace Lucky
         /// </summary>
         /// <returns>文件图标纹理</returns>
         static const Ref<Texture2D>& GetFileIcon();
+    };
+
+    // ======== 组件图标解析器 ========
+
+    /// <summary>
+    /// 组件图标解析器（基础模板）
+    /// 默认行为：通过 ComponentTrait 获取组件类型，再从 EditorIconManager 获取对应图标
+    /// 对于有子类型的组件（如 LightComponent），通过模板特化实现不同子类型返回不同图标
+    /// </summary>
+    template<typename TComponent>
+    struct ComponentIconResolver
+    {
+        static const Ref<Texture2D>& GetIcon(const TComponent& /*component*/)
+        {
+            return EditorIconManager::GetComponentIcon(ComponentTrait<TComponent>::Type);
+        }
+    };
+
+    /// <summary>
+    /// LightComponent 图标解析器特化：根据光源子类型返回不同图标
+    /// </summary>
+    template<>
+    struct ComponentIconResolver<LightComponent>
+    {
+        static const Ref<Texture2D>& GetIcon(const LightComponent& light)
+        {
+            return EditorIconManager::GetLightIcon(light.Type);
+        }
     };
 }

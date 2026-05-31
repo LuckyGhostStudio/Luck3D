@@ -82,14 +82,16 @@ namespace Lucky
         bool isLeaf = node.SubDirectories.empty();
 
         bool isCurrentDir = (m_CurrentDirectory == node.FullPath);
-        const Ref<Texture2D>& folderIcon = EditorIconManager::GetFolderIcon(isCurrentDir);
+
+        const Ref<Texture2D>& folderClosedIcon = EditorIconManager::GetFolderIcon(false);
+        const Ref<Texture2D>& folderOpenIcon = EditorIconManager::GetFolderIcon(true);
 
         if (isRoot)
         {
             ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO ·â×° Fonts
         }
         
-        bool opened = UI::BeginTreeNode(folderIcon, strID.c_str(), isRoot, isCurrentDir, isLeaf);
+        bool opened = UI::BeginTreeNode(folderClosedIcon, folderOpenIcon, strID.c_str(), isRoot, isCurrentDir, isLeaf);
         
         if (isRoot)
         {

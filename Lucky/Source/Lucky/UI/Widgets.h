@@ -32,6 +32,18 @@ namespace Lucky::UI
     /// <returns>是否展开</returns>
     bool BeginTreeNode(const Ref<Texture2D>& icon, const char* name, bool defaultOpen = false, bool selected = false, bool isLeaf = false);
 
+    /// <summary>
+    /// 树节点（双图标版本）根据展开/折叠状态自动切换图标
+    /// </summary>
+    /// <param name="closedIcon">折叠时显示的图标</param>
+    /// <param name="openIcon">展开时显示的图标</param>
+    /// <param name="name">名称</param>
+    /// <param name="defaultOpen">默认打开</param>
+    /// <param name="selected">已选中</param>
+    /// <param name="isLeaf">是叶节点</param>
+    /// <returns>是否展开</returns>
+    bool BeginTreeNode(const Ref<Texture2D>& closedIcon, const Ref<Texture2D>& openIcon, const char* name, bool defaultOpen = false, bool selected = false, bool isLeaf = false);
+
     void EndTreeNode();
 
     /// <summary>

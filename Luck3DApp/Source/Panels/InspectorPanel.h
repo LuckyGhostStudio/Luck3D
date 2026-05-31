@@ -44,9 +44,6 @@ namespace Lucky
         /// <param name="OnOpened">组件打开时调用</param>
         template<typename TComponent, typename UIFunction>
         void DrawComponent(const std::string& name, Entity entity, UIFunction OnOpened);
-        
-        // TODO Move to MaterialEditor class
-        void DrawMaterialEditor(Ref<Material>& material);
     private:
         Ref<Scene> m_Scene;
     };
@@ -82,13 +79,12 @@ namespace Lucky
             ImGui::SameLine();
             UI::ShiftCursorX(UI::Theme::Layout::ComponentHeaderIconSpacing);
 
-            const Ref<Texture2D>& componentIcon = EditorIconManager::GetComponentIcon(ComponentTrait<TComponent>::Type);
+            const Ref<Texture2D>& componentIcon = ComponentIconResolver<TComponent>::GetIcon(component);
             if (componentIcon)
             {
                 float iconSize = ImGui::GetTextLineHeight() - UI::Theme::Layout::TreeNodeIconSizeShrink;
-                ImTextureID texID = reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(componentIcon->GetRendererID()));
                 UI::ShiftCursorY(UI::Theme::Layout::ComponentHeaderIconOffsetY);
-                ImGui::Image(texID, ImVec2(iconSize, iconSize));
+                UI::ImageFlipped(componentIcon, ImVec2(iconSize, iconSize));
                 ImGui::SameLine();
                 UI::ShiftCursorX(UI::Theme::Layout::ComponentHeaderIconToTextSpacing);
                 UI::ShiftCursorY(-UI::Theme::Layout::ComponentHeaderIconOffsetY);

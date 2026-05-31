@@ -8,12 +8,12 @@ Assets:
   - Handle: 15937996615583574040
     Type: Mesh
     FilePath: Assets/Models/Railgun.fbx
-  - Handle: 3256352951629368989
-    Type: Mesh
-    FilePath: Assets/Models/Hornet.fbx
   - Handle: 11848252517640597707
     Type: Material
     FilePath: Assets/Models/Materials/Default.lmat
+  - Handle: 3256352951629368989
+    Type: Mesh
+    FilePath: Assets/Models/Hornet.fbx
   - Handle: 12654340601597598847
     Type: Material
     FilePath: Assets/Models/Materials/03 - Default.001.lmat
@@ -44,12 +44,12 @@ Assets:
   - Handle: 9132575089908576489
     Type: Mesh
     FilePath: Assets/Meshes/Builtin/Plane.lmesh
-  - Handle: 4078421086449957534
-    Type: Mesh
-    FilePath: Assets/Meshes/Builtin/Cylinder.lmesh
   - Handle: 17111660239820637653
     Type: Material
     FilePath: Assets/Materials/03 - Default.001.lmat
+  - Handle: 4078421086449957534
+    Type: Mesh
+    FilePath: Assets/Meshes/Builtin/Cylinder.lmesh
   - Handle: 16949846739143850126
     Type: Mesh
     FilePath: Assets/Meshes/Builtin/Capsule.lmesh

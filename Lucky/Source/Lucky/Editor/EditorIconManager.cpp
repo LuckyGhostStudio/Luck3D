@@ -14,6 +14,9 @@ namespace Lucky
         // ---- 组件图标 ----
         std::unordered_map<ComponentType, Ref<Texture2D>> ComponentIcons;
 
+        // ---- 光源子类型图标 ----
+        std::unordered_map<LightType, Ref<Texture2D>> LightIcons;
+
         // ---- 实体图标 ----
         Ref<Texture2D> EntityIcon;
 
@@ -67,6 +70,11 @@ namespace Lucky
         s_IconData.ComponentIcons[ComponentType::Light]              = LoadIcon("Component/Light.png");
         s_IconData.ComponentIcons[ComponentType::PostProcessVolume]  = LoadIcon("Component/PostProcessVolume.png");
 
+        // ---- 加载光源子类型图标 ----
+        s_IconData.LightIcons[LightType::Directional]   = LoadIcon("Component/DirectionalLight.png");
+        s_IconData.LightIcons[LightType::Point]         = LoadIcon("Component/PointLight.png");
+        s_IconData.LightIcons[LightType::Spot]          = LoadIcon("Component/SpotLight.png");
+
         // ---- 加载实体图标 ----
         s_IconData.EntityIcon = LoadIcon("Entity/Entity.png");
 
@@ -79,6 +87,7 @@ namespace Lucky
 
         s_IconData.AssetTypeIcons.clear();
         s_IconData.ComponentIcons.clear();
+        s_IconData.LightIcons.clear();
         s_IconData.EntityIcon.reset();
         s_IconData.FolderIcon.reset();
         s_IconData.FolderOpenIcon.reset();
@@ -106,6 +115,18 @@ namespace Lucky
 
         static Ref<Texture2D> s_NullIcon = nullptr;
         return s_NullIcon;
+    }
+
+    const Ref<Texture2D>& EditorIconManager::GetLightIcon(LightType lightType)
+    {
+        auto it = s_IconData.LightIcons.find(lightType);
+        if (it != s_IconData.LightIcons.end() && it->second)
+        {
+            return it->second;
+        }
+
+        // 回退到通用 Light 图标
+        return GetComponentIcon(ComponentType::Light);
     }
 
     const Ref<Texture2D>& EditorIconManager::GetEntityIcon()
