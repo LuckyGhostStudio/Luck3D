@@ -5,6 +5,7 @@
 #include "Lucky/Asset/AssetManager.h"
 #include "Lucky/Editor/EditorIconManager.h"
 #include "Lucky/Editor/DragDropPayloads.h"
+#include "Lucky/Editor/DragDropContext.h"
 
 #include "Controls.h"
 #include "UICore.h"
@@ -185,16 +186,30 @@ namespace Lucky::UI
         bool clicked = AssetField(GenerateID(), icon, displayName.c_str());
         bool modified = false;
 
-        // 拖拽接收：接受从 ProjectAssetsPanel 拖入的资产
+        // 拖拽接收：合并 peek 与 delivery
+        // - AcceptBeforeDelivery：拖拽悬停期间 payload 就会返回，可用于源端图标反馈
+        // - IsDelivery()：区分"悬停中"与"鼠标释放"，只有释放时才真正赋值
         if (ImGui::BeginDragDropTarget())
         {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(DragDrop::AssetHandle))
+            // AcceptBeforeDelivery：悬停期间即可拿到 payload（用于源端图标反馈 & 目标端高亮）
+            // 不加 AcceptNoDrawDefaultRect，让 ImGui 自动绘制默认高亮框（ImGuiCol_DragDropTarget）
+            const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
+                DragDrop::AssetHandle,
+                ImGuiDragDropFlags_AcceptBeforeDelivery);
+            if (payload && payload->DataSize == sizeof(AssetHandle))
             {
-                AssetHandle handle = *(AssetHandle*)payload->Data;
+                AssetHandle handle = *static_cast<AssetHandle*>(payload->Data);
                 if (AssetManager::GetAssetType(handle) == assetType)
                 {
-                    assetRef = AssetManager::GetAsset<T>(handle);
-                    modified = true;
+                    // 类型匹配 -> 向源端上报"当前帧被接受"，源端 tooltip 显示允许图标
+                    DragDropContext::NotifyTargetAccepts(DragDrop::AssetHandle);
+
+                    // 鼠标释放时才真正写入引用
+                    if (payload->IsDelivery())
+                    {
+                        assetRef = AssetManager::GetAsset<T>(handle);
+                        modified = true;
+                    }
                 }
             }
             ImGui::EndDragDropTarget();

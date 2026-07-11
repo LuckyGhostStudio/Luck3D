@@ -62,6 +62,25 @@ namespace Lucky::UI
     /// </summary>
     void ImageFlipped(const Ref<Texture2D>& texture, const ImVec2& size, const ImVec4& tintColor = ImVec4(1, 1, 1, 1), const ImVec4& borderColor = ImVec4(0, 0, 0, 0));
     
+    /// <summary>
+    /// 拖拽预览 tooltip：显示通用拖拽图标或禁止图标
+    /// 需在 BeginDragDropSource() 和 EndDragDropSource() 之间调用
+    /// </summary>
+    /// <param name="rejected">是否显示为"禁止"状态（true 显示红色禁止圈，false 显示通用拖拽图标）</param>
+    void DragDropPreview(bool rejected = false);
+
+    /// <summary>
+    /// 开始拖拽源（去除 ImGui tooltip 默认底框，仅显示 DragDropPreview 的图标）
+    /// 需与 EndDragDropSource() 成对使用；仅当返回 true 时调用 EndDragDropSource()
+    /// </summary>
+    /// <param name="flags">ImGui 拖拽源标志</param>
+    bool BeginDragDropSource(ImGuiDragDropFlags flags = 0);
+
+    /// <summary>
+    /// 结束拖拽源，与 BeginDragDropSource() 成对
+    /// </summary>
+    void EndDragDropSource();
+    
     // ---- Popup ----
     
     bool BeginPopupContextWindow(const char* strID = nullptr, ImGuiPopupFlags popupFlags = 1);

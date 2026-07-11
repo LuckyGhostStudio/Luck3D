@@ -72,6 +72,13 @@ namespace Lucky
         /// </summary>
         /// <returns>文件图标纹理</returns>
         static const Ref<Texture2D>& GetFileIcon();
+
+        /// <summary>
+        /// 获取拖拽预览图标
+        /// </summary>
+        /// <param name="rejected">是否为"禁止"状态（true 返回红色禁止圈，false 返回通用拖拽图标）</param>
+        /// <returns>拖拽图标纹理</returns>
+        static const Ref<Texture2D>& GetDragDropIcon(bool rejected = false);
     };
 
     // ======== 组件图标解析器 ========

@@ -8,6 +8,7 @@
 #include "Lucky/Asset/AssetManager.h"
 #include "Lucky/Editor/EditorIconManager.h"
 #include "Lucky/Editor/DragDropPayloads.h"
+#include "Lucky/Editor/DragDropContext.h"
 
 namespace Lucky
 {
@@ -152,16 +153,13 @@ namespace Lucky
         }
         
         // 拖拽源：非目录且资产已注册（handle 有效）时才作为拖拽源
-        if (!isDirectory && assetHandle.IsValid() && ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
+        if (!isDirectory && assetHandle.IsValid() && UI::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
         {
             ImGui::SetDragDropPayload(DragDrop::AssetHandle, &assetHandle, sizeof(AssetHandle));
             
-            // 拖拽预览：图标 + 文件名
-            ImGui::Image(reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(icon->GetRendererID())), ImVec2(20, 20), ImVec2(0, 1), ImVec2(1, 0));    // OpenGL Y 翻转
-            ImGui::SameLine();
-            ImGui::TextUnformatted(path.stem().string().c_str());
+            UI::DragDropPreview(UI::DragDropContext::IsRejected(DragDrop::AssetHandle));
             
-            ImGui::EndDragDropSource();
+            UI::EndDragDropSource();
         }
         
         if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())

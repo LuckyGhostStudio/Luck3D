@@ -40,6 +40,9 @@ namespace Lucky::UI::Theme
         constexpr float AssetFieldIconPaddingX = 6.0f;          // AssetField 图标左侧内边距
         constexpr float AssetFieldIconToTextSpacing = 6.0f;     // AssetField 图标与文本的间距
 
+        // ---- 拖拽预览 ----
+        constexpr float DragDropIconSize = 24.0f;               // 拖拽 tooltip 图标尺寸
+
         // ---- 纹理预览 ----
         constexpr float TexturePreviewSize = 64.0f; // 纹理预览图尺寸
 

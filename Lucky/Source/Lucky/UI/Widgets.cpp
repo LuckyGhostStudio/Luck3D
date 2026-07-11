@@ -6,6 +6,8 @@
 #include "Theme.h"
 #include "UICore.h"
 
+#include "Lucky/Editor/EditorIconManager.h"
+
 #include <imgui/imgui_internal.h>
 
 namespace Lucky::UI
@@ -207,6 +209,40 @@ namespace Lucky::UI
     {
         // OpenGL Y 翻转：UV 从 {0,1} 到 {1,0}
         Image(texture, size, ImVec2(0, 1), ImVec2(1, 0), tintColor, borderColor);
+    }
+
+    void DragDropPreview(bool rejected)
+    {
+        const Ref<Texture2D>& icon = EditorIconManager::GetDragDropIcon(rejected);
+        ImageFlipped(icon, ImVec2(Theme::Layout::DragDropIconSize, Theme::Layout::DragDropIconSize));
+    }
+
+    bool BeginDragDropSource(ImGuiDragDropFlags flags)
+    {
+        // ImGui 拖拽 tooltip 内部使用 ImGuiCol_PopupBg 作为窗口背景色（见 GetWindowBgColorIdx()），
+        // 且 BeginTooltipEx 会强制调用 SetNextWindowBgAlpha(PopupBg.w * 0.60f) 覆盖 alpha 通道；
+        // 因此必须将 PopupBg 的 alpha 也置 0，才能让最终背景透明
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleColor(ImGuiCol_PopupBg, IM_COL32(0, 0, 0, 0));
+        ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(0, 0, 0, 0));
+
+        bool active = ImGui::BeginDragDropSource(flags);
+        if (!active)
+        {
+            // 未进入拖拽状态，未创建 tooltip，直接回滚样式栈
+            ImGui::PopStyleColor(2);
+            ImGui::PopStyleVar(3);
+        }
+        return active;
+    }
+
+    void EndDragDropSource()
+    {
+        ImGui::EndDragDropSource();
+        ImGui::PopStyleColor(2);
+        ImGui::PopStyleVar(3);
     }
     
     // ---- Popup ----

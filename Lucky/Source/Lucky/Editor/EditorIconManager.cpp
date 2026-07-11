@@ -24,6 +24,10 @@ namespace Lucky
         Ref<Texture2D> FolderIcon;
         Ref<Texture2D> FolderOpenIcon;
         Ref<Texture2D> FileIcon;
+
+        // ---- 拖拽图标 ----
+        Ref<Texture2D> DragDropIcon;         // 通用拖拽图标（虚线框 + 右下角 +）
+        Ref<Texture2D> DragRejectedIcon;     // 禁止拖拽图标（红色禁止圈）
     };
 
     static EditorIconData s_IconData;
@@ -55,6 +59,10 @@ namespace Lucky
         s_IconData.FolderIcon       = LoadIcon("Common/Folder.png");
         s_IconData.FolderOpenIcon   = LoadIcon("Common/FolderOpen.png");
         s_IconData.FileIcon         = LoadIcon("Common/File.png");
+
+        // ---- 加载拖拽图标 ----
+        s_IconData.DragDropIcon     = LoadIcon("Common/DragDrop.png");
+        s_IconData.DragRejectedIcon = LoadIcon("Common/DragRejected.png");
 
         // ---- 加载资产类型图标 ----
         s_IconData.AssetTypeIcons[AssetType::Material]  = LoadIcon("Asset/Material.png");
@@ -92,6 +100,8 @@ namespace Lucky
         s_IconData.FolderIcon.reset();
         s_IconData.FolderOpenIcon.reset();
         s_IconData.FileIcon.reset();
+        s_IconData.DragDropIcon.reset();
+        s_IconData.DragRejectedIcon.reset();
     }
 
     const Ref<Texture2D>& EditorIconManager::GetAssetTypeIcon(AssetType type)
@@ -147,5 +157,10 @@ namespace Lucky
     const Ref<Texture2D>& EditorIconManager::GetFileIcon()
     {
         return s_IconData.FileIcon;
+    }
+
+    const Ref<Texture2D>& EditorIconManager::GetDragDropIcon(bool rejected)
+    {
+        return rejected ? s_IconData.DragRejectedIcon : s_IconData.DragDropIcon;
     }
 }
