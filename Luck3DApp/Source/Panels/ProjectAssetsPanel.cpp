@@ -7,6 +7,7 @@
 #include "imgui/imgui.h"
 #include "Lucky/Asset/AssetManager.h"
 #include "Lucky/Editor/EditorIconManager.h"
+#include "Lucky/Editor/DragDropPayloads.h"
 
 namespace Lucky
 {
@@ -137,15 +138,30 @@ namespace Lucky
         // 获取图标
         const Ref<Texture2D>& icon = isDirectory ? EditorIconManager::GetFolderIcon(false) : EditorIconManager::GetAssetTypeIcon(GetAssetTypeFromPath(path));
         
+        // 提前获取资产 Handle（使用 generic_string 与 AssetRegistry 存储格式一致，避免 Windows 反斜杠不匹配）
+        AssetHandle assetHandle;
         if (!isDirectory)
         {
-            AssetHandle assetHandel = AssetManager::GetAssetHandle(path.string());
-            strID = std::format("{}##{}", path.stem().string(), static_cast<uint32_t>(assetHandel));
+            assetHandle = AssetManager::GetAssetHandle(path.generic_string());
+            strID = std::format("{}##{}", path.stem().string(), static_cast<uint32_t>(assetHandle));
         }
         
         if (UI::BeginTreeNode(icon, strID.c_str(), false, m_SelectionPath == path, true))
         {
             UI::EndTreeNode();
+        }
+        
+        // 拖拽源：非目录且资产已注册（handle 有效）时才作为拖拽源
+        if (!isDirectory && assetHandle.IsValid() && ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
+        {
+            ImGui::SetDragDropPayload(DragDrop::AssetHandle, &assetHandle, sizeof(AssetHandle));
+            
+            // 拖拽预览：图标 + 文件名
+            ImGui::Image(reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(icon->GetRendererID())), ImVec2(20, 20), ImVec2(0, 1), ImVec2(1, 0));    // OpenGL Y 翻转
+            ImGui::SameLine();
+            ImGui::TextUnformatted(path.stem().string().c_str());
+            
+            ImGui::EndDragDropSource();
         }
         
         if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())

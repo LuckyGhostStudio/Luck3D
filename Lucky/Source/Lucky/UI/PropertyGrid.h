@@ -4,6 +4,7 @@
 #include "Lucky/Asset/Asset.h"
 #include "Lucky/Asset/AssetManager.h"
 #include "Lucky/Editor/EditorIconManager.h"
+#include "Lucky/Editor/DragDropPayloads.h"
 
 #include "Controls.h"
 #include "UICore.h"
@@ -182,27 +183,28 @@ namespace Lucky::UI
         std::string displayName = assetRef ? assetRef->GetName() : std::string("None (") + AssetTypeToString(assetType) + ")";
         
         bool clicked = AssetField(GenerateID(), icon, displayName.c_str());
+        bool modified = false;
 
-        // TODO: 拖拽接收（后续实现）
-        // if (ImGui::BeginDragDropTarget())
-        // {
-        //     if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_DRAG"))
-        //     {
-        //         AssetHandle handle = *(AssetHandle*)payload->Data;
-        //         if (AssetManager::GetAssetType(handle) == assetType)
-        //         {
-        //             assetRef = AssetManager::GetAsset<T>(handle);
-        //             modified = true;
-        //         }
-        //     }
-        //     ImGui::EndDragDropTarget();
-        // }
+        // 拖拽接收：接受从 ProjectAssetsPanel 拖入的资产
+        if (ImGui::BeginDragDropTarget())
+        {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(DragDrop::AssetHandle))
+            {
+                AssetHandle handle = *(AssetHandle*)payload->Data;
+                if (AssetManager::GetAssetType(handle) == assetType)
+                {
+                    assetRef = AssetManager::GetAsset<T>(handle);
+                    modified = true;
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
 
         PropertyValueEnd();
         
         EndPropertyGrid();
         
-        return clicked;
+        return clicked || modified;
     }
     
     // ---- Object TODO ----
