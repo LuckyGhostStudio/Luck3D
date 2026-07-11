@@ -321,6 +321,13 @@ namespace Lucky::UI
         float rounding = Theme::Layout::FrameRounding;
         drawList->AddRectFilled(rectMin, rectMax, bgColor, rounding);
         
+        // 绘制黑色边框
+        ImU32 borderColor = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyleColorVec4(ImGuiCol_Border));
+        
+        ImVec2 borderMin(rectMin.x + 0.5f, rectMin.y + 0.5f);
+        ImVec2 borderMax(rectMax.x - 0.5f, rectMax.y - 0.5f);
+        drawList->AddRect(borderMin, borderMax, borderColor, rounding, 0, 1.0f);
+        
         // 使用 InvisibleButton 处理点击交互
         std::string buttonID = std::string("##AssetField_") + id;
         bool clicked = ImGui::InvisibleButton(buttonID.c_str(), { width, height });
