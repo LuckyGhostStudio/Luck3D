@@ -6,7 +6,7 @@ EnvironmentSettings:
   DiffuseIntensity: 1
   SpecularIntensity: 1
   ReflectionResolution: 128
-Entitys:
+Entities:
   - Entity: 14580734653948177511
     NameComponent:
       Name: Directional Light

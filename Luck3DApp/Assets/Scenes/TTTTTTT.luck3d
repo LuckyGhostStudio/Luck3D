@@ -7,5 +7,5 @@ EnvironmentSettings:
   DiffuseIntensity: 1
   SpecularIntensity: 1
   ReflectionResolution: 128
-Entitys:
+Entities:
   []

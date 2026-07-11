@@ -248,7 +248,7 @@ namespace Lucky
             out << YAML::EndMap;
         }
         
-        out << YAML::Key << "Entitys" << YAML::Value << YAML::BeginSeq;     // 实体序列：开始实体序列
+        out << YAML::Key << "Entities" << YAML::Value << YAML::BeginSeq;    // 实体序列：开始实体序列
 
         // 遍历场景注册表所有实体
         scene->m_Registry.each([&](auto entityID)
@@ -326,12 +326,12 @@ namespace Lucky
             }
         }
 
-        YAML::Node entitys = data["Entitys"];   // 实体序列结点
+        YAML::Node entities = data["Entities"];   // 实体序列结点
         
-        if (entitys)
+        if (entities)
         {
             // 遍历结点下所有实体
-            for (auto entity : entitys)
+            for (auto entity : entities)
             {
                 uint64_t uuid = entity["Entity"].as<uint64_t>();    // UUID
                 

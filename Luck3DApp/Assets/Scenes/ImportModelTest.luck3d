@@ -6,7 +6,7 @@ EnvironmentSettings:
   DiffuseIntensity: 1
   SpecularIntensity: 1
   ReflectionResolution: 128
-Entitys:
+Entities:
   - Entity: 8832802562580145054
     NameComponent:
       Name: Hornet_Track

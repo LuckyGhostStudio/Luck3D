@@ -6,7 +6,7 @@ EnvironmentSettings:
   DiffuseIntensity: 1
   SpecularIntensity: 1
   ReflectionResolution: 128
-Entitys:
+Entities:
   - Entity: 18204072191719228222
     NameComponent:
       Name: Cube
