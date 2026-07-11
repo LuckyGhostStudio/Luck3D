@@ -6,6 +6,7 @@
 #include "Lucky/Editor/EditorIconManager.h"
 #include "Lucky/Editor/DragDropPayloads.h"
 #include "Lucky/Editor/DragDropContext.h"
+#include "Lucky/Editor/DragDropVisuals.h"
 
 #include "Controls.h"
 #include "UICore.h"
@@ -191,11 +192,11 @@ namespace Lucky::UI
         // - IsDelivery()：区分"悬停中"与"鼠标释放"，只有释放时才真正赋值
         if (ImGui::BeginDragDropTarget())
         {
-            // AcceptBeforeDelivery：悬停期间即可拿到 payload（用于源端图标反馈 & 目标端高亮）
-            // 不加 AcceptNoDrawDefaultRect，让 ImGui 自动绘制默认高亮框（ImGuiCol_DragDropTarget）
+            // AcceptBeforeDelivery：悬停期间即可拿到 payload（用于源端图标反馈 & 目标端高亮判定）
+            // AcceptNoDrawDefaultRect：抑制 ImGui 内置的默认黄色高亮框，由本函数根据类型匹配结果自行绘制
             const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
                 DragDrop::AssetHandle,
-                ImGuiDragDropFlags_AcceptBeforeDelivery);
+                ImGuiDragDropFlags_AcceptBeforeDelivery | ImGuiDragDropFlags_AcceptNoDrawDefaultRect);
             if (payload && payload->DataSize == sizeof(AssetHandle))
             {
                 AssetHandle handle = *static_cast<AssetHandle*>(payload->Data);
@@ -203,6 +204,9 @@ namespace Lucky::UI
                 {
                     // 类型匹配 -> 向源端上报"当前帧被接受"，源端 tooltip 显示允许图标
                     DragDropContext::NotifyTargetAccepts(DragDrop::AssetHandle);
+
+                    // 目标端高亮：AssetField 使用矩形边框高亮
+                    DragDropVisuals::HighlightTargetRect();
 
                     // 鼠标释放时才真正写入引用
                     if (payload->IsDelivery())
