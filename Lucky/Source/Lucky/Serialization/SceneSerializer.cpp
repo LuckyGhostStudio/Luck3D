@@ -248,6 +248,14 @@ namespace Lucky
             out << YAML::EndMap;
         }
         
+        // ---- 根节点顺序列表（Hierarchy 拖拽排序依据） ----
+        out << YAML::Key << "RootEntityOrder" << YAML::Value << YAML::Flow << YAML::BeginSeq;
+        for (UUID rootID : scene->m_RootEntityOrder)
+        {
+            out << static_cast<uint64_t>(rootID);
+        }
+        out << YAML::EndSeq;
+
         out << YAML::Key << "Entities" << YAML::Value << YAML::BeginSeq;    // 实体序列：开始实体序列
 
         // 遍历场景注册表所有实体
@@ -543,6 +551,28 @@ namespace Lucky
                     volume.VignetteEnabled = postProcessVolumeNode["VignetteEnabled"].as<bool>();
                     volume.VignetteIntensity = postProcessVolumeNode["VignetteIntensity"].as<float>();
                     volume.VignetteSmoothness = postProcessVolumeNode["VignetteSmoothness"].as<float>();
+                }
+            }
+        }
+
+        // ---- 根节点顺序列表（Hierarchy 拖拽排序依据） ----
+        // 注意：CreateEntity(uuid, name) 已经将每个实体 push 到了 m_RootEntityOrder。
+        // 这里需要：
+        // 1. 清空反序列化过程中产生的默认顺序（无论实体是否为根）
+        // 2. 根据 RootEntityOrder 字段重新构造
+        scene->m_RootEntityOrder.clear();
+
+        YAML::Node rootOrderNode = data["RootEntityOrder"];
+        if (rootOrderNode && rootOrderNode.IsSequence())
+        {
+            // 从 RootEntityOrder 字段回填，仅接受仍然有效的根实体，避免脏数据
+            for (auto node : rootOrderNode)
+            {
+                UUID id = node.as<uint64_t>();
+                Entity entity = scene->TryGetEntityWithUUID(id);
+                if (entity && entity.GetParentUUID() == 0)
+                {
+                    scene->m_RootEntityOrder.push_back(id);
                 }
             }
         }

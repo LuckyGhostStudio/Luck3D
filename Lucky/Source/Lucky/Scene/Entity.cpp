@@ -16,11 +16,20 @@ namespace Lucky
         return m_Scene->TryGetEntityWithUUID(GetParentUUID());
     }
 
-    void Entity::SetParent(Entity parent)
+    void Entity::SetParent(Entity parent, int insertIndex)
     {
         Entity currentParent = GetParent();
+
+        // 同父节点场景：
+        // - insertIndex == -1  → 无变化，直接返回
+        // - insertIndex != -1  → 走同级排序分支（避免"从旧父移除→加到新父末尾"的多余扰动）
         if (currentParent == parent)
         {
+            if (insertIndex == -1)
+            {
+                return;
+            }
+            MoveToIndex(insertIndex);
             return;
         }
 
@@ -29,10 +38,15 @@ namespace Lucky
         // 保存当前世界矩阵（用于保持世界位置不变）
         glm::mat4 currentWorldTransform = transform.GetWorldTransform();
 
-        // 当前节点的父节点存在 则从父节点移除当前节点
+        // 从旧父节点移除
         if (currentParent)
         {
             currentParent.RemoveChild(*this);
+        }
+        else
+        {
+            // 原来是根节点，从根节点列表移除
+            m_Scene->RemoveRootEntity(GetUUID());
         }
         
         // 设置父节点 UUID
@@ -42,9 +56,21 @@ namespace Lucky
         {
             std::vector<UUID>& parentChildren = parent.GetChildren();    // 新父节点的子节点列表
             UUID id = GetUUID();
-            if (std::find(parentChildren.begin(), parentChildren.end(), id) == parentChildren.end())
+
+            // 保险去重：如果已经存在则先移除，再按 insertIndex 插入
+            auto existIt = std::find(parentChildren.begin(), parentChildren.end(), id);
+            if (existIt != parentChildren.end())
             {
-                parentChildren.emplace_back(GetUUID());    // 将当前节点添加到新父节点的子节点列表
+                parentChildren.erase(existIt);
+            }
+
+            if (insertIndex < 0 || insertIndex >= static_cast<int>(parentChildren.size()))
+            {
+                parentChildren.push_back(id);
+            }
+            else
+            {
+                parentChildren.insert(parentChildren.begin() + insertIndex, id);
             }
 
             // 计算新的局部 Transform 以保持世界位置不变
@@ -56,6 +82,39 @@ namespace Lucky
         {
             // 无父节点：世界矩阵 = 局部矩阵
             transform.SetLocalTransform(currentWorldTransform);
+
+            // 插入到根节点列表指定位置
+            m_Scene->InsertRootEntity(GetUUID(), insertIndex);
+        }
+    }
+
+    void Entity::MoveToIndex(int newIndex)
+    {
+        UUID id = GetUUID();
+        Entity parent = GetParent();
+
+        if (parent)
+        {
+            std::vector<UUID>& siblings = parent.GetChildren();
+            auto it = std::find(siblings.begin(), siblings.end(), id);
+            if (it != siblings.end())
+            {
+                siblings.erase(it);
+            }
+
+            if (newIndex < 0 || newIndex >= static_cast<int>(siblings.size()))
+            {
+                siblings.push_back(id);
+            }
+            else
+            {
+                siblings.insert(siblings.begin() + newIndex, id);
+            }
+        }
+        else
+        {
+            // 根节点排序：InsertRootEntity 内部会先去重再插入
+            m_Scene->InsertRootEntity(id, newIndex);
         }
     }
 

@@ -37,6 +37,42 @@ namespace Lucky
 
         m_EntityIDMap[uuid] = entity;   // 添加到 m_EntityIDMap
 
+        // 无 parent 参数 → 默认为根节点，追加到根节点顺序列表末尾
+        m_RootEntityOrder.push_back(uuid);
+
+        LF_TRACE("Created Entity: [ENTT = {0}, UUID {1}, Name {2}]", static_cast<uint32_t>(entity), uuid, name);
+
+        return entity;
+    }
+
+    Entity Scene::CreateEntity(const std::string& name, Entity parent)
+    {
+        return CreateEntity({}, name, parent);
+    }
+
+    Entity Scene::CreateEntity(UUID uuid, const std::string& name, Entity parent)
+    {
+        Entity entity = { m_Registry.create(), this };  // 创建实体
+
+        entity.AddComponent<IDComponent>(uuid);
+        entity.AddComponent<NameComponent>(name);
+        entity.AddComponent<TransformComponent>();
+        entity.AddComponent<RelationshipComponent>();
+
+        m_EntityIDMap[uuid] = entity;
+
+        if (parent)
+        {
+            // 有父节点：直接建立父子关系，不添加到根节点列表
+            entity.SetParentUUID(parent.GetUUID());
+            parent.GetChildren().push_back(uuid);
+        }
+        else
+        {
+            // 无父节点：追加到根节点列表末尾
+            m_RootEntityOrder.push_back(uuid);
+        }
+
         LF_TRACE("Created Entity: [ENTT = {0}, UUID {1}, Name {2}]", static_cast<uint32_t>(entity), uuid, name);
 
         return entity;
@@ -65,6 +101,9 @@ namespace Lucky
         }
         
         UUID id = entity.GetUUID();
+
+        // 如果是根节点，从根节点列表移除（非根节点为 no-op）
+        RemoveRootEntity(id);
         
         LF_TRACE("Removed Entity: [ENTT = {0}, UUID {1}, Name {2}]", static_cast<uint32_t>(entity), id, entity.GetName());
         
@@ -277,12 +316,76 @@ namespace Lucky
         return Entity{};
     }
 
+    // ---- 根节点顺序管理 ----
+
+    void Scene::InsertRootEntity(UUID entityID, int index)
+    {
+        // 先确保不重复（同级排序场景会先删后插）
+        auto it = std::find(m_RootEntityOrder.begin(), m_RootEntityOrder.end(), entityID);
+        if (it != m_RootEntityOrder.end())
+        {
+            m_RootEntityOrder.erase(it);
+        }
+
+        if (index < 0 || index >= static_cast<int>(m_RootEntityOrder.size()))
+        {
+            m_RootEntityOrder.push_back(entityID);
+        }
+        else
+        {
+            m_RootEntityOrder.insert(m_RootEntityOrder.begin() + index, entityID);
+        }
+    }
+
+    void Scene::RemoveRootEntity(UUID entityID)
+    {
+        auto it = std::find(m_RootEntityOrder.begin(), m_RootEntityOrder.end(), entityID);
+        if (it != m_RootEntityOrder.end())
+        {
+            m_RootEntityOrder.erase(it);
+        }
+    }
+
+    int Scene::GetEntityIndexInParent(Entity entity)
+    {
+        if (!entity)
+        {
+            return -1;
+        }
+
+        UUID id = entity.GetUUID();
+        Entity parent = entity.GetParent();
+
+        if (parent)
+        {
+            const std::vector<UUID>& siblings = parent.GetChildren();
+            auto it = std::find(siblings.begin(), siblings.end(), id);
+            if (it != siblings.end())
+            {
+                return static_cast<int>(std::distance(siblings.begin(), it));
+            }
+        }
+        else
+        {
+            auto it = std::find(m_RootEntityOrder.begin(), m_RootEntityOrder.end(), id);
+            if (it != m_RootEntityOrder.end())
+            {
+                return static_cast<int>(std::distance(m_RootEntityOrder.begin(), it));
+            }
+        }
+
+        return -1;
+    }
+
     void Scene::ClearAllEntities()
     {
         for (auto& [uuid, entity] : m_EntityIDMap)
         {
             DestroyEntity(entity);
         }
+
+        // 兵底清理：DestroyEntity 中的 RemoveRootEntity 已逐一清空，此处保险重置
+        m_RootEntityOrder.clear();
     }
 
     template<typename TComponent>

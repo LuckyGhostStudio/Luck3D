@@ -111,7 +111,25 @@ namespace Lucky
         const std::string& GetName() { return GetComponent<NameComponent>().Name; }
         
         Entity GetParent() const;
-        void SetParent(Entity parent);
+
+        /// <summary>
+        /// 设置父节点，并可指定在新父节点 Children 列表中的插入位置
+        /// 保持世界位置不变
+        /// 
+        /// 特殊情况：
+        /// - 同父 + insertIndex == -1：无变化，直接返回
+        /// - 同父 + insertIndex != -1：转发到 MoveToIndex，避免"从旧父移除→加到新父末尾"的多余扰动
+        /// </summary>
+        /// <param name="parent">新父节点（无效 Entity 表示设为根节点）</param>
+        /// <param name="insertIndex">在新父节点 Children 列表中的插入位置（-1 表示末尾）</param>
+        void SetParent(Entity parent, int insertIndex = -1);
+
+        /// <summary>
+        /// 在同一父节点下移动到指定位置（不改变父子关系，不改变 Transform）
+        /// 如果是根节点，则在 Scene::m_RootEntityOrder 中调整位置
+        /// </summary>
+        /// <param name="newIndex">新的位置索引（-1 或越界表示末尾）</param>
+        void MoveToIndex(int newIndex);
 
         void SetParentUUID(UUID parent) { GetComponent<RelationshipComponent>().Parent = parent; }
         UUID GetParentUUID() const { return GetComponent<RelationshipComponent>().Parent; }

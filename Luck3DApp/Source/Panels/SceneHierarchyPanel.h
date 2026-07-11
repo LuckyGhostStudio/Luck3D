@@ -42,6 +42,15 @@ namespace Lucky
         /// <returns>不重复的名称</returns>
         std::string GenerateUniqueName(const std::string& baseName, Entity parent);
 
+        /// <summary>
+        /// 检查 potentialChild 是否是 potentialParent 的祖先节点
+        /// 用于防止拖拽时形成循环引用
+        /// </summary>
+        /// <param name="potentialParent">潜在的新父节点（可以是无效 Entity，表示拖到根节点的兄弟位置，一定不会形成循环）</param>
+        /// <param name="potentialChild">被拖拽的节点（潜在的新子节点）</param>
+        /// <returns>如果会形成循环，返回 true</returns>
+        bool WouldCreateCycle(Entity potentialParent, Entity potentialChild);
+
         Ref<Scene> m_Scene;
     };
 }

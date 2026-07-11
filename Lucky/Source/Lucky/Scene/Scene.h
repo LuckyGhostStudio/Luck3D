@@ -30,12 +30,22 @@ namespace Lucky
         bool IsRunning() const { return m_IsRunning; }
         
         /// <summary>
-        /// 创建实体
+        /// 创建实体（作为根节点）
         /// </summary>
         /// <param name="name">实体名</param>
         /// <returns>实体</returns>
         Entity CreateEntity(const std::string& name = "Entity");
         Entity CreateEntity(UUID uuid, const std::string& name = "Entity");
+
+        /// <summary>
+        /// 创建实体（指定父节点）
+        /// 如果 parent 为无效 Entity，则创建为根节点（等价于无参版本）
+        /// </summary>
+        /// <param name="name">实体名</param>
+        /// <param name="parent">父实体（无效 Entity 表示创建为根节点）</param>
+        /// <returns>实体</returns>
+        Entity CreateEntity(const std::string& name, Entity parent);
+        Entity CreateEntity(UUID uuid, const std::string& name, Entity parent);
 
         /// <summary>
         /// 销毁实体
@@ -77,6 +87,35 @@ namespace Lucky
         /// <param name="entity">entt 实体句柄</param>
         /// <returns>是否有效</returns>
         bool IsEntityValid(entt::entity entity) const { return m_Registry.valid(entity); }
+
+        // ---- 根节点顺序管理（Hierarchy 拖拽排序） ----
+
+        /// <summary>
+        /// 获取根节点的有序列表（用于 Hierarchy 面板按序绘制）
+        /// </summary>
+        const std::vector<UUID>& GetRootEntityOrder() const { return m_RootEntityOrder; }
+
+        /// <summary>
+        /// 将实体插入到根节点列表的指定位置
+        /// 如果实体已存在于列表中，会先移除再插入（用于同级排序场景）
+        /// </summary>
+        /// <param name="entityID">实体 UUID</param>
+        /// <param name="index">插入位置索引（-1 或越界表示追加到末尾）</param>
+        void InsertRootEntity(UUID entityID, int index = -1);
+
+        /// <summary>
+        /// 从根节点列表中移除实体（非根节点调用为 no-op）
+        /// </summary>
+        /// <param name="entityID">实体 UUID</param>
+        void RemoveRootEntity(UUID entityID);
+
+        /// <summary>
+        /// 获取实体在其父节点 Children 列表中的索引
+        /// 如果实体是根节点，返回其在根节点列表 m_RootEntityOrder 中的索引
+        /// </summary>
+        /// <param name="entity">实体</param>
+        /// <returns>索引；如果实体无效或未找到，返回 -1</returns>
+        int GetEntityIndexInParent(Entity entity);
 
         /// <summary>
         /// 返回具有 TComponents 类型组件的所有 Entt
@@ -122,6 +161,7 @@ namespace Lucky
         friend class SceneSerializer;       // 友元类 SceneSerializer
 
         std::unordered_map<UUID, Entity> m_EntityIDMap; // UUID - entt 映射表
+        std::vector<UUID> m_RootEntityOrder;            // 根节点显示顺序（Hierarchy 面板按此顺序绘制）
 
         entt::registry m_Registry;          // 实体集合：实体 id 集合（unsigned int 集合）
 

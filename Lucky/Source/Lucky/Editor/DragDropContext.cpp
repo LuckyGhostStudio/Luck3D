@@ -14,8 +14,11 @@ namespace Lucky::UI
         /// key   = payload 类型字符串（例如 "ASSET_HANDLE" / "ENTITY_HIERARCHY"）
         /// value = 最近一次 NotifyTargetAccepts() 时的 ImGui 帧号
         /// 
-        /// 因为使用了 ImGuiDragDropFlags_AcceptBeforeDelivery 的官方 peek 机制，
-        /// 源端与目标端保证在同一帧内完成写入-读取，因此只需比较是否等于 currentFrame。
+        /// 说明：源与目标可能是同一控件，或源位于目标之前绘制（例如 Hierarchy 内部拖拽，
+        /// 拖拽源节点自身在其"下方兄弟"之前绘制）。此时源端读取 IsRejected 发生在
+        /// 目标端 NotifyTargetAccepts 之前，"同帧写入-同帧读取"的假设不成立。
+        /// 因此判定采用"上一帧是否有目标接受"：只要距离最近一次 accept 不超过 1 帧，
+        /// 就视为 accepted，源端 tooltip 显示允许图标。
         /// </summary>
         std::unordered_map<std::string_view, int> s_AcceptFrames;
 
@@ -55,8 +58,13 @@ namespace Lucky::UI
             return false;
         }
 
-        // 官方 peek（AcceptBeforeDelivery）保证目标在本帧写入，源端本帧读取
-        // 因此只需比较当前帧号
-        return GetAcceptFrame(payloadType) != ImGui::GetFrameCount();
+        // 官方 peek（AcceptBeforeDelivery）保证目标在本帧写入，但当源与目标在同一列表中
+        // 且源在目标之前绘制时，源端本帧读取会早于目标本帧写入。
+        // 为了兼容此情况，判据采用"距离最近一次 accept 是否超过 1 帧"：
+        //   - accept-frame == currentFrame：本帧目标已接受（源在目标之后绘制的正常情况）
+        //   - accept-frame == currentFrame - 1：上一帧目标已接受（源在目标之前绘制的情况）
+        //   - accept-frame  < currentFrame - 1：连续 2 帧无目标接受，视为 rejected
+        // 副作用：鼠标从合法目标移开到非法区域时，图标切换会滞后 1 帧（约 16ms），肉眼不可察。
+        return GetAcceptFrame(payloadType) < ImGui::GetFrameCount() - 1;
     }
 }

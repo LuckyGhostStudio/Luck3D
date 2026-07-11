@@ -10,6 +10,9 @@
 #include "Lucky/Scene/SelectionManager.h"
 
 #include "Lucky/Editor/EditorIconManager.h"
+#include "Lucky/Editor/DragDropPayloads.h"
+#include "Lucky/Editor/DragDropContext.h"
+#include "Lucky/Editor/DragDropVisuals.h"
 
 #include "Lucky/UI/Widgets.h"
 #include "Lucky/UI/Theme.h"
@@ -18,6 +21,40 @@
 
 namespace Lucky
 {
+    namespace
+    {
+        /// <summary>
+        /// 拖拽放置位置（Hierarchy 面板内部实现细节，不暴露到头文件）
+        /// </summary>
+        enum class DropPosition
+        {
+            Before,     // 插入到目标节点前面（同级）
+            Inside,     // 成为目标节点的子节点
+            After       // 插入到目标节点后面（同级）
+        };
+
+        /// <summary>
+        /// 根据鼠标在 LastItem 矩形中的相对 Y 位置计算放置模式
+        /// 25% / 50% / 25% 三分区，与 Unity Hierarchy 交互一致
+        /// </summary>
+        DropPosition ComputeDropPosition()
+        {
+            ImVec2 mousePos = ImGui::GetMousePos();
+            ImVec2 itemMin = ImGui::GetItemRectMin();
+            ImVec2 itemMax = ImGui::GetItemRectMax();
+            float itemHeight = itemMax.y - itemMin.y;
+            if (itemHeight <= 0.0f)
+            {
+                return DropPosition::Inside;
+            }
+
+            float relativeY = (mousePos.y - itemMin.y) / itemHeight;
+            if (relativeY < 0.25f) return DropPosition::Before;
+            if (relativeY > 0.75f) return DropPosition::After;
+            return DropPosition::Inside;
+        }
+    }
+
     SceneHierarchyPanel::SceneHierarchyPanel(const Ref<Scene>& scene)
         : m_Scene(scene)
     {
@@ -48,14 +85,19 @@ namespace Lucky
         
         if (opened)
         {
-            for (auto entityID : m_Scene->GetAllEntitiesWith<IDComponent, RelationshipComponent>())
+            // 按 m_RootEntityOrder 顺序绘制根节点
+            const std::vector<UUID>& rootOrder = m_Scene->GetRootEntityOrder();
+            for (UUID rootID : rootOrder)
             {
-                Entity entity{ entityID, m_Scene.get() };
-
-                // 绘制没有父节点的实体
-                if (entity.GetParentUUID() == 0)
+                Entity entity = m_Scene->TryGetEntityWithUUID(rootID);
+                if (entity)
                 {
                     DrawEntityNode(entity);
+                }
+                else
+                {
+                    // 兜底：m_RootEntityOrder 与 m_EntityIDMap 不一致时（理论上不应发生）
+                    LF_CORE_WARN("[Hierarchy] Root entity UUID {0} not found in scene", static_cast<uint64_t>(rootID));
                 }
             }
             
@@ -66,6 +108,64 @@ namespace Lucky
         if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered())
         {
             SelectionManager::Deselect();   // 取消选中
+        }
+        
+        // ---- 空白区域拖拽目标：拖到空白 → 变为根节点（末尾） ----
+        // 注意：这里必须使用 BeginDragDropTargetCustom（自定义矩形版本），而不是
+        //       InvisibleButton/Dummy + BeginDragDropTarget。原因：
+        //       InvisibleButton/Dummy 会创建一个 ImGui Item，把整个空白区域"占据"，导致：
+        //         1) 下方 BeginPopupContextWindow(NoOpenOverItems) 判定失败 → 右键菜单弹不出，无法创建物体
+        //         2) ImGui::IsWindowHovered / IsMouseClicked 的"点击空白取消选中"逻辑失效
+        //       BeginDragDropTargetCustom 直接注册一个纯粹的拖放热区，不产生 Item，天然规避以上副作用
+        {
+            ImGuiWindow* window = ImGui::GetCurrentWindow();
+            ImVec2 cursorScreenPos = ImGui::GetCursorScreenPos();
+            ImVec2 windowMax = window->WorkRect.Max;
+            ImRect emptyRect(cursorScreenPos, windowMax);
+
+            if (emptyRect.Min.y < emptyRect.Max.y &&
+                ImGui::BeginDragDropTargetCustom(emptyRect, ImGui::GetID("##HierarchyEmptyDropArea")))
+            {
+                const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
+                    DragDrop::EntityHierarchy,
+                    ImGuiDragDropFlags_AcceptBeforeDelivery | ImGuiDragDropFlags_AcceptNoDrawDefaultRect);
+
+                if (payload && payload->DataSize == sizeof(UUID))
+                {
+                    UUID draggedID = *static_cast<UUID*>(payload->Data);
+                    Entity dragged = m_Scene->TryGetEntityWithUUID(draggedID);
+
+                    // 空白区域语义："把 dragged 移动到根层级的末尾"（对齐 Unity 表现）：
+                    // - dragged 是非根节点：从原父节点移出，追加到 m_RootEntityOrder 末尾
+                    // - dragged 已是根节点：在 m_RootEntityOrder 中挪到末尾（若原本就在末尾则位置不变）
+                    // 无论是否为根，只要 Entity 有效就视为合法目标，tooltip 显示允许图标
+                    bool acceptable = static_cast<bool>(dragged);
+
+                    if (acceptable)
+                    {
+                        // 通知源端 → tooltip 切换为"允许"图标
+                        UI::DragDropContext::NotifyTargetAccepts(DragDrop::EntityHierarchy);
+
+                        // 空白区域默认不绘制视觉反馈（tooltip 图标已足够）
+
+                        if (payload->IsDelivery())
+                        {
+                            if (dragged.GetParent())
+                            {
+                                // 非根节点：脱离旧父，追加到根节点末尾
+                                dragged.SetParent({});
+                            }
+                            else
+                            {
+                                // 已是根节点：在根节点顺序列表中挪到末尾
+                                dragged.MoveToIndex(-1);
+                            }
+                        }
+                    }
+                }
+
+                ImGui::EndDragDropTarget();
+            }
         }
         
         // 创建物体 右键点击窗口白区域弹出菜单：- 右键 不在物体项上
@@ -97,6 +197,95 @@ namespace Lucky
             SelectionManager::Select(id);   // 选中物体
             
             LF_TRACE("Selected Entity: [ENTT = {0}, UUID {1}, Name {2}]", static_cast<uint32_t>(entity), id, entity.GetName());
+        }
+
+        // ---- 拖拽源：与 ProjectAssetsPanel 保持一致的写法 ----
+        if (UI::BeginDragDropSource(ImGuiDragDropFlags_SourceNoHoldToOpenOthers))
+        {
+            UUID draggedID = entity.GetUUID();
+            ImGui::SetDragDropPayload(DragDrop::EntityHierarchy, &draggedID, sizeof(UUID));
+
+            // 源端 tooltip 图标：命中匹配目标时显示"允许"，否则显示"禁止"
+            UI::DragDropPreview(UI::DragDropContext::IsRejected(DragDrop::EntityHierarchy));
+
+            UI::EndDragDropSource();
+        }
+
+        // ---- 拖拽目标：peek + NotifyTargetAccepts + IsDelivery 分离 ----
+        if (ImGui::BeginDragDropTarget())
+        {
+            // 悬停期间即可拿到 payload；抑制 ImGui 默认高亮矩形，由目标端自绘反馈
+            const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
+                DragDrop::EntityHierarchy,
+                ImGuiDragDropFlags_AcceptBeforeDelivery | ImGuiDragDropFlags_AcceptNoDrawDefaultRect);
+
+            if (payload && payload->DataSize == sizeof(UUID))
+            {
+                UUID draggedID = *static_cast<UUID*>(payload->Data);
+                Entity dragged = m_Scene->TryGetEntityWithUUID(draggedID);
+
+                // 三分区计算放置模式
+                DropPosition dropPos = ComputeDropPosition();
+
+                // 业务校验（自身 / 无效实体 / 循环）
+                bool acceptable = dragged && dragged != entity;
+                if (acceptable)
+                {
+                    if (dropPos == DropPosition::Inside)
+                    {
+                        acceptable = !WouldCreateCycle(entity, dragged);
+                    }
+                    else
+                    {
+                        // Before / After 的循环校验目标是 entity 的父节点
+                        // WouldCreateCycle 已对空 parent 做了保护
+                        acceptable = !WouldCreateCycle(entity.GetParent(), dragged);
+                    }
+                }
+
+                if (acceptable)
+                {
+                    // 通知源端：本帧存在可接受目标 → tooltip 切换为"允许"图标
+                    UI::DragDropContext::NotifyTargetAccepts(DragDrop::EntityHierarchy);
+
+                    // 目标端主动绘制视觉反馈
+                    switch (dropPos)
+                    {
+                        case DropPosition::Before: UI::DragDropVisuals::HighlightTargetInsertLine(true);  break;
+                        case DropPosition::After:  UI::DragDropVisuals::HighlightTargetInsertLine(false); break;
+                        case DropPosition::Inside: UI::DragDropVisuals::HighlightTargetNode();            break;
+                    }
+
+                    // 只有鼠标释放时才真正执行层级变更
+                    if (payload->IsDelivery())
+                    {
+                        switch (dropPos)
+                        {
+                            case DropPosition::Inside:
+                            {
+                                dragged.SetParent(entity);
+                                break;
+                            }
+                            case DropPosition::Before:
+                            {
+                                Entity targetParent = entity.GetParent();
+                                int targetIndex = m_Scene->GetEntityIndexInParent(entity);
+                                dragged.SetParent(targetParent, targetIndex);
+                                break;
+                            }
+                            case DropPosition::After:
+                            {
+                                Entity targetParent = entity.GetParent();
+                                int targetIndex = m_Scene->GetEntityIndexInParent(entity);
+                                dragged.SetParent(targetParent, targetIndex + 1);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            ImGui::EndDragDropTarget();
         }
 
         const std::string rightClickPopupID = std::format("{0}-ContextMenu", strID);
@@ -160,7 +349,7 @@ namespace Lucky
         if (ImGui::MenuItem("Create Empty"))
         {
             std::string uniqueName = GenerateUniqueName("Entity", parent);
-            newEntity = m_Scene->CreateEntity(uniqueName);
+            newEntity = m_Scene->CreateEntity(uniqueName, parent);
         }
         
         // 创建 3D Object
@@ -170,7 +359,7 @@ namespace Lucky
             if (ImGui::MenuItem("Cube"))
             {
                 std::string uniqueName = GenerateUniqueName("Cube", parent);
-                newEntity = m_Scene->CreateEntity(uniqueName);
+                newEntity = m_Scene->CreateEntity(uniqueName, parent);
             
                 // MeshFilter
                 newEntity.AddComponent<MeshFilterComponent>(PrimitiveType::Cube);
@@ -184,7 +373,7 @@ namespace Lucky
             if (ImGui::MenuItem("Plane"))
             {
                 std::string uniqueName = GenerateUniqueName("Plane", parent);
-                newEntity = m_Scene->CreateEntity(uniqueName);
+                newEntity = m_Scene->CreateEntity(uniqueName, parent);
                 newEntity.AddComponent<MeshFilterComponent>(PrimitiveType::Plane);
                 MeshRendererComponent& meshRenderer = newEntity.AddComponent<MeshRendererComponent>();
                 meshRenderer.SetMaterial(0, Renderer3D::GetDefaultMaterial());
@@ -194,7 +383,7 @@ namespace Lucky
             if (ImGui::MenuItem("Sphere"))
             {
                 std::string uniqueName = GenerateUniqueName("Sphere", parent);
-                newEntity = m_Scene->CreateEntity(uniqueName);
+                newEntity = m_Scene->CreateEntity(uniqueName, parent);
                 newEntity.AddComponent<MeshFilterComponent>(PrimitiveType::Sphere);
                 MeshRendererComponent& meshRenderer = newEntity.AddComponent<MeshRendererComponent>();
                 meshRenderer.SetMaterial(0, Renderer3D::GetDefaultMaterial());
@@ -204,7 +393,7 @@ namespace Lucky
             if (ImGui::MenuItem("Cylinder"))
             {
                 std::string uniqueName = GenerateUniqueName("Cylinder", parent);
-                newEntity = m_Scene->CreateEntity(uniqueName);
+                newEntity = m_Scene->CreateEntity(uniqueName, parent);
                 newEntity.AddComponent<MeshFilterComponent>(PrimitiveType::Cylinder);
                 MeshRendererComponent& meshRenderer = newEntity.AddComponent<MeshRendererComponent>();
                 meshRenderer.SetMaterial(0, Renderer3D::GetDefaultMaterial());
@@ -214,7 +403,7 @@ namespace Lucky
             if (ImGui::MenuItem("Capsule"))
             {
                 std::string uniqueName = GenerateUniqueName("Capsule", parent);
-                newEntity = m_Scene->CreateEntity(uniqueName);
+                newEntity = m_Scene->CreateEntity(uniqueName, parent);
                 newEntity.AddComponent<MeshFilterComponent>(PrimitiveType::Capsule);
                 MeshRendererComponent& meshRenderer = newEntity.AddComponent<MeshRendererComponent>();
                 meshRenderer.SetMaterial(0, Renderer3D::GetDefaultMaterial());
@@ -229,7 +418,7 @@ namespace Lucky
             if (ImGui::MenuItem("Directional Light"))
             {
                 std::string uniqueName = GenerateUniqueName("Directional Light", parent);
-                newEntity = m_Scene->CreateEntity(uniqueName);
+                newEntity = m_Scene->CreateEntity(uniqueName, parent);
                 newEntity.AddComponent<LightComponent>(LightType::Directional);
             
                 // 设置初始方向斜向下
@@ -241,7 +430,7 @@ namespace Lucky
             if (ImGui::MenuItem("Point Light"))
             {
                 std::string uniqueName = GenerateUniqueName("Point Light", parent);
-                newEntity = m_Scene->CreateEntity(uniqueName);
+                newEntity = m_Scene->CreateEntity(uniqueName, parent);
                 newEntity.AddComponent<LightComponent>(LightType::Point);
             }
 
@@ -249,7 +438,7 @@ namespace Lucky
             if (ImGui::MenuItem("Spot Light"))
             {
                 std::string uniqueName = GenerateUniqueName("Spot Light", parent);
-                newEntity = m_Scene->CreateEntity(uniqueName);
+                newEntity = m_Scene->CreateEntity(uniqueName, parent);
                 newEntity.AddComponent<LightComponent>(LightType::Spot);
             }
             
@@ -260,18 +449,12 @@ namespace Lucky
         if (ImGui::MenuItem("Post Process Volume"))
         {
             std::string uniqueName = GenerateUniqueName("Post Process Volume", parent);
-            newEntity = m_Scene->CreateEntity(uniqueName);
+            newEntity = m_Scene->CreateEntity(uniqueName, parent);
             newEntity.AddComponent<PostProcessVolumeComponent>();
         }
         
         if (newEntity)
         {
-            if (parent)
-            {
-                newEntity.SetParentUUID(parent.GetUUID());
-                parent.GetChildren().push_back(newEntity.GetUUID());
-            }
-
             SelectionManager::Deselect();
             SelectionManager::Select(newEntity.GetUUID());
         }
@@ -430,5 +613,33 @@ namespace Lucky
         } while (nameExists(candidateName));
 
         return candidateName;
+    }
+
+    bool SceneHierarchyPanel::WouldCreateCycle(Entity potentialParent, Entity potentialChild)
+    {
+        // 拖到根节点的兄弟位置时 potentialParent 可能是无效 Entity，一定不会形成循环
+        if (!potentialParent)
+        {
+            return false;
+        }
+
+        // 不能将节点设为自身的子节点
+        if (potentialParent == potentialChild)
+        {
+            return true;
+        }
+
+        // 检查 potentialParent 是否是 potentialChild 的子孙（即 potentialChild 是 potentialParent 的祖先）
+        Entity current = potentialParent.GetParent();
+        while (current)
+        {
+            if (current == potentialChild)
+            {
+                return true;
+            }
+            current = current.GetParent();
+        }
+
+        return false;
     }
 }
