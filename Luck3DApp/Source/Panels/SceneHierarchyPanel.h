@@ -4,6 +4,7 @@
 #include "Lucky/Scene/Scene.h"
 
 #include <unordered_map>
+#include <unordered_set>
 
 namespace Lucky
 {
@@ -105,6 +106,41 @@ namespace Lucky
         /// 帧首清空，DrawEntityNode 中每绘制一个节点就写入
         /// </summary>
         std::unordered_map<UUID, float> m_EntityBottomY;
+
+        /// <summary>
+        /// 拖拽悬停自动展开（对齐 Unity Hierarchy 的 "Spring-loaded folders" 行为）
+        /// 
+        /// 语义：
+        /// - 拖拽 payload 悬停在"非叶且当前折叠"的节点上时，累计悬停秒数
+        /// - 累计达到 s_HoverExpandDelay 阈值 → 将该节点加入 m_PendingExpand，下一帧自动展开
+        /// - 悬停目标切换到其他节点 / 命中节点变叶子 / 命中节点已展开 → 累计清零
+        /// - 本帧无任何命中（拖拽结束或移出所有节点） → 帧末统一清零
+        /// </summary>
+        struct HoverExpandState
+        {
+            UUID  HoveredEntityUUID = 0;    // 当前正在累计悬停的节点
+            float HoverAccumTime    = 0.0f; // 累计悬停秒数
+            bool  HitThisFrame      = false;// 本帧是否有任意节点命中悬停逻辑，帧末据此判断是否清零
+        };
+        HoverExpandState m_HoverExpand;
+
+        /// <summary>
+        /// 待强制展开的节点集合（跨帧一次性生效）
+        /// 
+        /// 写入时机（3 种）：
+        /// 1. 拖拽悬停超过 s_HoverExpandDelay 阈值（"悬停自动展开"）
+        /// 2. Drop 到某节点 Inside 模式落地成功后（"未到阈值先释放，节点立即展开"）
+        /// 3. 在某节点上右键 Create... 成功创建子节点后（"右键创建子节点后自动展开"）
+        /// 
+        /// 生效方式：DrawEntityNode 在调用 BeginTreeNode 前，若集合中包含该 id，
+        /// 则调用 ImGui::SetNextItemOpen(true, ImGuiCond_Always) 强制打开，随后 erase 掉该 id（一次性）
+        /// </summary>
+        std::unordered_set<UUID> m_PendingExpand;
+
+        /// <summary>
+        /// 拖拽悬停自动展开的阈值秒数（对齐 Unity 约 0.7s）
+        /// </summary>
+        static constexpr float s_HoverExpandDelay = 0.7f;
 
         Ref<Scene> m_Scene;
     };

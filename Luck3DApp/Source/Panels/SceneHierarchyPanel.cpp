@@ -266,6 +266,10 @@ namespace Lucky
         // 帧首清空实体底部 Y 缓存：本帧遍历时会重新写入每个已绘制节点的 ItemRectMax.y
         m_EntityBottomY.clear();
 
+        // 帧首重置"悬停自动展开"的命中标记：本帧任意节点触发悬停累计逻辑时会置 true
+        // 帧末据此判断是否清零累计（拖拽结束或鼠标离开所有节点时归零）
+        m_HoverExpand.HitThisFrame = false;
+
         std::string sceneName = m_Scene->GetName();
         
         const std::string& strSceneID = std::format("{0}##{1}", sceneName, typeid(Scene).hash_code());
@@ -368,6 +372,15 @@ namespace Lucky
             UI::EndPopup();
         }
 
+        // ---- 帧末维护"悬停自动展开"累计状态 ----
+        // 若本帧没有任何节点命中悬停累计逻辑（拖拽已释放 / 鼠标移出所有可展开节点 / 目标是叶子或已展开），
+        // 则清零累计，避免下次悬停到别处时误触发
+        if (!m_HoverExpand.HitThisFrame)
+        {
+            m_HoverExpand.HoveredEntityUUID = 0;
+            m_HoverExpand.HoverAccumTime = 0.0f;
+        }
+
         // ---- 帧末统一绘制拖拽视觉反馈 ----
         // 延后到整个 Hierarchy 遍历结束后再绘制，确保高亮的 DrawList 命令位于所有节点
         // （含选中态 header 蓝色填充）之后，几何上位于最上层，不会被后续兄弟节点的
@@ -409,7 +422,15 @@ namespace Lucky
         bool isLeaf = entity.GetChildren().empty(); // 是叶节点
 
         const Ref<Texture2D>& icon = EditorIconManager::GetEntityIcon();
-        
+
+        // 若该节点被标记为"需强制展开"（来源于三种时机：悬停达阈值 / Inside Drop 落地 / 右键创建子节点），
+        // 在调用 BeginTreeNode（内部即将 TreeNodeEx("")）前预置 open 状态。
+        // ImGuiCond_Always 保证覆盖 StateStorage 中的原折叠状态
+        if (m_PendingExpand.erase(id) > 0)
+        {
+            ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+        }
+
         bool opened = UI::BeginTreeNode(icon, strID.c_str(), false, SelectionManager::IsSelected(id), isLeaf);
 
         // 缓存当前节点的行底部 Y（= ItemRectMax.y）：供 After X 层级回退时定位孤立圆圈使用
@@ -454,6 +475,34 @@ namespace Lucky
 
                 // 综合计算放置目标：Y 三分区 + X 层级吸附（After 模式下向祖先层级回退）+ 循环校验
                 DropTarget drop = ComputeDropTarget(m_Scene.get(), entity, depth, dragged);
+
+                // ---- 悬停自动展开累计（对齐 Unity Spring-loaded folders）----
+                // 仅对"非叶且当前折叠"的节点生效：
+                // - 叶节点无展开语义
+                // - 已展开节点无需再自动展开
+                // 拖拽悬停在该节点上时（无论 drop.Acceptable 与否，因为语义是"帮用户看见子层"），
+                // 只要 payload 存在于该 target 上就累计
+                if (!isLeaf && !opened)
+                {
+                    m_HoverExpand.HitThisFrame = true;
+                    if (m_HoverExpand.HoveredEntityUUID == id)
+                    {
+                        m_HoverExpand.HoverAccumTime += ImGui::GetIO().DeltaTime;
+                        if (m_HoverExpand.HoverAccumTime >= s_HoverExpandDelay)
+                        {
+                            // 达阈值：下一帧强制展开，并复位累计（避免连续多帧重复触发）
+                            m_PendingExpand.insert(id);
+                            m_HoverExpand.HoveredEntityUUID = 0;
+                            m_HoverExpand.HoverAccumTime = 0.0f;
+                        }
+                    }
+                    else
+                    {
+                        // 切换到新的悬停目标：重置累计
+                        m_HoverExpand.HoveredEntityUUID = id;
+                        m_HoverExpand.HoverAccumTime = 0.0f;
+                    }
+                }
 
                 if (drop.Acceptable)
                 {
@@ -510,6 +559,10 @@ namespace Lucky
                         if (drop.Mode == DropMode::Inside)
                         {
                             dragged.SetParent(entity);
+
+                            // 对齐 Unity：Inside Drop 落地后立即展开目标节点，
+                            // 使用户能立刻看到刚放入的子节点（覆盖"未到悬停阈值就释放"的情况）
+                            m_PendingExpand.insert(id);
                         }
                         else
                         {
@@ -692,6 +745,13 @@ namespace Lucky
         {
             SelectionManager::Deselect();
             SelectionManager::Select(newEntity.GetUUID());
+
+            // 对齐 Unity：在折叠的 parent 节点上右键创建子节点后，parent 应立即展开
+            // 使新创建的子节点可见；parent 无效（空白区域右键创建根节点）时无需展开
+            if (parent)
+            {
+                m_PendingExpand.insert(parent.GetUUID());
+            }
         }
         
         ImGui::EndMenu();
