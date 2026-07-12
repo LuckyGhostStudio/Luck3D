@@ -49,16 +49,17 @@ namespace Lucky
         // Name 组件
         if (entity.HasComponent<NameComponent>())
         {
-            std::string& name = entity.GetComponent<NameComponent>().Name;   // 物体名
+            const std::string& name = entity.GetName();     // 物体名
 
             char buffer[256];                               // 输入框内容 buffer
             memset(buffer, 0, sizeof(buffer));              // 将 buffer 置零
             strcpy_s(buffer, sizeof(buffer), name.c_str()); // buffer = name
             
             UI::ShiftCursor(8.0f, 8.0f);
-            if (UI::InputText("##Name", buffer, sizeof(buffer)))
+            // 使用 EnterReturnsTrue：仅在按下 Enter 或失焦时才提交，避免用户中途清空触发空名警告
+            if (UI::InputText("##Name", buffer, sizeof(buffer), ImGuiInputTextFlags_EnterReturnsTrue))
             {
-                name = std::string(buffer);
+                entity.SetName(std::string(buffer));
             }
             UI::ShiftCursorY(8.0f);
         }

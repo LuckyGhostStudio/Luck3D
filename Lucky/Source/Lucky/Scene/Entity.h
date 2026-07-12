@@ -109,7 +109,22 @@ namespace Lucky
 
         UUID GetUUID() { return GetComponent<IDComponent>().ID; }
         const std::string& GetName() { return GetComponent<NameComponent>().Name; }
-        
+
+        /// <summary>
+        /// 设置实体名称（所有交互式重命名入口的统一通道）
+        /// 
+        /// 校验规则（对齐 Unity）：
+        /// - newName 为空字符串：输出警告并保留原名，返回 false
+        /// - newName 与当前名一致：不做修改，返回 false（避免上层触发不必要的脏标记）
+        /// - 否则：写入 NameComponent::Name，返回 true
+        /// 
+        /// 注意：仅做空字符串校验，不做 trim（"   " 视为合法，与 Unity 一致）
+        /// 反序列化 / 引擎内部直接读写 NameComponent::Name 时不受此接口约束。
+        /// </summary>
+        /// <param name="newName">新的名称</param>
+        /// <returns>是否真的修改了名称</returns>
+        bool SetName(const std::string& newName);
+
         Entity GetParent() const;
 
         /// <summary>

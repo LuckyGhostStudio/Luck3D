@@ -16,6 +16,28 @@ namespace Lucky
         return m_Scene->TryGetEntityWithUUID(GetParentUUID());
     }
 
+    bool Entity::SetName(const std::string& newName)
+    {
+        // 校验：名称不能为空（对齐 Unity 表现）
+        // 仅判 empty，不做 trim（"   " 视为合法，与 Unity 一致）
+        if (newName.empty())
+        {
+            LF_CORE_WARN("A Entity name cannot be set to an empty string");
+            return false;
+        }
+
+        NameComponent& nameComp = GetComponent<NameComponent>();
+
+        // 名称无变化时也视作"未修改"，避免上层触发不必要的脏标记
+        if (nameComp.Name == newName)
+        {
+            return false;
+        }
+
+        nameComp.Name = newName;
+        return true;
+    }
+
     void Entity::SetParent(Entity parent, int insertIndex)
     {
         Entity currentParent = GetParent();
