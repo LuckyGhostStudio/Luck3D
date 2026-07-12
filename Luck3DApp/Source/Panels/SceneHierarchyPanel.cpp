@@ -19,6 +19,8 @@
 #include "imgui/imgui.h"
 #include <imgui/imgui_internal.h>
 
+#include <cstring>
+
 namespace Lucky
 {
     namespace
@@ -302,9 +304,18 @@ namespace Lucky
         }
         
         // 点击鼠标 && 鼠标悬停在该窗口（点击空白位置）
-        if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered())
+        // 注意：必须排除"点击落在任意 Item 上"的情况：
+        //   - IsWindowHovered 默认在鼠标位于 Item 上时仍返回 true（Item 属于该窗口），
+        //     若不加 !IsAnyItemHovered，则用户在内联重命名 InputText 内部点击时也会走进该分支，
+        //     导致 m_Rename.EditingEntityUUID = 0 → 下一帧编辑框直接消失，无法通过鼠标编辑文本
+        //     （问题 3：日志中 InputText 在 mouse down 那一帧突然 deact=true 的根因）
+        //   - 空白点击（真正的空白区域）不会命中任何 Item，IsAnyItemHovered() 为 false，行为不变
+        if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered())
         {
             SelectionManager::Deselect();   // 取消选中
+
+            // 同步退出内联重命名编辑态（点击 InputText 内部不会命中此分支，因为 InputText 会消费点击）
+            m_Rename.EditingEntityUUID = 0;
         }
         
         // ---- 空白区域拖拽目标：拖到空白 → 变为根节点（末尾） ----
@@ -381,6 +392,39 @@ namespace Lucky
             m_HoverExpand.HoverAccumTime = 0.0f;
         }
 
+        // ---- 帧末维护"内联重命名 pending"两阶段仲裁（对齐 Unity 表现）----
+        // 前置约定：DrawEntityNode 在点击"已选中节点的名称区"时只登记 PendingEntityUUID + PendingName 快照，
+        //           不立即进入编辑态。真正进入编辑态由本处根据鼠标行为决定：
+        //
+        //   1) 若鼠标在按下-抬起期间跨过了 IO.MouseDragThreshold（IsMouseDragging(0) 返回 true）
+        //      → 视为用户在拖拽，取消候选（rename 优先级低于 drag）
+        //      注意：ImGui::BeginDragDropSource 本身也是靠这个阈值启动 Drag Payload，两处判据一致，天然对齐
+        //   2) 若鼠标释放时（IsMouseReleased(0)）候选仍存在
+        //      → 期间未发生拖拽，视为"点击已选中节点抬起"，正式进入编辑态：
+        //        * 用 PendingName 快照初始化 InputText 缓冲（隔离抬起前 name 变化 / 引用失效等边界情况）
+        //        * 标记 FirstFrame，让 InlineRenameInput 首帧 SetKeyboardFocusHere + AutoSelectAll
+        //   3) 释放后无论是否进入编辑态都必须清空 pending，防止跨点击串扰
+        if (m_Rename.PendingEntityUUID != 0)
+        {
+            if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+            {
+                // 用户在拖拽 → 取消候选
+                m_Rename.PendingEntityUUID = 0;
+                m_Rename.PendingName.clear();
+            }
+            else if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+            {
+                // 未拖拽即释放 → 进入编辑态
+                m_Rename.EditingEntityUUID = m_Rename.PendingEntityUUID;
+                m_Rename.FirstFrame        = true;
+                std::strncpy(m_Rename.Buffer, m_Rename.PendingName.c_str(), sizeof(m_Rename.Buffer) - 1);
+                m_Rename.Buffer[sizeof(m_Rename.Buffer) - 1] = '\0';
+
+                m_Rename.PendingEntityUUID = 0;
+                m_Rename.PendingName.clear();
+            }
+        }
+
         // ---- 帧末统一绘制拖拽视觉反馈 ----
         // 延后到整个 Hierarchy 遍历结束后再绘制，确保高亮的 DrawList 命令位于所有节点
         // （含选中态 header 蓝色填充）之后，几何上位于最上层，不会被后续兄弟节点的
@@ -431,21 +475,152 @@ namespace Lucky
             ImGui::SetNextItemOpen(true, ImGuiCond_Always);
         }
 
-        bool opened = UI::BeginTreeNode(icon, strID.c_str(), false, SelectionManager::IsSelected(id), isLeaf);
+        // 是否处于内联重命名编辑态：若是，则由本函数在名称位置绘制 InputText，TreeNode 内部不再渲染默认文本
+        bool isRenaming = (m_Rename.EditingEntityUUID == id);
+
+        // 编辑态下禁用 TreeNode 的鼠标交互：
+        // - 原因：TreeNode 使用 SpanFullWidth，其 interact_bb 覆盖整行；即便后续调用 SetItemAllowOverlap
+        //   使 InputText 能拿到激活，TreeNode 自身的 ButtonBehavior 已经在本帧较早处理完鼠标事件
+        //   （产生 hover 视觉反馈、选中态副作用），导致"点击穿透到下面的树节点"的观感
+        // - ImGuiItemFlags_Disabled 会让 TreeNode 在 ItemHoverable 阶段直接返回 false，
+        //   完全不产生 hover / press / active 状态，注释明确指出该 flag "doesn't affect visuals"
+        //   ?? TreeNode 的选中态蓝色 header 由 flags & ImGuiTreeNodeFlags_Selected 独立控制，不受影响
+        // - 必须在 BeginTreeNode（内部 TreeNodeEx）之前 push，才能作用到 TreeNode 的 InFlags
+        if (isRenaming)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+        }
+
+        bool opened = UI::BeginTreeNode(icon, strID.c_str(), false, SelectionManager::IsSelected(id), isLeaf, !isRenaming);
+
+        if (isRenaming)
+        {
+            ImGui::PopItemFlag();
+
+            // ---- 关键修复：让 InlineRenameInput 内的 InputText 能正常接收鼠标点击 ----
+            // 根因：TreeNode 使用 SpanFullWidth，其 interact_bb 覆盖整行；虽然本节点已 PushItemFlag(Disabled)，
+            //       但 ImGui 的 ItemHoverable 内部执行顺序为：
+            //           1) SetHoveredID(id) 无条件将 g.HoveredId 设为 TreeNode 的 ID
+            //           2) 后置的 Disabled 检查置 g.HoveredIdDisabled = true 并返回 false
+            //       结果：TreeNode 依旧"抢占"了 g.HoveredId。
+            //       后续 InlineRenameInput 内部 InputText 的 ItemHoverable 判定：
+            //           if (g.HoveredId != 0 && g.HoveredId != id && !g.HoveredIdAllowOverlap) return false;
+            //       g.HoveredId 已经是 TreeNode 的 ID → InputText hover 返回 false
+            //       → InputTextEx 内 user_clicked = false → 命中"Release focus when we click outside"
+            //         (g.ActiveId == id && MouseClicked && !init_make_active) → clear_active_id = true
+            //       → InputText 被强制失活，本函数走 IsItemDeactivated 分支 → Cancelled → 编辑态被清零
+            //       → 用户观察到"点击编辑框内部编辑框直接消失"
+            //
+            // 修复：SetItemAllowOverlap() 作用于上一个 Item（此时 LastItemData.ID = TreeNode ID），
+            //       将 g.HoveredIdAllowOverlap 置 true，InputText 的 hover 判定通过 !g.HoveredIdAllowOverlap
+            //       条件即可正常 SetHoveredID(InputText_ID) 并接收点击，不再被误 clear_active_id。
+            ImGui::SetItemAllowOverlap();
+        }
 
         // 缓存当前节点的行底部 Y（= ItemRectMax.y）：供 After X 层级回退时定位孤立圆圈使用
         // 写入时机必须在 BeginTreeNode 后、递归子节点前，确保拿到的是 header 行的底部而非整个子树的底部
         m_EntityBottomY[id] = ImGui::GetItemRectMax().y;
 
-        // 绘制右侧组件图标列表
-        DrawEntityComponentIcons(entity);
-        
+        // 绘制右侧组件图标列表（同时会写入 m_LastNameHitRect：本节点名称文本命中矩形，供下方 rename 触发/覆盖使用）
+        // depth 传入以便准确计算名称左边界（避免使用 BeginTreeNode 返回后已被 TreePush 改变的 DC.Indent.x）
+        m_LastNameHitRect.Valid = false;
+        DrawEntityComponentIcons(entity, depth);
+
+        // ---- 内联重命名：编辑态覆盖文本渲染 ----
+        // 处于编辑态时，屏蔽本节点的选中/拖拽/右键菜单交互，只保留 InputText 及其提交/取消处理
+        if (isRenaming)
+        {
+            if (m_LastNameHitRect.Valid)
+            {
+                ImVec2 rectMin(m_LastNameHitRect.MinX, m_LastNameHitRect.MinY);
+                ImVec2 rectMax(m_LastNameHitRect.MaxX, m_LastNameHitRect.MaxY);
+
+                UI::InlineRenameResult renameResult = UI::InlineRenameInput(
+                    "##HierarchyRename",
+                    rectMin, rectMax,
+                    m_Rename.Buffer, sizeof(m_Rename.Buffer),
+                    m_Rename.FirstFrame);
+
+                // 首帧过后清除 FirstFrame，避免每帧都 SetKeyboardFocusHere
+                m_Rename.FirstFrame = false;
+
+                if (renameResult.Submitted)
+                {
+                    // 提交：交由数据层做空校验与写入
+                    // Entity::SetName 内部：empty → 打印警告并返回 false（此时保留原名，符合 Unity 表现）
+                    entity.SetName(renameResult.CommittedName);
+                    m_Rename.EditingEntityUUID = 0;
+                }
+                else if (renameResult.Cancelled)
+                {
+                    // 取消：保留原名，直接退出编辑态
+                    m_Rename.EditingEntityUUID = 0;
+                }
+            }
+            else
+            {
+                // 命中矩形失效（异常兜底）：直接退出编辑态，防止卡死
+                m_Rename.EditingEntityUUID = 0;
+            }
+
+            // 编辑态下仍需正确处理子节点遍历与 TreePop（保持原有折叠状态语义）
+            if (opened)
+            {
+                std::vector<UUID> children = entity.GetChildren();
+                for (UUID childID : children)
+                {
+                    Entity child = m_Scene->GetEntityWithUUID(childID);
+                    DrawEntityNode(child, depth + 1);
+                }
+
+                UI::EndTreeNode();
+            }
+            return;
+        }
+
         // 树结点被点击
         if (ImGui::IsItemClicked())
         {
-            SelectionManager::Select(id);   // 选中物体
-            
-            LF_TRACE("Selected Entity: [ENTT = {0}, UUID {1}, Name {2}]", static_cast<uint32_t>(entity), id, entity.GetName());
+            // 触发内联重命名：仅当"点击发生前节点就已选中"且"命中矩形覆盖鼠标位置"时才为编辑候选
+            // - 已选中判定：IsSelected 反映的是本帧点击之前的选中状态（本次 Select 调用在其之后）
+            // - 命中矩形：图标右侧到组件图标区左侧的名称文本区（点击箭头/图标/组件图标不触发）
+            //
+            // 【对齐 Unity 表现，两阶段判定】：
+            //   ImGui::IsItemClicked = IsMouseClicked（按下瞬间）+ IsItemHovered，所以本分支在鼠标"按下瞬间"就会命中。
+            //   若这里立刻进入编辑态，用户"点击已选中节点后按住拖拽"就会先弹出编辑框、再启动拖拽，观感错误。
+            //   Unity 的行为是：按下不进入编辑态，抬起时若期间未发生拖拽，才进入编辑态；期间发生拖拽则取消候选。
+            //   因此本分支只登记候选（m_Rename.PendingEntityUUID + PendingName 快照），
+            //   真正的"进入编辑态"由 OnGUI 帧末统一处理（观察 IsMouseDragging / IsMouseReleased）。
+            bool wasSelectedBeforeClick = SelectionManager::IsSelected(id);
+            ImVec2 mouse = ImGui::GetMousePos();
+            bool inNameHit = m_LastNameHitRect.Valid
+                && mouse.x >= m_LastNameHitRect.MinX && mouse.x <= m_LastNameHitRect.MaxX
+                && mouse.y >= m_LastNameHitRect.MinY && mouse.y <= m_LastNameHitRect.MaxY;
+
+            if (wasSelectedBeforeClick && inNameHit)
+            {
+                // 只登记候选：按下瞬间不进入编辑态、不清空选中、不启动 Select 副作用
+                // - PendingName 快照当前 name，抬起时用它初始化 InputText 缓冲，
+                //   避免抬起前 name 因外部原因变化时使用错误值
+                m_Rename.PendingEntityUUID = id;
+                m_Rename.PendingName       = name;
+            }
+            else
+            {
+                // 未选中 或 不在名称命中区：走原有选中逻辑，同时清除任何已有 pending（避免"先点未选中节点→再点选中节点抬起"跨节点串扰）
+                m_Rename.PendingEntityUUID = 0;
+                m_Rename.PendingName.clear();
+
+                SelectionManager::Select(id);   // 选中物体
+
+                // 选中项发生变化：若之前有节点处于编辑态且非本节点，则强制退出编辑态
+                if (m_Rename.EditingEntityUUID != 0 && m_Rename.EditingEntityUUID != id)
+                {
+                    m_Rename.EditingEntityUUID = 0;
+                }
+
+                LF_TRACE("Selected Entity: [ENTT = {0}, UUID {1}, Name {2}]", static_cast<uint32_t>(entity), id, entity.GetName());
+            }
         }
 
         // ---- 拖拽源：与 ProjectAssetsPanel 保持一致的写法 ----
@@ -621,6 +796,12 @@ namespace Lucky
             {
                 SelectionManager::Deselect();   // 清空选中项
             }
+
+            // 若删除的物体正处于内联重命名编辑态，同步退出编辑态，防止悬空 UUID
+            if (m_Rename.EditingEntityUUID == id)
+            {
+                m_Rename.EditingEntityUUID = 0;
+            }
         }
     }
 
@@ -757,7 +938,7 @@ namespace Lucky
         ImGui::EndMenu();
     }
 
-    void SceneHierarchyPanel::DrawEntityComponentIcons(Entity entity)
+    void SceneHierarchyPanel::DrawEntityComponentIcons(Entity entity, int depth)
     {
         // 保存 TreeNode 的 LastItemData，绘制完图标后恢复，确保调用方的 IsItemClicked 等交互检测正确工作
         ImGuiContext& g = *GImGui;
@@ -774,18 +955,12 @@ namespace Lucky
         }
         if (entity.HasComponent<PostProcessVolumeComponent>())  icons.push_back(&EditorIconManager::GetComponentIcon(ComponentType::PostProcessVolume));
 
-        if (icons.empty())
-        {
-            g.LastItemData = savedItemData;
-            return;
-        }
-
         float iconSize = ImGui::GetTextLineHeight() - UI::Theme::Layout::TreeNodeIconSizeShrink;
         float iconSpacing = UI::Theme::Layout::TreeNodeComponentIconSpacing;
         float minGap = UI::Theme::Layout::TreeNodeComponentIconMinGap;
 
         // 计算图标区域总宽度
-        float totalIconWidth = icons.size() * iconSize + (icons.size() - 1) * iconSpacing;
+        float totalIconWidth = icons.empty() ? 0.0f : (icons.size() * iconSize + (icons.size() - 1) * iconSpacing);
 
         // 获取可用区域右边界（使用窗口内相对坐标，减去右边距）
         float contentRightLocal = ImGui::GetContentRegionMax().x - UI::Theme::Layout::TreeNodeComponentIconRightMargin;
@@ -798,29 +973,60 @@ namespace Lucky
         float textWidth = ImGui::CalcTextSize(name.c_str()).x;
 
         // TreeNode 的左边界（ItemRectMin 是屏幕坐标，转为窗口内坐标）
+        // 注意： SpanFullWidth 时 ItemRectMin.x = window->WorkRect.Min.x（不含缩进）
         float itemLeftLocal = ImGui::GetItemRectMin().x - ImGui::GetWindowPos().x + ImGui::GetScrollX();
-        // 获取当前窗口的缩进量（TreePush/TreePop 会改变此值）
-        float indentWidth = ImGui::GetCurrentWindow()->DC.Indent.x;
-        // 箭头宽度（ImGui 内部箭头占 FontSize + FramePadding.x）
-        float arrowWidth = ImGui::GetTextLineHeight() + ImGui::GetStyle().FramePadding.x;
-        // 名称文本的右边界 = TreeNode左边界 + 缩进 + 箭头宽度 + 箭头到图标间距 + 图标尺寸 + 图标到文本间距 + 文本宽度
-        float nameEndLocal = itemLeftLocal + indentWidth + arrowWidth
+        // 本节点的真实缩进量：不能使用 DC.Indent.x！
+        // 因为 BeginTreeNode 内部 TreeNodeEx 已调用 TreePush 使 DC.Indent.x 多加了一层 IndentSpacing（为下一层子节点预留）。
+        // 实际层级缩进 = (depth+1) * IndentSpacing：
+        // - Scene 根 TreeNode opened 后 TreePush 产生 1 层基础缩进
+        // - 本节点处于 depth 层 → 额外累加 depth 层
+        float indentWidth = ImGui::GetStyle().IndentSpacing * static_cast<float>(depth + 1);
+        // 箭头占位宽度（严格按 ImGui 内部 TreeNodeBehavior 的 ItemSize 步进计算）：
+        // - imgui_widgets.cpp TreeNodeBehavior 中：text_width = FontSize + (label_size.x > 0 ? label_size.x + padding.x*2 : 0)
+        // - BeginTreeNodeInternal 用空 label（""）调用 TreeNodeEx，label_size.x = 0 → text_width = FontSize
+        // - 之后 SameLine 在 ItemSpacing.x = 0 的 ScopedStyle 下紧接 FontSize 后
+        // 注意：这里 *不能* 加 FramePadding.x！之前 +FramePadding.x 属于 bug ?? 会让 nameStartLocal 偏右
+        //       FramePadding.x 像素，进而使内联重命名编辑框内文本相对原文本偏右 FramePadding.x 像素
+        float arrowWidth = ImGui::GetFontSize();
+        // 名称文本的左边界 = TreeNode左边界 + 缩进 + 箭头宽度 + 箭头到图标间距 + 图标尺寸 + 图标到文本间距
+        float nameStartLocal = itemLeftLocal + indentWidth + arrowWidth
             + UI::Theme::Layout::TreeNodeArrowToIconSpacing
             + iconSize
-            + UI::Theme::Layout::TreeNodeIconToTextSpacing
-            + textWidth;
+            + UI::Theme::Layout::TreeNodeIconToTextSpacing;
+        float nameEndLocal = nameStartLocal + textWidth;
 
         // 碰撞检测：如果图标区域侵入名称区域，则从左侧开始移除图标
         while (!icons.empty() && iconsStartLocal < nameEndLocal + minGap)
         {
             icons.erase(icons.begin());
-            if (icons.empty())
-            {
-                g.LastItemData = savedItemData;
-                return;
-            }
-            totalIconWidth = icons.size() * iconSize + (icons.size() - 1) * iconSpacing;
+            totalIconWidth = icons.empty() ? 0.0f : (icons.size() * iconSize + (icons.size() - 1) * iconSpacing);
             iconsStartLocal = contentRightLocal - totalIconWidth;
+        }
+
+        // ---- 写入名称文本"命中矩形"缓存，供 DrawEntityNode 处理内联重命名触发 / 编辑态覆盖使用 ----
+        // 命中区左端 = 图标右端（= nameStartLocal，紧接图标之后，包括文本本身及其后的空白）
+        // 命中区右端 = 组件图标区左端 - 最小间距；若没有图标显示，则取内容区右端
+        // 命中区上下 = TreeNode 行的 ItemRectMin/Max.y（屏幕坐标）
+        {
+            float hitLeftLocal  = nameStartLocal;
+            float hitRightLocal = icons.empty() ? contentRightLocal : (iconsStartLocal - minGap);
+            if (hitRightLocal < hitLeftLocal)
+            {
+                hitRightLocal = hitLeftLocal;   // 保底：宽度不足时至少为 0
+            }
+            ImVec2 winPos = ImGui::GetWindowPos();
+            float scrollX = ImGui::GetScrollX();
+            m_LastNameHitRect.Valid = true;
+            m_LastNameHitRect.MinX = winPos.x + hitLeftLocal - scrollX;
+            m_LastNameHitRect.MaxX = winPos.x + hitRightLocal - scrollX;
+            m_LastNameHitRect.MinY = ImGui::GetItemRectMin().y;
+            m_LastNameHitRect.MaxY = ImGui::GetItemRectMax().y;
+        }
+
+        if (icons.empty())
+        {
+            g.LastItemData = savedItemData;
+            return;
         }
 
         // 保存当前光标位置

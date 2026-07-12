@@ -5,6 +5,8 @@
 
 #include <imgui/imgui.h>
 
+#include <string>
+
 namespace Lucky::UI
 {
     // ========================================================================
@@ -29,8 +31,9 @@ namespace Lucky::UI
     /// <param name="defaultOpen">默认打开</param>
     /// <param name="selected">已选中</param>
     /// <param name="isLeaf">是叶节点</param>
+    /// <param name="renderName">是否绘制默认名称文本（内联重命名时由调用方接管文本渲染，可传 false）</param>
     /// <returns>是否展开</returns>
-    bool BeginTreeNode(const Ref<Texture2D>& icon, const char* name, bool defaultOpen = false, bool selected = false, bool isLeaf = false);
+    bool BeginTreeNode(const Ref<Texture2D>& icon, const char* name, bool defaultOpen = false, bool selected = false, bool isLeaf = false, bool renderName = true);
 
     /// <summary>
     /// 树节点（双图标版本）根据展开/折叠状态自动切换图标
@@ -41,10 +44,42 @@ namespace Lucky::UI
     /// <param name="defaultOpen">默认打开</param>
     /// <param name="selected">已选中</param>
     /// <param name="isLeaf">是叶节点</param>
+    /// <param name="renderName">是否绘制默认名称文本（内联重命名时由调用方接管文本渲染，可传 false）</param>
     /// <returns>是否展开</returns>
-    bool BeginTreeNode(const Ref<Texture2D>& closedIcon, const Ref<Texture2D>& openIcon, const char* name, bool defaultOpen = false, bool selected = false, bool isLeaf = false);
+    bool BeginTreeNode(const Ref<Texture2D>& closedIcon, const Ref<Texture2D>& openIcon, const char* name, bool defaultOpen = false, bool selected = false, bool isLeaf = false, bool renderName = true);
 
     void EndTreeNode();
+
+    /// <summary>
+    /// 内联重命名输入框的返回结果
+    /// - Submitted：本帧提交（Enter 或失焦）→ CommittedName 为输入内容（未做空校验，由调用方决定处理）
+    /// - Cancelled：本帧取消（Esc）→ 保留原名
+    /// - 若两者都为 false，表示仍在编辑中
+    /// </summary>
+    struct InlineRenameResult
+    {
+        bool Submitted = false;
+        bool Cancelled = false;
+        std::string CommittedName;
+    };
+
+    /// <summary>
+    /// 内联重命名输入框：在指定屏幕矩形内绘制 InputText，接管焦点/全选/Enter/Esc/失焦语义
+    /// 
+    /// 用于 Hierarchy / Assets 等 TreeNode 面板的原地重命名。
+    /// 调用方需自行维护 buffer 与 firstFrame 状态（跨帧稳定），并根据返回的 InlineRenameResult 决定后续动作
+    /// </summary>
+    /// <param name="id">输入框 ImGui ID（需在同一父作用域下唯一）</param>
+    /// <param name="rectMin">输入框左上角屏幕坐标</param>
+    /// <param name="rectMax">输入框右下角屏幕坐标</param>
+    /// <param name="buffer">InputText 缓冲区（由调用方持有，跨帧稳定）</param>
+    /// <param name="bufferSize">缓冲区字节数</param>
+    /// <param name="firstFrame">是否本帧首次进入编辑态（true 时自动 SetKeyboardFocusHere 并全选）</param>
+    InlineRenameResult InlineRenameInput(const char* id,
+                                         const ImVec2& rectMin,
+                                         const ImVec2& rectMax,
+                                         char* buffer, size_t bufferSize,
+                                         bool firstFrame);
 
     /// <summary>
     /// 绘制图像

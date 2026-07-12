@@ -95,7 +95,7 @@ namespace Lucky::UI
     /// <summary>
     /// 内部实现：树节点核心逻辑
     /// </summary>
-    static bool BeginTreeNodeInternal(const Ref<Texture2D>& icon, const char* name, bool defaultOpen, bool selected, bool isLeaf)
+    static bool BeginTreeNodeInternal(const Ref<Texture2D>& icon, const char* name, bool defaultOpen, bool selected, bool isLeaf, bool renderName)
     {
         ScopedStyle itemSpacing(ImGuiStyleVar_ItemSpacing, { 0, 0 });
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_SpanAvailWidth;
@@ -151,14 +151,18 @@ namespace Lucky::UI
         }
 
         // 截断 ## 及其后面的 ID 部分，只显示可见文本
-        const char* hashPos = strstr(name, "##");
-        if (hashPos)
+        // renderName = false 时由调用方（内联重命名）接管文本区的渲染，内部不再绘制默认文本
+        if (renderName)
         {
-            ImGui::TextUnformatted(name, hashPos);
-        }
-        else
-        {
-            ImGui::TextUnformatted(name);
+            const char* hashPos = strstr(name, "##");
+            if (hashPos)
+            {
+                ImGui::TextUnformatted(name, hashPos);
+            }
+            else
+            {
+                ImGui::TextUnformatted(name);
+            }
         }
 
         // 恢复 TreeNode 为 LastItem，使调用方的 IsItemClicked 等交互检测正确工作
@@ -167,15 +171,15 @@ namespace Lucky::UI
         return opened;
     }
 
-    bool BeginTreeNode(const Ref<Texture2D>& icon, const char* name, bool defaultOpen, bool selected, bool isLeaf)
+    bool BeginTreeNode(const Ref<Texture2D>& icon, const char* name, bool defaultOpen, bool selected, bool isLeaf, bool renderName)
     {
         ImGui::PushID(name);
-        bool opened = BeginTreeNodeInternal(icon, name, defaultOpen, selected, isLeaf);
+        bool opened = BeginTreeNodeInternal(icon, name, defaultOpen, selected, isLeaf, renderName);
         ImGui::PopID();
         return opened;
     }
 
-    bool BeginTreeNode(const Ref<Texture2D>& closedIcon, const Ref<Texture2D>& openIcon, const char* name, bool defaultOpen, bool selected, bool isLeaf)
+    bool BeginTreeNode(const Ref<Texture2D>& closedIcon, const Ref<Texture2D>& openIcon, const char* name, bool defaultOpen, bool selected, bool isLeaf, bool renderName)
     {
         ImGui::PushID(name);
 
@@ -185,7 +189,7 @@ namespace Lucky::UI
         bool isNodeOpen = window->DC.StateStorage->GetInt(storageID, defaultOpen ? 1 : 0) != 0;
 
         const Ref<Texture2D>& icon = isNodeOpen ? openIcon : closedIcon;
-        bool opened = BeginTreeNodeInternal(icon, name, defaultOpen, selected, isLeaf);
+        bool opened = BeginTreeNodeInternal(icon, name, defaultOpen, selected, isLeaf, renderName);
         ImGui::PopID();
         
         return opened;
@@ -194,6 +198,146 @@ namespace Lucky::UI
     void EndTreeNode()
     {
         ImGui::TreePop();
+    }
+
+    InlineRenameResult InlineRenameInput(const char* id, const ImVec2& rectMin, const ImVec2& rectMax, char* buffer, size_t bufferSize, bool firstFrame)
+    {
+        InlineRenameResult result;
+
+        ImVec2 size = ImVec2(rectMax.x - rectMin.x, rectMax.y - rectMin.y);
+        if (size.x <= 0.0f || size.y <= 0.0f)
+        {
+            return result;
+        }
+
+        // ---- 样式覆盖：无圆角 + 强制 1px 边框 + 动态推导 FramePadding.y（问题 2：编辑框高度 = TreeNode 行高 - 1px） ----
+        // 关键：TreeNode 真实行高 ≠ FontSize + style.FramePadding.y*2。
+        //   见 imgui_widgets.cpp:5848 TreeNodeBehavior：
+        //     padding = (framed) ? style.FramePadding
+        //                        : ImVec2(FramePadding.x, ImMin(CurrLineTextBaseOffset, FramePadding.y));
+        //   BeginTreeNodeInternal 未使用 Framed / FramePadding flag，因此 padding.y 通常 < style.FramePadding.y，
+        //   TreeNode 真实行高 = FontSize + padding.y*2，往往比 InputText 默认高度小。
+        //   若直接沿用 style.FramePadding.y，InputText 会明显比 TreeNode 高（图片实测症状）。
+        //
+        // 修复策略：以调用方传入的 size.y（= 命中矩形高度 = TreeNode 真实行高）为准，反推 FramePadding.y：
+        //     目标 InputText 高度 = size.y - 1（比 TreeNode 矮 1px，视觉更贴合）
+        //     InputText 高度 = FontSize + FramePadding.y * 2
+        //     → FramePadding.y = (size.y - 1 - FontSize) / 2，并夹到 [0, style.FramePadding.y] 保证不出现负值
+        const ImGuiStyle& style = ImGui::GetStyle();
+        const float fontSize     = ImGui::GetFontSize();
+        const float targetHeight = ImMax(size.y - 1.0f, fontSize); // 至少容纳一行文字
+        float framePaddingY      = (targetHeight - fontSize) * 0.5f;
+        framePaddingY            = ImClamp(framePaddingY, 0.0f, style.FramePadding.y);
+
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(style.FramePadding.x, framePaddingY));
+
+        // ---- 保存布局状态：InputText 是"覆盖式绘制"，理应不影响后续布局 ----
+        // 背景分析（关键，直接决定恢复策略是否正确）：
+        //   1) TreeNode 内部 BeginTreeNodeInternal 使用 ScopedStyle(ItemSpacing, {0,0})，
+        //      TreeNodeEx 的 ItemSize 走垂直分支：CursorPos.y = 起点.y + line_height + 0 = TreeNode 底。
+        //      随后 SameLine() 令 CursorPos.y = CursorPosPrevLine.y = TreeNode 顶。
+        //      Image / DrawEntityComponentIcons 内的所有绘制都在 SameLine 分支上（CursorPos.y 保持 TreeNode 顶）。
+        //      DrawEntityComponentIcons 结尾 SetCursorPos(savedCursorPos) 也恢复到 TreeNode 顶。
+        //   2) 所以进入 InlineRenameInput 时：DC.CursorPos.y ≈ TreeNode 顶（**尚未推进到下一行**）
+        //      而"下一节点 Directional Light 应该起绘的 Y" = TreeNode 底 + ItemSpacing.y = rectMax.y + ItemSpacing.y。
+        //   3) 若原样保存并恢复 CursorPos.y，下一节点会从 TreeNode 顶开始画 → 与 Cube 编辑行整行重叠。
+        //   4) 若完全不恢复，InputText 的 ItemSize 会把 CursorPos.y 推进到"InputText 底 + ItemSpacing.y"
+        //      ≈ TreeNode 底 + ItemSpacing.y - 0.5f，虽然接近正确值，但 InputText 的水平 CursorMaxPos.x 与
+        //      垂直换行分支产物会污染布局（下一节点被推低约 ItemSpacing.y 像素）。
+        //
+        // 因此正确策略：**主动前置** DC.CursorPos.y 到"TreeNode 底"（模拟 TreeNode 的 ItemSize 未启用 ScopedStyle 时的
+        // 状态），让 InputText 的 ItemSize 走垂直分支时推进到 rectMax.y + ItemSpacing.y = 下一节点正确起点。
+        // 通过手动构造正确的 CursorPos.y 起点 + 让 InputText 自然走 ItemSize，就能让"布局副作用恰好等于 TreeNode 本该产生的换行"。
+        ImGuiWindow* layoutWindow = ImGui::GetCurrentWindow();
+        const ImVec2 savedCursorMaxPos = layoutWindow->DC.CursorMaxPos;
+
+        // ---- 定位光标 ----
+        // 问题 1 精修：InputText 内文字起点 = frame_bb.Min.x + FramePadding.x（不含 FrameBorderSize，见 imgui_widgets.cpp:4549）；
+        //              原名文本 = 图标右侧 + IconToTextSpacing，紧接其后由 TextUnformatted 从 CursorPos 直接绘制（无 padding）。
+        //              调用方传入的 rectMin.x 已对齐"原名文本真实 X"，因此只需将编辑框整体向左偏移 FramePadding.x，
+        //              使 frame_bb.Min.x + FramePadding.x == rectMin.x，从而让编辑框内文本严格对齐原名文本。
+        //              注意：*不* 再补偿 FrameBorderSize，因为 draw_pos 计算里根本不含 border。
+        const float xOffset = style.FramePadding.x;
+        ImVec2 inputPos = rectMin;
+        inputPos.x -= xOffset;
+        // 垂直居中：InputText 实际高度 = FontSize + framePaddingY*2；向下偏移 (size.y - 实际高度) / 2 使其在命中矩形内居中
+        const float actualHeight = fontSize + framePaddingY * 2.0f;
+        inputPos.y += (size.y - actualHeight) * 0.5f;
+        ImGui::SetCursorScreenPos(inputPos);
+
+        // 首帧：自动将焦点给到下个 Item（InputText），并启用 AutoSelectAll
+        ImGuiInputTextFlags flags = ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll;
+        if (firstFrame)
+        {
+            ImGui::SetKeyboardFocusHere();
+        }
+
+        ImGui::PushID(id);
+        // 宽度补偿：向左偏了 xOffset 像素，为保持右端不越出命中矩形，总宽度补 xOffset
+        ImGui::SetNextItemWidth(size.x + xOffset);
+        bool enterPressed = ImGui::InputText("##InlineRename", buffer, bufferSize, flags);
+        bool isItemActive          = ImGui::IsItemActive();
+        bool isItemDeactivated     = ImGui::IsItemDeactivated();
+        bool isItemDeactivatedEdit = ImGui::IsItemDeactivatedAfterEdit();
+        bool isItemHovered         = ImGui::IsItemHovered();
+        ImGui::PopID();
+
+        ImGui::PopStyleVar(3);
+
+        // ---- 修正布局状态：让 InputText 表现得等价于"TreeNode 的换行" ----
+        // 目标：让下一个节点的起绘 Y 与"非编辑态"时完全一致，避免编辑框把下面的节点挤下去 1 行间距。
+        //
+        // 非编辑态下 Cube → Directional Light 之间的 CursorPos.y 推进过程：
+        //   1) BeginTreeNodeInternal 内 ScopedStyle(ItemSpacing, {0,0}) 生效期间，最后一个 Item（TextUnformatted(name)）
+        //      走垂直分支 ItemSize：CursorPos.y = 行顶 + line_height + 0 = 行底 = rectMax.y。
+        //   2) ScopedStyle 析构（恢复 ItemSpacing.y = 4）不改 CursorPos.y。
+        //   3) 下一个 DrawEntityNode 的 TreeNodeEx 从 CursorPos.y = rectMax.y 开始起绘。
+        // 也就是说：**Cube 与 Directional Light 之间没有 ItemSpacing.y 间距**（被 ScopedStyle 强制为 0）。
+        //
+        // 编辑态下 renderName=false，BeginTreeNodeInternal 结尾跳过 TextUnformatted，最后一个 Item 是 Image；
+        // Image 后紧跟 SameLine + ShiftCursorY(-TreeNodeIconOffsetY)，导致 DC.CursorPos.y 停在"行顶 - 2px"（不推进到行底）。
+        // 因此我们必须**主动**把 CursorPos.y 恢复到 rectMax.y（= 非编辑态下 Cube 结束时的 CursorPos.y），
+        // 而**不能**再加 style.ItemSpacing.y（那会多出 ~4px，导致 Directional Light 被挤下去）。
+        //
+        // CursorMaxPos.y 也一并强制对齐 rectMax.y，与 TreeNode 结束时一致（Window 用它决定滚动条与内容底）。
+        layoutWindow->DC.CursorPos.y    = rectMax.y;
+        layoutWindow->DC.CursorMaxPos.y = ImMax(savedCursorMaxPos.y, rectMax.y);
+
+        // Esc 取消（仅当输入框仍活跃时才捕获，避免失焦后误触）
+        if (isItemActive && ImGui::IsKeyPressed(ImGuiKey_Escape))
+        {
+            result.Cancelled = true;
+            return result;
+        }
+
+        // Enter 提交
+        if (enterPressed)
+        {
+            result.Submitted = true;
+            result.CommittedName = buffer;
+            return result;
+        }
+
+        // ---- 失焦处理：区分"已编辑失焦"与"未编辑失焦" ----
+        // 只有 IsItemDeactivatedAfterEdit（用户实际编辑过后失焦）才走提交路径；
+        // 未编辑就失焦 → 视为取消，避免"点击编辑框内部但被 imgui 判定为 deactivate"时误提交空串
+        // firstFrame 禁止判定失焦（SetKeyboardFocusHere 首帧尚未完全激活）
+        if (!firstFrame && isItemDeactivatedEdit)
+        {
+            result.Submitted = true;
+            result.CommittedName = buffer;
+            return result;
+        }
+        if (!firstFrame && isItemDeactivated)
+        {
+            // 未编辑就失焦：取消（不写入 name，等价于保留原名）
+            result.Cancelled = true;
+            return result;
+        }
+
+        return result;
     }
     
     void Image(const Ref<Texture2D>& texture, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tintColor, const ImVec4& borderColor)
