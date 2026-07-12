@@ -1,4 +1,7 @@
 Assets:
+  - Handle: 5644616484547485310
+    Type: Scene
+    FilePath: Assets/Scenes/HierarchyDropTest.luck3d
   - Handle: 18139247743970091234
     Type: Material
     FilePath: Assets/Internal/Materials/Default-Material.lmat
@@ -56,3 +59,9 @@ Assets:
   - Handle: 12244662866892610962
     Type: Mesh
     FilePath: Assets/Meshes/Hornet.lmesh
+  - Handle: 17187863845505822012
+    Type: Scene
+    FilePath: Assets/Scenes/TransformHierarchyTest.luck3d
+  - Handle: 8762961942088425431
+    Type: Scene
+    FilePath: Assets/Scenes/T.luck3d

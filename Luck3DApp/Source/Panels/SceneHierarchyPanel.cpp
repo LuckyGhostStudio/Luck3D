@@ -24,34 +24,220 @@ namespace Lucky
     namespace
     {
         /// <summary>
-        /// 拖拽放置位置（Hierarchy 面板内部实现细节，不暴露到头文件）
+        /// 拖拽放置模式（Hierarchy 面板内部实现细节，不暴露到头文件）
         /// </summary>
-        enum class DropPosition
+        enum class DropMode
         {
             Before,     // 插入到目标节点前面（同级）
             Inside,     // 成为目标节点的子节点
-            After       // 插入到目标节点后面（同级）
+            After       // 插入到目标节点后面（可能吸附到祖先层级）
         };
 
         /// <summary>
-        /// 根据鼠标在 LastItem 矩形中的相对 Y 位置计算放置模式
-        /// 25% / 50% / 25% 三分区，与 Unity Hierarchy 交互一致
+        /// 拖拽放置目标：由 ComputeDropTarget 计算得出，包含 delivery 与视觉反馈所需的全部信息
         /// </summary>
-        DropPosition ComputeDropPosition()
+        struct DropTarget
         {
+            DropMode Mode = DropMode::Inside;
+            Entity   Parent;                // Before/After 模式：落地后的父节点（可为空 = 根）；Inside 模式：无意义
+            int      InsertIndex = -1;      // Before/After 模式：落地在 Parent.Children 中的索引；Inside 模式：无意义
+            float    VisualLineX = 0.0f;    // Insert 高亮线左端点（圆圈中心）的屏幕坐标 X
+            bool     Acceptable = false;    // 循环校验/自身校验通过后置 true
+
+            // 仅 After 模式发生 X 层级回退时使用：
+            // 被跨越的祖先节点 UUID（= chosen 层级对应的"pivot"节点，也就是新父节点的最后一个子）
+            // 视觉上需要在该节点行底部绘制一个孤立小圆圈，提示层级回退
+            // 0 表示无需绘制
+            UUID     ExtraDotEntityUUID = 0;
+        };
+
+        /// <summary>
+        /// 检查 potentialChild 设为 potentialParent 的子节点是否会形成循环
+        /// - potentialParent 为空（拖到根层级）：一定不会形成循环
+        /// - potentialParent == potentialChild：形成循环（自成父）
+        /// - potentialChild 是 potentialParent 的祖先：形成循环
+        /// </summary>
+        bool WouldCreateCycleImpl(Entity potentialParent, Entity potentialChild)
+        {
+            if (!potentialParent) return false;
+            if (potentialParent == potentialChild) return true;
+            Entity current = potentialParent.GetParent();
+            while (current)
+            {
+                if (current == potentialChild) return true;
+                current = current.GetParent();
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 按当前节点的可视 depth 计算该层级"图标左侧"的屏幕坐标 X
+        /// 
+        /// 布局假设（与 UI::BeginTreeNode 保持一致）：
+        ///   [窗口内容区左边界] + [(depth+1) * IndentSpacing] + [FontSize] + [ArrowToIconSpacing] → 图标左侧
+        /// 说明：
+        /// - depth+1 的原因：Scene 是根 TreeNode，进入其 opened 分支后 ImGui 已对所有 entity 施加了 1 层缩进
+        /// - 箭头占位宽度取纯 FontSize：参考 imgui_widgets.cpp 中 TreeNodeBehavior 的 ItemSize 使用的
+        ///   text_width = g.FontSize + (label_size.x > 0 ? label_size.x + padding.x*2 : 0)；
+        ///   BeginTreeNode 用空 label（""）调用 TreeNodeEx，label_size.x = 0，所以 text_width 就是 FontSize；
+        ///   之后 SameLine 在 ItemSpacing.x = 0 的 ScopedStyle 下，CursorPos.x = CursorPosPrevLine.x + 0，
+        ///   相当于紧接 FontSize 之后。text_offset_x（含 padding）只影响文本渲染位置，不影响 ItemSize 步进
+        /// </summary>
+        float ComputeIconLeftScreenX(int depth)
+        {
+            ImGuiWindow* window = ImGui::GetCurrentWindow();
+            float windowContentLeft = window->WorkRect.Min.x;
+            const ImGuiStyle& style = ImGui::GetStyle();
+            float arrowWidth = ImGui::GetFontSize();
+            return windowContentLeft
+                + style.IndentSpacing * static_cast<float>(depth + 1)
+                + arrowWidth
+                + UI::Theme::Layout::TreeNodeArrowToIconSpacing;
+        }
+
+        /// <summary>
+        /// 根据鼠标位置和 target entity 计算拖拽放置目标
+        /// 
+        /// 语义：
+        /// - Y 方向使用 25%/50%/25% 三分区判定 Before / Inside / After（与 Unity 一致）
+        /// - X 方向仅在 After 且 target 处于"其父的最后一个子"时启用"层级回退"吸附：
+        ///     鼠标 X 越靠左，越向祖先层级吸附（对齐 Unity 拖拽表现）
+        /// - 每个候选层级独立校验 WouldCreateCycleImpl；不合法层级从候选链中剔除
+        /// </summary>
+        /// <param name="scene">场景</param>
+        /// <param name="target">Y 命中的目标 entity</param>
+        /// <param name="targetDepth">target 在 Hierarchy 中的可视 depth</param>
+        /// <param name="dragged">被拖拽的 entity</param>
+        DropTarget ComputeDropTarget(Scene* scene, Entity target, int targetDepth, Entity dragged)
+        {
+            DropTarget result;
+
+            // Y 三分区
             ImVec2 mousePos = ImGui::GetMousePos();
             ImVec2 itemMin = ImGui::GetItemRectMin();
             ImVec2 itemMax = ImGui::GetItemRectMax();
             float itemHeight = itemMax.y - itemMin.y;
             if (itemHeight <= 0.0f)
             {
-                return DropPosition::Inside;
+                result.Mode = DropMode::Inside;
+                result.Acceptable = dragged && dragged != target && !WouldCreateCycleImpl(target, dragged);
+                return result;
             }
 
             float relativeY = (mousePos.y - itemMin.y) / itemHeight;
-            if (relativeY < 0.25f) return DropPosition::Before;
-            if (relativeY > 0.75f) return DropPosition::After;
-            return DropPosition::Inside;
+            DropMode mode = DropMode::Inside;
+            if (relativeY < 0.25f)      mode = DropMode::Before;
+            else if (relativeY > 0.75f) mode = DropMode::After;
+
+            result.Mode = mode;
+
+            // 基础校验：自身 / 无效实体
+            if (!dragged || dragged == target)
+            {
+                result.Acceptable = false;
+                return result;
+            }
+
+            switch (mode)
+            {
+                case DropMode::Inside:
+                {
+                    result.Acceptable = !WouldCreateCycleImpl(target, dragged);
+                    // Inside 模式下的 VisualLineX 用不到（走 HighlightTargetNode）
+                    break;
+                }
+                case DropMode::Before:
+                {
+                    // Before：不做层级回退，直接对齐 target 自身层级
+                    result.Parent = target.GetParent();
+                    result.InsertIndex = scene->GetEntityIndexInParent(target);
+                    result.VisualLineX = ComputeIconLeftScreenX(targetDepth);
+                    result.Acceptable = !WouldCreateCycleImpl(result.Parent, dragged);
+                    break;
+                }
+                case DropMode::After:
+                {
+                    // 候选层级：从深到浅
+                    struct LevelCandidate
+                    {
+                        Entity Parent;      // 落地后的父（空 = 根）
+                        int    InsertIndex; // 落地索引
+                        int    Depth;       // 落地后的可视 depth
+                        float  IconX;       // 该层级"图标左侧"屏幕 X
+                        Entity Pivot;       // 该候选层级对应的"pivot"节点（用于定位孤立小圆圈的 Y）：
+                                            // - candidates[0].Pivot = target 自身（不回退）
+                                            // - 每次向上回退时，Pivot = 被跨越的"cursorParent"节点
+                                            //   （即回退后新父节点的最后一个可见子，也是该层级的"最后一个可见节点"）
+                    };
+                    std::vector<LevelCandidate> candidates;
+
+                    // 候选 0：target 自身层级（默认 After 语义）
+                    candidates.push_back({
+                        target.GetParent(),
+                        scene->GetEntityIndexInParent(target) + 1,
+                        targetDepth,
+                        ComputeIconLeftScreenX(targetDepth),
+                        target
+                    });
+
+                    // 向祖先方向扩展：仅当每层都是"父的最后一个子"时可回退
+                    Entity cursor = target;
+                    int cursorDepth = targetDepth;
+                    while (cursorDepth > 0)
+                    {
+                        Entity cursorParent = cursor.GetParent();
+                        if (!cursorParent) break;
+                        const std::vector<UUID>& siblings = cursorParent.GetChildren();
+                        if (siblings.empty() || siblings.back() != cursor.GetUUID()) break;
+
+                        Entity newParent = cursorParent.GetParent();
+                        int newIndex = scene->GetEntityIndexInParent(cursorParent) + 1;
+                        int newDepth = cursorDepth - 1;
+                        candidates.push_back({
+                            newParent,
+                            newIndex,
+                            newDepth,
+                            ComputeIconLeftScreenX(newDepth),
+                            cursorParent
+                        });
+
+                        cursor = cursorParent;
+                        cursorDepth = newDepth;
+                    }
+
+                    // 按鼠标 X 吸附：candidates 按由深到浅排序
+                    // 手感：容差取 IndentSpacing 的 1.0 倍，等价于"当前深层图标 X 作为分界线"
+                    // 意义：鼠标横坐标只要越过当前深层图标左端（进入其左侧的缩进区），就切换到上一层级
+                    // 这与 Unity Hierarchy 的实际手感一致??用户直觉是"进入图标左边就升级"而非精确对齐中点
+                    float snapTolerance = ImGui::GetStyle().IndentSpacing * 1.0f;
+                    LevelCandidate chosen = candidates.back(); // 默认兜底：鼠标非常靠左时取最浅层
+                    for (const LevelCandidate& c : candidates)
+                    {
+                        if (mousePos.x >= c.IconX - snapTolerance)
+                        {
+                            chosen = c;
+                            break;
+                        }
+                    }
+
+                    result.Parent = chosen.Parent;
+                    result.InsertIndex = chosen.InsertIndex;
+                    result.VisualLineX = chosen.IconX;
+                    result.Acceptable = !WouldCreateCycleImpl(result.Parent, dragged);
+
+                    // 若 X 吸附导致层级回退（chosen.Pivot ≠ target），则需要在"被跨越的祖先节点"
+                    // 底部绘制一个孤立小圆圈，直观提示层级回退
+                    // - chosen.Pivot == target：没有发生回退，孤立圆圈的 Y 等于主线 Y，无需绘制
+                    // - chosen.Pivot != target：发生了回退，chosen.Pivot 就是需要在其底部画圆圈的节点
+                    if (chosen.Pivot && chosen.Pivot != target)
+                    {
+                        result.ExtraDotEntityUUID = chosen.Pivot.GetUUID();
+                    }
+                    break;
+                }
+            }
+
+            return result;
         }
     }
 
@@ -73,6 +259,13 @@ namespace Lucky
 
     void SceneHierarchyPanel::OnGUI()
     {
+        // 帧首清空 Pending Insert 线：本帧遍历时若有 Before/After 目标命中，会重新写入
+        m_PendingInsertLine.Valid = false;
+        m_PendingInsertLine.HasExtraDot = false;
+
+        // 帧首清空实体底部 Y 缓存：本帧遍历时会重新写入每个已绘制节点的 ItemRectMax.y
+        m_EntityBottomY.clear();
+
         std::string sceneName = m_Scene->GetName();
         
         const std::string& strSceneID = std::format("{0}##{1}", sceneName, typeid(Scene).hash_code());
@@ -92,7 +285,7 @@ namespace Lucky
                 Entity entity = m_Scene->TryGetEntityWithUUID(rootID);
                 if (entity)
                 {
-                    DrawEntityNode(entity);
+                    DrawEntityNode(entity, 0);
                 }
                 else
                 {
@@ -174,9 +367,40 @@ namespace Lucky
             DrawEntityCreateMenu({});   // 绘制创建物体菜单
             UI::EndPopup();
         }
+
+        // ---- 帧末统一绘制拖拽视觉反馈 ----
+        // 延后到整个 Hierarchy 遍历结束后再绘制，确保高亮的 DrawList 命令位于所有节点
+        // （含选中态 header 蓝色填充）之后，几何上位于最上层，不会被后续兄弟节点的
+        // 选中态 header 遮挡
+        if (m_PendingInsertLine.Valid)
+        {
+            switch (m_PendingInsertLine.Kind)
+            {
+                case PendingInsertLine::KindType::Line:
+                    UI::DragDropVisuals::HighlightTargetInsertLineAt(
+                        m_PendingInsertLine.X,
+                        m_PendingInsertLine.Y);
+                    // After 模式发生 X 层级回退时：在被跨越的祖先节点底部额外绘制孤立小圆圈，
+                    // 与主线左端圆圈同 X、但 Y 为祖先节点行底部
+                    if (m_PendingInsertLine.HasExtraDot)
+                    {
+                        UI::DragDropVisuals::HighlightTargetInsertDotAt(
+                            m_PendingInsertLine.ExtraDotX,
+                            m_PendingInsertLine.ExtraDotY);
+                    }
+                    break;
+                case PendingInsertLine::KindType::Rect:
+                    UI::DragDropVisuals::HighlightTargetNodeAt(
+                        m_PendingInsertLine.MinX,
+                        m_PendingInsertLine.MinY,
+                        m_PendingInsertLine.MaxX,
+                        m_PendingInsertLine.MaxY);
+                    break;
+            }
+        }
     }
     
-    void SceneHierarchyPanel::DrawEntityNode(Entity entity)
+    void SceneHierarchyPanel::DrawEntityNode(Entity entity, int depth)
     {
         const std::string& name = entity.GetComponent<NameComponent>().Name;  // 物体名
         UUID id = entity.GetUUID();
@@ -187,6 +411,10 @@ namespace Lucky
         const Ref<Texture2D>& icon = EditorIconManager::GetEntityIcon();
         
         bool opened = UI::BeginTreeNode(icon, strID.c_str(), false, SelectionManager::IsSelected(id), isLeaf);
+
+        // 缓存当前节点的行底部 Y（= ItemRectMax.y）：供 After X 层级回退时定位孤立圆圈使用
+        // 写入时机必须在 BeginTreeNode 后、递归子节点前，确保拿到的是 header 行的底部而非整个子树的底部
+        m_EntityBottomY[id] = ImGui::GetItemRectMax().y;
 
         // 绘制右侧组件图标列表
         DrawEntityComponentIcons(entity);
@@ -224,62 +452,69 @@ namespace Lucky
                 UUID draggedID = *static_cast<UUID*>(payload->Data);
                 Entity dragged = m_Scene->TryGetEntityWithUUID(draggedID);
 
-                // 三分区计算放置模式
-                DropPosition dropPos = ComputeDropPosition();
+                // 综合计算放置目标：Y 三分区 + X 层级吸附（After 模式下向祖先层级回退）+ 循环校验
+                DropTarget drop = ComputeDropTarget(m_Scene.get(), entity, depth, dragged);
 
-                // 业务校验（自身 / 无效实体 / 循环）
-                bool acceptable = dragged && dragged != entity;
-                if (acceptable)
-                {
-                    if (dropPos == DropPosition::Inside)
-                    {
-                        acceptable = !WouldCreateCycle(entity, dragged);
-                    }
-                    else
-                    {
-                        // Before / After 的循环校验目标是 entity 的父节点
-                        // WouldCreateCycle 已对空 parent 做了保护
-                        acceptable = !WouldCreateCycle(entity.GetParent(), dragged);
-                    }
-                }
-
-                if (acceptable)
+                if (drop.Acceptable)
                 {
                     // 通知源端：本帧存在可接受目标 → tooltip 切换为"允许"图标
                     UI::DragDropContext::NotifyTargetAccepts(DragDrop::EntityHierarchy);
 
                     // 目标端主动绘制视觉反馈
-                    switch (dropPos)
+                    // 三种模式的高亮均延后到帧末统一绘制，避免被后续兄弟节点选中态 header 蓝色填充遮挡：
+                    // - Before / After：Insert 线（Line 模式）
+                    // - Inside：整节点高亮框（Rect 模式），外沿与目标 header 完全等大
+                    switch (drop.Mode)
                     {
-                        case DropPosition::Before: UI::DragDropVisuals::HighlightTargetInsertLine(true);  break;
-                        case DropPosition::After:  UI::DragDropVisuals::HighlightTargetInsertLine(false); break;
-                        case DropPosition::Inside: UI::DragDropVisuals::HighlightTargetNode();            break;
+                        case DropMode::Before:
+                            m_PendingInsertLine.Valid = true;
+                            m_PendingInsertLine.Kind  = PendingInsertLine::KindType::Line;
+                            m_PendingInsertLine.X     = drop.VisualLineX;
+                            m_PendingInsertLine.Y     = ImGui::GetItemRectMin().y;
+                            break;
+                        case DropMode::After:
+                            m_PendingInsertLine.Valid = true;
+                            m_PendingInsertLine.Kind  = PendingInsertLine::KindType::Line;
+                            m_PendingInsertLine.X     = drop.VisualLineX;
+                            m_PendingInsertLine.Y     = ImGui::GetItemRectMax().y;
+                            // X 层级回退：在被跨越的祖先节点底部额外画孤立小圆圈
+                            // 位置：与主线左端圆圈同 X，Y 为祖先节点的行底部（从缓存中取）
+                            if (drop.ExtraDotEntityUUID != 0)
+                            {
+                                auto it = m_EntityBottomY.find(drop.ExtraDotEntityUUID);
+                                if (it != m_EntityBottomY.end())
+                                {
+                                    m_PendingInsertLine.HasExtraDot = true;
+                                    m_PendingInsertLine.ExtraDotX   = drop.VisualLineX;
+                                    m_PendingInsertLine.ExtraDotY   = it->second;
+                                }
+                            }
+                            break;
+                        case DropMode::Inside:
+                        {
+                            ImVec2 itemMin = ImGui::GetItemRectMin();
+                            ImVec2 itemMax = ImGui::GetItemRectMax();
+                            m_PendingInsertLine.Valid = true;
+                            m_PendingInsertLine.Kind  = PendingInsertLine::KindType::Rect;
+                            m_PendingInsertLine.MinX  = itemMin.x;
+                            m_PendingInsertLine.MinY  = itemMin.y;
+                            m_PendingInsertLine.MaxX  = itemMax.x;
+                            m_PendingInsertLine.MaxY  = itemMax.y;
+                            break;
+                        }
                     }
 
                     // 只有鼠标释放时才真正执行层级变更
                     if (payload->IsDelivery())
                     {
-                        switch (dropPos)
+                        if (drop.Mode == DropMode::Inside)
                         {
-                            case DropPosition::Inside:
-                            {
-                                dragged.SetParent(entity);
-                                break;
-                            }
-                            case DropPosition::Before:
-                            {
-                                Entity targetParent = entity.GetParent();
-                                int targetIndex = m_Scene->GetEntityIndexInParent(entity);
-                                dragged.SetParent(targetParent, targetIndex);
-                                break;
-                            }
-                            case DropPosition::After:
-                            {
-                                Entity targetParent = entity.GetParent();
-                                int targetIndex = m_Scene->GetEntityIndexInParent(entity);
-                                dragged.SetParent(targetParent, targetIndex + 1);
-                                break;
-                            }
+                            dragged.SetParent(entity);
+                        }
+                        else
+                        {
+                            // Before / After（含 X 层级回退）：统一用 (Parent, InsertIndex) 落地
+                            dragged.SetParent(drop.Parent, drop.InsertIndex);
                         }
                     }
                 }
@@ -318,7 +553,7 @@ namespace Lucky
             for (UUID childID : children)
             {
                 Entity child = m_Scene->GetEntityWithUUID(childID);
-                DrawEntityNode(child);
+                DrawEntityNode(child, depth + 1);
             }
 
             UI::EndTreeNode();

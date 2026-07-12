@@ -1,0 +1,67 @@
+Scene: HierarchyDropTest
+Handle: 5644616484547485310
+EnvironmentSettings:
+  SkyboxMaterial: 7865802476581088480
+  AmbientSource: 0
+  AmbientColor: [0.211999997, 0.226999998, 0.259000003]
+  DiffuseIntensity: 1
+  SpecularIntensity: 1
+  ReflectionResolution: 128
+RootEntityOrder: [6940671747553840415, 13657804763704773549]
+Entities:
+  - Entity: 13657804763704773549
+    NameComponent:
+      Name: E
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+  - Entity: 7439949075983068058
+    NameComponent:
+      Name: D
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 6201487063633907476
+      Children:
+        []
+  - Entity: 6201487063633907476
+    NameComponent:
+      Name: C
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 6940671747553840415
+      Children:
+        - Child: 7439949075983068058
+  - Entity: 14963610531223243495
+    NameComponent:
+      Name: B
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 6940671747553840415
+      Children:
+        []
+  - Entity: 6940671747553840415
+    NameComponent:
+      Name: A
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        - Child: 14963610531223243495
+        - Child: 6201487063633907476
