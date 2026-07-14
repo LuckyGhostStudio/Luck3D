@@ -56,8 +56,13 @@ namespace Lucky
             strcpy_s(buffer, sizeof(buffer), name.c_str()); // buffer = name
             
             UI::ShiftCursor(8.0f, 8.0f);
-            // 使用 EnterReturnsTrue：仅在按下 Enter 或失焦时才提交，避免用户中途清空触发空名警告
-            if (UI::InputText("##Name", buffer, sizeof(buffer), ImGuiInputTextFlags_EnterReturnsTrue))
+            // 提交时机（对齐 Inspector 常规输入体验）：
+            // - Enter：ImGuiInputTextFlags_EnterReturnsTrue 令 Enter 结束编辑（不加此 flag 则 Enter 会插入换行且不释放焦点）
+            // - 失焦（点击别处 / 切换控件 / 切换窗口）：由 IsItemDeactivatedAfterEdit() 命中
+            // - Esc：ImGui 会把 buffer 恢复为进入编辑时的值再 deactivate，此时"未产生编辑"，
+            //        IsItemDeactivatedAfterEdit() 返回 false，天然实现"Esc 不提交、保留原名"
+            UI::InputText("##Name", buffer, sizeof(buffer), ImGuiInputTextFlags_EnterReturnsTrue);
+            if (ImGui::IsItemDeactivatedAfterEdit())
             {
                 entity.SetName(std::string(buffer));
             }
