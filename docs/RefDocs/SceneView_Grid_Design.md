@@ -91,6 +91,7 @@ static class GridSettings
 - `size` getter 会对 `rawSize` 应用 `sizeMultiplier`：当 multiplier > 0 时每 +1 尺寸 x2，< 0 时每 -1 尺寸 /2
 - `size` setter 会首先 `ResetSizeMultiplier()`，然后 clamp 到 `[k_GridSizeMin, k_GridSizeMax]`
 - 尺寸变化时触发 `sizeChanged` 事件，SceneViewGrid 监听后自动重新吸附 pivot
+- 提供 `ResetGridSettings()` 静态方法，将 `size` 恢复为 `(k_DefaultGridSize, k_DefaultGridSize, k_DefaultGridSize)`（会顺带把 multiplier 重置为 0）
 
 **sizeMultiplier 计算**:
 ```csharp
@@ -122,6 +123,14 @@ class SceneViewGrid
 
     // === 颜色 ===
     static PrefColor kViewGridColor = new PrefColor("Scene/Grid", .5f, .5f, .5f, .4f);
+
+    // === 事件 ===
+    // showGrid 属性发生变化时触发（true/false），供上层订阅以做 UI 同步等
+    internal event Action<bool> gridVisibilityChanged;
+
+    // === 复位 ===
+    // Reset() 会将 gridOpacity/showGrid/gridAxis 恢复到默认值
+    // (k_DefaultGridOpacity=0.5, k_DefaultShowGrid=true, k_DefaultRenderAxis=Y)
 }
 ```
 
@@ -165,24 +174,29 @@ void UpdateGridsVisibility(Quaternion rotation, bool orthoMode)
 {
     bool showX = false, showY = false, showZ = false;
 
-    if (orthoMode)
+    // 注意：整个可见性判断被外层 if (showGrid) 包裹
+    // 当 showGrid == false 时，showX/showY/showZ 全部保持 false，三个轴面淡出
+    if (showGrid)
     {
-        Vector3 fwd = rotation * Vector3.forward;
-        // 正交模式特判：摄像机严格朝向某轴时，只画那个面
-        if (fwd == Vector3.up || fwd == Vector3.down)
-            showY = true;
-        else if (fwd == Vector3.left || fwd == Vector3.right)
-            showX = true;
-        else if (fwd == Vector3.forward || fwd == Vector3.back)
-            showZ = true;
-    }
+        if (orthoMode)
+        {
+            Vector3 fwd = rotation * Vector3.forward;
+            // 正交模式特判：摄像机严格朝向某轴时，只画那个面
+            if (fwd == Vector3.up || fwd == Vector3.down)
+                showY = true;
+            else if (fwd == Vector3.left || fwd == Vector3.right)
+                showX = true;
+            else if (fwd == Vector3.forward || fwd == Vector3.back)
+                showZ = true;
+        }
 
-    // 透视模式 or 非对齐正交: 按 gridAxis 设置
-    if (!showX && !showY && !showZ)
-    {
-        showX = (gridAxis == GridRenderAxis.X || gridAxis == GridRenderAxis.All);
-        showY = (gridAxis == GridRenderAxis.Y || gridAxis == GridRenderAxis.All);
-        showZ = (gridAxis == GridRenderAxis.Z || gridAxis == GridRenderAxis.All);
+        // 透视模式 or 非对齐正交: 按 gridAxis 设置
+        if (!showX && !showY && !showZ)
+        {
+            showX = (gridAxis == GridRenderAxis.X || gridAxis == GridRenderAxis.All);
+            showY = (gridAxis == GridRenderAxis.Y || gridAxis == GridRenderAxis.All);
+            showZ = (gridAxis == GridRenderAxis.Z || gridAxis == GridRenderAxis.All);
+        }
     }
 
     // 设置动画目标值（平滑过渡）
@@ -248,7 +262,9 @@ internal DrawGridParameters PrepareGridRender(Camera camera, Vector3 pivot,
 }
 ```
 
-正交模式下额外检查角度阈值 `k_AngleThresholdForOrthographicGrid = 0.15`，如果视角太斜则不显示该轴面以避免难看的效果。
+正交模式下 `PrepareGridRenderOrthogonalMode` 会检查相机 forward 方向在目标轴上的分量绝对值：只有 `|direction[axis]| >= k_AngleThresholdForOrthographicGrid` (`0.15`) 时才渲染该轴面。也就是说，当相机视线**几乎平行**于网格平面（在该轴上的分量过小）时，网格会被直接隐藏，避免出现极端斜视角下的锯齿/摩尔纹。
+
+> 说明：`AnimBool` 的平滑淡出在正交下快速轨道旋转时有滞后，该阈值检查相当于一个"硬切"兜底——在渐变值来不及跟上时直接不画，因为此时用户正在快速旋转视角，突然的隐藏并不容易察觉。
 
 ---
 
@@ -286,12 +302,17 @@ void DrawGrid(const Camera* camera, const DrawGridParameters* gridParam)
 #### Step 1: 提前退出条件
 
 ```cpp
-// 相机距离超过 far plane -> 不画
+// (a) 相机在该轴上的位置超过 far plane -> 不画
 if (Abs(camera->GetPosition()[axis]) > camera->GetFar()) return;
-
-// 非有限值 -> 不画
-if (!IsFinite(camDistance * camDistance)) return;
 ```
+
+> 顺序说明：`IsFinite(camDistance * camDistance)` 这条判断在实际代码里**不是紧跟 (a) 之后**的，而是在下文 Step 2 计算完 `verticalHalfCoverage` **之后**才做的一次数值健壮性兜底：
+>
+> ```cpp
+> if (!IsFinite(camDistance * camDistance)) return;
+> ```
+>
+> 这里为了叙述清晰把它列在早期退出条件里，但读者若逐行对照 [DrawGrid.cpp](../Editor/Src/Utility/DrawGrid.cpp) 需要注意它出现在计算覆盖范围之后。
 
 #### Step 2: 计算网格覆盖范围
 
@@ -381,8 +402,25 @@ GetGfxDevice().ImmediateTexCoordAll(cellSize, 0, 0);
 
 ```cpp
 float gridSizeFloat = (groundHalfCoverage / size) * 500;
+
+// (a) 数值越界兜底：gridSizeFloat 超出 int 范围时跳过该级
+if (gridSizeFloat < INT_MIN + 1 || gridSizeFloat > INT_MAX - 1)
+    continue;
+
+int gridSize = FloorfToInt(gridSizeFloat);
+
+// (b) 远裁面截断：不必画到 far plane 之外
+gridSize = std::min(gridSize, (int)std::ceil(camera->GetFar() / size) + 1);
+
+// (c) 最终范围钳制
 gridSize = clamp(gridSize, 2, 100);
 ```
+
+**逐层限制**:
+1. **near 裁剪**：`if (size < camera->GetNear()) continue;` — 若该级的线间距比近裁面还小，本级完全跳过（人眼看不见的细节没必要画）；
+2. **INT 溢出兜底**：`gridSizeFloat` 落到 `int` 表示范围之外时直接 `continue`；
+3. **far 裁剪**：以 `ceil(far / size) + 1` 作为上限，避免远处画一堆看不见的线；
+4. **硬上限 100**：`clamp(gridSize, 2, 100)`。
 
 **关键**: 每条轴方向最多画 100 条线段（`gridSize` 上限），最坏情况下总线段数为：
 - 1 个轴面 x 2 个方向 x 4 个级别 x 100 条 = **800 条线段/帧**
@@ -459,7 +497,9 @@ s_GridMaterialOrtho = GetEditorResource<Material>("SceneView/GridOrtho.mat");
 
 ---
 
-## 4. Shader 设计说明
+## 4. Shader 设计说明（复刻用替代方案）
+
+> **重要说明**：Unity Editor 原生使用未开放源码的 `SceneView/Grid.mat` 与 `SceneView/GridOrtho.mat` 两个内置材质，由 C++ 层通过 `GetEditorResource<Material>` 加载（见 [DrawGrid.cpp](../Editor/Src/Utility/DrawGrid.cpp)）。**本节介绍的 3 种 Shader 方案不是 Editor 现有实现，而是当外部项目无法访问这两个内置材质时的替代方案**（例如在纯 Runtime 中复刻同款效果、或在其他引擎里移植时使用）。如果你只关心 Editor 现有代码逻辑，可以跳过本节直接看第 5 节。
 
 ### 4.0 核心挑战：GL.LINES 为什么不够
 
