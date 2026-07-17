@@ -47,7 +47,7 @@ namespace Lucky
         glm::vec2 m_ViewportSize = { 0, 0 };    // 视口大小
         glm::vec2 m_Bounds[2];                  // 视口边界（左上角，右下角）
         
-        bool m_ShowGrid = true; // 是否显示坐标系网格
+        bool m_ShowGrid = false; // 是否显示坐标系网格
         int m_GizmoType = -1;   // 当前操作的 Gizmo 类型（-1 表示无）
         int m_GizmoMode = 0;    // Gizmo 模式: 0 本地坐标 1 世界坐标
     };
