@@ -4,11 +4,13 @@
 #include "Lucky/UI/Widgets.h"
 #include "Lucky/UI/ScopedGuards.h"
 
-#include "imgui/imgui.h"
 #include "Lucky/Asset/AssetManager.h"
 #include "Lucky/Editor/EditorIconManager.h"
 #include "Lucky/Editor/DragDropPayloads.h"
 #include "Lucky/Editor/DragDropContext.h"
+#include "Lucky/Scene/SelectionManager.h"
+
+#include "imgui/imgui.h"
 
 namespace Lucky
 {
@@ -63,7 +65,7 @@ namespace Lucky
                 // 点击鼠标 && 鼠标悬停在该窗口（点击空白位置）
                 if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered())
                 {
-                    m_SelectionPath.clear();  // 取消选中：置空当前选中文件路径
+                    SelectionManager::Deselect();
                 }
             }
             ImGui::EndChild();
@@ -147,7 +149,18 @@ namespace Lucky
             strID = std::format("{}##{}", path.stem().string(), static_cast<uint32_t>(assetHandle));
         }
         
-        if (UI::BeginTreeNode(icon, strID.c_str(), false, m_SelectionPath == path, true))
+
+        bool isSelected = false;
+        if (isDirectory)
+        {
+            isSelected = SelectionManager::IsFolderSelected(path);
+        }
+        else if (assetHandle.IsValid())
+        {
+            isSelected = SelectionManager::IsAssetSelected(assetHandle);
+        }
+        
+        if (UI::BeginTreeNode(icon, strID.c_str(), false, isSelected, true))
         {
             UI::EndTreeNode();
         }
@@ -164,7 +177,17 @@ namespace Lucky
         
         if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
         {
-            m_SelectionPath = path;
+            // 目录：内容区内单击选中（写入 SelectionManager::Folder）
+            //       不切换浏览目录，已与左侧目录树的 NavigateTo 行为分离
+            // 资产：写入全局 SelectionManager，Inspector 面板会据此显示对应资产信息
+            if (isDirectory)
+            {
+                SelectionManager::SelectFolder(path);
+            }
+            else if (assetHandle.IsValid())
+            {
+                SelectionManager::SelectAsset(assetHandle);
+            }
         }
     }
     
@@ -173,7 +196,13 @@ namespace Lucky
         if (std::filesystem::exists(directory) && std::filesystem::is_directory(directory))
         {
             m_CurrentDirectory = directory;
-            m_SelectionPath.clear();
+            
+            // 切换浏览目录：若当前选中的是 Asset / Folder，则清空（选中项已不在可见范围内）
+            SelectionType currType = SelectionManager::GetSelectionType();
+            if (currType == SelectionType::Asset || currType == SelectionType::Folder)
+            {
+                SelectionManager::Deselect();
+            }
         }
     }
 

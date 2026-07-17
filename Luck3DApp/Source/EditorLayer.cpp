@@ -23,6 +23,8 @@
 #include "Lucky/Asset/ModelLoader.h"
 #include "Lucky/Asset/AssetManager.h"
 #include "Lucky/Editor/EditorIconManager.h"
+#include "Lucky/Editor/AssetInspectorRegistry.h"
+#include "Lucky/Editor/AssetInspectors.h"
 
 #include <filesystem>
 
@@ -49,6 +51,13 @@ namespace Lucky
 
         // 初始化图标管理器（在创建面板之前）
         EditorIconManager::Init();
+
+        // 注册所有资产类型的 Inspector（Inspector 面板会据此分发绘制）
+        AssetInspectorRegistry::Register(AssetType::Material,  &MaterialInspector::Draw);
+        AssetInspectorRegistry::Register(AssetType::Mesh,      &MeshInspector::Draw);
+        AssetInspectorRegistry::Register(AssetType::Texture2D, &Texture2DInspector::Draw);
+        AssetInspectorRegistry::Register(AssetType::Scene,     &SceneInspector::Draw);
+        AssetInspectorRegistry::Register(AssetType::Shader,    &ShaderInspector::Draw);
 
         m_Scene = CreateRef<Scene>("New Scene");
         

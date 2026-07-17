@@ -2,7 +2,6 @@
 #include "MaterialEditor.h"
 
 #include "Lucky/Core/UUID.h"
-#include "Lucky/Scene/SelectionManager.h"
 #include "Lucky/Renderer/Renderer3D.h"
 
 #include "Lucky/Asset/AssetManager.h"
@@ -106,7 +105,7 @@ namespace Lucky
         // 树节点标志：打开|框架|延伸到右边|允许重叠|框架边框
         const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth;
         
-        UUID id = SelectionManager::GetSelection();
+        UUID id = UUID(material->GetHandle());
         
         const std::string& materialName = material->GetName();
         const std::string& strMaterialID = std::format("{0}##{1}", materialName, static_cast<uint64_t>(id));

@@ -75,11 +75,7 @@ namespace Lucky::UI
     /// <param name="buffer">InputText 缓冲区（由调用方持有，跨帧稳定）</param>
     /// <param name="bufferSize">缓冲区字节数</param>
     /// <param name="firstFrame">是否本帧首次进入编辑态（true 时自动 SetKeyboardFocusHere 并全选）</param>
-    InlineRenameResult InlineRenameInput(const char* id,
-                                         const ImVec2& rectMin,
-                                         const ImVec2& rectMax,
-                                         char* buffer, size_t bufferSize,
-                                         bool firstFrame);
+    InlineRenameResult InlineRenameInput(const char* id, const ImVec2& rectMin, const ImVec2& rectMax, char* buffer, size_t bufferSize, bool firstFrame);
 
     /// <summary>
     /// 绘制图像
@@ -96,7 +92,25 @@ namespace Lucky::UI
     /// 绘制图像（OpenGL Y 翻转版本，UV 默认为 { 0, 1 } -> { 1, 0 }）适用于 Framebuffer 颜色附件等需要 Y 翻转的场景
     /// </summary>
     void ImageFlipped(const Ref<Texture2D>& texture, const ImVec2& size, const ImVec4& tintColor = ImVec4(1, 1, 1, 1), const ImVec4& borderColor = ImVec4(0, 0, 0, 0));
-    
+
+    /// <summary>
+    /// 绘制图像按钮
+    /// </summary>
+    /// <param name="texture">纹理（可为 nullptr，此时不绘制并返回 false）</param>
+    /// <param name="size">图像尺寸</param>
+    /// <param name="uv0">UV 左上角（默认 {0, 0}）</param>
+    /// <param name="uv1">UV 右下角（默认 {1, 1}）</param>
+    /// <param name="framePadding">按钮内边距（-1 表示使用当前默认 FramePadding，0 表示无内边距）</param>
+    /// <param name="backgroundColor">背景颜色（默认透明）</param>
+    /// <param name="tintColor">着色颜色（默认白色）</param>
+    /// <returns>是否被点击</returns>
+    bool ImageButton(const Ref<Texture2D>& texture, const ImVec2& size, const ImVec2& uv0 = ImVec2(0, 0), const ImVec2& uv1 = ImVec2(1, 1), int framePadding = -1, const ImVec4& backgroundColor = ImVec4(0, 0, 0, 0), const ImVec4& tintColor = ImVec4(1, 1, 1, 1));
+
+    /// <summary>
+    /// 绘制图像按钮（OpenGL Y 翻转版本，UV 默认为 { 0, 1 } -> { 1, 0 }）适用于 Framebuffer 颜色附件等需要 Y 翻转的场景
+    /// </summary>
+    bool ImageButtonFlipped(const Ref<Texture2D>& texture, const ImVec2& size, int framePadding = -1, const ImVec4& backgroundColor = ImVec4(0, 0, 0, 0), const ImVec4& tintColor = ImVec4(1, 1, 1, 1));
+
     /// <summary>
     /// 拖拽预览 tooltip：显示通用拖拽图标或禁止图标
     /// 需在 BeginDragDropSource() 和 EndDragDropSource() 之间调用

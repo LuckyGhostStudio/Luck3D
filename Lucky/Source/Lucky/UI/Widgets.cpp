@@ -355,6 +355,23 @@ namespace Lucky::UI
         Image(texture, size, ImVec2(0, 1), ImVec2(1, 0), tintColor, borderColor);
     }
 
+    bool ImageButton(const Ref<Texture2D>& texture, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1, int framePadding, const ImVec4& backgroundColor, const ImVec4& tintColor)
+    {
+        ImTextureID texID = GetImTextureID(texture);
+        if (!texID)
+        {
+            return false;
+        }
+
+        return ImGui::ImageButton(texID, size, uv0, uv1, framePadding, backgroundColor, tintColor);
+    }
+
+    bool ImageButtonFlipped(const Ref<Texture2D>& texture, const ImVec2& size, int framePadding, const ImVec4& backgroundColor, const ImVec4& tintColor)
+    {
+        // OpenGL Y ·­×ª£ºUV ´Ó {0,1} µ½ {1,0}
+        return ImageButton(texture, size, ImVec2(0, 1), ImVec2(1, 0), framePadding, backgroundColor, tintColor);
+    }
+
     void DragDropPreview(bool rejected)
     {
         const Ref<Texture2D>& icon = EditorIconManager::GetDragDropIcon(rejected);

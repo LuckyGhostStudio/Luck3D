@@ -79,6 +79,12 @@ namespace Lucky
         /// <param name="rejected">是否为"禁止"状态（true 返回红色禁止圈，false 返回通用拖拽图标）</param>
         /// <returns>拖拽图标纹理</returns>
         static const Ref<Texture2D>& GetDragDropIcon(bool rejected = false);
+
+        /// <summary>
+        /// 获取设置图标
+        /// </summary>
+        /// <returns>设置图标纹理</returns>
+        static const Ref<Texture2D>& GetSettingsIcon();
     };
 
     // ======== 组件图标解析器 ========

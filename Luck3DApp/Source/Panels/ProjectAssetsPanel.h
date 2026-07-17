@@ -49,7 +49,5 @@ namespace Lucky
         DirectoryNode m_RootNode;                   // 目录树缓存
         
         float m_TreePanelWidth = 200.0f;            // 目录树宽度
-        
-        std::filesystem::path m_SelectionPath;      // 当前选中文件路径
     };
 }

@@ -12,6 +12,8 @@
 #include "Lucky/UI/Widgets.h"
 
 #include "Lucky/Editor/MaterialEditor.h"
+#include "Lucky/Editor/AssetInspectorRegistry.h"
+#include "Lucky/Editor/FolderInspector.h"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -35,10 +37,40 @@ namespace Lucky
 
     void InspectorPanel::OnGUI()
     {
-        UUID selectionID = SelectionManager::GetSelection();
-        if (selectionID != 0)
+        // 按当前选中类型分发到不同的绘制路径
+        // - Entity：走 DrawComponents 显示组件面板
+        // - Asset ：走 AssetInspectorRegistry，由已注册的具体 AssetInspector 处理
+        // - Folder：走 FolderInspector，仅显示 Header
+        // - None  ：不绘制任何内容（面板保持为空）
+        switch (SelectionManager::GetSelectionType())
         {
-            DrawComponents(m_Scene->GetEntityWithUUID(selectionID));
+            case SelectionType::Entity:
+            {
+                UUID entityID = SelectionManager::GetSelection();
+                if (entityID != 0 && m_Scene)
+                {
+                    Entity entity = m_Scene->GetEntityWithUUID(entityID);
+                    if (entity)
+                    {
+                        DrawComponents(entity);
+                    }
+                }
+                break;
+            }
+            case SelectionType::Asset:
+            {
+                AssetHandle handle(static_cast<uint64_t>(SelectionManager::GetSelection()));
+                AssetInspectorRegistry::Draw(handle);
+                break;
+            }
+            case SelectionType::Folder:
+            {
+                FolderInspector::Draw(SelectionManager::GetSelectedFolder());
+                break;
+            }
+            case SelectionType::None:
+            default:
+                break;
         }
     }
 

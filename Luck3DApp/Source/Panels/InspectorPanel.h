@@ -5,13 +5,14 @@
 #include "Lucky/Scene/Scene.h"
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/Components/Components.h"
-#include "Lucky/Renderer/Material.h"
 
 #include "Lucky/UI/UICore.h"
 #include "Lucky/UI/Theme.h"
 #include "Lucky/UI/DrawUtils.h"
 #include "Lucky/UI/ScopedGuards.h"
 #include "Lucky/UI/Widgets.h"
+
+#include "Lucky/Editor/EditorPreferences.h"
 
 #include "imgui/imgui.h"
 
@@ -60,13 +61,14 @@ namespace Lucky
         const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth;
         
         auto& component = entity.GetComponent<TComponent>();
-
-        ImVec2 contentRegionAvail = ImGui::GetContentRegionAvail(); // 可用区域大小
         
         // 生成唯一 ID 组件类型哈希 + 实体 UUID
         const std::string& strComponentID = std::format("{}##{}{}", name, static_cast<uint64_t>(entity.GetUUID()), typeid(TComponent).hash_code());
         
         bool opened = false;
+        
+        ImVec2 contentRegionAvail = ImGui::GetContentRegionAvail(); // 可用区域大小
+        float lineHeight = ImGui::GetTextLineHeight();
         
         UI::Draw::HorizontalLine();
         
@@ -82,7 +84,7 @@ namespace Lucky
             const Ref<Texture2D>& componentIcon = ComponentIconResolver<TComponent>::GetIcon(component);
             if (componentIcon)
             {
-                float iconSize = ImGui::GetTextLineHeight() - UI::Theme::Layout::TreeNodeIconSizeShrink;
+                float iconSize = lineHeight - UI::Theme::Layout::TreeNodeIconSizeShrink;
                 UI::ShiftCursorY(UI::Theme::Layout::ComponentHeaderIconOffsetY);
                 UI::ImageFlipped(componentIcon, ImVec2(iconSize, iconSize));
                 ImGui::SameLine();
@@ -95,12 +97,21 @@ namespace Lucky
                 ImGui::TextUnformatted(name.c_str());
             }
             
-            ImGui::SameLine(contentRegionAvail.x - 18);
+            ImGui::SameLine(contentRegionAvail.x - lineHeight);
+            UI::ShiftCursorY(UI::Theme::Layout::ComponentHeaderIconOffsetY * 0.5f);
             
-            // 组件设置按钮
-            if (ImGui::Button("+", { 30, 30 }))
+            // 设置按钮
+            const Ref<Texture2D>& settingsIcon = EditorIconManager::GetSettingsIcon();
             {
-                ImGui::OpenPopup("ComponentSettings");  // 打开弹出框
+                ColorSettings& colorSettings = EditorPreferences::Get().GetColors();
+            
+                UI::ScopedStyle buttonBorderSize(ImGuiStyleVar_FrameBorderSize, 0.0f);
+                UI::ScopedColor buttonColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+                UI::ScopedColor buttonActiveColor(ImGuiCol_ButtonActive, { colorSettings.ButtonHovered.x, colorSettings.ButtonHovered.y, colorSettings.ButtonHovered.z, colorSettings.ButtonHovered.w });
+                if (UI::ImageButtonFlipped(settingsIcon, ImVec2(lineHeight, lineHeight), 0))
+                {
+                    ImGui::OpenPopup("ComponentSettings");  // 打开弹出框
+                }
             }
         
             ImGui::Indent(-UI::Theme::Layout::IndentSpacing);

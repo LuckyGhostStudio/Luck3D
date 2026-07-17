@@ -28,6 +28,9 @@ namespace Lucky
         // ---- 拖拽图标 ----
         Ref<Texture2D> DragDropIcon;         // 通用拖拽图标（虚线框 + 右下角 +）
         Ref<Texture2D> DragRejectedIcon;     // 禁止拖拽图标（红色禁止圈）
+
+        // ---- 设置图标 ----
+        Ref<Texture2D> SettingsIcon;         // 设置图标
     };
 
     static EditorIconData s_IconData;
@@ -63,6 +66,9 @@ namespace Lucky
         // ---- 加载拖拽图标 ----
         s_IconData.DragDropIcon     = LoadIcon("Common/DragDrop.png");
         s_IconData.DragRejectedIcon = LoadIcon("Common/DragRejected.png");
+
+        // ---- 加载设置图标 ----
+        s_IconData.SettingsIcon     = LoadIcon("Common/Settings.png");
 
         // ---- 加载资产类型图标 ----
         s_IconData.AssetTypeIcons[AssetType::Material]  = LoadIcon("Asset/Material.png");
@@ -102,6 +108,7 @@ namespace Lucky
         s_IconData.FileIcon.reset();
         s_IconData.DragDropIcon.reset();
         s_IconData.DragRejectedIcon.reset();
+        s_IconData.SettingsIcon.reset();
     }
 
     const Ref<Texture2D>& EditorIconManager::GetAssetTypeIcon(AssetType type)
@@ -162,5 +169,10 @@ namespace Lucky
     const Ref<Texture2D>& EditorIconManager::GetDragDropIcon(bool rejected)
     {
         return rejected ? s_IconData.DragRejectedIcon : s_IconData.DragDropIcon;
+    }
+
+    const Ref<Texture2D>& EditorIconManager::GetSettingsIcon()
+    {
+        return s_IconData.SettingsIcon;
     }
 }
