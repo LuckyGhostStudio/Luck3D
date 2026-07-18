@@ -2,6 +2,7 @@
 #include "Lucky/Utils/PlatformUtils.h"
 
 #include <commdlg.h>
+#include <shellapi.h>
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
@@ -55,5 +56,34 @@ namespace Lucky
         }
 
         return std::string();
+    }
+
+    // ======== PlatformShell ========
+
+    void PlatformShell::RevealInExplorer(const std::filesystem::path& path)
+    {
+#ifdef _WIN32
+        if (!std::filesystem::exists(path))
+        {
+            LF_CORE_WARN("PlatformShell::RevealInExplorer - Path does not exist: {0}", path.generic_string());
+            return;
+        }
+
+        std::wstring wPath = std::filesystem::absolute(path).wstring();
+
+        if (std::filesystem::is_directory(path))
+        {
+            // 目录：直接打开该目录
+            ShellExecuteW(nullptr, L"open", wPath.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        }
+        else
+        {
+            // 文件：打开父目录并选中该文件
+            std::wstring param = L"/select,\"" + wPath + L"\"";
+            ShellExecuteW(nullptr, L"open", L"explorer.exe", param.c_str(), nullptr, SW_SHOWNORMAL);
+        }
+#else
+        LF_CORE_WARN("PlatformShell::RevealInExplorer - Not implemented on this platform.");
+#endif
     }
 }
