@@ -2,6 +2,7 @@
 
 #include "Lucky/Editor/EditorPanel.h"
 #include "Lucky/Scene/Scene.h"
+#include "Lucky/Scene/SceneManager.h"
 #include "Lucky/Renderer/Material.h"
 
 namespace Lucky
@@ -10,7 +11,7 @@ namespace Lucky
     {
     public:
         LightingPanel(const Ref<Scene>& scene);
-        ~LightingPanel() override = default;
+        ~LightingPanel() override;
         
         void SetScene(const Ref<Scene>& scene);
         
@@ -20,5 +21,8 @@ namespace Lucky
         void OnEvent(Event& event) override;
     private:
         Ref<Scene> m_Scene;
+
+        // SceneManager ¶©ÔÄ¾ä±ú£ºctor ÖÐ Subscribe£¬dtor ÖÐ Unsubscribe
+        SceneManager::SubscriptionHandle m_SceneChangedSub = 0;
     };
 }

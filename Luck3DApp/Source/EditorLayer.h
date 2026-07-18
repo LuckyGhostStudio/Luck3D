@@ -27,22 +27,13 @@ namespace Lucky
         void OnEvent(Event& event) override;
     private:
         void UI_DrawMenuBar();
-        
-        /// <summary>
-        /// 创建新场景
-        /// </summary>
-        void CreateScene();
 
         /// <summary>
-        /// 打开场景
+        /// 确保默认场景就绪（编辑器启动、且命令行未指定场景时调用）
+        /// - 若 Assets/Scenes/New Scene.luck3d 已存在 → 加载
+        /// - 若不存在 → 构造包含 Cube + DirectionalLight 的默认场景并落盘
         /// </summary>
-        void OpenScene();
-
-        /// <summary>
-        /// 打开场景
-        /// </summary>
-        /// <param name="filepath">文件路径</param>
-        void OpenScene(const std::filesystem::path& filepath);
+        void EnsureDefaultScene();
 
         /// <summary>
         /// 保存场景到当前场景
@@ -63,16 +54,9 @@ namespace Lucky
         /// </summary>
         /// <param name="filepath">文件路径</param>
         void ImportModel(const std::filesystem::path& filepath);
-        
-        /// <summary>
-        /// 创建材质
-        /// </summary>
-        void CreateMaterial();
     private:
         EditorDockSpace m_EditorDockSpace;  // 停靠空间
 
         Scope<PanelManager> m_PanelManager; // 编辑器面板管理器
-        
-        Ref<Scene> m_Scene;
     };
 }

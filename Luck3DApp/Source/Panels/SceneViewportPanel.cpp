@@ -8,10 +8,16 @@
 
 #include "Lucky/Core/Input/Input.h"
 #include "Lucky/Scene/SelectionManager.h"
+#include "Lucky/Scene/SceneManager.h"
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/Components/Components.h"
 #include "Lucky/Renderer/GizmoRenderer.h"
 #include "Lucky/Editor/EditorPreferences.h"
+#include "Lucky/Editor/DragDropPayloads.h"
+#include "Lucky/Editor/DragDropContext.h"
+#include "Lucky/Editor/DragDropVisuals.h"
+
+#include "Lucky/Asset/AssetManager.h"
 
 #include "Lucky/UI/ScopedGuards.h"
 #include "Lucky/UI/UICore.h"
@@ -45,6 +51,18 @@ namespace Lucky
         fbSpec.Height = 720;
 
         m_Framebuffer = Framebuffer::Create(fbSpec);   // 创建帧缓冲区
+
+        // 订阅 SceneManager 的场景切换事件
+        // 拖拽 .luck3d 到视口后 SceneManager::OpenScene 会广播新场景，此处自动接收并更新 m_Scene
+        m_SceneChangedSub = SceneManager::Subscribe([this](const Ref<Scene>& newScene)
+        {
+            SetScene(newScene);
+        });
+    }
+
+    SceneViewportPanel::~SceneViewportPanel()
+    {
+        SceneManager::Unsubscribe(m_SceneChangedSub);
     }
 
     void SceneViewportPanel::SetScene(const Ref<Scene>& scene)
@@ -256,6 +274,34 @@ namespace Lucky
         ImGui::BeginChild("Viewport", { m_ViewportSize.x, m_ViewportSize.y }, false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
         {
             ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, ImVec2(0, 1), ImVec2(1, 0)); // 场景视口图像
+
+            // ---- 拖拽目标：接收 Project 面板拖入的 .luck3d 场景资产 ----
+            // 仅 AssetType::Scene 受理，其他类型在此处不处理（源端 tooltip 会显示禁止图标）
+            // 未来要支持 "拖 Mesh/Prefab 到视口创建实体" 时，在同一个 target 块里分发即可
+            if (ImGui::BeginDragDropTarget())
+            {
+                const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
+                    DragDrop::AssetHandle,
+                    ImGuiDragDropFlags_AcceptBeforeDelivery | ImGuiDragDropFlags_AcceptNoDrawDefaultRect);
+
+                if (payload && payload->DataSize == sizeof(AssetHandle))
+                {
+                    AssetHandle draggedHandle = *static_cast<AssetHandle*>(payload->Data);
+                    if (AssetManager::GetAssetType(draggedHandle) == AssetType::Scene)
+                    {
+                        // 悬停期间：上报已接受（源端 tooltip 切为允许图标）+ 高亮视口矩形
+                        UI::DragDropContext::NotifyTargetAccepts(DragDrop::AssetHandle);
+                        UI::DragDropVisuals::HighlightTargetRect();
+
+                        // 释放鼠标（IsDelivery）时才真正切换场景，避免中途误触
+                        if (payload->IsDelivery())
+                        {
+                            SceneManager::OpenScene(draggedHandle);
+                        }
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
         
             UI_DrawGizmos();    // 绘制 Gizmo
         }

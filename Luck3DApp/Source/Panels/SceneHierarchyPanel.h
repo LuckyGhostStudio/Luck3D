@@ -2,6 +2,7 @@
 
 #include "Lucky/Editor/EditorPanel.h"
 #include "Lucky/Scene/Scene.h"
+#include "Lucky/Scene/SceneManager.h"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -14,7 +15,7 @@ namespace Lucky
     public:
         SceneHierarchyPanel() = default;
         SceneHierarchyPanel(const Ref<Scene>& scene);
-        ~SceneHierarchyPanel() override = default;
+        ~SceneHierarchyPanel() override;
         
         void SetScene(const Ref<Scene>& scene);
 
@@ -197,5 +198,9 @@ namespace Lucky
         NameHitRect m_LastNameHitRect;
 
         Ref<Scene> m_Scene;
+
+        // SceneManager 订阅句柄：ctor 中 Subscribe，dtor 中 Unsubscribe
+        // 实现自动跟随 SceneManager::ActiveScene 切换，无需 EditorLayer 手动 SetScene
+        SceneManager::SubscriptionHandle m_SceneChangedSub = 0;
     };
 }

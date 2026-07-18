@@ -15,6 +15,7 @@
 
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/SelectionManager.h"
+#include "Lucky/Scene/SceneManager.h"
 
 #include "Lucky/Utils/PlatformUtils.h"
 
@@ -59,50 +60,95 @@ namespace Lucky
         AssetInspectorRegistry::Register(AssetType::Scene,     &SceneInspector::Draw);
         AssetInspectorRegistry::Register(AssetType::Shader,    &ShaderInspector::Draw);
 
-        m_Scene = CreateRef<Scene>("New Scene");
-        
+        // 初始化 SceneManager：作为当前活动场景的唯一真源
+        // 面板通过 Subscribe 订阅切换事件，无需再手动 SetScene
+        SceneManager::Init();
+
         m_PanelManager = CreateScope<PanelManager>();
         
-        m_PanelManager->AddPanel<SceneHierarchyPanel>(SCENE_HIERARCHY_PANEL_ID, "Hierarchy", true, m_Scene);
-        m_PanelManager->AddPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID, "Scene", true, m_Scene);
-        m_PanelManager->AddPanel<InspectorPanel>(INSPECTOR_PANEL_ID, "Inspector", true, m_Scene);
+        // 面板 ctor 中订阅 SceneManager 场景切换事件，此处传入的 initialScene 仅用于满足既有 ctor 签名
+        // 真正的 ActiveScene 由下方 EnsureDefaultScene / OpenScene 通过订阅回调统一同步到各面板
+        Ref<Scene> placeholder = CreateRef<Scene>("New Scene");
+        m_PanelManager->AddPanel<SceneHierarchyPanel>(SCENE_HIERARCHY_PANEL_ID, "Hierarchy", true, placeholder);
+        m_PanelManager->AddPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID, "Scene", true, placeholder);
+        m_PanelManager->AddPanel<InspectorPanel>(INSPECTOR_PANEL_ID, "Inspector", true, placeholder);
         m_PanelManager->AddPanel<ProjectAssetsPanel>(PROJECT_ASSETS_PANEL_ID, "Project", true);
         m_PanelManager->AddPanel<RenderPipelinePanel>(RENDER_PIPELINE_PANEL_ID, "Render Pipeline", true);
         m_PanelManager->AddPanel<PreferencesPanel>(PREFERENCES_PANEL_ID, "Preferences", false);
-        m_PanelManager->AddPanel<LightingPanel>(LIGHTING_PANEL_ID, "Lighting", false, m_Scene);
-        
-        // Temp 测试 Cube
-        Entity cubeEntity = m_Scene->CreateEntity("Cube");
-        
-        // MeshFilter
+        m_PanelManager->AddPanel<LightingPanel>(LIGHTING_PANEL_ID, "Lighting", false, placeholder);
+
+        auto commandLineArgs = Application::GetInstance().GetSpecification().CommandLineArgs;
+        // 命令行传入的场景优先；否则加载/创建默认场景
+        if (commandLineArgs.Count > 1)
+        {
+            const char* sceneFilePath = commandLineArgs[1];
+            SceneManager::OpenScene(std::filesystem::path(sceneFilePath));
+        }
+        else
+        {
+            EnsureDefaultScene();
+        }
+    }
+
+    void EditorLayer::EnsureDefaultScene()
+    {
+        // 默认场景固定路径：Assets/Scenes/New Scene.luck3d
+        // 使用 std::filesystem::path 构造以正确处理路径分隔符和空格
+        const std::filesystem::path relPath = std::filesystem::path("Assets") / "Scenes" / "New Scene.luck3d";
+        const std::string normalizedPath = relPath.generic_string();
+        const std::filesystem::path absPath = std::filesystem::absolute(relPath);
+
+        if (std::filesystem::exists(absPath))
+        {
+            // 场景文件已存在（例如上次启动创建过）：直接加载，保留用户在其上的所有修改
+            // 内部会 ImportAsset 注册 -> UnloadAsset 清缓存 -> GetAsset 反序列化 -> SetActiveScene 广播
+            SceneManager::OpenScene(relPath);
+            return;
+        }
+
+        // 场景文件不存在：首次启动，构造默认场景并落盘
+        // 确保上级目录存在，避免 CreateAsset 内 SaveAssetToFile 失败
+        std::filesystem::create_directories(absPath.parent_path());
+
+        Ref<Scene> scene = CreateRef<Scene>("New Scene");
+
+        // 默认 Cube
+        Entity cubeEntity = scene->CreateEntity("Cube");
         cubeEntity.AddComponent<MeshFilterComponent>(PrimitiveType::Cube);
-        
-        // MeshRenderer
         cubeEntity.AddComponent<MeshRendererComponent>();
-        
-        // 测试 DirLight
-        Entity lightEntity = m_Scene->CreateEntity("Directional Light");
-        
-        // DirectionalLight
+
+        // 默认 DirectionalLight
+        Entity lightEntity = scene->CreateEntity("Directional Light");
         lightEntity.AddComponent<LightComponent>(LightType::Directional);
-        
+
         // 设置初始方向斜向下
         TransformComponent& transform = lightEntity.GetComponent<TransformComponent>();
         transform.SetRotationEuler(glm::vec3(glm::radians(50.0f), glm::radians(-32.0f), 0.0f));
 
-        auto commandLineArgs = Application::GetInstance().GetSpecification().CommandLineArgs;
-        // 从命令行加载场景
-        if (commandLineArgs.Count > 1)
-        {
-            const char* sceneFilePath = commandLineArgs[1];
+        // Main Camera：暂缓，等相机组件到位后再补
 
-            OpenScene(sceneFilePath);
+        // 落盘 + 注册到资产系统 + 放入缓存
+        // 内部会调 scene->SetHandle(newHandle)，此后 Save 可通过 scene->GetHandle() 拿到路径
+        AssetHandle sceneHandle = AssetManager::CreateAsset(scene, normalizedPath);
+        if (!sceneHandle.IsValid())
+        {
+            LF_CORE_ERROR("EditorLayer::EnsureDefaultScene - Failed to create default scene: '{0}'", normalizedPath);
+            // 即便落盘失败也让内存中的场景可用，避免进入编辑器后没有任何场景
+            SceneManager::SetActiveScene(scene);
+            return;
         }
+
+        // 广播为当前活动场景，触发所有面板通过订阅回调同步
+        SceneManager::SetActiveScene(scene);
     }
 
     void EditorLayer::OnDetach()
     {
         LF_TRACE("EditorLayer::OnDetach");
+
+        // 关闭 SceneManager：释放 ActiveScene 引用和订阅表
+        // 注意：必须在 PanelManager 释放之前调用，避免面板 dtor 时订阅表已失效
+        SceneManager::Shutdown();
 
         EditorIconManager::Shutdown();
     }
@@ -134,14 +180,19 @@ namespace Lucky
             // File
             if (ImGui::BeginMenu("File"))
             {
-                if (ImGui::MenuItem("New"))
+                if (ImGui::MenuItem("New Scene"))
                 {
-                    CreateScene();
+                    SceneManager::NewSceneWithDialog();
                 }
                 
-                if (ImGui::MenuItem("Open..."))
+                if (ImGui::MenuItem("Open Scene"))
                 {
-                    OpenScene();
+                    // 弹出文件对话框，选中后交由 SceneManager 打开
+                    std::string filepath = FileDialogs::OpenFile("Luck3D Scene(*.luck3d)\0*.luck3d\0");
+                    if (!filepath.empty())
+                    {
+                        SceneManager::OpenScene(std::filesystem::path(filepath));
+                    }
                 }
                 
                 ImGui::Separator();
@@ -151,18 +202,16 @@ namespace Lucky
                     SaveScene();
                 }
                 
+                if (ImGui::MenuItem("Save As..."))
+                {
+                    SceneManager::SaveSceneAs();
+                }
+                
                 ImGui::Separator();
                 
                 if (ImGui::MenuItem("Import Model..."))
                 {
                     ImportModel();
-                }
-                
-                ImGui::Separator();
-                
-                if (ImGui::MenuItem("Create Material..."))
-                {
-                    CreateMaterial();
                 }
                 
                 ImGui::Separator();
@@ -295,111 +344,19 @@ namespace Lucky
         }
     }
 
-    void EditorLayer::CreateScene()
-    {
-        // 通过文件对话框指定保存路径
-        std::string filepath = FileDialogs::SaveFile("Luck3D Scene(*.luck3d)\0*.luck3d\0");
-        if (filepath.empty()) return;
-        
-        // 确保扩展名为 .luck3d
-        std::filesystem::path path(filepath);
-        if (path.extension() != ".luck3d")
-        {
-            path.replace_extension(".luck3d");
-        }
-        
-        SelectionManager::Deselect();               // 清空选中项
-        
-        // 创建新的空场景
-        Ref<Scene> scene = CreateRef<Scene>();
-        scene->SetName(path.stem().string());
-        
-        // 计算相对路径
-        std::filesystem::path relPath = std::filesystem::relative(path);
-        std::string normalizedPath = relPath.generic_string();
-        
-        // 通过 CreateAsset 创建资产文件并注册到 Registry
-        AssetHandle sceneHandle = AssetManager::CreateAsset(scene, normalizedPath);
-        if (!sceneHandle.IsValid())
-        {
-            LF_CORE_ERROR("Failed to create scene asset: '{0}'", normalizedPath);
-            return;
-        }
-        
-        m_Scene = scene;
-
-        // 设置所有面板的场景上下文
-        m_PanelManager->GetPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID)->SetScene(m_Scene);
-        m_PanelManager->GetPanel<SceneHierarchyPanel>(SCENE_HIERARCHY_PANEL_ID)->SetScene(m_Scene);
-        m_PanelManager->GetPanel<InspectorPanel>(INSPECTOR_PANEL_ID)->SetScene(m_Scene);
-        m_PanelManager->GetPanel<LightingPanel>(LIGHTING_PANEL_ID)->SetScene(m_Scene);
-    }
-
-    void EditorLayer::OpenScene()
-    {
-        // 打开文件对话框（文件类型名\0 文件类型.luck3d）
-        std::string filepath = FileDialogs::OpenFile("Luck3D Scene(*.luck3d)\0*.luck3d\0");
-
-        // 路径不为空
-        if (!filepath.empty())
-        {
-            OpenScene(filepath);    // 打开场景
-        }
-    }
-
-    void EditorLayer::OpenScene(const std::filesystem::path& filepath)
-    {
-        // 不是场景文件
-        if (filepath.extension().string() != ".luck3d")
-        {
-            LF_WARN("Can not Load {0} - Not a Scene File.", filepath.filename().string());
-            return;
-        }
-        
-        SelectionManager::Deselect();               // 清空选中项
-
-        // 注册到资产系统（如果尚未注册）
-        std::filesystem::path relPath = std::filesystem::relative(filepath);
-        std::string normalizedPath = relPath.generic_string();
-        
-        AssetHandle sceneHandle = AssetManager::ImportAsset(normalizedPath, AssetType::Scene);
-        if (!sceneHandle.IsValid())
-        {
-            LF_CORE_ERROR("Failed to import scene: '{0}'", normalizedPath);
-            return;
-        }
-        
-        // 通过 AssetManager 加载场景
-        // 场景不使用缓存（每次打开都是新实例）
-        AssetManager::UnloadAsset(sceneHandle);  // 清除旧缓存
-        Ref<Scene> scene = AssetManager::GetAsset<Scene>(sceneHandle);
-        if (!scene)
-        {
-            LF_CORE_ERROR("Failed to load scene asset: '{0}'", normalizedPath);
-            return;
-        }
-        
-        m_Scene = scene;
-
-        // 设置所有面板的场景上下文
-        m_PanelManager->GetPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID)->SetScene(m_Scene);
-        m_PanelManager->GetPanel<SceneHierarchyPanel>(SCENE_HIERARCHY_PANEL_ID)->SetScene(m_Scene);
-        m_PanelManager->GetPanel<InspectorPanel>(INSPECTOR_PANEL_ID)->SetScene(m_Scene);
-        m_PanelManager->GetPanel<LightingPanel>(LIGHTING_PANEL_ID)->SetScene(m_Scene);
-    }
-
     void EditorLayer::SaveScene()
     {
-        if (!m_Scene->GetHandle().IsValid())
+        const Ref<Scene>& scene = SceneManager::GetActiveScene();
+        if (!scene || !scene->GetHandle().IsValid())
         {
             LF_CORE_WARN("No scene to save (no valid handle).");
             return;
         }
         
-        const std::string& filepath = AssetManager::GetAssetFilePath(m_Scene->GetHandle());
+        const std::string& filepath = AssetManager::GetAssetFilePath(scene->GetHandle());
         std::string absolutePath = std::filesystem::absolute(filepath).string();
         
-        SceneSerializer::Serialize(m_Scene, absolutePath);
+        SceneSerializer::Serialize(scene, absolutePath);
     }
 
     void EditorLayer::SerializeScene(Ref<Scene> scene, const std::filesystem::path& filepath)
@@ -453,7 +410,13 @@ namespace Lucky
         result.MeshData->SetHandle(meshHandle);
 
         // 6. 创建实体
-        Entity entity = m_Scene->CreateEntity(meshName);
+        const Ref<Scene>& activeScene = SceneManager::GetActiveScene();
+        if (!activeScene)
+        {
+            LF_CORE_ERROR("EditorLayer::ImportModel - No active scene.");
+            return;
+        }
+        Entity entity = activeScene->CreateEntity(meshName);
 
         // 添加 MeshFilter
         auto& meshFilterComponent = entity.AddComponent<MeshFilterComponent>();
@@ -494,36 +457,5 @@ namespace Lucky
         SelectionManager::Select(entity.GetUUID()); // 选中当前实体
 
         LF_CORE_INFO("Imported model: {0} ({1} SubMeshes, {2} Materials)", meshName, result.MeshData->GetSubMeshes().size(), meshRenderer.Materials.size());
-    }
-
-    void EditorLayer::CreateMaterial()
-    {
-        // 打开保存文件对话框
-        std::string filepath = FileDialogs::SaveFile("Luck3D Material (*.lmat)\0*.lmat\0");
-        
-        if (filepath.empty())
-        {
-            return;
-        }
-        
-        // 确保扩展名为 .lmat
-        std::filesystem::path path(filepath);
-        if (path.extension() != ".lmat")
-        {
-            path.replace_extension(".lmat");
-        }
-        
-        // 转为相对路径（CreateAsset 要求相对路径）
-        std::filesystem::path relPath = std::filesystem::relative(path);
-        std::string normalizedPath = relPath.generic_string();
-        
-        // 创建默认材质（使用 Standard Shader）
-        Ref<ShaderLibrary>& shaderLib = Renderer3D::GetShaderLibrary();
-        Ref<Shader> standardShader = shaderLib->Get("Standard");
-        
-        std::string materialName = relPath.stem().string();
-        Ref<Material> material = CreateRef<Material>(materialName, standardShader);
-        
-        AssetManager::CreateAsset(material, normalizedPath);  // 创建材质资产
     }
 }

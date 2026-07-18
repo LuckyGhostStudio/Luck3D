@@ -11,7 +11,16 @@ namespace Lucky
     LightingPanel::LightingPanel(const Ref<Scene>& scene)
         : m_Scene(scene)
     {
-        
+        // 订阅 SceneManager 的场景切换事件
+        m_SceneChangedSub = SceneManager::Subscribe([this](const Ref<Scene>& newScene)
+        {
+            SetScene(newScene);
+        });
+    }
+
+    LightingPanel::~LightingPanel()
+    {
+        SceneManager::Unsubscribe(m_SceneChangedSub);
     }
 
     void LightingPanel::SetScene(const Ref<Scene>& scene)

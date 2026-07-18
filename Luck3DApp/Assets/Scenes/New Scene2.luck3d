@@ -1,0 +1,67 @@
+Scene: New Scene2
+Handle: 1500878858009030645
+EnvironmentSettings:
+  SkyboxMaterial: 7865802476581088480
+  AmbientSource: 0
+  AmbientColor: [0.211999997, 0.226999998, 0.259000003]
+  DiffuseIntensity: 1
+  SpecularIntensity: 1
+  ReflectionResolution: 128
+RootEntityOrder: [2308550316021546899, 10156743505635864205, 7707612967257144249]
+Entities:
+  - Entity: 7707612967257144249
+    NameComponent:
+      Name: Sphere
+    TransformComponent:
+      Position: [0.947219312, 0.749528229, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 18139247743970091234
+  - Entity: 2308550316021546899
+    NameComponent:
+      Name: Cube
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 1
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 18139247743970091234
+  - Entity: 10156743505635864205
+    NameComponent:
+      Name: Directional Light
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0.406246752, -0.249812275, 0.116489381, 0.871198952]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    LightComponent:
+      Type: 0
+      Color: [1, 1, 1]
+      Intensity: 1
+      Shadows: 1
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1
+      CascadeCount: 4
+      ShadowDistance: 150
+      ShadowMapResolution: 2048
+      CascadeSplits: [0.0670000017, 0.200000003, 0.467000008, 1]

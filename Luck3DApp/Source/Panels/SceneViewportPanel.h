@@ -3,6 +3,7 @@
 #include "Lucky/Editor/EditorPanel.h"
 #include "Lucky/Renderer/Framebuffer.h"
 #include "Lucky/Scene/Scene.h"
+#include "Lucky/Scene/SceneManager.h"
 #include "Lucky/Core/Events/KeyEvent.h"
 #include "Lucky/Core/Events/MouseEvent.h"
 
@@ -13,7 +14,7 @@ namespace Lucky
     public:
         SceneViewportPanel() = default;
         SceneViewportPanel(const Ref<Scene>& scene);
-        ~SceneViewportPanel() override = default;
+        ~SceneViewportPanel() override;
         
         void SetScene(const Ref<Scene>& scene);
 
@@ -50,5 +51,8 @@ namespace Lucky
         bool m_ShowGrid = false; // 是否显示坐标系网格
         int m_GizmoType = -1;   // 当前操作的 Gizmo 类型（-1 表示无）
         int m_GizmoMode = 0;    // Gizmo 模式: 0 本地坐标 1 世界坐标
+
+        // SceneManager 订阅句柄：ctor 中 Subscribe，dtor 中 Unsubscribe
+        SceneManager::SubscriptionHandle m_SceneChangedSub = 0;
     };
 }

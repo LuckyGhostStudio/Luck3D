@@ -3,6 +3,7 @@
 #include "Lucky/Editor/EditorPanel.h"
 #include "Lucky/Editor/EditorIconManager.h"
 #include "Lucky/Scene/Scene.h"
+#include "Lucky/Scene/SceneManager.h"
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/Components/Components.h"
 
@@ -23,7 +24,7 @@ namespace Lucky
     public:
         InspectorPanel() = default;
         InspectorPanel(const Ref<Scene>& scene);
-        ~InspectorPanel() override = default;
+        ~InspectorPanel() override;
         
         void SetScene(const Ref<Scene>& scene);
 
@@ -47,6 +48,9 @@ namespace Lucky
         void DrawComponent(const std::string& name, Entity entity, UIFunction OnOpened);
     private:
         Ref<Scene> m_Scene;
+
+        // SceneManager ¶©ÔÄ¾ä±ú£ºctor ÖÐ Subscribe£¬dtor ÖÐ Unsubscribe
+        SceneManager::SubscriptionHandle m_SceneChangedSub = 0;
     };
     
     template<typename TComponent, typename UIFunction>

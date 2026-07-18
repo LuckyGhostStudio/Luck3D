@@ -9,9 +9,26 @@ EnvironmentSettings:
   ReflectionResolution: 128
 RootEntityOrder: [6940671747553840415, 13657804763704773549]
 Entities:
-  - Entity: 13657804763704773549
+  - Entity: 148378086717515613
     NameComponent:
-      Name: E
+      Name: Plane
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 7439949075983068058
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 2
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 18139247743970091234
+  - Entity: 6940671747553840415
+    NameComponent:
+      Name: A
     TransformComponent:
       Position: [0, 0, 0]
       Rotation: [0, 0, 0, 1]
@@ -19,16 +36,17 @@ Entities:
     RelationshipComponent:
       Parent: 0
       Children:
-        []
-  - Entity: 7439949075983068058
+        - Child: 14963610531223243495
+        - Child: 6201487063633907476
+  - Entity: 14963610531223243495
     NameComponent:
-      Name: D
+      Name: B
     TransformComponent:
       Position: [0, 0, 0]
       Rotation: [0, 0, 0, 1]
       Scale: [1, 1, 1]
     RelationshipComponent:
-      Parent: 6201487063633907476
+      Parent: 6940671747553840415
       Children:
         []
   - Entity: 6201487063633907476
@@ -42,20 +60,20 @@ Entities:
       Parent: 6940671747553840415
       Children:
         - Child: 7439949075983068058
-  - Entity: 14963610531223243495
+  - Entity: 7439949075983068058
     NameComponent:
-      Name: B
+      Name: D
     TransformComponent:
       Position: [0, 0, 0]
       Rotation: [0, 0, 0, 1]
       Scale: [1, 1, 1]
     RelationshipComponent:
-      Parent: 6940671747553840415
+      Parent: 6201487063633907476
       Children:
-        []
-  - Entity: 6940671747553840415
+        - Child: 148378086717515613
+  - Entity: 13657804763704773549
     NameComponent:
-      Name: A
+      Name: E
     TransformComponent:
       Position: [0, 0, 0]
       Rotation: [0, 0, 0, 1]
@@ -63,5 +81,4 @@ Entities:
     RelationshipComponent:
       Parent: 0
       Children:
-        - Child: 14963610531223243495
-        - Child: 6201487063633907476
+        []

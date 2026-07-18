@@ -245,7 +245,17 @@ namespace Lucky
     SceneHierarchyPanel::SceneHierarchyPanel(const Ref<Scene>& scene)
         : m_Scene(scene)
     {
-        
+        // 订阅 SceneManager 的场景切换事件，activeScene 变更时自动同步 m_Scene
+        // 面板生命周期通常晚于 SceneManager 首次 SetActiveScene，因此这里的 lambda 也会承接首帧广播
+        m_SceneChangedSub = SceneManager::Subscribe([this](const Ref<Scene>& newScene)
+        {
+            SetScene(newScene);
+        });
+    }
+
+    SceneHierarchyPanel::~SceneHierarchyPanel()
+    {
+        SceneManager::Unsubscribe(m_SceneChangedSub);
     }
 
     void SceneHierarchyPanel::SetScene(const Ref<Scene>& scene)

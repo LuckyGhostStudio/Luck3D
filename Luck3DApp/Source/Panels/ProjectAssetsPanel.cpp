@@ -359,15 +359,6 @@ namespace Lucky
         {
             EnqueueAction([this]() { OnRefreshRequested(); });
         }
-
-        // ---- 只读信息（仅 Asset 展示） ----
-        if (ctx.Kind == AssetContextKind::Asset)
-        {
-            ImGui::Separator();
-            ImGui::TextDisabled("Handle: 0x%08X", static_cast<uint32_t>(ctx.Handle));
-            ImGui::TextDisabled("Type:   %s", AssetTypeToString(AssetManager::GetAssetType(ctx.Handle)));
-            ImGui::TextDisabled("Path:   %s", AssetManager::GetAssetFilePath(ctx.Handle).c_str());
-        }
     }
 
     AssetContext ProjectAssetsPanel::MakeContext(AssetContextKind kind, const std::filesystem::path& path, AssetHandle handle) const
