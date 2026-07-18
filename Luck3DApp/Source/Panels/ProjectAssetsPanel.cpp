@@ -10,6 +10,11 @@
 #include "Lucky/Editor/DragDropPayloads.h"
 #include "Lucky/Editor/DragDropContext.h"
 #include "Lucky/Scene/SelectionManager.h"
+#include "Lucky/Scene/Scene.h"
+#include "Lucky/Renderer/Material.h"
+#include "Lucky/Renderer/Renderer3D.h"
+#include "Lucky/Renderer/Shader.h"
+#include "Lucky/Utils/PlatformUtils.h"
 
 #include "Lucky/Core/Events/KeyEvent.h"
 #include "Lucky/Core/Input/Input.h"
@@ -83,6 +88,11 @@ namespace Lucky
 
             ImGui::EndTable();
         }
+
+        // ---- 帧末：执行当帧入队的写操作 ----
+        // 任何会重建 m_RootNode / 修改 Registry / 修改 m_CurrentDirectory 的操作均统一在此处执行，
+        // 避免在 DrawDirectoryTreeNode 递归遍历 SubDirectories 时悬空迭代器
+        FlushPendingActions();
     }
 
     void ProjectAssetsPanel::OnEvent(Event& event)
@@ -95,10 +105,10 @@ namespace Lucky
         EventDispatcher dispatcher(event);
         dispatcher.Dispatch<KeyPressedEvent>([this](KeyPressedEvent& e) -> bool
         {
-            // Ctrl+R 触发 Refresh
+            // Ctrl+R 触发 Refresh（入队到帧末执行，保持与菜单 Refresh 一致的安全语义）
             if (e.GetKeyCode() == Key::R && Input::IsKeyPressed(Key::LeftControl))
             {
-                OnRefreshRequested();
+                EnqueueAction([this]() { OnRefreshRequested(); });
                 return true;
             }
 
@@ -108,10 +118,10 @@ namespace Lucky
 
     void ProjectAssetsPanel::DrawToolbar()
     {
-        // 刷新按钮（等价于 Ctrl+R）
+        // 刷新按钮（等价于 Ctrl+R，入队到帧末执行）
         if (UI::Button("Refresh"))
         {
-            OnRefreshRequested();
+            EnqueueAction([this]() { OnRefreshRequested(); });
         }
 
         UI::Draw::HorizontalLine();
@@ -139,7 +149,19 @@ namespace Lucky
         {
             ImGui::PopFont();
         }
-        
+
+        // ---- 右键菜单（必须紧跟 BeginTreeNode，作用于上一个 item） ----
+        {
+            std::string popupID = std::format("##DirTreePopup_{}", node.FullPath.generic_string());
+            if (UI::BeginPopupContextItem(popupID.c_str(), ImGuiPopupFlags_MouseButtonRight))
+            {
+                SelectionManager::SelectFolder(node.FullPath);   // 右键即选中
+                AssetContext ctx = MakeContext(AssetContextKind::Directory, node.FullPath, AssetHandle{});
+                DrawAssetContextMenu(ctx);
+                UI::EndPopup();
+            }
+        }
+
         if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
         {
             NavigateTo(node.FullPath);
@@ -166,6 +188,15 @@ namespace Lucky
         for (auto& entry : std::filesystem::directory_iterator(m_CurrentDirectory))
         {
             DrawAssetItem(entry);
+        }
+
+        // ---- 空白区右键：NoOpenOverItems 保证不与 item 菜单打架 ----
+        if (UI::BeginPopupContextWindow("##ContentAreaEmptyPopup", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+        {
+            SelectionManager::Deselect();   // 空白右键：清空选中，与"空白左键"语义一致
+            AssetContext ctx = MakeContext(AssetContextKind::EmptySpace, std::filesystem::path{}, AssetHandle{});
+            DrawAssetContextMenu(ctx);
+            UI::EndPopup();
         }
     }
 
@@ -213,10 +244,26 @@ namespace Lucky
             UI::EndDragDropSource();
         }
 
-        // 右键上下文菜单（Delete）：仅对已注册的资产项启用
-        if (!isDirectory && assetHandle.IsValid())
+        // ---- 右键上下文菜单：目录 / 资产 分别挂，走统一菜单实现 ----
+        if (isDirectory)
         {
-            DrawAssetContextMenu(assetHandle);
+            if (UI::BeginPopupContextItem(nullptr, ImGuiPopupFlags_MouseButtonRight))
+            {
+                SelectionManager::SelectFolder(path);
+                AssetContext ctx = MakeContext(AssetContextKind::Directory, path, AssetHandle{});
+                DrawAssetContextMenu(ctx);
+                UI::EndPopup();
+            }
+        }
+        else if (assetHandle.IsValid())
+        {
+            if (UI::BeginPopupContextItem(nullptr, ImGuiPopupFlags_MouseButtonRight))
+            {
+                SelectionManager::SelectAsset(assetHandle);
+                AssetContext ctx = MakeContext(AssetContextKind::Asset, path, assetHandle);
+                DrawAssetContextMenu(ctx);
+                UI::EndPopup();
+            }
         }
         
         // 选中触发时机：鼠标"抬起"时（且期间未发生拖拽），避免 MouseDown 抢占拖拽源
@@ -240,27 +287,115 @@ namespace Lucky
         }
     }
 
-    void ProjectAssetsPanel::DrawAssetContextMenu(AssetHandle assetHandle)
+    void ProjectAssetsPanel::DrawAssetContextMenu(const AssetContext& ctx)
     {
-        if (!UI::BeginPopupContextItem())
+        // ---- Create 子菜单：三种上下文都可用 ----
+        if (ImGui::BeginMenu("Create"))
         {
-            return;
-        }
-
-        // 与 SceneHierarchyPanel 一致：弹出菜单时先选中该 Asset，Inspector 同步显示对应资产
-        SelectionManager::SelectAsset(assetHandle);
-
-        if (ImGui::MenuItem("Delete"))
-        {
-            if (AssetManager::DeleteAsset(assetHandle))
+            if (ImGui::MenuItem("Folder"))
             {
-                SelectionManager::Deselect();
-                RebuildDirectoryTree();
+                std::filesystem::path targetDir = ctx.TargetDir;
+                EnqueueAction([this, targetDir]() { CreateFolderAt(targetDir); });
             }
-            ImGui::CloseCurrentPopup();
+            if (ImGui::MenuItem("Material"))
+            {
+                std::filesystem::path targetDir = ctx.TargetDir;
+                EnqueueAction([this, targetDir]() { CreateMaterialAt(targetDir); });
+            }
+            if (ImGui::MenuItem("Scene"))
+            {
+                std::filesystem::path targetDir = ctx.TargetDir;
+                EnqueueAction([this, targetDir]() { CreateSceneAt(targetDir); });
+            }
+            ImGui::EndMenu();
         }
 
-        UI::EndPopup();
+        ImGui::Separator();
+
+        // ---- Show in Explorer：所有上下文都可用（不修改目录树，无需入队） ----
+        if (ImGui::MenuItem("Show in Explorer"))
+        {
+            std::filesystem::path target = (ctx.Kind == AssetContextKind::EmptySpace) ? m_CurrentDirectory : ctx.Path;
+            PlatformShell::RevealInExplorer(target);
+        }
+
+        ImGui::Separator();
+
+        // ---- Rename（预留，第一阶段灰置） ----
+        ImGui::BeginDisabled(true);
+        ImGui::MenuItem("Rename", "F2");
+        ImGui::EndDisabled();
+
+        // ---- Delete：Directory / Asset 可用（入队到帧末执行） ----
+        bool canDelete = (ctx.Kind == AssetContextKind::Directory) || (ctx.Kind == AssetContextKind::Asset);
+        ImGui::BeginDisabled(!canDelete);
+        if (ImGui::MenuItem("Delete", "Del"))
+        {
+            AssetContext captured = ctx;   // 拷贝一份，ctx 是临时引用，lambda 列后每帧执行时已失效
+            EnqueueAction([this, captured]()
+            {
+                if (captured.Kind == AssetContextKind::Asset)
+                {
+                    if (AssetManager::DeleteAsset(captured.Handle))
+                    {
+                        SelectionManager::Deselect();
+                        RebuildDirectoryTree();
+                    }
+                }
+                else if (captured.Kind == AssetContextKind::Directory)
+                {
+                    DeleteFolderRecursive(captured.Path);
+                    SelectionManager::Deselect();
+                    RebuildDirectoryTree();
+                }
+            });
+        }
+        ImGui::EndDisabled();
+
+        ImGui::Separator();
+
+        // ---- Refresh：所有上下文都可用（入队，等价 Ctrl+R） ----
+        if (ImGui::MenuItem("Refresh", "Ctrl+R"))
+        {
+            EnqueueAction([this]() { OnRefreshRequested(); });
+        }
+
+        // ---- 只读信息（仅 Asset 展示） ----
+        if (ctx.Kind == AssetContextKind::Asset)
+        {
+            ImGui::Separator();
+            ImGui::TextDisabled("Handle: 0x%08X", static_cast<uint32_t>(ctx.Handle));
+            ImGui::TextDisabled("Type:   %s", AssetTypeToString(AssetManager::GetAssetType(ctx.Handle)));
+            ImGui::TextDisabled("Path:   %s", AssetManager::GetAssetFilePath(ctx.Handle).c_str());
+        }
+    }
+
+    AssetContext ProjectAssetsPanel::MakeContext(AssetContextKind kind, const std::filesystem::path& path, AssetHandle handle) const
+    {
+        AssetContext ctx;
+        ctx.Kind = kind;
+        ctx.Path = path;
+        ctx.Handle = handle;
+
+        switch (kind)
+        {
+            case AssetContextKind::Directory:
+            {
+                ctx.TargetDir = path;
+                break;
+            }
+            case AssetContextKind::Asset:
+            {
+                ctx.TargetDir = path.parent_path();
+                break;
+            }
+            case AssetContextKind::EmptySpace:
+            {
+                ctx.TargetDir = m_CurrentDirectory.empty() ? m_AssetsDirectory : m_CurrentDirectory;
+                break;
+            }
+        }
+        return ctx;
     }
     
     void ProjectAssetsPanel::NavigateTo(const std::filesystem::path& directory)
@@ -335,5 +470,164 @@ namespace Lucky
     {
         std::string ext = filepath.extension().string();
         return GetAssetTypeFromExtension(ext);
+    }
+
+    // ======== CRUD ========
+
+    void ProjectAssetsPanel::CreateFolderAt(const std::filesystem::path& parentDir)
+    {
+        std::filesystem::path target = MakeUniquePath(parentDir, "New Folder", "");
+
+        std::error_code ec;
+        std::filesystem::create_directory(target, ec);
+        if (ec)
+        {
+            LF_CORE_ERROR("ProjectAssetsPanel::CreateFolderAt - Failed to create '{0}': {1}", target.generic_string(), ec.message());
+            return;
+        }
+
+        LF_CORE_INFO("ProjectAssetsPanel::CreateFolderAt - Created '{0}'", target.generic_string());
+        RebuildDirectoryTree();
+
+        // 与 Unity 一致：创建后自动选中新建的 Folder，方便立即 Rename
+        // 只写入 SelectionManager（右侧内容区据此高亮），不修改 m_CurrentDirectory，保持左侧目录树浏览状态不变
+        SelectionManager::SelectFolder(target);
+    }
+
+    void ProjectAssetsPanel::CreateMaterialAt(const std::filesystem::path& parentDir)
+    {
+        std::filesystem::path target = MakeUniquePath(parentDir, "New Material", ".lmat");
+
+        // 使用 Standard Shader 作为默认 Shader
+        const Ref<ShaderLibrary>& shaderLib = Renderer3D::GetShaderLibrary();
+        Ref<Shader> standardShader = shaderLib->Get("Standard");
+
+        std::string materialName = target.stem().string();
+        Ref<Material> material = CreateRef<Material>(materialName, standardShader);
+
+        AssetHandle handle = AssetManager::CreateAsset(material, target.generic_string());
+        if (!handle.IsValid())
+        {
+            LF_CORE_ERROR("ProjectAssetsPanel::CreateMaterialAt - Failed to create material at '{0}'", target.generic_string());
+            return;
+        }
+
+        LF_CORE_INFO("ProjectAssetsPanel::CreateMaterialAt - Created '{0}' (handle {1})", target.generic_string(), static_cast<uint64_t>(handle));
+        RebuildDirectoryTree();
+        SelectionManager::SelectAsset(handle);   // 与 Unity 一致：创建后自动选中
+    }
+
+    void ProjectAssetsPanel::CreateSceneAt(const std::filesystem::path& parentDir)
+    {
+        std::filesystem::path target = MakeUniquePath(parentDir, "New Scene", ".luck3d");
+
+        Ref<Scene> scene = CreateRef<Scene>();
+        scene->SetName(target.stem().string());
+
+        AssetHandle handle = AssetManager::CreateAsset(scene, target.generic_string());
+        if (!handle.IsValid())
+        {
+            LF_CORE_ERROR("ProjectAssetsPanel::CreateSceneAt - Failed to create scene at '{0}'", target.generic_string());
+            return;
+        }
+
+        LF_CORE_INFO("ProjectAssetsPanel::CreateSceneAt - Created '{0}' (handle {1})", target.generic_string(), static_cast<uint64_t>(handle));
+        RebuildDirectoryTree();
+        SelectionManager::SelectAsset(handle);
+    }
+
+    void ProjectAssetsPanel::DeleteFolderRecursive(const std::filesystem::path& dir)
+    {
+        if (!std::filesystem::exists(dir))
+        {
+            return;
+        }
+
+        // ---- 1. 先按 Registry 级联删除资产（避免 Registry 悬空条目） ----
+        std::vector<AssetHandle> toDelete;
+        for (auto& entry : std::filesystem::recursive_directory_iterator(dir))
+        {
+            if (entry.is_directory())
+            {
+                continue;
+            }
+
+            AssetHandle handle = AssetManager::GetAssetHandle(entry.path().generic_string());
+            if (handle.IsValid())
+            {
+                toDelete.push_back(handle);
+            }
+        }
+
+        for (AssetHandle handle : toDelete)
+        {
+            AssetManager::DeleteAsset(handle);
+        }
+
+        // ---- 2. 兜底：删除目录本身（含未识别文件） ----
+        std::error_code ec;
+        std::filesystem::remove_all(dir, ec);
+        if (ec)
+        {
+            LF_CORE_ERROR("ProjectAssetsPanel::DeleteFolderRecursive - Failed to remove '{0}': {1}", dir.generic_string(), ec.message());
+            return;
+        }
+
+        LF_CORE_INFO("ProjectAssetsPanel::DeleteFolderRecursive - Removed '{0}' (cascaded {1} assets)", dir.generic_string(), toDelete.size());
+
+        // ---- 3. m_CurrentDirectory 回退保护 ----
+        if (!std::filesystem::exists(m_CurrentDirectory))
+        {
+            m_CurrentDirectory = m_AssetsDirectory;
+        }
+    }
+
+    std::filesystem::path ProjectAssetsPanel::MakeUniquePath(const std::filesystem::path& baseDir, const std::string& stem, const std::string& ext)
+    {
+        std::filesystem::path candidate = baseDir / (stem + ext);
+        if (!std::filesystem::exists(candidate))
+        {
+            return candidate;
+        }
+
+        int index = 1;
+        while (true)
+        {
+            std::string name = std::format("{} {}{}", stem, index, ext);
+            candidate = baseDir / name;
+            if (!std::filesystem::exists(candidate))
+            {
+                return candidate;
+            }
+            ++index;
+        }
+    }
+
+    // ======== 延迟执行队列 ========
+
+    void ProjectAssetsPanel::EnqueueAction(std::function<void()> action)
+    {
+        if (action)
+        {
+            m_PendingActions.push_back(std::move(action));
+        }
+    }
+
+    void ProjectAssetsPanel::FlushPendingActions()
+    {
+        if (m_PendingActions.empty())
+        {
+            return;
+        }
+
+        // 取到本地后再逐一执行：防止执行中途回弹新的 EnqueueAction 无限循环，
+        // 新入的队列项会留到下一帧才执行
+        std::vector<std::function<void()>> actions;
+        actions.swap(m_PendingActions);
+
+        for (const std::function<void()>& action : actions)
+        {
+            action();
+        }
     }
 }
