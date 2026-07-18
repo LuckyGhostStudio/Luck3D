@@ -2,6 +2,7 @@
 
 #include "Lucky/Editor/EditorPanel.h"
 #include "Lucky/Asset/AssetType.h"
+#include "Lucky/Asset/AssetHandle.h"
 #include "Lucky/Renderer/Texture.h"
 
 #include <filesystem>
@@ -32,12 +33,20 @@ namespace Lucky
         
         void OnEvent(Event& event) override;
     private:
+        void DrawToolbar();
         void DrawDirectoryTreeNode(DirectoryNode& node);
         void DrawContentArea();
         void DrawAssetItem(const std::filesystem::directory_entry& entry);
+        void DrawAssetContextMenu(AssetHandle assetHandle);
         
         void NavigateTo(const std::filesystem::path& directory);
-        void Refresh();
+
+        /// <summary>
+        /// 请求刷新：调用 AssetManager::Refresh() 并重建目录树
+        /// 由 Ctrl+R 快捷键、顶部刷新按钮共同触发
+        /// </summary>
+        void OnRefreshRequested();
+
         void RebuildDirectoryTree();
         DirectoryNode BuildDirectoryNode(const std::filesystem::path& path);
         Ref<Texture2D> GetThumbnail(const std::filesystem::path& filepath);
@@ -49,5 +58,7 @@ namespace Lucky
         DirectoryNode m_RootNode;                   // 目录树缓存
         
         float m_TreePanelWidth = 200.0f;            // 目录树宽度
+
+        bool m_IsFocused = false;                   // 当前帧面板是否处于聚焦（由 OnGUI 更新，供 OnEvent 判定快捷键作用域）
     };
 }

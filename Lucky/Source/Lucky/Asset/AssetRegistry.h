@@ -38,6 +38,15 @@ namespace Lucky
         /// <param name="handle">要注销的资产 Handle</param>
         void Unregister(AssetHandle handle);
 
+        /// <summary>
+        /// 更新指定 Handle 对应资产的文件路径（Handle 保持不变）
+        /// 用于编辑器内重命名/移动资产，保持跨资产引用（如 Scene 中的 Mesh/Material Handle）不断裂
+        /// </summary>
+        /// <param name="handle">要更新的 Handle</param>
+        /// <param name="newFilePath">新的相对路径（正斜杠格式）</param>
+        /// <returns>是否成功（Handle 不存在或 newFilePath 已被其他 Handle 占用时失败）</returns>
+        bool UpdatePath(AssetHandle handle, const std::string& newFilePath);
+
         // ---- 查询 ----
 
         /// <summary>

@@ -27,6 +27,7 @@ namespace Lucky
         std::unordered_map<AssetType, Scope<AssetImporter>> Importers;  // Importer 注册表
 
         std::string RegistryFilePath = "AssetRegistry.lcr";             // Registry 文件路径
+        std::string AssetsDirectory = "Assets";                         // Assets 根目录（相对项目根）
     };
 
     static AssetManagerData s_Data;
@@ -61,9 +62,15 @@ namespace Lucky
         s_Data.Registry.Load(s_Data.RegistryFilePath);
 
         // 初始化内置图元 Mesh 资产
+        // 必须先于 Refresh：
+        //   若 Builtin/*.lmesh 被外部误删，此步会重生成，避免下一步 Refresh 因"文件缺失"而 Unregister
+        //   首次运行时 InitBuiltinMeshAssets 已通过 ImportAsset 注册，Refresh 遇到同路径会命中已注册分支
         InitBuiltinMeshAssets();
 
-        LF_CORE_INFO("AssetManager initialized. Registry: {0} assets, Importers: {1} registered.", s_Data.Registry.GetAssetCount(), s_Data.Importers.size());
+        // 启动时自动同步 Registry 与磁盘（外部新增/删除的资产在此处被反映）
+        RefreshResult result = Refresh();
+
+        LF_CORE_INFO("AssetManager initialized. Registry: {0} assets ({1} added, {2} removed), Importers: {3} registered.", result.Total, result.Added, result.Removed, s_Data.Importers.size());
     }
 
     void AssetManager::Shutdown()
@@ -201,6 +208,216 @@ namespace Lucky
         metadata.FilePath = filepath;
 
         return s_Data.Registry.Register(metadata);
+    }
+
+    RefreshResult AssetManager::Refresh()
+    {
+        RefreshResult result;
+
+        // 1. 扫描磁盘文件（相对路径，正斜杠格式）
+        std::set<std::string> diskPaths;
+        ScanDirectory(s_Data.AssetsDirectory, diskPaths);
+
+        // 2. 收集 Registry 中所有路径
+        std::set<std::string> registryPaths;
+        const auto& allMetadata = s_Data.Registry.GetAllMetadata();
+        for (const auto& [handle, metadata] : allMetadata)
+        {
+            registryPaths.insert(metadata.FilePath);
+        }
+
+        // 3. 新增：磁盘有 Registry 无 → 直接 Register（避免 ImportAsset 内部的重复查找）
+        for (const std::string& path : diskPaths)
+        {
+            if (registryPaths.find(path) != registryPaths.end())
+            {
+                continue;
+            }
+
+            std::filesystem::path fsPath(path);
+            std::string extension = fsPath.extension().string();
+            AssetType type = GetAssetTypeFromExtension(extension);
+            if (type == AssetType::None)
+            {
+                continue;
+            }
+
+            AssetMetadata metadata;
+            metadata.Type = type;
+            metadata.FilePath = path;
+            s_Data.Registry.Register(metadata);
+            result.Added++;
+        }
+
+        // 4. 已删除：Registry 有 磁盘无 → Unregister 并清缓存
+        std::vector<AssetHandle> toRemove;
+        for (const auto& [handle, metadata] : allMetadata)
+        {
+            if (diskPaths.find(metadata.FilePath) == diskPaths.end())
+            {
+                toRemove.push_back(handle);
+            }
+        }
+
+        for (AssetHandle handle : toRemove)
+        {
+            auto cacheIt = s_Data.Cache.find(handle);
+            if (cacheIt != s_Data.Cache.end())
+            {
+                LF_CORE_WARN("AssetManager::Refresh - Removing cached asset [{0}] (file deleted)", static_cast<uint64_t>(handle));
+                s_Data.Cache.erase(cacheIt);
+            }
+            s_Data.Registry.Unregister(handle);
+            result.Removed++;
+        }
+
+        // 5. 有变化则持久化
+        if (result.Added > 0 || result.Removed > 0)
+        {
+            SaveRegistry();
+        }
+
+        result.Total = static_cast<uint32_t>(s_Data.Registry.GetAssetCount());
+        return result;
+    }
+
+    void AssetManager::ScanDirectory(const std::string& directory, std::set<std::string>& outPaths)
+    {
+        std::filesystem::path dirPath(directory);
+        if (!std::filesystem::exists(dirPath) || !std::filesystem::is_directory(dirPath))
+        {
+            LF_CORE_WARN("AssetManager::ScanDirectory - Directory not found: '{0}'", directory);
+            return;
+        }
+
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(dirPath))
+        {
+            if (!entry.is_regular_file())
+            {
+                continue;
+            }
+
+            // 相对项目根目录（cwd）的相对路径，正斜杠格式
+            std::filesystem::path relativePath = std::filesystem::relative(entry.path());
+
+            // 跳过隐藏文件/目录（任一路径段以 . 开头）
+            bool isHidden = false;
+            for (const auto& part : relativePath)
+            {
+                std::string partStr = part.string();
+                if (!partStr.empty() && partStr[0] == '.')
+                {
+                    isHidden = true;
+                    break;
+                }
+            }
+            if (isHidden)
+            {
+                continue;
+            }
+
+            // 仅收集可识别扩展名的文件
+            std::string extension = entry.path().extension().string();
+            AssetType type = GetAssetTypeFromExtension(extension);
+            if (type == AssetType::None)
+            {
+                continue;
+            }
+
+            outPaths.insert(relativePath.generic_string());
+        }
+    }
+
+    bool AssetManager::DeleteAsset(AssetHandle handle)
+    {
+        const AssetMetadata* metadata = s_Data.Registry.GetMetadata(handle);
+        if (!metadata)
+        {
+            LF_CORE_ERROR("AssetManager::DeleteAsset - Handle not found: {0}", static_cast<uint64_t>(handle));
+            return false;
+        }
+
+        // 拷贝一份路径，避免 Unregister 后 metadata 指针失效
+        std::string relativePath = metadata->FilePath;
+        std::string absolutePath = std::filesystem::absolute(relativePath).string();
+
+        // 1. 删磁盘文件（文件已被外部删掉时 remove 不视为错误，仅当出错才失败）
+        std::error_code ec;
+        std::filesystem::remove(absolutePath, ec);
+        if (ec)
+        {
+            LF_CORE_ERROR("AssetManager::DeleteAsset - Failed to remove file '{0}': {1}", absolutePath, ec.message());
+            return false;
+        }
+
+        // 2. 清缓存
+        s_Data.Cache.erase(handle);
+
+        // 3. 从 Registry 移除
+        s_Data.Registry.Unregister(handle);
+
+        // 4. 持久化
+        SaveRegistry();
+
+        LF_CORE_INFO("AssetManager::DeleteAsset - Removed '{0}'", relativePath);
+        return true;
+    }
+
+    bool AssetManager::MoveAsset(AssetHandle handle, const std::string& newFilePath)
+    {
+        const AssetMetadata* metadata = s_Data.Registry.GetMetadata(handle);
+        if (!metadata)
+        {
+            LF_CORE_ERROR("AssetManager::MoveAsset - Handle not found: {0}", static_cast<uint64_t>(handle));
+            return false;
+        }
+
+        std::filesystem::path newPath(newFilePath);
+        std::string normalizedNewPath = newPath.generic_string();
+
+        // 同路径直接成功
+        if (metadata->FilePath == normalizedNewPath)
+        {
+            return true;
+        }
+
+        std::string oldRelative = metadata->FilePath;
+        std::string oldAbs = std::filesystem::absolute(oldRelative).string();
+        std::string newAbs = std::filesystem::absolute(normalizedNewPath).string();
+
+        // 目标路径已存在则拒绝（避免覆盖）
+        if (std::filesystem::exists(newAbs))
+        {
+            LF_CORE_ERROR("AssetManager::MoveAsset - Target path already exists: '{0}'", normalizedNewPath);
+            return false;
+        }
+
+        // 1. 确保目标目录存在
+        std::error_code ec;
+        std::filesystem::create_directories(newPath.parent_path(), ec);
+
+        // 2. rename 磁盘文件
+        std::filesystem::rename(oldAbs, newAbs, ec);
+        if (ec)
+        {
+            LF_CORE_ERROR("AssetManager::MoveAsset - Failed to rename '{0}' -> '{1}': {2}", oldAbs, newAbs, ec.message());
+            return false;
+        }
+
+        // 3. 更新 Registry（Handle 不变）
+        if (!s_Data.Registry.UpdatePath(handle, normalizedNewPath))
+        {
+            // 回滚磁盘
+            std::filesystem::rename(newAbs, oldAbs, ec);
+            LF_CORE_ERROR("AssetManager::MoveAsset - Registry update failed, rolled back");
+            return false;
+        }
+
+        // 4. 持久化
+        SaveRegistry();
+
+        LF_CORE_INFO("AssetManager::MoveAsset - '{0}' -> '{1}' (handle {2} preserved)", oldRelative, normalizedNewPath, static_cast<uint64_t>(handle));
+        return true;
     }
 
     AssetHandle AssetManager::GetAssetHandle(const std::string& filepath)

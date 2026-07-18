@@ -57,6 +57,38 @@ namespace Lucky
         }
     }
 
+    bool AssetRegistry::UpdatePath(AssetHandle handle, const std::string& newFilePath)
+    {
+        auto it = m_Registry.find(handle);
+        if (it == m_Registry.end())
+        {
+            LF_CORE_ERROR("AssetRegistry::UpdatePath - Handle not found: {0}", static_cast<uint64_t>(handle));
+            return false;
+        }
+
+        // 新路径必须唯一（若已被其他 Handle 占用则拒绝）
+        auto pathIt = m_PathToHandle.find(newFilePath);
+        if (pathIt != m_PathToHandle.end() && pathIt->second != handle)
+        {
+            LF_CORE_ERROR("AssetRegistry::UpdatePath - Target path '{0}' already used by another handle {1}", newFilePath, static_cast<uint64_t>(pathIt->second));
+            return false;
+        }
+
+        // 同路径视为成功（无操作）
+        if (it->second.FilePath == newFilePath)
+        {
+            return true;
+        }
+
+        // 同步反向索引
+        m_PathToHandle.erase(it->second.FilePath);
+        it->second.FilePath = newFilePath;
+        m_PathToHandle[newFilePath] = handle;
+
+        LF_CORE_INFO("AssetRegistry: UpdatePath [{0}] -> '{1}'", static_cast<uint64_t>(handle), newFilePath);
+        return true;
+    }
+
     const AssetMetadata* AssetRegistry::GetMetadata(AssetHandle handle) const
     {
         auto it = m_Registry.find(handle);

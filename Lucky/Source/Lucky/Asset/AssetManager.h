@@ -7,8 +7,20 @@
 
 #include "Lucky/Core/Base.h"
 
+#include <set>
+
 namespace Lucky
 {
+    /// <summary>
+    /// Refresh 操作的结果统计
+    /// </summary>
+    struct RefreshResult
+    {
+        uint32_t Added = 0;     // 新注册的资产数量
+        uint32_t Removed = 0;   // 移除的资产数量
+        uint32_t Total = 0;     // 当前 Registry 中的总资产数量
+    };
+
     /// <summary>
     /// 资产管理器：资产系统的统一入口
     /// 负责资产的注册、加载、缓存和查询
@@ -67,6 +79,35 @@ namespace Lucky
         /// <param name="type">资产类型</param>
         /// <returns>资产 Handle</returns>
         static AssetHandle ImportAsset(const std::string& filepath, AssetType type);
+
+        // ---- 目录扫描与同步（被动同步） ----
+
+        /// <summary>
+        /// 扫描 Assets 目录并同步 Registry（增量对比）
+        /// 新增文件自动注册，已删除文件自动移除并清理缓存
+        /// 用于启动时对齐磁盘状态，以及运行时手动 Refresh（Ctrl+R / 面板刷新按钮）
+        /// </summary>
+        /// <returns>同步结果统计</returns>
+        static RefreshResult Refresh();
+
+        // ---- 编辑器内 CRUD（主动同步） ----
+
+        /// <summary>
+        /// 删除资产：从磁盘删除文件、清缓存、从 Registry 移除，并持久化 Registry
+        /// 用于 Project 面板右键 Delete 或 Del 键
+        /// </summary>
+        /// <param name="handle">要删除的资产 Handle</param>
+        /// <returns>是否成功</returns>
+        static bool DeleteAsset(AssetHandle handle);
+
+        /// <summary>
+        /// 重命名/移动资产：磁盘 rename + Registry 更新路径，Handle 保持不变
+        /// 用于 Project 面板 F2 重命名或拖拽移动，保证跨资产引用不断裂
+        /// </summary>
+        /// <param name="handle">要移动的资产 Handle</param>
+        /// <param name="newFilePath">新的相对路径（相对项目根目录，如 "Assets/Materials/Metal_v2.lmat"）</param>
+        /// <returns>是否成功（目标已存在、磁盘 rename 失败或 Handle 无效时返回 false）</returns>
+        static bool MoveAsset(AssetHandle handle, const std::string& newFilePath);
 
         // ---- 资产获取 ----
 
@@ -131,6 +172,14 @@ namespace Lucky
         /// 初始化内置图元 Mesh 资产（启动时自动生成 .lmesh 文件）
         /// </summary>
         static void InitBuiltinMeshAssets();
+
+        /// <summary>
+        /// 递归扫描目录，收集所有可识别资产文件的相对路径（正斜杠格式）
+        /// 跳过隐藏目录（以 . 开头）和不可识别扩展名的文件
+        /// </summary>
+        /// <param name="directory">要扫描的目录（相对项目根目录）</param>
+        /// <param name="outPaths">输出：收集到的文件相对路径集合</param>
+        static void ScanDirectory(const std::string& directory, std::set<std::string>& outPaths);
 
         /// <summary>
         /// 加载资产到内存（内部方法）

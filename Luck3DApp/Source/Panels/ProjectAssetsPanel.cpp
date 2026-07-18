@@ -3,12 +3,17 @@
 #include "Lucky/UI/DrawUtils.h"
 #include "Lucky/UI/Widgets.h"
 #include "Lucky/UI/ScopedGuards.h"
+#include "Lucky/UI/Controls.h"
 
 #include "Lucky/Asset/AssetManager.h"
 #include "Lucky/Editor/EditorIconManager.h"
 #include "Lucky/Editor/DragDropPayloads.h"
 #include "Lucky/Editor/DragDropContext.h"
 #include "Lucky/Scene/SelectionManager.h"
+
+#include "Lucky/Core/Events/KeyEvent.h"
+#include "Lucky/Core/Input/Input.h"
+#include "Lucky/Core/Input/KeyCodes.h"
 
 #include "imgui/imgui.h"
 
@@ -32,6 +37,12 @@ namespace Lucky
 
     void ProjectAssetsPanel::OnGUI()
     {
+        // 更新窗口聚焦状态（供 OnEvent 中 Ctrl+R 判定作用域）
+        m_IsFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+
+        // 顶部工具栏（刷新按钮）
+        DrawToolbar();
+
         if (ImGui::BeginTable("##ProjectAssets Table", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadInnerX))
         {
             float panelWidth = ImGui::GetContentRegionAvail().x;
@@ -76,7 +87,34 @@ namespace Lucky
 
     void ProjectAssetsPanel::OnEvent(Event& event)
     {
-        
+        if (!m_IsFocused)
+        {
+            return;
+        }
+
+        EventDispatcher dispatcher(event);
+        dispatcher.Dispatch<KeyPressedEvent>([this](KeyPressedEvent& e) -> bool
+        {
+            // Ctrl+R 触发 Refresh
+            if (e.GetKeyCode() == Key::R && Input::IsKeyPressed(Key::LeftControl))
+            {
+                OnRefreshRequested();
+                return true;
+            }
+
+            return false;
+        });
+    }
+
+    void ProjectAssetsPanel::DrawToolbar()
+    {
+        // 刷新按钮（等价于 Ctrl+R）
+        if (UI::Button("Refresh"))
+        {
+            OnRefreshRequested();
+        }
+
+        UI::Draw::HorizontalLine();
     }
 
     void ProjectAssetsPanel::DrawDirectoryTreeNode(DirectoryNode& node)
@@ -148,7 +186,6 @@ namespace Lucky
             assetHandle = AssetManager::GetAssetHandle(path.generic_string());
             strID = std::format("{}##{}", path.stem().string(), static_cast<uint32_t>(assetHandle));
         }
-        
 
         bool isSelected = false;
         if (isDirectory)
@@ -159,7 +196,8 @@ namespace Lucky
         {
             isSelected = SelectionManager::IsAssetSelected(assetHandle);
         }
-        
+
+        // ---- 普通态：TreeNode + 拖拽源 + 右键菜单 ----
         if (UI::BeginTreeNode(icon, strID.c_str(), false, isSelected, true))
         {
             UI::EndTreeNode();
@@ -174,8 +212,19 @@ namespace Lucky
             
             UI::EndDragDropSource();
         }
+
+        // 右键上下文菜单（Delete）：仅对已注册的资产项启用
+        if (!isDirectory && assetHandle.IsValid())
+        {
+            DrawAssetContextMenu(assetHandle);
+        }
         
-        if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
+        // 选中触发时机：鼠标"抬起"时（且期间未发生拖拽），避免 MouseDown 抢占拖拽源
+        // 语义参考 Unity：按下不切换 Selection；若发生拖拽则不选中；仅在正常点击（按下+抬起，未拖）时提交选中
+        bool itemHovered = ImGui::IsItemHovered();
+        bool leftReleased = ImGui::IsMouseReleased(ImGuiMouseButton_Left);
+        bool wasDragging = ImGui::IsMouseDragging(ImGuiMouseButton_Left);
+        if (itemHovered && leftReleased && !wasDragging && !ImGui::IsItemToggledOpen())
         {
             // 目录：内容区内单击选中（写入 SelectionManager::Folder）
             //       不切换浏览目录，已与左侧目录树的 NavigateTo 行为分离
@@ -189,6 +238,29 @@ namespace Lucky
                 SelectionManager::SelectAsset(assetHandle);
             }
         }
+    }
+
+    void ProjectAssetsPanel::DrawAssetContextMenu(AssetHandle assetHandle)
+    {
+        if (!UI::BeginPopupContextItem())
+        {
+            return;
+        }
+
+        // 与 SceneHierarchyPanel 一致：弹出菜单时先选中该 Asset，Inspector 同步显示对应资产
+        SelectionManager::SelectAsset(assetHandle);
+
+        if (ImGui::MenuItem("Delete"))
+        {
+            if (AssetManager::DeleteAsset(assetHandle))
+            {
+                SelectionManager::Deselect();
+                RebuildDirectoryTree();
+            }
+            ImGui::CloseCurrentPopup();
+        }
+
+        UI::EndPopup();
     }
     
     void ProjectAssetsPanel::NavigateTo(const std::filesystem::path& directory)
@@ -206,13 +278,20 @@ namespace Lucky
         }
     }
 
-    void ProjectAssetsPanel::Refresh()
+    void ProjectAssetsPanel::OnRefreshRequested()
     {
+        RefreshResult result = AssetManager::Refresh();
+
         RebuildDirectoryTree();
-        
+
         if (!std::filesystem::exists(m_CurrentDirectory))
         {
             m_CurrentDirectory = m_AssetsDirectory;
+        }
+
+        if (result.Added > 0 || result.Removed > 0)
+        {
+            LF_CORE_INFO("ProjectAssetsPanel::Refresh - {0} added, {1} removed, {2} total.", result.Added, result.Removed, result.Total);
         }
     }
 
