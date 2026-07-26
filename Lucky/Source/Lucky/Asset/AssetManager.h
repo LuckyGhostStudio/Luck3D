@@ -109,6 +109,21 @@ namespace Lucky
         /// <returns>是否成功（目标已存在、磁盘 rename 失败或 Handle 无效时返回 false）</returns>
         static bool MoveAsset(AssetHandle handle, const std::string& newFilePath);
 
+        /// <summary>
+        /// 只更新 Registry 中资产的路径（不动磁盘），并持久化 Registry
+        /// 
+        /// 使用场景：目录改名/移动后的资产 Handle 级联更新
+        /// - 目录改名时，其下所有资产文件在磁盘上已经随目录被系统一次性移动
+        /// - 此接口仅同步 Registry 中的 FilePath 记录，Handle 保持不变
+        /// - 跨资产引用（Scene 中的 Mesh/Material Handle）因此不断裂
+        /// 
+        /// 若磁盘上尚未移动，请改用 MoveAsset。
+        /// </summary>
+        /// <param name="handle">要更新的资产 Handle</param>
+        /// <param name="newFilePath">新的相对路径（正斜杠格式）</param>
+        /// <returns>是否成功（Handle 不存在 / 新路径已被其他 Handle 占用时失败）</returns>
+        static bool UpdateAssetPath(AssetHandle handle, const std::string& newFilePath);
+
         // ---- 资产获取 ----
 
         static AssetHandle GetAssetHandle(const std::string& filepath);

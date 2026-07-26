@@ -420,6 +420,39 @@ namespace Lucky
         return true;
     }
 
+    bool AssetManager::UpdateAssetPath(AssetHandle handle, const std::string& newFilePath)
+    {
+        const AssetMetadata* metadata = s_Data.Registry.GetMetadata(handle);
+        if (!metadata)
+        {
+            LF_CORE_ERROR("AssetManager::UpdateAssetPath - Handle not found: {0}", static_cast<uint64_t>(handle));
+            return false;
+        }
+
+        // 规范化路径（正斜杠）
+        std::filesystem::path newPath(newFilePath);
+        std::string normalizedNewPath = newPath.generic_string();
+
+        std::string oldRelative = metadata->FilePath;
+
+        // 同路径视为成功（无操作）
+        if (oldRelative == normalizedNewPath)
+        {
+            return true;
+        }
+
+        // 仅更新 Registry；磁盘状态由调用方保证已同步（典型场景：目录改名时其下资产文件已随目录被系统一次性移动）
+        if (!s_Data.Registry.UpdatePath(handle, normalizedNewPath))
+        {
+            return false;   // Registry 内部已打错误日志（Handle 不存在 / 新路径被他人占用）
+        }
+
+        SaveRegistry();
+
+        LF_CORE_INFO("AssetManager::UpdateAssetPath - '{0}' -> '{1}' (handle {2} preserved)", oldRelative, normalizedNewPath, static_cast<uint64_t>(handle));
+        return true;
+    }
+
     AssetHandle AssetManager::GetAssetHandle(const std::string& filepath)
     {
         return s_Data.Registry.GetHandle(filepath);

@@ -3,6 +3,7 @@
 #include "Lucky/Editor/EditorPanel.h"
 #include "Lucky/Scene/Scene.h"
 #include "Lucky/Scene/SceneManager.h"
+#include "Lucky/UI/Widgets.h"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -147,7 +148,7 @@ namespace Lucky
         static constexpr float s_HoverExpandDelay = 0.7f;
 
         /// <summary>
-        /// 内联重命名状态（对齐 Unity Hierarchy 的原地重命名交互）
+        /// 内联重命名状态机（对齐 Unity Hierarchy 的原地重命名交互）
         /// 
         /// 触发时机：节点已选中 + 单击"名称文本命中区"（图标右侧到组件图标区左侧）+ 未拖拽
         /// 退出方式：
@@ -155,52 +156,14 @@ namespace Lucky
         /// - Esc          → 取消，保留原名
         /// - 选中其他节点 → 强制取消
         /// </summary>
-        struct RenameState
-        {
-            UUID EditingEntityUUID = 0;             // 正在编辑的实体 UUID，0 表示未在编辑
-            bool FirstFrame = false;                // 本帧是否首次进入编辑态（用于自动 Focus + 全选）
-            char Buffer[128] = { 0 };               // InputText 缓冲（跨帧稳定）
-
-            /// <summary>
-            /// "按下-释放"两阶段判定用的候选态（对齐 Unity Hierarchy 表现）
-            ///
-            /// 交互期望：
-            /// - 点击"已选中节点"的名称区 → 单纯按下不进入编辑态；
-            ///   * 抬起前若鼠标发生了拖拽（跨过 IO.MouseDragThreshold）→ 用户在拖拽，取消候选，不进入编辑态
-            ///   * 抬起时依然未拖拽 → 才进入编辑态
-            /// - 目的：让"点击已选中节点后按住拖拽"能正常启动拖拽，而不是立刻弹出编辑框
-            ///
-            /// 字段语义：
-            /// - PendingEntityUUID：候选节点 UUID，0 表示当前没有候选
-            /// - PendingName：候选节点在"按下瞬间"的名称快照，抬起时用于初始化 InputText 缓冲
-            ///   （避免抬起前 name 因外部原因变化时使用错误值；也隔离了 name 引用可能失效的问题）
-            /// </summary>
-            UUID        PendingEntityUUID = 0;
-            std::string PendingName;
-        };
-        RenameState m_Rename;
-
-        /// <summary>
-        /// 名称文本"命中区"的屏幕矩形缓存（帧内）
-        /// 
-        /// 由 DrawEntityComponentIcons 计算得出：left = 图标右侧 + 图标到文本间距，
-        /// right = 组件图标区左侧（无图标时为面板右边界），top/bottom = 节点行的 ItemRectMin/Max.y。
-        /// DrawEntityNode 在处理"点击文本区进入编辑态"以及"编辑态覆盖文本渲染"时消费此缓存。
-        /// </summary>
-        struct NameHitRect
-        {
-            bool  Valid = false;
-            float MinX = 0.0f;
-            float MinY = 0.0f;
-            float MaxX = 0.0f;
-            float MaxY = 0.0f;
-        };
-        NameHitRect m_LastNameHitRect;
+        UI::RenameController<UUID> m_Rename;
 
         Ref<Scene> m_Scene;
 
         // SceneManager 订阅句柄：ctor 中 Subscribe，dtor 中 Unsubscribe
         // 实现自动跟随 SceneManager::ActiveScene 切换，无需 EditorLayer 手动 SetScene
         SceneManager::SubscriptionHandle m_SceneChangedSub = 0;
+
+        bool m_IsFocused = false;   // 当前帧面板是否处于聚焦（由 OnGUI 更新，供 OnEvent 判定快捷键作用域）
     };
 }

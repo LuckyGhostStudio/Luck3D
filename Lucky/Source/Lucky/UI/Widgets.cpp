@@ -483,4 +483,41 @@ namespace Lucky::UI
         
         return modified;
     }
+
+    // ========================================================================
+    // 内联重命名 Detail 辅助（BeginRenamableTreeNode 使用）
+    // ========================================================================
+    namespace Detail
+    {
+        void PushRenameEditingItemFlag()
+        {
+            // 编辑态下屏蔽 TreeNode 的鼠标交互：
+            // - TreeNode 使用 SpanFullWidth，其 interact_bb 覆盖整行；即便后续 SetItemAllowOverlap 使
+            //   InputText 能拿到激活，TreeNode 自身的 ButtonBehavior 已经在本帧较早处理完鼠标事件
+            //   （产生 hover 视觉反馈、选中态副作用），导致"点击穿透到下面的树节点"的观感
+            // - ImGuiItemFlags_Disabled 会让 TreeNode 在 ItemHoverable 阶段直接返回 false，
+            //   完全不产生 hover / press / active 状态；该 flag "doesn't affect visuals"，
+            //   TreeNode 的选中态蓝色 header 由 ImGuiTreeNodeFlags_Selected 独立控制，不受影响
+            // - 必须在 BeginTreeNode（内部 TreeNodeEx）之前 Push，才能作用到 TreeNode 的 InFlags
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+        }
+
+        void PopRenameEditingItemFlagAndAllowOverlap()
+        {
+            ImGui::PopItemFlag();
+
+            // ---- 关键：让 InlineRenameInput 内的 InputText 能正常接收鼠标点击 ----
+            // 根因：TreeNode 使用 SpanFullWidth，其 interact_bb 覆盖整行；虽然本节点已 PushItemFlag(Disabled)，
+            //       但 ImGui 的 ItemHoverable 内部执行顺序为：
+            //           1) SetHoveredID(id) 无条件将 g.HoveredId 设为 TreeNode 的 ID
+            //           2) 后置的 Disabled 检查置 g.HoveredIdDisabled = true 并返回 false
+            //       结果：TreeNode 依旧"抢占"了 g.HoveredId；后续 InputText 的 ItemHoverable 判定
+            //           if (g.HoveredId != 0 && g.HoveredId != id && !g.HoveredIdAllowOverlap) return false;
+            //       会导致 InputText hover 返回 false → InputText 被强制失活 → 编辑态直接消失。
+            //
+            // 修复：SetItemAllowOverlap() 作用于上一个 Item（此时 LastItemData.ID = TreeNode ID），
+            //       将 g.HoveredIdAllowOverlap 置 true，InputText 即可正常 hover 并接收点击
+            ImGui::SetItemAllowOverlap();
+        }
+    }
 }
