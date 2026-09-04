@@ -295,7 +295,13 @@ namespace Lucky
             {
                 auto [transform, sprite] = spriteView.get<TransformComponent, SpriteRendererComponent>(entity);
 
-                Renderer3D::DrawSprite(transform.GetWorldTransform(), sprite, static_cast<int>(static_cast<uint32_t>(entity)));
+                Renderer3D::DrawSprite(
+                    transform.GetWorldTransform(),
+                    sprite.Texture,
+                    sprite.Color,
+                    sprite.UVRect,
+                    sprite.TilingFactor,
+                    static_cast<int>(static_cast<uint32_t>(entity)));
             }
         }
         Renderer3D::EndScene();

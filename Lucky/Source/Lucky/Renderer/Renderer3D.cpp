@@ -27,7 +27,6 @@
 #include "IBLPrecompute.h"
 
 #include "Lucky/Asset/AssetManager.h"
-#include "Lucky/Scene/Components/SpriteRendererComponent.h"
 
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
@@ -827,12 +826,16 @@ namespace Lucky
         }
     }
 
-    void Renderer3D::DrawSprite(const glm::mat4& transform, const SpriteRendererComponent& src, int entityID)
+    void Renderer3D::DrawSprite(const glm::mat4& transform, const Ref<Texture2D>& texture,
+                                const glm::vec4& color, const glm::vec4& uvRect,
+                                float tilingFactor, int entityID)
     {
-        // 值拷贝存入队列，避免 SpriteRendererComponent 生命周期跨帧问题（Component 会随 Entity 销毁）
         SpriteDrawCommand cmd;
         cmd.Transform = transform;
-        cmd.Sprite = src;
+        cmd.Color = color;
+        cmd.Texture = texture;
+        cmd.UVRect = uvRect;
+        cmd.TilingFactor = tilingFactor;
         cmd.EntityID = entityID;
         s_Data.SpriteDrawCommands.push_back(cmd);
     }

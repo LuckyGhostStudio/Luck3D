@@ -4,9 +4,8 @@
 #include "Framebuffer.h"
 #include "Mesh.h"
 #include "Material.h"
+#include "Texture.h"
 #include "Renderer3D.h"
-
-#include "Lucky/Scene/Components/SpriteRendererComponent.h"
 
 #include <glm/glm.hpp>
 #include <vector>
@@ -102,14 +101,16 @@ namespace Lucky
     };
 
     /// <summary>
-    /// Sprite 绘制命令：从 SpriteRendererComponent 提取
-    /// 由 Scene 收集，Sprite2DPass 消费。SpriteRendererComponent 采用值拷贝，避免 Component 生命周期问题
+    /// Sprite 绘制命令
     /// </summary>
     struct SpriteDrawCommand
     {
-        glm::mat4 Transform;                    // 模型变换矩阵（世界空间）
-        SpriteRendererComponent Sprite;         // Sprite 数据副本（值拷贝）
-        int EntityID = -1;                      // Entity ID（用于拾取，-1 表示无效）
+        glm::mat4 Transform;                                        // 模型变换矩阵（世界空间）
+        glm::vec4 Color = glm::vec4(1.0f);                          // Tint 颜色
+        Ref<Texture2D> Texture;                                     // 纹理引用（nullptr = 纯色）
+        glm::vec4 UVRect = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);       // UV 区域（xy=uvMin, zw=uvMax）
+        float TilingFactor = 1.0f;                                  // 平铺倍数
+        int EntityID = -1;                                          // Entity ID（用于拾取，-1 表示无效）
     };
     
     /// <summary>

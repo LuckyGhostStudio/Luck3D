@@ -39,7 +39,8 @@ namespace Lucky
 
         for (const SpriteDrawCommand& cmd : *context.SpriteDrawCommands)
         {
-            Renderer2D::DrawSprite(cmd.Transform, cmd.Sprite, cmd.EntityID);
+            // 统一走带纹理版 DrawQuad：Texture 为 nullptr 时 Renderer2D 内部会使用槽 0（白色纹理），等价于纯色
+            Renderer2D::DrawQuad(cmd.Transform, cmd.Texture, cmd.Color, cmd.UVRect, cmd.TilingFactor, cmd.EntityID);
         }
 
         Renderer2D::EndScene();

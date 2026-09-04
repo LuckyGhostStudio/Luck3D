@@ -7,14 +7,9 @@
 
 namespace Lucky
 {
-    // 前向声明
-    struct SpriteRendererComponent;
-
     /// <summary>
     /// 2D 渲染器：世界空间 Sprite 批处理绘制
     /// 与 Renderer3D 共享相机 / FBO / EntityID 缓冲，作为 RenderPipeline 中的 Pass 与 3D 一起渲染
-    /// 
-    /// 详细设计参见 docs/RenderingSystem/PhaseR31_Renderer2D_Foundation.md
     /// </summary>
     class Renderer2D
     {
@@ -77,14 +72,6 @@ namespace Lucky
                              const glm::vec4& uvRect = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f),
                              float tilingFactor = 1.0f,
                              int entityID = -1);
-
-        /// <summary>
-        /// 绘制 Sprite 组件（高层封装，最终仍走 DrawQuad）
-        /// </summary>
-        /// <param name="transform">模型变换矩阵</param>
-        /// <param name="src">Sprite 组件</param>
-        /// <param name="entityID">实体 ID</param>
-        static void DrawSprite(const glm::mat4& transform, const SpriteRendererComponent& src, int entityID);
 
         // ---- 统计数据 ----
 

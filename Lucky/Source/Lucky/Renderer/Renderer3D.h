@@ -14,7 +14,6 @@ namespace Lucky
     class RenderPipeline;       // 前向声明
     struct PostProcessSettings; // 前向声明
     struct EnvironmentSettings; // 前向声明
-    struct SpriteRendererComponent; // 前向声明（Renderer3D::DrawSprite 使用）
 
     constexpr static int s_MaxDirectionalLights = 4;
     constexpr static int s_MaxPointLights = 8;
@@ -158,13 +157,20 @@ namespace Lucky
         static void DrawMesh(const glm::mat4& transform, Ref<Mesh>& mesh, const std::vector<Ref<Material>>& materials, int entityID = -1);
 
         /// <summary>
-        /// 提交一个 Sprite 绘制命令：由 Scene::OnUpdate 遍历 SpriteRendererComponent 后调用
-        /// 命令会在 EndScene() 中通过 RenderContext 传递给 Sprite2DPass，由 Renderer2D 批处理渲染
+        /// 提交一个 Sprite 绘制命令
         /// </summary>
         /// <param name="transform">模型变换矩阵（世界空间）</param>
-        /// <param name="src">Sprite 组件（值拷贝存入命令队列）</param>
+        /// <param name="texture">纹理引用（nullptr = 纯色）</param>
+        /// <param name="color">Tint 颜色</param>
+        /// <param name="uvRect">UV 区域（xy=uvMin, zw=uvMax）</param>
+        /// <param name="tilingFactor">平铺倍数</param>
         /// <param name="entityID">实体 ID</param>
-        static void DrawSprite(const glm::mat4& transform, const SpriteRendererComponent& src, int entityID = -1);
+        static void DrawSprite(const glm::mat4& transform,
+                               const Ref<Texture2D>& texture,
+                               const glm::vec4& color,
+                               const glm::vec4& uvRect,
+                               float tilingFactor,
+                               int entityID = -1);
 
         /// <summary>
         /// 统计数据

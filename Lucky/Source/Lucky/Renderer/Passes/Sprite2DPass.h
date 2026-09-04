@@ -6,10 +6,7 @@ namespace Lucky
 {
     /// <summary>
     /// 2D Sprite Pass：将 Renderer2D 接入 RenderPipeline
-    /// 从 RenderContext.SpriteDrawCommands 循环调用 Renderer2D::DrawSprite
     /// 属于 "Main" 分组，在 TransparentPass 之后、PickingPass 之前执行
-    /// 
-    /// 详细设计参见 docs/RenderingSystem/PhaseR31_Renderer2D_Foundation.md §8
     /// </summary>
     class Sprite2DPass : public RenderPass
     {

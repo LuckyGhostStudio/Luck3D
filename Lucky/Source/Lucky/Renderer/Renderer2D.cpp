@@ -7,8 +7,6 @@
 #include "Shader.h"
 #include "Renderer3D.h"
 
-#include "Lucky/Scene/Components/SpriteRendererComponent.h"
-
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <array>
@@ -305,12 +303,6 @@ namespace Lucky
 
         s_Data.QuadIndexCount += 6;
         s_Data.Stats.QuadCount++;
-    }
-
-    void Renderer2D::DrawSprite(const glm::mat4& transform, const SpriteRendererComponent& src, int entityID)
-    {
-        // 高层封装：所有 Sprite 走带纹理版本 DrawQuad（Texture 为 nullptr 时槽 0 = 白色纹理，等价于纯色）
-        DrawQuad(transform, src.Texture, src.Color, src.UVRect, src.TilingFactor, entityID);
     }
 
     // ================================ Statistics ================================
