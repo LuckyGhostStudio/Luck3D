@@ -11,6 +11,7 @@
 
 #include "MeshFilterComponent.h"
 #include "MeshRendererComponent.h"
+#include "SpriteRendererComponent.h"
 
 #include "LightComponent.h"
 #include "PostProcessVolumeComponent.h"
@@ -37,6 +38,11 @@ namespace Lucky
     template<> struct ComponentTrait<MeshRendererComponent>
     {
         static constexpr ComponentType Type = ComponentType::MeshRenderer;
+    };
+
+    template<> struct ComponentTrait<SpriteRendererComponent>
+    {
+        static constexpr ComponentType Type = ComponentType::SpriteRenderer;
     };
 
     template<> struct ComponentTrait<PostProcessVolumeComponent>

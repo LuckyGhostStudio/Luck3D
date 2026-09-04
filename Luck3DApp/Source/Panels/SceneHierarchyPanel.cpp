@@ -765,6 +765,22 @@ namespace Lucky
             ImGui::EndMenu();
         }
 
+        // 创建 2D Object
+        if (ImGui::BeginMenu("2D Object"))
+        {
+            // 创建 Sprite（世界空间 2D 精灵）
+            if (ImGui::MenuItem("Sprite"))
+            {
+                std::string uniqueName = GenerateUniqueName("Sprite", parent);
+                newEntity = m_Scene->CreateEntity(uniqueName, parent);
+
+                // 默认给一个白色 SpriteRenderer（无纹理，纯白色 Quad）
+                newEntity.AddComponent<SpriteRendererComponent>();
+            }
+
+            ImGui::EndMenu();
+        }
+
         if (ImGui::BeginMenu("Light"))
         {
             // 创建 Directional Light

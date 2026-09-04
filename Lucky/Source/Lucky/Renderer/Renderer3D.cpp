@@ -13,6 +13,7 @@
 #include "ShadowAtlas.h"
 #include "Passes/SkyboxPass.h"
 #include "Passes/TransparentPass.h"
+#include "Passes/Sprite2DPass.h"
 #include "Passes/PickingPass.h"
 #include "Passes/PostProcessPass.h"
 #include "Passes/SilhouettePass.h"
@@ -26,6 +27,7 @@
 #include "IBLPrecompute.h"
 
 #include "Lucky/Asset/AssetManager.h"
+#include "Lucky/Scene/Components/SpriteRendererComponent.h"
 
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
@@ -89,6 +91,7 @@ namespace Lucky
         
         std::vector<DrawCommand> OpaqueDrawCommands;          // 不透明物体绘制命令列表
         std::vector<DrawCommand> TransparentDrawCommands;     // 透明物体绘制命令列表
+        std::vector<SpriteDrawCommand> SpriteDrawCommands;    // 2D Sprite 绘制命令列表
         std::vector<OutlineDrawCommand> OutlineDrawCommands;  // 描边专用绘制命令列表（从 OpaqueDrawCommands 中提取）
         glm::vec3 CameraPosition;                       // 缓存相机位置（用于计算距离）
         
@@ -183,6 +186,7 @@ namespace Lucky
         // 加载用户可见着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Standard");  // 默认着色器
         s_Data.ShaderLib->Load("Assets/Shaders/Skybox");    // 默认天空盒着色器
+        s_Data.ShaderLib->Load("Assets/Shaders/Sprite");    // 默认 Sprite 着色器（Renderer2D 使用）
 
         s_Data.InternalErrorShader = s_Data.ShaderLib->Get("InternalError");
         s_Data.StandardShader = s_Data.ShaderLib->Get("Standard");
@@ -261,6 +265,7 @@ namespace Lucky
         auto opaquePass = CreateRef<OpaquePass>();
         auto skyboxPass = CreateRef<SkyboxPass>();
         auto transparentPass = CreateRef<TransparentPass>();
+        auto sprite2DPass = CreateRef<Sprite2DPass>();
         auto pickingPass = CreateRef<PickingPass>();
         auto debugVisualizePass = CreateRef<DebugVisualizePass>();
         auto postProcessPass = CreateRef<PostProcessPass>();
@@ -278,6 +283,7 @@ namespace Lucky
         s_Data.Pipeline.AddPass(opaquePass);
         s_Data.Pipeline.AddPass(skyboxPass);
         s_Data.Pipeline.AddPass(transparentPass);
+        s_Data.Pipeline.AddPass(sprite2DPass);
         s_Data.Pipeline.AddPass(pickingPass);
         s_Data.Pipeline.AddPass(debugVisualizePass);
         s_Data.Pipeline.AddPass(postProcessPass);
@@ -564,6 +570,7 @@ namespace Lucky
         // 清空绘制命令列表
         s_Data.OpaqueDrawCommands.clear();
         s_Data.TransparentDrawCommands.clear();
+        s_Data.SpriteDrawCommands.clear();
     
         // 缓存相机位置
         s_Data.CameraPosition = camera.GetPosition();
@@ -591,6 +598,7 @@ namespace Lucky
         RenderContext context;
         context.OpaqueDrawCommands = &s_Data.OpaqueDrawCommands;
         context.TransparentDrawCommands = &s_Data.TransparentDrawCommands;
+        context.SpriteDrawCommands = &s_Data.SpriteDrawCommands;
         context.TargetFramebuffer = s_Data.TargetFramebuffer;
         context.ClearColor = s_Data.ClearColor;
         context.Stats = &s_Data.Stats;
@@ -605,6 +613,7 @@ namespace Lucky
         context.CascadeCount = s_Data.CascadeCount;
         context.ShadowMapResolution = s_Data.ShadowMapResolution;
         context.CameraViewMatrix = s_Data.CameraViewMatrix;
+        context.CameraProjectionMatrix = s_Data.CameraProjectionMatrix;   // Sprite2DPass 使用，供 Renderer2D::BeginScene 构造 VP
         for (int i = 0; i < s_Data.CascadeCount; ++i)
         {
             context.CascadeLightSpaceMatrices[i] = s_Data.CascadeLightSpaceMatrices[i];
@@ -762,6 +771,7 @@ namespace Lucky
         // 立即清空 DrawCommands，生命周期在 EndScene() 结束
         s_Data.OpaqueDrawCommands.clear();
         s_Data.TransparentDrawCommands.clear();
+        s_Data.SpriteDrawCommands.clear();
     }
 
     void Renderer3D::DrawMesh(const glm::mat4& transform, Ref<Mesh>& mesh, const std::vector<Ref<Material>>& materials, int entityID)
@@ -815,6 +825,16 @@ namespace Lucky
                 s_Data.OpaqueDrawCommands.push_back(cmd);
             }
         }
+    }
+
+    void Renderer3D::DrawSprite(const glm::mat4& transform, const SpriteRendererComponent& src, int entityID)
+    {
+        // 值拷贝存入队列，避免 SpriteRendererComponent 生命周期跨帧问题（Component 会随 Entity 销毁）
+        SpriteDrawCommand cmd;
+        cmd.Transform = transform;
+        cmd.Sprite = src;
+        cmd.EntityID = entityID;
+        s_Data.SpriteDrawCommands.push_back(cmd);
     }
 
     Renderer3D::Statistics Renderer3D::GetStats()

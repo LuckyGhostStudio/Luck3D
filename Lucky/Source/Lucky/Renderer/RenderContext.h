@@ -6,6 +6,8 @@
 #include "Material.h"
 #include "Renderer3D.h"
 
+#include "Lucky/Scene/Components/SpriteRendererComponent.h"
+
 #include <glm/glm.hpp>
 #include <vector>
 #include <unordered_set>
@@ -98,6 +100,17 @@ namespace Lucky
         Ref<Mesh> MeshData;             // 网格引用（通过 Ref 保证生命周期）
         const SubMesh* SubMeshPtr;      // SubMesh 指针（指向 Mesh 内部数据，仅在当前帧的 RenderOutline() 作用域内有效，生命周期由 MeshData 的 Ref 保证）
     };
+
+    /// <summary>
+    /// Sprite 绘制命令：从 SpriteRendererComponent 提取
+    /// 由 Scene 收集，Sprite2DPass 消费。SpriteRendererComponent 采用值拷贝，避免 Component 生命周期问题
+    /// </summary>
+    struct SpriteDrawCommand
+    {
+        glm::mat4 Transform;                    // 模型变换矩阵（世界空间）
+        SpriteRendererComponent Sprite;         // Sprite 数据副本（值拷贝）
+        int EntityID = -1;                      // Entity ID（用于拾取，-1 表示无效）
+    };
     
     /// <summary>
     /// 渲染上下文：包含一帧渲染所需的所有数据
@@ -109,6 +122,10 @@ namespace Lucky
         // ---- DrawCommand 列表（已排序） ----
         const std::vector<DrawCommand>* OpaqueDrawCommands = nullptr;       // 不透明物体绘制命令（已按 SortKey 排序）
         const std::vector<DrawCommand>* TransparentDrawCommands = nullptr;  // 透明物体绘制命令（已按距离从远到近排序）
+
+        // ---- Sprite 数据（Sprite2DPass 使用） ----
+        const std::vector<SpriteDrawCommand>* SpriteDrawCommands = nullptr; // 2D Sprite 绘制命令（暂不排序，按注册顺序渲染）
+        glm::mat4 CameraProjectionMatrix = glm::mat4(1.0f);                 // 相机投影矩阵（Sprite2DPass 需要独立传给 Renderer2D::BeginScene）
         
         // ---- Outline 数据 ----
         const std::vector<OutlineDrawCommand>* OutlineDrawCommands = nullptr;   // 描边绘制命令

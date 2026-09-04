@@ -17,6 +17,13 @@ namespace Lucky
             return nullptr;
         }
 
-        return Texture2D::Create(absolutePath);
+        Ref<Texture2D> texture = Texture2D::Create(absolutePath);
+        if (texture)
+        {
+            // 从文件路径 stem（文件名不含扩展名）设置资产名称
+            // 图片文件本身不携带 Asset 名字信息，此处兜底以供 Inspector / AssetField 显示
+            texture->SetName(std::filesystem::path(metadata.FilePath).stem().string());
+        }
+        return texture;
     }
 }

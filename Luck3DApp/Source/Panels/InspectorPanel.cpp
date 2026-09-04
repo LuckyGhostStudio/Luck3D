@@ -240,6 +240,15 @@ namespace Lucky
                 UI::EndCollapsing();
             }
         });
+
+        // SpriteRenderer 组件（世界空间 2D 精灵）
+        DrawComponent<SpriteRendererComponent>("Sprite Renderer", entity, [](SpriteRendererComponent& sprite)
+        {
+            UI::PropertyColor("Color", sprite.Color);
+            UI::PropertyAsset("Texture", sprite.Texture);
+            UI::PropertyFloat4("UV Rect", sprite.UVRect, 0.01f);
+            UI::PropertyFloat("Tiling", sprite.TilingFactor, 0.1f, 0.0f, 100.0f);
+        });
         
         // PostProcessVolume 组件
         DrawComponent<PostProcessVolumeComponent>("Post Process Volume", entity, [&](PostProcessVolumeComponent& volume)

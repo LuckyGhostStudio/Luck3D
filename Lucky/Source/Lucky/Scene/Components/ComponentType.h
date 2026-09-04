@@ -15,6 +15,7 @@ namespace Lucky
         Light,
         MeshFilter,
         MeshRenderer,
+        SpriteRenderer,
         PostProcessVolume,
         
         // TODO 其他组件

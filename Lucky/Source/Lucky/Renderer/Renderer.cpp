@@ -2,6 +2,7 @@
 #include "Renderer.h"
 
 #include "Renderer3D.h"
+#include "Renderer2D.h"
 #include "GizmoRenderer.h"
 #include "ScreenQuad.h"
 
@@ -12,12 +13,14 @@ namespace Lucky
         RenderCommand::Init();
         ScreenQuad::Init();
         Renderer3D::Init();
+        Renderer2D::Init();     // 必须在 Renderer3D::Init 之后（依赖 ShaderLibrary 与白色纹理）
         GizmoRenderer::Init();
     }
 
     void Renderer::Shutdown()
     {
         Renderer3D::Shutdown();
+        Renderer2D::Shutdown();
         GizmoRenderer::Shutdown();
         ScreenQuad::Shutdown();
     }

@@ -191,6 +191,9 @@ Assets:
   - Handle: 463992103819262646
     Type: Texture2D
     FilePath: Assets/Textures/PlaneColor.png
+  - Handle: 13610503325390445558
+    Type: Shader
+    FilePath: Assets/Shaders/Sprite.frag
   - Handle: 14395212757546420420
     Type: Texture2D
     FilePath: Assets/Textures/Skybox/forest.hdr
@@ -218,3 +221,6 @@ Assets:
   - Handle: 8725115418304322710
     Type: Material
     FilePath: Assets/Materials/Testttt.lmat
+  - Handle: 8893766074909608074
+    Type: Shader
+    FilePath: Assets/Shaders/Sprite.vert

@@ -2,6 +2,7 @@
 #include "Scene.h"
 
 #include "Lucky/Renderer/Renderer3D.h"
+#include "Lucky/Renderer/Renderer2D.h"
 
 #include "Components/Components.h"
 
@@ -243,6 +244,7 @@ namespace Lucky
         }
         
         Renderer3D::ResetStats();   // 重置统计数据
+        Renderer2D::ResetStats();   // 重置 2D 统计数据（与 Renderer3D 保持同步）
         Renderer3D::BeginScene(camera, sceneLightData);
         {
             // ---- 收集后处理参数 ----
@@ -285,6 +287,15 @@ namespace Lucky
                 auto [transform, meshFilter, meshRenderer] = meshGroup.get<TransformComponent, MeshFilterComponent, MeshRendererComponent>(entity);
 
                 Renderer3D::DrawMesh(transform.GetWorldTransform(), meshFilter.Mesh, meshRenderer.Materials, static_cast<int>(static_cast<uint32_t>(entity)));    // 绘制网格
+            }
+
+            // 收集 Sprite（TransformComponent + SpriteRendererComponent 组合）
+            auto spriteView = m_Registry.view<TransformComponent, SpriteRendererComponent>();
+            for (auto entity : spriteView)
+            {
+                auto [transform, sprite] = spriteView.get<TransformComponent, SpriteRendererComponent>(entity);
+
+                Renderer3D::DrawSprite(transform.GetWorldTransform(), sprite, static_cast<int>(static_cast<uint32_t>(entity)));
             }
         }
         Renderer3D::EndScene();
@@ -461,6 +472,12 @@ namespace Lucky
     
     template<>
     void Scene::OnComponentAdded<PostProcessVolumeComponent>(Entity entity, PostProcessVolumeComponent& component)
+    {
+        
+    }
+    
+    template<>
+    void Scene::OnComponentAdded<SpriteRendererComponent>(Entity entity, SpriteRendererComponent& component)
     {
         
     }
