@@ -160,18 +160,24 @@ namespace Lucky
         /// 提交一个 Sprite 绘制命令
         /// </summary>
         /// <param name="transform">模型变换矩阵（世界空间）</param>
-        /// <param name="color">Tint 颜色</param>
         /// <param name="texture">纹理引用（nullptr = 纯色）</param>
+        /// <param name="color">Tint 颜色</param>
+        /// <param name="flipX">是否水平翻转 UV</param>
+        /// <param name="flipY">是否垂直翻转 UV</param>
         /// <param name="uvRect">UV 区域（xy=uvMin, zw=uvMax）</param>
         /// <param name="tilingFactor">平铺倍数</param>
         /// <param name="material">材质引用（nullptr = 使用 Renderer2D 默认材质）</param>
+        /// <param name="sortingOrder">排序序号（数值越大越靠前）</param>
         /// <param name="entityID">实体 ID</param>
         static void DrawSprite(const glm::mat4& transform,
-                               const glm::vec4& color,
                                const Ref<Texture2D>& texture,
+                               const glm::vec4& color,
+                               bool flipX,
+                               bool flipY,
                                const glm::vec4& uvRect,
                                float tilingFactor,
                                const Ref<Material>& material,
+                               int sortingOrder,
                                int entityID = -1);
 
         /// <summary>

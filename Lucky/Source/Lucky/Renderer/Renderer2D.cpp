@@ -331,7 +331,7 @@ namespace Lucky
 
     void Renderer2D::DrawQuad(const glm::mat4& transform, const Ref<Texture2D>& texture,
                               const glm::vec4& tintColor, const glm::vec4& uvRect,
-                              float tilingFactor, int entityID)
+                              float tilingFactor, bool flipX, bool flipY, int entityID)
     {
         // 顶点数满：Flush 并重置
         if (s_Data.QuadIndexCount >= Renderer2DData::MaxIndices)
@@ -342,12 +342,18 @@ namespace Lucky
         // 提交纹理并获取槽位索引
         const float texIndex = SubmitTexture(texture);
 
-        // 根据 UVRect 展开 4 个角的 UV（xy = uvMin, zw = uvMax）
+        // 根据 UVRect + Flip 展开 4 个角的 UV
+        // FlipX：交换 u 的左右；FlipY：交换 v 的上下
+        const float u0 = flipX ? uvRect.z : uvRect.x;
+        const float u1 = flipX ? uvRect.x : uvRect.z;
+        const float v0 = flipY ? uvRect.w : uvRect.y;
+        const float v1 = flipY ? uvRect.y : uvRect.w;
+
         const glm::vec2 texCoords[4] = {
-            { uvRect.x, uvRect.y },     // 左下
-            { uvRect.z, uvRect.y },     // 右下
-            { uvRect.z, uvRect.w },     // 右上
-            { uvRect.x, uvRect.w }      // 左上
+            { u0, v0 },     // 左下
+            { u1, v0 },     // 右下
+            { u1, v1 },     // 右上
+            { u0, v1 }      // 左上
         };
 
         for (int i = 0; i < 4; ++i)

@@ -185,8 +185,6 @@ namespace Lucky
             out << YAML::Key << "SpriteRendererComponent";
             out << YAML::BeginMap;
 
-            out << YAML::Key << "Color" << YAML::Value << sprite.Color;
-
             // Texture（AssetHandle 引用，nullptr 写 0）
             if (sprite.Texture)
             {
@@ -197,6 +195,9 @@ namespace Lucky
                 out << YAML::Key << "Texture" << YAML::Value << static_cast<uint64_t>(0);
             }
 
+            out << YAML::Key << "Color" << YAML::Value << sprite.Color;
+            out << YAML::Key << "FlipX" << YAML::Value << sprite.FlipX;
+            out << YAML::Key << "FlipY" << YAML::Value << sprite.FlipY;
             out << YAML::Key << "UVRect" << YAML::Value << sprite.UVRect;
             out << YAML::Key << "TilingFactor" << YAML::Value << sprite.TilingFactor;
 
@@ -209,6 +210,8 @@ namespace Lucky
             {
                 out << YAML::Key << "Material" << YAML::Value << static_cast<uint64_t>(0);
             }
+
+            out << YAML::Key << "SortingOrder" << YAML::Value << sprite.SortingOrder;
 
             out << YAML::EndMap;
         }
@@ -567,11 +570,6 @@ namespace Lucky
                 {
                     auto& sprite = deserializedEntity.AddComponent<SpriteRendererComponent>();
 
-                    if (spriteRendererComponentNode["Color"])
-                    {
-                        sprite.Color = spriteRendererComponentNode["Color"].as<glm::vec4>();
-                    }
-
                     // Texture（AssetHandle 引用，无效 handle 保持 nullptr = 纯色）
                     if (spriteRendererComponentNode["Texture"])
                     {
@@ -588,6 +586,18 @@ namespace Lucky
                         }
                     }
 
+                    if (spriteRendererComponentNode["Color"])
+                    {
+                        sprite.Color = spriteRendererComponentNode["Color"].as<glm::vec4>();
+                    }
+                    if (spriteRendererComponentNode["FlipX"])
+                    {
+                        sprite.FlipX = spriteRendererComponentNode["FlipX"].as<bool>();
+                    }
+                    if (spriteRendererComponentNode["FlipY"])
+                    {
+                        sprite.FlipY = spriteRendererComponentNode["FlipY"].as<bool>();
+                    }
                     if (spriteRendererComponentNode["UVRect"])
                     {
                         sprite.UVRect = spriteRendererComponentNode["UVRect"].as<glm::vec4>();
@@ -611,6 +621,11 @@ namespace Lucky
                             }
                             sprite.Material = mat;
                         }
+                    }
+
+                    if (spriteRendererComponentNode["SortingOrder"])
+                    {
+                        sprite.SortingOrder = spriteRendererComponentNode["SortingOrder"].as<int>();
                     }
                 }
 

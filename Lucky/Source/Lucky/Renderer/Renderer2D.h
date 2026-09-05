@@ -79,11 +79,15 @@ namespace Lucky
         /// <param name="tintColor">颜色 Tint</param>
         /// <param name="uvRect">UV 区域（xy=uvMin, zw=uvMax），默认整张图</param>
         /// <param name="tilingFactor">平铺倍数</param>
+        /// <param name="flipX">水平翻转 UV</param>
+        /// <param name="flipY">垂直翻转 UV</param>
         /// <param name="entityID">实体 ID</param>
         static void DrawQuad(const glm::mat4& transform, const Ref<Texture2D>& texture,
                              const glm::vec4& tintColor = glm::vec4(1.0f),
                              const glm::vec4& uvRect = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f),
                              float tilingFactor = 1.0f,
+                             bool flipX = false,
+                             bool flipY = false,
                              int entityID = -1);
 
         // ---- 统计数据 ----

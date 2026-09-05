@@ -244,11 +244,14 @@ namespace Lucky
         // SpriteRenderer 组件（世界空间 2D 精灵）
         DrawComponent<SpriteRendererComponent>("Sprite Renderer", entity, [](SpriteRendererComponent& sprite)
         {
-            UI::PropertyColor("Color", sprite.Color);
             UI::PropertyAsset("Sprite", sprite.Texture);
+            UI::PropertyColor("Color", sprite.Color);
+            UI::PropertyCheckbox("Flip X", sprite.FlipX);
+            UI::PropertyCheckbox("Flip Y", sprite.FlipY);
             UI::PropertyFloat4("UV Rect", sprite.UVRect, 0.01f);
             UI::PropertyFloat("Tiling", sprite.TilingFactor, 0.1f, 0.0f, 100.0f);
             UI::PropertyAsset("Material", sprite.Material);
+            UI::PropertyInt("Sorting Order", sprite.SortingOrder);
         });
         
         // PostProcessVolume 组件

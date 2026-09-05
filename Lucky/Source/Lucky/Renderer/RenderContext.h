@@ -106,11 +106,15 @@ namespace Lucky
     struct SpriteDrawCommand
     {
         glm::mat4 Transform;                                        // 模型变换矩阵（世界空间）
-        glm::vec4 Color = glm::vec4(1.0f);                          // Tint 颜色
         Ref<Texture2D> Texture;                                     // 纹理引用（nullptr = 纯色）
+        glm::vec4 Color = glm::vec4(1.0f);                          // Tint 颜色
+        bool FlipX = false;                                         // 水平翻转
+        bool FlipY = false;                                         // 垂直翻转
         glm::vec4 UVRect = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);       // UV 区域（xy=uvMin, zw=uvMax）
         float TilingFactor = 1.0f;                                  // 平铺倍数
         Ref<Material> MaterialData;                                 // 材质引用（决定 Shader / RenderState / 合批分组，nullptr = 走默认 Sprite Material）
+        int SortingOrder = 0;                                       // 排序序号（数值越大越靠前）
+        float DistanceToCamera = 0.0f;                              // 到相机的距离（视图空间 -z，用于同序号内从远到近排序）
         int EntityID = -1;                                          // Entity ID（用于拾取，-1 表示无效）
     };
     
@@ -126,7 +130,7 @@ namespace Lucky
         const std::vector<DrawCommand>* TransparentDrawCommands = nullptr;  // 透明物体绘制命令（已按距离从远到近排序）
 
         // ---- Sprite 数据（Sprite2DPass 使用） ----
-        const std::vector<SpriteDrawCommand>* SpriteDrawCommands = nullptr; // 2D Sprite 绘制命令（暂不排序，按注册顺序渲染）
+        const std::vector<SpriteDrawCommand>* SpriteDrawCommands = nullptr; // 2D Sprite 绘制命令（已按 SortingOrder 升序、同序号内距离从远到近排序）
         glm::mat4 CameraProjectionMatrix = glm::mat4(1.0f);                 // 相机投影矩阵（Sprite2DPass 需要独立传给 Renderer2D::BeginScene）
         
         // ---- Outline 数据 ----

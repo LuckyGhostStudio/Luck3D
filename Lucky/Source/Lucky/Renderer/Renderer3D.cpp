@@ -592,6 +592,16 @@ namespace Lucky
         {
             return a.DistanceToCamera > b.DistanceToCamera;  // 远的先画
         });
+
+        // ---- 排序 Sprite（先 SortingOrder 升序，再距离从远到近） ----
+        std::sort(s_Data.SpriteDrawCommands.begin(), s_Data.SpriteDrawCommands.end(), [](const SpriteDrawCommand& a, const SpriteDrawCommand& b)
+        {
+            if (a.SortingOrder != b.SortingOrder)
+            {
+                return a.SortingOrder < b.SortingOrder;         // 小的先画（大的覆盖在上层）
+            }
+            return a.DistanceToCamera > b.DistanceToCamera;     // 远的先画
+        });
         
         // ---- 构建 RenderContext（包含阴影数据） ----
         RenderContext context;
@@ -826,18 +836,30 @@ namespace Lucky
         }
     }
 
-    void Renderer3D::DrawSprite(const glm::mat4& transform, const glm::vec4& color,
-                                const Ref<Texture2D>& texture, const glm::vec4& uvRect,
-                                float tilingFactor, const Ref<Material>& material, int entityID)
+    void Renderer3D::DrawSprite(const glm::mat4& transform,
+                                const Ref<Texture2D>& texture, const glm::vec4& color,
+                                bool flipX, bool flipY,
+                                const glm::vec4& uvRect, float tilingFactor,
+                                const Ref<Material>& material, int sortingOrder,
+                                int entityID)
     {
         SpriteDrawCommand cmd;
         cmd.Transform    = transform;
-        cmd.Color        = color;
         cmd.Texture      = texture;
+        cmd.Color        = color;
+        cmd.FlipX        = flipX;
+        cmd.FlipY        = flipY;
         cmd.UVRect       = uvRect;
         cmd.TilingFactor = tilingFactor;
         cmd.MaterialData = material;
+        cmd.SortingOrder = sortingOrder;
         cmd.EntityID     = entityID;
+
+        // 视空间 -z 越大越远，供同 SortingOrder 内按距离从远到近排序
+        const glm::vec3 worldPos = glm::vec3(transform[3]);
+        const glm::vec4 viewPos  = s_Data.CameraViewMatrix * glm::vec4(worldPos, 1.0f);
+        cmd.DistanceToCamera = -viewPos.z;
+
         s_Data.SpriteDrawCommands.push_back(cmd);
     }
 

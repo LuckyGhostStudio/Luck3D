@@ -31,7 +31,7 @@ namespace Lucky
             Renderer2D::SetBatchMaterial(cmd.MaterialData);
 
             // 统一走带纹理版 DrawQuad：Texture 为 nullptr 时 Renderer2D 内部会使用槽 0（白色纹理），等价于纯色
-            Renderer2D::DrawQuad(cmd.Transform, cmd.Texture, cmd.Color, cmd.UVRect, cmd.TilingFactor, cmd.EntityID);
+            Renderer2D::DrawQuad(cmd.Transform, cmd.Texture, cmd.Color, cmd.UVRect, cmd.TilingFactor, cmd.FlipX, cmd.FlipY, cmd.EntityID);
         }
 
         Renderer2D::EndScene();
