@@ -1,0 +1,18 @@
+Version: 1
+Material:
+  Handle: 15488337524564160703
+  Name: Sprite-Default
+  Shader: Sprite
+  RenderState:
+    RenderingMode: 0
+    CullMode: 2
+    DepthWrite: false
+    DepthTest: 0
+    BlendMode: 1
+    RenderQueue: 3000
+  Properties:
+    - Name: u_Textures[0]
+      Type: Sampler2D
+      Value:
+        Handle: 0
+        Path: ""

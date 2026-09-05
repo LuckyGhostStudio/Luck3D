@@ -2,6 +2,7 @@
 
 #include "EditorCamera.h"
 #include "Texture.h"
+#include "Material.h"
 
 #include <glm/glm.hpp>
 
@@ -47,6 +48,18 @@ namespace Lucky
         /// 立即提交当前批次并重置（用户显式断批时调用）
         /// </summary>
         static void Flush();
+
+        /// <summary>
+        /// 设置当前批次使用的材质：若与当前批次材质不同，则先 Flush 再切换
+        /// 后续 DrawQuad 调用都归属该材质批次，直到再次切换
+        /// </summary>
+        /// <param name="material">材质引用（nullptr 视为使用默认材质）</param>
+        static void SetBatchMaterial(const Ref<Material>& material);
+
+        /// <summary>
+        /// 获取默认 Sprite 材质（Shader = Sprite，Alpha Blend + Cull Off + ZWrite Off）
+        /// </summary>
+        static const Ref<Material>& GetDefaultMaterial();
 
         // ---- 图元绘制 API ----
 

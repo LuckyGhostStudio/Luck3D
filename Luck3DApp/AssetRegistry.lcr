@@ -212,9 +212,6 @@ Assets:
   - Handle: 3724253791413031597
     Type: Texture2D
     FilePath: Assets/Textures/Texture_Gloss.png
-  - Handle: 18437967292766570094
-    Type: Scene
-    FilePath: Assets/Scenes/New Scene.luck3d
   - Handle: 1500878858009030645
     Type: Scene
     FilePath: Assets/Scenes/New Scene2.luck3d
@@ -224,3 +221,12 @@ Assets:
   - Handle: 8893766074909608074
     Type: Shader
     FilePath: Assets/Shaders/Sprite.vert
+  - Handle: 15488337524564160703
+    Type: Material
+    FilePath: Assets/Internal/Materials/Sprite-Default.lmat
+  - Handle: 11038252440144666455
+    Type: Scene
+    FilePath: Assets/Scenes/SpriteTest.luck3d
+  - Handle: 17914620190829245294
+    Type: Scene
+    FilePath: Assets/Scenes/New Scene.luck3d

@@ -826,17 +826,18 @@ namespace Lucky
         }
     }
 
-    void Renderer3D::DrawSprite(const glm::mat4& transform, const Ref<Texture2D>& texture,
-                                const glm::vec4& color, const glm::vec4& uvRect,
-                                float tilingFactor, int entityID)
+    void Renderer3D::DrawSprite(const glm::mat4& transform, const glm::vec4& color,
+                                const Ref<Texture2D>& texture, const glm::vec4& uvRect,
+                                float tilingFactor, const Ref<Material>& material, int entityID)
     {
         SpriteDrawCommand cmd;
-        cmd.Transform = transform;
-        cmd.Color = color;
-        cmd.Texture = texture;
-        cmd.UVRect = uvRect;
+        cmd.Transform    = transform;
+        cmd.Color        = color;
+        cmd.Texture      = texture;
+        cmd.UVRect       = uvRect;
         cmd.TilingFactor = tilingFactor;
-        cmd.EntityID = entityID;
+        cmd.MaterialData = material;
+        cmd.EntityID     = entityID;
         s_Data.SpriteDrawCommands.push_back(cmd);
     }
 

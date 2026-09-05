@@ -245,9 +245,10 @@ namespace Lucky
         DrawComponent<SpriteRendererComponent>("Sprite Renderer", entity, [](SpriteRendererComponent& sprite)
         {
             UI::PropertyColor("Color", sprite.Color);
-            UI::PropertyAsset("Texture", sprite.Texture);
+            UI::PropertyAsset("Sprite", sprite.Texture);
             UI::PropertyFloat4("UV Rect", sprite.UVRect, 0.01f);
             UI::PropertyFloat("Tiling", sprite.TilingFactor, 0.1f, 0.0f, 100.0f);
+            UI::PropertyAsset("Material", sprite.Material);
         });
         
         // PostProcessVolume ×é¼þ

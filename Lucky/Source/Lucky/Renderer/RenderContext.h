@@ -110,6 +110,7 @@ namespace Lucky
         Ref<Texture2D> Texture;                                     // 纹理引用（nullptr = 纯色）
         glm::vec4 UVRect = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);       // UV 区域（xy=uvMin, zw=uvMax）
         float TilingFactor = 1.0f;                                  // 平铺倍数
+        Ref<Material> MaterialData;                                 // 材质引用（决定 Shader / RenderState / 合批分组，nullptr = 走默认 Sprite Material）
         int EntityID = -1;                                          // Entity ID（用于拾取，-1 表示无效）
     };
     

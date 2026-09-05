@@ -177,6 +177,42 @@ namespace Lucky
             out << YAML::EndMap;
         }
 
+        // SpriteRenderer 组件
+        if (entity.HasComponent<SpriteRendererComponent>())
+        {
+            const auto& sprite = entity.GetComponent<SpriteRendererComponent>();
+
+            out << YAML::Key << "SpriteRendererComponent";
+            out << YAML::BeginMap;
+
+            out << YAML::Key << "Color" << YAML::Value << sprite.Color;
+
+            // Texture（AssetHandle 引用，nullptr 写 0）
+            if (sprite.Texture)
+            {
+                out << YAML::Key << "Texture" << YAML::Value << static_cast<uint64_t>(sprite.Texture->GetHandle());
+            }
+            else
+            {
+                out << YAML::Key << "Texture" << YAML::Value << static_cast<uint64_t>(0);
+            }
+
+            out << YAML::Key << "UVRect" << YAML::Value << sprite.UVRect;
+            out << YAML::Key << "TilingFactor" << YAML::Value << sprite.TilingFactor;
+
+            // Material（AssetHandle 引用，nullptr 写 0，反序列化时由 Renderer2D 回退默认材质）
+            if (sprite.Material)
+            {
+                out << YAML::Key << "Material" << YAML::Value << static_cast<uint64_t>(sprite.Material->GetHandle());
+            }
+            else
+            {
+                out << YAML::Key << "Material" << YAML::Value << static_cast<uint64_t>(0);
+            }
+
+            out << YAML::EndMap;
+        }
+
         // PostProcessVolume 组件
         if (entity.HasComponent<PostProcessVolumeComponent>())
         {
@@ -521,6 +557,59 @@ namespace Lucky
                                 }
                                 meshRendererComponent.Materials.push_back(material);
                             }
+                        }
+                    }
+                }
+
+                // SpriteRenderer 组件
+                YAML::Node spriteRendererComponentNode = entity["SpriteRendererComponent"];
+                if (spriteRendererComponentNode)
+                {
+                    auto& sprite = deserializedEntity.AddComponent<SpriteRendererComponent>();
+
+                    if (spriteRendererComponentNode["Color"])
+                    {
+                        sprite.Color = spriteRendererComponentNode["Color"].as<glm::vec4>();
+                    }
+
+                    // Texture（AssetHandle 引用，无效 handle 保持 nullptr = 纯色）
+                    if (spriteRendererComponentNode["Texture"])
+                    {
+                        uint64_t handleValue = spriteRendererComponentNode["Texture"].as<uint64_t>();
+                        AssetHandle handle(handleValue);
+                        if (handle.IsValid())
+                        {
+                            Ref<Texture2D> tex = AssetManager::GetAsset<Texture2D>(handle);
+                            if (!tex)
+                            {
+                                LF_CORE_WARN("SceneSerializer: Failed to load sprite texture asset [{0}]", handleValue);
+                            }
+                            sprite.Texture = tex;
+                        }
+                    }
+
+                    if (spriteRendererComponentNode["UVRect"])
+                    {
+                        sprite.UVRect = spriteRendererComponentNode["UVRect"].as<glm::vec4>();
+                    }
+                    if (spriteRendererComponentNode["TilingFactor"])
+                    {
+                        sprite.TilingFactor = spriteRendererComponentNode["TilingFactor"].as<float>();
+                    }
+
+                    // Material（AssetHandle 引用，无效 handle 保持 nullptr，Renderer2D 会回退默认材质）
+                    if (spriteRendererComponentNode["Material"])
+                    {
+                        uint64_t handleValue = spriteRendererComponentNode["Material"].as<uint64_t>();
+                        AssetHandle handle(handleValue);
+                        if (handle.IsValid())
+                        {
+                            Ref<Material> mat = AssetManager::GetAsset<Material>(handle);
+                            if (!mat)
+                            {
+                                LF_CORE_WARN("SceneSerializer: Failed to load sprite material asset [{0}]", handleValue);
+                            }
+                            sprite.Material = mat;
                         }
                     }
                 }

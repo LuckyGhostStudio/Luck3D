@@ -297,10 +297,11 @@ namespace Lucky
 
                 Renderer3D::DrawSprite(
                     transform.GetWorldTransform(),
-                    sprite.Texture,
                     sprite.Color,
+                    sprite.Texture,
                     sprite.UVRect,
                     sprite.TilingFactor,
+                    sprite.Material,
                     static_cast<int>(static_cast<uint32_t>(entity)));
             }
         }

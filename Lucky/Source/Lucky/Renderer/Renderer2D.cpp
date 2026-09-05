@@ -7,6 +7,8 @@
 #include "Shader.h"
 #include "Renderer3D.h"
 
+#include "Lucky/Asset/AssetManager.h"
+
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <array>
@@ -42,6 +44,10 @@ namespace Lucky
         Ref<VertexBuffer> QuadVertexBuffer;
         Ref<Shader>       SpriteShader;
         Ref<Texture2D>    WhiteTexture;                         // 槽 0，用于纯色 Quad
+
+        // ---- 材质（决定当前批次的 Shader / RenderState / 合批分组） ----
+        Ref<Material> DefaultSpriteMaterial;                    // 默认 Sprite 材质（Init 时创建，EnsureAsset 落盘）
+        Ref<Material> CurrentMaterial;                          // 当前批次使用的材质（BeginScene 重置为默认材质）
 
         // ---- 顶点数据缓冲（CPU 端累积，Flush 时上传 GPU） ----
         uint32_t   QuadIndexCount = 0;                          // 当前批次的索引数
@@ -124,6 +130,20 @@ namespace Lucky
         }
         s_Data.SpriteShader->Bind();
         s_Data.SpriteShader->SetIntArray("u_Textures", samplers, Renderer2DData::MaxTextureSlots);
+
+        // ---- 创建默认 Sprite 材质：Sprite Shader + Alpha Blend + Cull Off + ZWrite Off ----
+        s_Data.DefaultSpriteMaterial = CreateRef<Material>("Sprite-Default", s_Data.SpriteShader);
+        {
+            RenderState& state = s_Data.DefaultSpriteMaterial->GetRenderState();
+            state.Cull       = CullMode::Off;
+            state.DepthWrite = false;
+            state.DepthTest  = DepthCompareFunc::Less;
+            state.Blend      = BlendMode::SrcAlpha_OneMinusSrcAlpha;
+            state.Queue      = RenderQueue::Transparent;
+        }
+
+        // ---- 将默认 Sprite 材质落盘到 Internal 目录（已存在则仅注册，不会覆盖用户修改） ----
+        AssetManager::EnsureAsset(s_Data.DefaultSpriteMaterial, "Assets/Internal/Materials/Sprite-Default.lmat");
     }
 
     void Renderer2D::Shutdown()
@@ -137,6 +157,8 @@ namespace Lucky
         s_Data.QuadVertexBuffer.reset();
         s_Data.SpriteShader.reset();
         s_Data.WhiteTexture.reset();
+        s_Data.DefaultSpriteMaterial.reset();
+        s_Data.CurrentMaterial.reset();
         for (auto& slot : s_Data.TextureSlots)
         {
             slot.reset();
@@ -161,6 +183,7 @@ namespace Lucky
         s_Data.QuadIndexCount       = 0;
         s_Data.QuadVertexBufferPtr  = s_Data.QuadVertexBufferBase;
         s_Data.TextureSlotIndex     = 1;    // 保留槽 0 = 白色纹理
+        s_Data.CurrentMaterial      = s_Data.DefaultSpriteMaterial; // 默认材质作为首个批次
     }
 
     void Renderer2D::EndScene()
@@ -188,13 +211,50 @@ namespace Lucky
             RenderCommand::BindTextureUnit(i, s_Data.TextureSlots[i]->GetRendererID());
         }
 
-        // 绑定 Shader（Shader 通过 UBO 读取相机数据，无需额外设置 uniform）
-        s_Data.SpriteShader->Bind();
+        // 选择批次材质（当前材质 or 默认材质兵底）
+        const Ref<Material>& mat = s_Data.CurrentMaterial ? s_Data.CurrentMaterial : s_Data.DefaultSpriteMaterial;
+
+        // 应用材质的 RenderState??每次 Flush 都重新设置，确保与 Renderer3D 遗留状态隔离
+        const RenderState& state = mat->GetRenderState();
+        RenderCommand::SetCullMode(state.Cull);
+        RenderCommand::SetDepthWrite(state.DepthWrite);
+        RenderCommand::SetDepthFunc(state.DepthTest);
+        RenderCommand::SetBlendMode(state.Blend);
+
+        // 绑定 Shader（Shader 通过 UBO 读取相机数据，无需额外设置 u_ViewProjection）
+        mat->GetShader()->Bind();
+
+        // 应用材质的所有 uniform（自定义 Shader 可读到 u_MyParam 等）
+        mat->Apply();
 
         // Draw
         RenderCommand::DrawIndexed(s_Data.QuadVertexArray, s_Data.QuadIndexCount);
 
         s_Data.Stats.DrawCalls++;
+    }
+
+    void Renderer2D::SetBatchMaterial(const Ref<Material>& material)
+    {
+        // nullptr 视为默认材质
+        const Ref<Material>& target = material ? material : s_Data.DefaultSpriteMaterial;
+
+        // 相同材质实例 → 不断批
+        if (target.get() == s_Data.CurrentMaterial.get())
+        {
+            return;
+        }
+
+        // 不同材质：先 Flush 当前批次，再切换
+        Flush();
+        s_Data.QuadIndexCount      = 0;
+        s_Data.QuadVertexBufferPtr = s_Data.QuadVertexBufferBase;
+        s_Data.TextureSlotIndex    = 1;
+        s_Data.CurrentMaterial     = target;
+    }
+
+    const Ref<Material>& Renderer2D::GetDefaultMaterial()
+    {
+        return s_Data.DefaultSpriteMaterial;
     }
 
     /// <summary>
