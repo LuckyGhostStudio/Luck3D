@@ -61,6 +61,11 @@ namespace Lucky
         /// </summary>
         static const Ref<Material>& GetDefaultMaterial();
 
+        /// <summary>
+        /// 获取 Sprite 错误材质
+        /// </summary>
+        static const Ref<Material>& GetErrorMaterial();
+
         // ---- 图元绘制 API ----
 
         /// <summary>

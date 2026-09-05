@@ -27,8 +27,11 @@ namespace Lucky
 
         for (const SpriteDrawCommand& cmd : *context.SpriteDrawCommands)
         {
+            // 材质丢失（cmd.MaterialData 为 nullptr）时使用错误材质
+            const Ref<Material>& batchMaterial = cmd.MaterialData ? cmd.MaterialData : Renderer2D::GetErrorMaterial();
+
             // 按 Material 断批：同 Material 合批，不同 Material 自动 Flush
-            Renderer2D::SetBatchMaterial(cmd.MaterialData);
+            Renderer2D::SetBatchMaterial(batchMaterial);
 
             // 统一走带纹理版 DrawQuad：Texture 为 nullptr 时 Renderer2D 内部会使用槽 0（白色纹理），等价于纯色
             Renderer2D::DrawQuad(cmd.Transform, cmd.Texture, cmd.Color, cmd.UVRect, cmd.TilingFactor, cmd.FlipX, cmd.FlipY, cmd.EntityID);

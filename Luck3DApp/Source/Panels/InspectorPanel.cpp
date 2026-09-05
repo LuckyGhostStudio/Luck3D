@@ -321,12 +321,20 @@ namespace Lucky
             MeshRendererComponent& meshRenderer = entity.GetComponent<MeshRendererComponent>();
             for (Ref<Material>& material : meshRenderer.Materials)
             {
-                if (!material)
+                if (material)
                 {
-                    material = Renderer3D::GetInternalErrorMaterial();  // 使用内部错误材质（表示材质丢失）
+                    MaterialEditor::OnGUI(material);
                 }
-                
-                MaterialEditor::OnGUI(material);
+            }
+        }
+        
+        if (entity.HasComponent<SpriteRendererComponent>())
+        {
+            // 绘制材质编辑器
+            SpriteRendererComponent& spriteRenderer = entity.GetComponent<SpriteRendererComponent>();
+            if (spriteRenderer.Material)
+            {
+                MaterialEditor::OnGUI(spriteRenderer.Material);
             }
         }
         

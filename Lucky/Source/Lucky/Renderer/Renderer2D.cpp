@@ -43,10 +43,12 @@ namespace Lucky
         Ref<VertexArray>  QuadVertexArray;
         Ref<VertexBuffer> QuadVertexBuffer;
         Ref<Shader>       SpriteShader;
+        Ref<Shader>       SpriteErrorShader;                    // 错误材质专用 Shader
         Ref<Texture2D>    WhiteTexture;                         // 槽 0，用于纯色 Quad
 
         // ---- 材质（决定当前批次的 Shader / RenderState / 合批分组） ----
         Ref<Material> DefaultSpriteMaterial;                    // 默认 Sprite 材质（Init 时创建，EnsureAsset 落盘）
+        Ref<Material> SpriteErrorMaterial;                      // Sprite 错误材质（材质丢失时使用）
         Ref<Material> CurrentMaterial;                          // 当前批次使用的材质（BeginScene 重置为默认材质）
 
         // ---- 顶点数据缓冲（CPU 端累积，Flush 时上传 GPU） ----
@@ -115,8 +117,10 @@ namespace Lucky
         s_Data.QuadVertexArray->SetIndexBuffer(ibo);
         delete[] quadIndices;
 
-        // ---- 从 ShaderLibrary 获取 Sprite Shader（由 Renderer3D::Init 提前加载） ----
+        // ---- 加载 Sprite / SpriteError Shader ----
+        Renderer3D::GetShaderLibrary()->Load("Assets/Shaders/Internal/SpriteError");
         s_Data.SpriteShader = Renderer3D::GetShaderLibrary()->Get("Sprite");
+        s_Data.SpriteErrorShader = Renderer3D::GetShaderLibrary()->Get("SpriteError");
 
         // ---- 复用 Renderer3D 的白色纹理作为槽 0 ----
         s_Data.WhiteTexture = Renderer3D::GetDefaultTexture(TextureDefault::White);
@@ -144,6 +148,17 @@ namespace Lucky
 
         // ---- 将默认 Sprite 材质落盘到 Internal 目录（已存在则仅注册，不会覆盖用户修改） ----
         AssetManager::EnsureAsset(s_Data.DefaultSpriteMaterial, "Assets/Internal/Materials/Sprite-Default.lmat");
+
+        // ---- 创建 Sprite 错误材质（纯运行时兜底，不落盘） ----
+        s_Data.SpriteErrorMaterial = CreateRef<Material>("Sprite-Error", s_Data.SpriteErrorShader);
+        {
+            RenderState& state = s_Data.SpriteErrorMaterial->GetRenderState();
+            state.Cull       = CullMode::Off;
+            state.DepthWrite = false;
+            state.DepthTest  = DepthCompareFunc::Less;
+            state.Blend      = BlendMode::SrcAlpha_OneMinusSrcAlpha;
+            state.Queue      = RenderQueue::Transparent;
+        }
     }
 
     void Renderer2D::Shutdown()
@@ -156,8 +171,10 @@ namespace Lucky
         s_Data.QuadVertexArray.reset();
         s_Data.QuadVertexBuffer.reset();
         s_Data.SpriteShader.reset();
+        s_Data.SpriteErrorShader.reset();
         s_Data.WhiteTexture.reset();
         s_Data.DefaultSpriteMaterial.reset();
+        s_Data.SpriteErrorMaterial.reset();
         s_Data.CurrentMaterial.reset();
         for (auto& slot : s_Data.TextureSlots)
         {
@@ -211,8 +228,8 @@ namespace Lucky
             RenderCommand::BindTextureUnit(i, s_Data.TextureSlots[i]->GetRendererID());
         }
 
-        // 选择批次材质（当前材质 or 默认材质兵底）
-        const Ref<Material>& mat = s_Data.CurrentMaterial ? s_Data.CurrentMaterial : s_Data.DefaultSpriteMaterial;
+        // 选择批次材质（当前材质丢失时使用错误材质，以洋红色提示用户）
+        const Ref<Material>& mat = s_Data.CurrentMaterial ? s_Data.CurrentMaterial : s_Data.SpriteErrorMaterial;
 
         // 应用材质的 RenderState??每次 Flush 都重新设置，确保与 Renderer3D 遗留状态隔离
         const RenderState& state = mat->GetRenderState();
@@ -235,8 +252,8 @@ namespace Lucky
 
     void Renderer2D::SetBatchMaterial(const Ref<Material>& material)
     {
-        // nullptr 视为默认材质
-        const Ref<Material>& target = material ? material : s_Data.DefaultSpriteMaterial;
+        // nullptr 视为材质丢失，使用错误材质
+        const Ref<Material>& target = material ? material : s_Data.SpriteErrorMaterial;
 
         // 相同材质实例 → 不断批
         if (target.get() == s_Data.CurrentMaterial.get())
@@ -255,6 +272,11 @@ namespace Lucky
     const Ref<Material>& Renderer2D::GetDefaultMaterial()
     {
         return s_Data.DefaultSpriteMaterial;
+    }
+
+    const Ref<Material>& Renderer2D::GetErrorMaterial()
+    {
+        return s_Data.SpriteErrorMaterial;
     }
 
     /// <summary>

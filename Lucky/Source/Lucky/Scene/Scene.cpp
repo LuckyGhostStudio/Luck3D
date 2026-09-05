@@ -490,6 +490,10 @@ namespace Lucky
     void Scene::OnComponentAdded<SpriteRendererComponent>(Entity entity, SpriteRendererComponent& component)
     {
         
+        if (!component.Material)
+        {
+            component.Material = Renderer2D::GetDefaultMaterial();
+        }
     }
     
     // TODO 添加新组件
