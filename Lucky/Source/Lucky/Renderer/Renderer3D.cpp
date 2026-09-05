@@ -844,20 +844,20 @@ namespace Lucky
                                 int entityID)
     {
         SpriteDrawCommand cmd;
-        cmd.Transform    = transform;
-        cmd.Texture      = texture;
-        cmd.Color        = color;
-        cmd.FlipX        = flipX;
-        cmd.FlipY        = flipY;
-        cmd.UVRect       = uvRect;
+        cmd.Transform = transform;
+        cmd.Texture = texture;
+        cmd.Color = color;
+        cmd.FlipX = flipX;
+        cmd.FlipY = flipY;
+        cmd.UVRect = uvRect;
         cmd.TilingFactor = tilingFactor;
         cmd.MaterialData = material;
         cmd.SortingOrder = sortingOrder;
-        cmd.EntityID     = entityID;
+        cmd.EntityID = entityID;
 
         // 视空间 -z 越大越远，供同 SortingOrder 内按距离从远到近排序
         const glm::vec3 worldPos = glm::vec3(transform[3]);
-        const glm::vec4 viewPos  = s_Data.CameraViewMatrix * glm::vec4(worldPos, 1.0f);
+        const glm::vec4 viewPos = s_Data.CameraViewMatrix * glm::vec4(worldPos, 1.0f);
         cmd.DistanceToCamera = -viewPos.z;
 
         s_Data.SpriteDrawCommands.push_back(cmd);

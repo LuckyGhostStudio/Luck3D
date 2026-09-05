@@ -40,11 +40,11 @@ namespace Lucky
         static const uint32_t MaxTextureSlots = 32;
 
         // ---- Quad 批处理资源 ----
-        Ref<VertexArray>  QuadVertexArray;
+        Ref<VertexArray> QuadVertexArray;
         Ref<VertexBuffer> QuadVertexBuffer;
-        Ref<Shader>       SpriteShader;
-        Ref<Shader>       SpriteErrorShader;                    // 错误材质专用 Shader
-        Ref<Texture2D>    WhiteTexture;                         // 槽 0，用于纯色 Quad
+        Ref<Shader> SpriteShader;
+        Ref<Shader> SpriteErrorShader;                          // 错误材质专用 Shader
+        Ref<Texture2D> WhiteTexture;                            // 槽 0，用于纯色 Quad
 
         // ---- 材质（决定当前批次的 Shader / RenderState / 合批分组） ----
         Ref<Material> DefaultSpriteMaterial;                    // 默认 Sprite 材质（Init 时创建，EnsureAsset 落盘）
@@ -52,9 +52,9 @@ namespace Lucky
         Ref<Material> CurrentMaterial;                          // 当前批次使用的材质（BeginScene 重置为默认材质）
 
         // ---- 顶点数据缓冲（CPU 端累积，Flush 时上传 GPU） ----
-        uint32_t   QuadIndexCount = 0;                          // 当前批次的索引数
+        uint32_t QuadIndexCount = 0;                            // 当前批次的索引数
         QuadVertex* QuadVertexBufferBase = nullptr;             // CPU 端缓冲区基地址（Init 时 new，Shutdown 时 delete[]）
-        QuadVertex* QuadVertexBufferPtr  = nullptr;             // 当前写入位置
+        QuadVertex* QuadVertexBufferPtr = nullptr;              // 当前写入位置
 
         // ---- 纹理槽 ----
         std::array<Ref<Texture2D>, MaxTextureSlots> TextureSlots;
@@ -88,12 +88,12 @@ namespace Lucky
         // ---- 创建动态 VBO（每帧写入） ----
         s_Data.QuadVertexBuffer = VertexBuffer::Create(Renderer2DData::MaxVertices * sizeof(QuadVertex));
         s_Data.QuadVertexBuffer->SetLayout({
-            { ShaderDataType::Float3, "a_Position"     },
-            { ShaderDataType::Float4, "a_Color"        },
-            { ShaderDataType::Float2, "a_TexCoord"     },
-            { ShaderDataType::Float,  "a_TexIndex"     },
-            { ShaderDataType::Float,  "a_TilingFactor" },
-            { ShaderDataType::Int,    "a_EntityID"     }
+            { ShaderDataType::Float3, "a_Position" },
+            { ShaderDataType::Float4, "a_Color" },
+            { ShaderDataType::Float2, "a_TexCoord" },
+            { ShaderDataType::Float, "a_TexIndex" },
+            { ShaderDataType::Float, "a_TilingFactor" },
+            { ShaderDataType::Int, "a_EntityID" }
         });
         s_Data.QuadVertexArray->AddVertexBuffer(s_Data.QuadVertexBuffer);
 
@@ -139,11 +139,11 @@ namespace Lucky
         s_Data.DefaultSpriteMaterial = CreateRef<Material>("Sprite-Default", s_Data.SpriteShader);
         {
             RenderState& state = s_Data.DefaultSpriteMaterial->GetRenderState();
-            state.Cull       = CullMode::Off;
+            state.Cull = CullMode::Off;
             state.DepthWrite = false;
-            state.DepthTest  = DepthCompareFunc::Less;
-            state.Blend      = BlendMode::SrcAlpha_OneMinusSrcAlpha;
-            state.Queue      = RenderQueue::Transparent;
+            state.DepthTest = DepthCompareFunc::Less;
+            state.Blend = BlendMode::SrcAlpha_OneMinusSrcAlpha;
+            state.Queue = RenderQueue::Transparent;
         }
 
         // ---- 将默认 Sprite 材质落盘到 Internal 目录（已存在则仅注册，不会覆盖用户修改） ----
@@ -153,11 +153,11 @@ namespace Lucky
         s_Data.SpriteErrorMaterial = CreateRef<Material>("Sprite-Error", s_Data.SpriteErrorShader);
         {
             RenderState& state = s_Data.SpriteErrorMaterial->GetRenderState();
-            state.Cull       = CullMode::Off;
+            state.Cull = CullMode::Off;
             state.DepthWrite = false;
-            state.DepthTest  = DepthCompareFunc::Less;
-            state.Blend      = BlendMode::SrcAlpha_OneMinusSrcAlpha;
-            state.Queue      = RenderQueue::Transparent;
+            state.DepthTest = DepthCompareFunc::Less;
+            state.Blend = BlendMode::SrcAlpha_OneMinusSrcAlpha;
+            state.Queue = RenderQueue::Transparent;
         }
     }
 
@@ -165,7 +165,7 @@ namespace Lucky
     {
         delete[] s_Data.QuadVertexBufferBase;
         s_Data.QuadVertexBufferBase = nullptr;
-        s_Data.QuadVertexBufferPtr  = nullptr;
+        s_Data.QuadVertexBufferPtr = nullptr;
 
         // 清空 Ref 引用，让底层资源析构
         s_Data.QuadVertexArray.reset();
@@ -197,10 +197,10 @@ namespace Lucky
         // 相机 UBO 由 Renderer3D::BeginScene 已上传，Renderer2D 直接复用
 
         // 重置当前批次状态
-        s_Data.QuadIndexCount       = 0;
-        s_Data.QuadVertexBufferPtr  = s_Data.QuadVertexBufferBase;
-        s_Data.TextureSlotIndex     = 1;    // 保留槽 0 = 白色纹理
-        s_Data.CurrentMaterial      = s_Data.DefaultSpriteMaterial; // 默认材质作为首个批次
+        s_Data.QuadIndexCount = 0;
+        s_Data.QuadVertexBufferPtr = s_Data.QuadVertexBufferBase;
+        s_Data.TextureSlotIndex = 1;                            // 保留槽 0 = 白色纹理
+        s_Data.CurrentMaterial = s_Data.DefaultSpriteMaterial;  // 默认材质作为首个批次
     }
 
     void Renderer2D::EndScene()
@@ -263,10 +263,10 @@ namespace Lucky
 
         // 不同材质：先 Flush 当前批次，再切换
         Flush();
-        s_Data.QuadIndexCount      = 0;
+        s_Data.QuadIndexCount = 0;
         s_Data.QuadVertexBufferPtr = s_Data.QuadVertexBufferBase;
-        s_Data.TextureSlotIndex    = 1;
-        s_Data.CurrentMaterial     = target;
+        s_Data.TextureSlotIndex = 1;
+        s_Data.CurrentMaterial = target;
     }
 
     const Ref<Material>& Renderer2D::GetDefaultMaterial()
@@ -286,9 +286,9 @@ namespace Lucky
     {
         Renderer2D::Flush();
 
-        s_Data.QuadIndexCount      = 0;
+        s_Data.QuadIndexCount = 0;
         s_Data.QuadVertexBufferPtr = s_Data.QuadVertexBufferBase;
-        s_Data.TextureSlotIndex    = 1;
+        s_Data.TextureSlotIndex = 1;
     }
 
     /// <summary>
@@ -338,12 +338,12 @@ namespace Lucky
 
         for (int i = 0; i < 4; ++i)
         {
-            s_Data.QuadVertexBufferPtr->Position     = glm::vec3(transform * s_Data.QuadVertexPositions[i]);
-            s_Data.QuadVertexBufferPtr->Color        = color;
-            s_Data.QuadVertexBufferPtr->TexCoord     = texCoords[i];
-            s_Data.QuadVertexBufferPtr->TexIndex     = 0.0f;    // 白色槽
+            s_Data.QuadVertexBufferPtr->Position = glm::vec3(transform * s_Data.QuadVertexPositions[i]);
+            s_Data.QuadVertexBufferPtr->Color = color;
+            s_Data.QuadVertexBufferPtr->TexCoord = texCoords[i];
+            s_Data.QuadVertexBufferPtr->TexIndex = 0.0f;        // 白色槽
             s_Data.QuadVertexBufferPtr->TilingFactor = 1.0f;
-            s_Data.QuadVertexBufferPtr->EntityID     = entityID;
+            s_Data.QuadVertexBufferPtr->EntityID = entityID;
             s_Data.QuadVertexBufferPtr++;
         }
 
@@ -372,20 +372,20 @@ namespace Lucky
         const float v1 = flipY ? uvRect.y : uvRect.w;
 
         const glm::vec2 texCoords[4] = {
-            { u0, v0 },     // 左下
-            { u1, v0 },     // 右下
-            { u1, v1 },     // 右上
-            { u0, v1 }      // 左上
+            { u0, v0 }, // 左下
+            { u1, v0 }, // 右下
+            { u1, v1 }, // 右上
+            { u0, v1 }  // 左上
         };
 
         for (int i = 0; i < 4; ++i)
         {
-            s_Data.QuadVertexBufferPtr->Position     = glm::vec3(transform * s_Data.QuadVertexPositions[i]);
-            s_Data.QuadVertexBufferPtr->Color        = tintColor;
-            s_Data.QuadVertexBufferPtr->TexCoord     = texCoords[i];
-            s_Data.QuadVertexBufferPtr->TexIndex     = texIndex;
+            s_Data.QuadVertexBufferPtr->Position = glm::vec3(transform * s_Data.QuadVertexPositions[i]);
+            s_Data.QuadVertexBufferPtr->Color = tintColor;
+            s_Data.QuadVertexBufferPtr->TexCoord = texCoords[i];
+            s_Data.QuadVertexBufferPtr->TexIndex = texIndex;
             s_Data.QuadVertexBufferPtr->TilingFactor = tilingFactor;
-            s_Data.QuadVertexBufferPtr->EntityID     = entityID;
+            s_Data.QuadVertexBufferPtr->EntityID = entityID;
             s_Data.QuadVertexBufferPtr++;
         }
 

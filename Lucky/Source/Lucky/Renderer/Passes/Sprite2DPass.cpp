@@ -43,7 +43,7 @@ namespace Lucky
         if (context.Stats)
         {
             const Renderer2D::Statistics stats2D = Renderer2D::GetStats();
-            context.Stats->DrawCalls     += stats2D.DrawCalls;
+            context.Stats->DrawCalls += stats2D.DrawCalls;
             context.Stats->TriangleCount += stats2D.QuadCount * 2;
         }
     }
