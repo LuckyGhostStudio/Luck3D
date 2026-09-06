@@ -8,6 +8,8 @@ workspace "Luck3D"      -- 解决方案名称
 
 outputdir = "%{cfg.system}-%{cfg.architecture}/%{cfg.buildcfg}"     -- 输出目录
 
+include "Dependencies.lua"
+
 -- 依赖
 group "Dependencies"
     include "Lucky/Vendor/GLFW"     -- 包含 GLFW 目录
@@ -16,10 +18,10 @@ group "Dependencies"
     include "Lucky/Vendor/yaml-cpp" -- 包含 yaml-cpp 目录
 group ""
 
-include "Dependencies.lua"
-
 group "Core"
     include "Lucky/Build-Lucky.lua"
 group ""
 
-include "Luck3DApp/Build-Luck3DApp.lua"
+group "Tools"
+    include "Luck3DApp/Build-Luck3DApp.lua"
+group ""
