@@ -339,6 +339,97 @@ namespace Lucky
         }
         
         UI::Draw::HorizontalLine();
+        
+        // 添加组件按钮（居中、固定宽度、点击弹出组件菜单）
+        DrawAddComponentButton(entity);
+    }
+
+    void InspectorPanel::DrawAddComponentButton(Entity entity)
+    {
+        constexpr float buttonWidth = 300.0f;
+        constexpr float topSpacing = 8.0f;
+        const char* popupID = "AddComponentPopup";
+
+        UI::ShiftCursorY(topSpacing);
+
+        // 水平居中：在当前可用区域内偏移使按钮居中
+        float availWidth = ImGui::GetContentRegionAvail().x;
+        float offsetX = (availWidth - buttonWidth) * 0.5f;
+        if (offsetX > 0.0f)
+        {
+            UI::ShiftCursorX(offsetX);
+        }
+
+        // 记录按钮矩形，用于将 Popup 定位到按钮正下方
+        ImVec2 buttonMin = ImGui::GetCursorScreenPos();
+        if (ImGui::Button("Add Component", ImVec2(buttonWidth, 0.0f)))
+        {
+            ImGui::OpenPopup(popupID);
+        }
+        ImVec2 buttonMax = ImGui::GetItemRectMax();
+
+        // Popup 对齐到按钮正下方，宽度与按钮一致
+        ImGui::SetNextWindowPos(ImVec2(buttonMin.x, buttonMax.y));
+        ImGui::SetNextWindowSizeConstraints(ImVec2(buttonWidth, 0.0f), ImVec2(buttonWidth, FLT_MAX));
+
+        if (UI::BeginPopup(popupID))
+        {
+            // ---- Rendering ----
+            if (ImGui::BeginMenu("Rendering"))
+            {
+                DrawAddComponentMenuItem<MeshFilterComponent>(entity, "Mesh Filter");
+                DrawAddComponentMenuItem<MeshRendererComponent>(entity, "Mesh Renderer");
+                DrawAddComponentMenuItem<SpriteRendererComponent>(entity, "Sprite Renderer");
+
+                ImGui::EndMenu();
+            }
+
+            // ---- Light ----
+            // LightComponent 只允许添加一次，子类型通过后续 Inspector 中的 Type 下拉切换
+            {
+                bool alreadyHasLight = entity.HasComponent<LightComponent>();
+                if (alreadyHasLight)
+                {
+                    ImGui::BeginDisabled();
+                }
+
+                if (ImGui::BeginMenu("Light"))
+                {
+                    if (ImGui::MenuItem("Directional Light"))
+                    {
+                        entity.AddComponent<LightComponent>(LightType::Directional);
+                        ImGui::CloseCurrentPopup();
+                    }
+                    if (ImGui::MenuItem("Point Light"))
+                    {
+                        entity.AddComponent<LightComponent>(LightType::Point);
+                        ImGui::CloseCurrentPopup();
+                    }
+                    if (ImGui::MenuItem("Spot Light"))
+                    {
+                        entity.AddComponent<LightComponent>(LightType::Spot);
+                        ImGui::CloseCurrentPopup();
+                    }
+
+                    ImGui::EndMenu();
+                }
+
+                if (alreadyHasLight)
+                {
+                    ImGui::EndDisabled();
+                }
+            }
+
+            // ---- Effect ----
+            if (ImGui::BeginMenu("Effect"))
+            {
+                DrawAddComponentMenuItem<PostProcessVolumeComponent>(entity, "Post Process Volume");
+
+                ImGui::EndMenu();
+            }
+
+            UI::EndPopup();
+        }
     }
 
     void InspectorPanel::OnEvent(Event& event)

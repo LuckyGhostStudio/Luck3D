@@ -46,6 +46,21 @@ namespace Lucky
         /// <param name="OnOpened">组件打开时调用</param>
         template<typename TComponent, typename UIFunction>
         void DrawComponent(const std::string& name, Entity entity, UIFunction OnOpened);
+
+        /// <summary>
+        /// 绘制底部 Add Component 按钮及其下拉弹出框
+        /// </summary>
+        /// <param name="entity">当前选中实体</param>
+        void DrawAddComponentButton(Entity entity);
+
+        /// <summary>
+        /// 绘制 Add Component 弹出框中的一个菜单项（若实体已拥有该组件则置灰）
+        /// </summary>
+        /// <typeparam name="TComponent">组件类型</typeparam>
+        /// <param name="entity">当前选中实体</param>
+        /// <param name="label">菜单项显示名</param>
+        template<typename TComponent>
+        static void DrawAddComponentMenuItem(Entity entity, const char* label);
     private:
         Ref<Scene> m_Scene;
 
@@ -147,6 +162,28 @@ namespace Lucky
         if (componentRemoved)
         {
             entity.RemoveComponent<TComponent>();    // 移除 TComponent 组件
+        }
+    }
+
+    template<typename TComponent>
+    void InspectorPanel::DrawAddComponentMenuItem(Entity entity, const char* label)
+    {
+        bool alreadyHas = entity.HasComponent<TComponent>();
+
+        if (alreadyHas)
+        {
+            ImGui::BeginDisabled();
+        }
+
+        if (ImGui::MenuItem(label))
+        {
+            entity.AddComponent<TComponent>();
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (alreadyHas)
+        {
+            ImGui::EndDisabled();
         }
     }
 }
