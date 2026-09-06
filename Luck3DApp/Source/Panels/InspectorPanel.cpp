@@ -374,59 +374,28 @@ namespace Lucky
 
         if (UI::BeginPopup(popupID))
         {
-            // ---- Rendering ----
-            if (ImGui::BeginMenu("Rendering"))
-            {
-                DrawAddComponentMenuItem<MeshFilterComponent>(entity, "Mesh Filter");
-                DrawAddComponentMenuItem<MeshRendererComponent>(entity, "Mesh Renderer");
-                DrawAddComponentMenuItem<SpriteRendererComponent>(entity, "Sprite Renderer");
+            // 通用组件（模板 helper 会自动处理已存在时的置灰）
+            DrawAddComponentMenuItem<MeshFilterComponent>(entity, "Mesh Filter");
+            DrawAddComponentMenuItem<MeshRendererComponent>(entity, "Mesh Renderer");
+            DrawAddComponentMenuItem<SpriteRendererComponent>(entity, "Sprite Renderer");
 
-                ImGui::EndMenu();
+            // Light 子类型：LightComponent 只允许添加一次，但三种子类型图标不同，需按子类型解析
+            bool alreadyHasLight = entity.HasComponent<LightComponent>();
+
+            if (UI::IconMenuItem(EditorIconManager::GetLightIcon(LightType::Directional), "Directional Light", alreadyHasLight))
+            {
+                entity.AddComponent<LightComponent>(LightType::Directional);
+            }
+            if (UI::IconMenuItem(EditorIconManager::GetLightIcon(LightType::Point), "Point Light", alreadyHasLight))
+            {
+                entity.AddComponent<LightComponent>(LightType::Point);
+            }
+            if (UI::IconMenuItem(EditorIconManager::GetLightIcon(LightType::Spot), "Spot Light", alreadyHasLight))
+            {
+                entity.AddComponent<LightComponent>(LightType::Spot);
             }
 
-            // ---- Light ----
-            // LightComponent 只允许添加一次，子类型通过后续 Inspector 中的 Type 下拉切换
-            {
-                bool alreadyHasLight = entity.HasComponent<LightComponent>();
-                if (alreadyHasLight)
-                {
-                    ImGui::BeginDisabled();
-                }
-
-                if (ImGui::BeginMenu("Light"))
-                {
-                    if (ImGui::MenuItem("Directional Light"))
-                    {
-                        entity.AddComponent<LightComponent>(LightType::Directional);
-                        ImGui::CloseCurrentPopup();
-                    }
-                    if (ImGui::MenuItem("Point Light"))
-                    {
-                        entity.AddComponent<LightComponent>(LightType::Point);
-                        ImGui::CloseCurrentPopup();
-                    }
-                    if (ImGui::MenuItem("Spot Light"))
-                    {
-                        entity.AddComponent<LightComponent>(LightType::Spot);
-                        ImGui::CloseCurrentPopup();
-                    }
-
-                    ImGui::EndMenu();
-                }
-
-                if (alreadyHasLight)
-                {
-                    ImGui::EndDisabled();
-                }
-            }
-
-            // ---- Effect ----
-            if (ImGui::BeginMenu("Effect"))
-            {
-                DrawAddComponentMenuItem<PostProcessVolumeComponent>(entity, "Post Process Volume");
-
-                ImGui::EndMenu();
-            }
+            DrawAddComponentMenuItem<PostProcessVolumeComponent>(entity, "Post Process Volume");
 
             UI::EndPopup();
         }

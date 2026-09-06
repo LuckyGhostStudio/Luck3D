@@ -372,6 +372,54 @@ namespace Lucky::UI
         return ImageButton(texture, size, ImVec2(0, 1), ImVec2(1, 0), framePadding, backgroundColor, tintColor);
     }
 
+    bool IconMenuItem(const Ref<Texture2D>& icon, const char* label, bool disabled)
+    {
+        const float iconSize = ImGui::GetTextLineHeight();
+        const float iconToTextGap = 6.0f;
+        const ImVec2 framePadding = ImGui::GetStyle().FramePadding;
+
+        // Selectable 铺满整行作为命中区（禁用状态下自动置灰并屏蔽点击）
+        ImGuiSelectableFlags flags = ImGuiSelectableFlags_SpanAvailWidth;
+        if (disabled)
+        {
+            flags |= ImGuiSelectableFlags_Disabled;
+        }
+
+        // 记录 Selectable 起始位置，稍后覆盖绘制图标与文字
+        ImVec2 cursorScreenPos = ImGui::GetCursorScreenPos();
+
+        // 用 label 拼接生成唯一 ID，避免同一 Popup 内多个 IconMenuItem 因共享 ID 导致除首项外命中失效
+        char selectableID[128];
+        snprintf(selectableID, sizeof(selectableID), "##IconMenuItem_%s", label);
+        bool clicked = ImGui::Selectable(selectableID, false, flags, ImVec2(0.0f, iconSize));
+
+        // 覆盖绘制：在 Selectable 的矩形内左侧画图标、右侧画文字
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        float alpha = disabled ? ImGui::GetStyle().Alpha * ImGui::GetStyle().DisabledAlpha : ImGui::GetStyle().Alpha;
+
+        // 绘制图标（Y 翻转，UV 从 {0,1} 到 {1,0}）
+        ImTextureID texID = GetImTextureID(icon);
+        if (texID)
+        {
+            ImVec2 iconMin = ImVec2(cursorScreenPos.x + framePadding.x, cursorScreenPos.y);
+            ImVec2 iconMax = ImVec2(iconMin.x + iconSize, iconMin.y + iconSize);
+            drawList->AddImage(texID, iconMin, iconMax, ImVec2(0, 1), ImVec2(1, 0), IM_COL32(255, 255, 255, static_cast<int>(255 * alpha)));
+        }
+
+        // 绘制文字（跟在图标右侧，垂直方向按 Selectable 行高居中）
+        ImVec2 textPos = ImVec2(cursorScreenPos.x + framePadding.x + iconSize + iconToTextGap, cursorScreenPos.y);
+        ImU32 textColor = ImGui::GetColorU32(ImGuiCol_Text, alpha);
+        drawList->AddText(textPos, textColor, label);
+
+        // Popup 内点击后自动关闭
+        if (clicked)
+        {
+            ImGui::CloseCurrentPopup();
+        }
+
+        return clicked;
+    }
+
     void DragDropPreview(bool rejected)
     {
         const Ref<Texture2D>& icon = EditorIconManager::GetDragDropIcon(rejected);

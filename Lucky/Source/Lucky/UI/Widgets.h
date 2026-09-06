@@ -116,6 +116,16 @@ namespace Lucky::UI
     bool ImageButtonFlipped(const Ref<Texture2D>& texture, const ImVec2& size, int framePadding = -1, const ImVec4& backgroundColor = ImVec4(0, 0, 0, 0), const ImVec4& tintColor = ImVec4(1, 1, 1, 1));
 
     /// <summary>
+    /// 带图标的菜单项（用于弹出框内）
+    /// 左侧绘制纹理图标（Y 翻转），右侧绘制文字；整行铺满 Popup 宽度，命中区覆盖图标 + 文字 + 剩余空白
+    /// </summary>
+    /// <param name="icon">图标纹理（可为 nullptr，此时仍保留图标占位，仅绘制文字）</param>
+    /// <param name="label">菜单项显示名</param>
+    /// <param name="disabled">是否置灰（true 时不可点击，图标 + 文字整体半透明）</param>
+    /// <returns>是否被点击（disabled 为 true 时恒返回 false）</returns>
+    bool IconMenuItem(const Ref<Texture2D>& icon, const char* label, bool disabled = false);
+
+    /// <summary>
     /// 拖拽预览 tooltip：显示通用拖拽图标或禁止图标
     /// 需在 BeginDragDropSource() 和 EndDragDropSource() 之间调用
     /// </summary>

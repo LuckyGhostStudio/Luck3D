@@ -169,21 +169,11 @@ namespace Lucky
     void InspectorPanel::DrawAddComponentMenuItem(Entity entity, const char* label)
     {
         bool alreadyHas = entity.HasComponent<TComponent>();
+        const Ref<Texture2D>& icon = EditorIconManager::GetComponentIcon(ComponentTrait<TComponent>::Type);
 
-        if (alreadyHas)
-        {
-            ImGui::BeginDisabled();
-        }
-
-        if (ImGui::MenuItem(label))
+        if (UI::IconMenuItem(icon, label, alreadyHas))
         {
             entity.AddComponent<TComponent>();
-            ImGui::CloseCurrentPopup();
-        }
-
-        if (alreadyHas)
-        {
-            ImGui::EndDisabled();
         }
     }
 }
