@@ -16,11 +16,6 @@ namespace Lucky
     {
     private:
         /// <summary>
-        /// 更新投影矩阵
-        /// </summary>
-        void UpdateProjection();
-
-        /// <summary>
         /// 更新视图矩阵
         /// </summary>
         void UpdateView();
@@ -69,7 +64,7 @@ namespace Lucky
         /// <param name="e">事件</param>
         void OnEvent(Event& e);
 
-        void SetViewportSize(float width, float height) { m_ViewportWidth = width; m_ViewportHeight = height; UpdateProjection(); }
+        void SetViewportSize(float width, float height);
 
         float GetDistance() const { return m_Distance; }
         void SetDistance(float distance) { m_Distance = distance; }
@@ -93,17 +88,7 @@ namespace Lucky
         float GetPitch() const { return m_Pitch; }
         float GetYaw() const { return m_Yaw; }
         float GetViewportHeight() const { return m_ViewportHeight; }
-        
-        float GetFOV() const { return m_FOV; }
-        float GetNear() const { return m_Near; }
-        float GetFar() const { return m_Far; }
-        float GetAspectRatio() const { return m_AspectRatio; }
     private:
-        float m_FOV = 45.0f;                    // 垂直张角
-        float m_Near = 0.01f;                   // 近裁剪平面
-        float m_Far = 1000.0f;                  // 远裁剪平面
-        float m_AspectRatio = 1280.0f / 720.0f; // 屏幕宽高比
-
         glm::mat4 m_ViewMatrix;                 // 视图矩阵
 
         glm::vec3 m_Position = { 0.0f, 0.0f, 0.0f };    // 相机位置

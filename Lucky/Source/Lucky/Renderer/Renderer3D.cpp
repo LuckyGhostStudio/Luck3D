@@ -392,7 +392,7 @@ namespace Lucky
             glm::vec3 lightDir = glm::normalize(lightData.DirectionalLights[0].Direction);
 
             // 计算每级的远平面距离
-            float cameraNear = camera.GetNear();
+            float cameraNear = camera.GetPerspectiveNearClip();
             
             float cascadeNearPlanes[s_MaxCascadeCount];
             float cascadeFarPlanes[s_MaxCascadeCount];
@@ -405,7 +405,7 @@ namespace Lucky
             }
 
             // 计算每级的 Light Space Matrix
-            float fov = camera.GetFOV();
+            float fov = camera.GetPerspectiveVerticalFOV();
             float aspectRatio = camera.GetAspectRatio();
             glm::mat4 cameraView = camera.GetViewMatrix();
 

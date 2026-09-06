@@ -11,15 +11,22 @@
 namespace Lucky
 {
     EditorCamera::EditorCamera(float fov, float aspectRatio, float nearClip, float farClip)
-        : m_FOV(fov), m_AspectRatio(aspectRatio), m_Near(nearClip), m_Far(farClip)
     {
+        // 由 aspectRatio 反推初始视口尺寸（后续 SetViewportSize 会覆盖）
+        m_ViewportHeight = 720.0f;
+        m_ViewportWidth = 720.0f * aspectRatio;
+
+        SetPerspective(fov, nearClip, farClip);
+        Camera::SetViewportSize(static_cast<uint32_t>(m_ViewportWidth), static_cast<uint32_t>(m_ViewportHeight));
+
         UpdateView();   // 更新视图矩阵
     }
 
-    void EditorCamera::UpdateProjection()
+    void EditorCamera::SetViewportSize(float width, float height)
     {
-        m_AspectRatio = m_ViewportWidth / m_ViewportHeight;
-        m_ProjectionMatrix = glm::perspective(glm::radians(m_FOV), m_AspectRatio, m_Near, m_Far);   // 计算透视投影矩阵
+        m_ViewportWidth = width;
+        m_ViewportHeight = height;
+        Camera::SetViewportSize(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
     }
 
     void EditorCamera::UpdateView()
