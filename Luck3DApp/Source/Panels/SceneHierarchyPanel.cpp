@@ -851,6 +851,7 @@ namespace Lucky
         std::vector<const Ref<Texture2D>*> icons;
         if (entity.HasComponent<MeshFilterComponent>())         icons.push_back(&EditorIconManager::GetComponentIcon(ComponentType::MeshFilter));
         if (entity.HasComponent<MeshRendererComponent>())       icons.push_back(&EditorIconManager::GetComponentIcon(ComponentType::MeshRenderer));
+        if (entity.HasComponent<SpriteRendererComponent>())     icons.push_back(&EditorIconManager::GetComponentIcon(ComponentType::SpriteRenderer));
         if (entity.HasComponent<LightComponent>())
         {
             LightType lightType = entity.GetComponent<LightComponent>().Type;

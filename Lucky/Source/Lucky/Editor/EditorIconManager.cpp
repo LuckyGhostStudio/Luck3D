@@ -81,6 +81,7 @@ namespace Lucky
         s_IconData.ComponentIcons[ComponentType::Transform]          = LoadIcon("Component/Transform.png");
         s_IconData.ComponentIcons[ComponentType::MeshFilter]         = LoadIcon("Component/MeshFilter.png");
         s_IconData.ComponentIcons[ComponentType::MeshRenderer]       = LoadIcon("Component/MeshRenderer.png");
+        s_IconData.ComponentIcons[ComponentType::SpriteRenderer]     = LoadIcon("Component/SpriteRenderer.png");
         s_IconData.ComponentIcons[ComponentType::Light]              = LoadIcon("Component/Light.png");
         s_IconData.ComponentIcons[ComponentType::PostProcessVolume]  = LoadIcon("Component/PostProcessVolume.png");
 
