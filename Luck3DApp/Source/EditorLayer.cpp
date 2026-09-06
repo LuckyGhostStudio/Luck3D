@@ -12,6 +12,7 @@
 
 #include "Lucky/Renderer/MeshFactory.h"
 #include "Lucky/Renderer/Renderer3D.h"
+#include "Lucky/Renderer/Renderer2D.h"
 
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/SelectionManager.h"
@@ -155,6 +156,25 @@ namespace Lucky
 
     void EditorLayer::OnUpdate(DeltaTime dt)
     {
+        // 每帧渲染统计清零：保证 Scene / Game 面板各自渲染的统计汇总到同一帧
+        Renderer3D::ResetStats();
+        Renderer2D::ResetStats();
+
+        // 世界推进：每帧唯一一次，与具体面板无关
+        if (const Ref<Scene>& scene = SceneManager::GetActiveScene())
+        {
+            switch (scene->GetState())
+            {
+                case SceneState::Edit:
+                    scene->OnUpdateEditor(dt);
+                    break;
+                case SceneState::Play:
+                case SceneState::Pause:
+                    scene->OnUpdateRuntime(dt);
+                    break;
+            }
+        }
+
         m_PanelManager->OnUpdate(dt);
     }
 

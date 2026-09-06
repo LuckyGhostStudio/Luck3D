@@ -139,7 +139,7 @@ namespace Lucky
         }
         Renderer3D::SetOutlineEntities(outlineEntityIDs);
 
-        m_Scene->OnUpdate(dt, m_EditorCamera);   // 更新场景
+        m_Scene->OnRenderEditor(m_EditorCamera);   // 渲染场景（编辑器视角）
         
         // ---- Gizmo ----
         GizmoRenderer::BeginScene(m_EditorCamera);

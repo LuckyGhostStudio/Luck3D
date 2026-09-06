@@ -15,6 +15,19 @@ namespace Lucky
     class Entity;
 
     /// <summary>
+    /// 场景运行状态
+    /// - Edit：编辑器态，世界推进走 OnUpdateEditor（不跑脚本/物理）
+    /// - Play：运行态，世界推进走 OnUpdateRuntime（跑脚本/物理）
+    /// - Pause：仍走 OnUpdateRuntime，但内部跳过脚本/物理 tick，仅保留 Transform 层级更新与渲染
+    /// </summary>
+    enum class SceneState : uint8_t
+    {
+        Edit = 0,
+        Play,
+        Pause
+    };
+
+    /// <summary>
     /// 场景
     /// </summary>
     class Scene : public Asset
@@ -26,9 +39,32 @@ namespace Lucky
         Scene(const std::string& name = "New Scene");
         ~Scene();
 
+        // ---- 运行状态 ----
 
-        bool IsRunning() const { return m_IsRunning; }
-        
+        /// <summary>
+        /// 获取当前运行状态
+        /// </summary>
+        SceneState GetState() const { return m_State; }
+
+        /// <summary>
+        /// 直接设置运行状态：仅用于内部/序列化场景，不会触发任何回调
+        /// 业务层切换 Play/Stop 请使用 OnRuntimeStart / OnRuntimeStop
+        /// </summary>
+        /// <param name="state">目标状态</param>
+        void SetState(SceneState state) { m_State = state; }
+
+        /// <summary>
+        /// 进入运行态：切换到 Play 前调用
+        /// 内部会把 State 置为 Play
+        /// </summary>
+        void OnRuntimeStart();
+
+        /// <summary>
+        /// 退出运行态：切回 Edit 前调用
+        /// 内部会把 State 置为 Edit
+        /// </summary>
+        void OnRuntimeStop();
+
         /// <summary>
         /// 创建实体（作为根节点）
         /// </summary>
@@ -53,13 +89,39 @@ namespace Lucky
         /// <param name="entity">实体</param>
         void DestroyEntity(Entity entity);
 
+        // ---- 世界推进：每帧唯一一次，由 EditorLayer 驱动 ----
+
         /// <summary>
-        /// 更新：每帧调用
+        /// 编辑器态世界推进：Edit 状态下每帧调用
+        /// 只做 Transform 层级更新等状态数据准备，不做任何相机渲染
         /// </summary>
         /// <param name="dt">帧间隔</param>
+        void OnUpdateEditor(DeltaTime dt);
+
+        /// <summary>
+        /// 运行时世界推进：Play / Pause 状态下每帧调用
+        /// 会驱动脚本 OnUpdate、物理 tick；Pause 状态下跳过这些，仅保留 Transform 层级更新
+        /// 与相机无关，不做渲染
+        /// </summary>
+        /// <param name="dt">帧间隔</param>
+        void OnUpdateRuntime(DeltaTime dt);
+
+        // ---- 相机渲染：每窗口一次，可被多个面板重复调用 ----
+
+        /// <summary>
+        /// 编辑器视角渲染：由 Scene 面板调用
+        /// 使用外部传入的 EditorCamera 提交渲染。Gizmo / Grid / Outline 等 Overlay
+        /// 由调用方在此调用之后自行绘制
+        /// </summary>
         /// <param name="camera">编辑器相机</param>
-        void OnUpdate(DeltaTime dt, EditorCamera& camera);
-        
+        void OnRenderEditor(EditorCamera& camera);
+
+        /// <summary>
+        /// 游戏视角渲染：由 Game 面板调用
+        /// 使用场景内 Primary CameraComponent 作为视图/投影来源
+        /// </summary>
+        void OnRenderRuntime();
+
         /// <summary>
         /// 重置视口大小：视口改变时调用
         /// </summary>
@@ -132,7 +194,7 @@ namespace Lucky
 
         /// <summary>
         /// 更新 Transform 层级：从根节点递归计算所有实体的世界变换矩阵
-        /// 每帧在 OnUpdate 开头调用
+        /// 每帧在世界推进阶段调用
         /// </summary>
         void UpdateTransformHierarchy();
         
@@ -155,6 +217,14 @@ namespace Lucky
         /// <param name="entity">当前实体</param>
         /// <param name="parentWorldTransform">父节点的世界变换矩阵</param>
         void UpdateWorldTransformRecursive(Entity entity, const glm::mat4& parentWorldTransform);
+
+        /// <summary>
+        /// 相机渲染实现：给定 EditorCamera 后跑一遍完整的渲染流程
+        /// OnRenderEditor 和 OnRenderRuntime 在拿到自己的相机数据后统一走这里
+        /// 内部执行"收集光源 → BeginScene → 收集后处理 → 提交 Mesh/Sprite → EndScene"
+        /// </summary>
+        /// <param name="camera">用于渲染的相机</param>
+        void RenderSceneImpl(EditorCamera& camera);
     private:
         friend class Entity;                // 友元类 Entity
         friend class SceneHierarchyPanel;   // 友元类 SceneHierarchyPanel
@@ -168,7 +238,7 @@ namespace Lucky
         uint32_t m_ViewportWidth = 1280;    // 场景视口宽
         uint32_t m_ViewportHeight = 720;    // 场景视口高
 
-        bool m_IsRunning = false;
+        SceneState m_State = SceneState::Edit;
         
         EnvironmentSettings m_EnvironmentSettings;  // 环境设置参数
     };

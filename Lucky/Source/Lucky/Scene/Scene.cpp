@@ -145,11 +145,37 @@ namespace Lucky
         }
     }
 
-    void Scene::OnUpdate(DeltaTime dt, EditorCamera& camera)
+    void Scene::OnUpdateEditor(DeltaTime dt)
     {
-        // 每帧更新 Transform 层级
         UpdateTransformHierarchy();
+    }
 
+    void Scene::OnUpdateRuntime(DeltaTime dt)
+    {
+        UpdateTransformHierarchy();
+    }
+
+    void Scene::OnRenderEditor(EditorCamera& camera)
+    {
+        RenderSceneImpl(camera);
+    }
+
+    void Scene::OnRenderRuntime()
+    {
+    }
+
+    void Scene::OnRuntimeStart()
+    {
+        m_State = SceneState::Play;
+    }
+
+    void Scene::OnRuntimeStop()
+    {
+        m_State = SceneState::Edit;
+    }
+
+    void Scene::RenderSceneImpl(EditorCamera& camera)
+    {
         // 收集所有光源数据
         SceneLightData sceneLightData;
         
@@ -243,8 +269,6 @@ namespace Lucky
             }
         }
         
-        Renderer3D::ResetStats();   // 重置统计数据
-        Renderer2D::ResetStats();   // 重置 2D 统计数据（与 Renderer3D 保持同步）
         Renderer3D::BeginScene(camera, sceneLightData);
         {
             // ---- 收集后处理参数 ----

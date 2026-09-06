@@ -24,7 +24,7 @@
 
 ```
 Phase 0：Runtime 基础设施（无脚本前置）
-   └─ Scene 状态机 / CameraComponent / Scene::Copy / Play 工具条
+   └─ Scene 状态机 / 世界推进-渲染分离 / CameraComponent / Scene::Copy / Play 工具条 / Game 面板
 
 Phase 1：Mono 集成与最小闭环（MVP）
    └─ 嵌入 Mono / ScriptComponent / ScriptEngine / 最小 Bindings
@@ -46,16 +46,20 @@ Phase 4：与其他系统集成（后续按需）
 > **目标**：让编辑器"能进入 Play 模式"，此时脚本系统本身还未接入，但整条 Runtime 路径已经打通。
 
 ### 里程碑
-- **Scene 运行状态机**：`SceneState { Edit, Play, Pause }`，`OnRuntimeStart / OnRuntimeStop`
-- **Scene 双更新入口**：拆分 `OnUpdateEditor(dt, EditorCamera&)` 与 `OnUpdateRuntime(dt)`
-- **CameraComponent + SceneCamera**：Runtime 使用场景内主相机，而非 EditorCamera
-- **Scene::Copy**：Play 前对 Scene 深拷贝，Stop 后还原原始编辑态
-- **ComponentRegistry**（可选前置）：把组件的 Copy/Serialize/Inspector 集中注册，简化 Scene::Copy 与后续 ScriptComponent 接入
-- **Play/Stop 工具条**：Scene Viewport 顶栏加 Play / Stop / Pause 按钮
+- **P0.1 Scene 状态机 + 世界推进/相机渲染分离**
+  - `SceneState { Edit, Play, Pause }`、`OnRuntimeStart / OnRuntimeStop`
+  - 世界推进：`OnUpdateEditor(dt) / OnUpdateRuntime(dt)`（每帧一次，由 `EditorLayer` 驱动）
+  - 相机渲染：`OnRenderEditor(EditorCamera&) / OnRenderRuntime()`（每窗口一次，由各面板调用）
+- **P0.2 CameraComponent + SceneCamera**：Runtime 使用场景内 Primary 主相机，而非 EditorCamera
+- **P0.3 Scene::Copy**：Play 前对 Scene 深拷贝，Stop 后还原原始编辑态
+- **P0.4 ComponentRegistry**（可选前置）：把组件的 Copy/Serialize/Inspector 集中注册，简化 Scene::Copy 与后续 ScriptComponent 接入
+- **P0.5 全局 Play/Stop 工具条**：`EditorLayer` 顶部全局工具条（MainMenuBar 之下）加 Play / Stop / Pause 按钮（对齐 Unity 位置）
+- **P0.6 GameViewportPanel（Game 面板）**：新增独立面板，使用 Primary CameraComponent 渲染；无 Gizmo / Grid / Outline / 拾取；Edit 状态下也渲染（预览游戏相机构图）
 
 ### 出口标准
-- 点击 Play：切换到 Runtime 分支，Scene Viewport 使用 GameCamera 渲染
+- 点击 Play：Scene 状态切到 Play，脚本/物理钩子被调用（当前为空）；Scene 面板仍以 EditorCamera 渲染，Game 面板以 Primary Camera 渲染
 - 点击 Stop：Scene 完整还原到 Play 之前的状态
+- Scene 面板显示 Gizmo/Grid/Outline，Game 面板不显示这些 Overlay
 - 全程无需脚本参与
 
 ---
@@ -182,11 +186,12 @@ Phase 4：与其他系统集成（后续按需）
 
 ```mermaid
 flowchart TD
-    P0A[Scene 状态机 + OnUpdateEditor/Runtime]
-    P0B[CameraComponent + SceneCamera]
-    P0C[Scene::Copy]
-    P0D[ComponentRegistry]
-    P0E[Play/Stop 工具条]
+    P0A[P0.1 Scene 状态机 + 世界推进/渲染分离]
+    P0B[P0.2 CameraComponent + SceneCamera]
+    P0C[P0.3 Scene::Copy]
+    P0D[P0.4 ComponentRegistry]
+    P0E[P0.5 全局 Play/Stop 工具条]
+    P0F[P0.6 GameViewportPanel]
 
     P1A[引入 Mono]
     P1B[Lucky-ScriptCore 托管层]
@@ -198,6 +203,8 @@ flowchart TD
     MVP((MVP:Log + Cube 移动))
 
     P0A --> P0E
+    P0A --> P0F
+    P0B --> P0F
     P0B --> P0E
     P0A --> P0C
     P0D --> P0C
