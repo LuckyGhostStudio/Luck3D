@@ -1,6 +1,6 @@
 # Luck3D
 
-一个基于C++和imgui的简单3D建模软件。
+一个基于 C++ 和 imgui 的简单游戏引擎。
 持续更新中...
 
 `Scripts/`目录包含 `Windows` 和 `Linux` 的构建脚本，`Vendor/`目录包含 Premake 二进制文件（当前版本为`5.0-beta2`）。
