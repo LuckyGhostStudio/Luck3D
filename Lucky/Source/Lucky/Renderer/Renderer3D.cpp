@@ -353,10 +353,24 @@ namespace Lucky
 
     void Renderer3D::BeginScene(const EditorCamera& camera, const SceneLightData& lightData)
     {
+        CameraRenderData cam;
+        cam.ViewMatrix = camera.GetViewMatrix();
+        cam.ProjectionMatrix = camera.GetProjectionMatrix();
+        cam.Position = camera.GetPosition();
+        cam.Projection = ProjectionType::Perspective;
+        cam.NearClip = camera.GetPerspectiveNearClip();
+        cam.FOV = camera.GetPerspectiveVerticalFOV();
+        cam.AspectRatio = camera.GetAspectRatio();
+
+        BeginScene(cam, lightData);
+    }
+
+    void Renderer3D::BeginScene(const CameraRenderData& cam, const SceneLightData& lightData)
+    {
         // 设置 Camera Uniform 缓冲区数据
-        s_Data.CameraBuffer.ViewProjectionMatrix = camera.GetViewProjectionMatrix();
-        s_Data.CameraBuffer.InvProjectionMatrix  = glm::inverse(camera.GetProjectionMatrix());
-        s_Data.CameraBuffer.Position = camera.GetPosition();
+        s_Data.CameraBuffer.ViewProjectionMatrix = cam.ProjectionMatrix * cam.ViewMatrix;
+        s_Data.CameraBuffer.InvProjectionMatrix  = glm::inverse(cam.ProjectionMatrix);
+        s_Data.CameraBuffer.Position = cam.Position;
         s_Data.CameraUniformBuffer->SetData(&s_Data.CameraBuffer, sizeof(Renderer3DData::CameraUBOData));
         
         // 设置 Light Uniform 缓冲区数据
@@ -378,9 +392,11 @@ namespace Lucky
         }
         s_Data.LightUniformBuffer->SetData(&s_Data.LightBuffer, sizeof(Renderer3DData::LightUBOData));
         
-        // ======== CSM 计算（替换原有的固定 orthoSize 计算） ========
+        // ======== CSM 计算（仅透视投影下计算；正交投影自动关闭方向光阴影） ========
         s_Data.ShadowEnabled = false;
-        if (lightData.DirectionalLightCount > 0 && lightData.DirLightShadowType != ShadowType::None)
+        if (cam.Projection == ProjectionType::Perspective
+            && lightData.DirectionalLightCount > 0
+            && lightData.DirLightShadowType != ShadowType::None)
         {
             s_Data.ShadowEnabled = true;
             s_Data.ShadowBias = lightData.DirLightShadowBias;
@@ -392,7 +408,7 @@ namespace Lucky
             glm::vec3 lightDir = glm::normalize(lightData.DirectionalLights[0].Direction);
 
             // 计算每级的远平面距离
-            float cameraNear = camera.GetPerspectiveNearClip();
+            float cameraNear = cam.NearClip;
             
             float cascadeNearPlanes[s_MaxCascadeCount];
             float cascadeFarPlanes[s_MaxCascadeCount];
@@ -405,9 +421,9 @@ namespace Lucky
             }
 
             // 计算每级的 Light Space Matrix
-            float fov = camera.GetPerspectiveVerticalFOV();
-            float aspectRatio = camera.GetAspectRatio();
-            glm::mat4 cameraView = camera.GetViewMatrix();
+            float fov = cam.FOV;
+            float aspectRatio = cam.AspectRatio;
+            glm::mat4 cameraView = cam.ViewMatrix;
 
             for (int i = 0; i < s_Data.CascadeCount; ++i)
             {
@@ -572,11 +588,11 @@ namespace Lucky
         s_Data.SpriteDrawCommands.clear();
     
         // 缓存相机位置
-        s_Data.CameraPosition = camera.GetPosition();
+        s_Data.CameraPosition = cam.Position;
         
         // 缓存相机矩阵（SkyboxPass 需要 View/Projection 矩阵）
-        s_Data.CameraViewMatrix = camera.GetViewMatrix();
-        s_Data.CameraProjectionMatrix = camera.GetProjectionMatrix();
+        s_Data.CameraViewMatrix = cam.ViewMatrix;
+        s_Data.CameraProjectionMatrix = cam.ProjectionMatrix;
     }
 
     void Renderer3D::EndScene()

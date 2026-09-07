@@ -84,6 +84,7 @@ namespace Lucky
         s_IconData.ComponentIcons[ComponentType::SpriteRenderer]     = LoadIcon("Component/SpriteRenderer.png");
         s_IconData.ComponentIcons[ComponentType::Light]              = LoadIcon("Component/Light.png");
         s_IconData.ComponentIcons[ComponentType::PostProcessVolume]  = LoadIcon("Component/PostProcessVolume.png");
+        s_IconData.ComponentIcons[ComponentType::Camera]             = LoadIcon("Component/Camera.png");
 
         // ---- 加载光源子类型图标 ----
         s_IconData.LightIcons[LightType::Directional]   = LoadIcon("Component/DirectionalLight.png");

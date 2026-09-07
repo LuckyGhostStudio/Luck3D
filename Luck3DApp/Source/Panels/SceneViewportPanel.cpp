@@ -81,6 +81,12 @@ namespace Lucky
             
             // 同步渲染管线中所有 Pass 的 FBO 大小
             Renderer3D::ResizePipeline(static_cast<uint32_t>(m_ViewportSize.x), static_cast<uint32_t>(m_ViewportSize.y));
+
+            // 同步场景中非固定宽高比的相机（如 CameraComponent）
+            if (m_Scene)
+            {
+                m_Scene->OnViewportResize(static_cast<uint32_t>(m_ViewportSize.x), static_cast<uint32_t>(m_ViewportSize.y));
+            }
         }
 
         m_EditorCamera.OnUpdate(dt);    // 更新编辑器相机

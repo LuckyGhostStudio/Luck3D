@@ -315,6 +315,65 @@ namespace Lucky
             }
         });
 
+        // Camera 组件
+        DrawComponent<CameraComponent>("Camera", entity, [](CameraComponent& cc)
+        {
+            auto& sc = cc.Camera;
+
+            // Projection 类型
+            const char* projectionTypes[] = { "Perspective", "Orthographic" };
+            int currentProj = static_cast<int>(sc.GetProjectionType());
+            if (UI::PropertyCombo("Projection", currentProj, projectionTypes, IM_ARRAYSIZE(projectionTypes)))
+            {
+                sc.SetProjectionType(static_cast<ProjectionType>(currentProj));
+            }
+
+            // 按类型显示不同参数
+            if (sc.GetProjectionType() == ProjectionType::Perspective)
+            {
+                float fov = sc.GetPerspectiveVerticalFOV();
+                if (UI::PropertyFloat("Field of View", fov, 0.1f, 1.0f, 179.0f))
+                {
+                    sc.SetPerspectiveVerticalFOV(fov);
+                }
+
+                float nearClip = sc.GetPerspectiveNearClip();
+                if (UI::PropertyFloat("Near Clip", nearClip, 0.001f, 0.001f, 1000.0f))
+                {
+                    sc.SetPerspectiveNearClip(nearClip);
+                }
+
+                float farClip = sc.GetPerspectiveFarClip();
+                if (UI::PropertyFloat("Far Clip", farClip, 1.0f, 0.1f, 100000.0f))
+                {
+                    sc.SetPerspectiveFarClip(farClip);
+                }
+            }
+            else
+            {
+                float size = sc.GetOrthographicSize();
+                if (UI::PropertyFloat("Size", size, 0.1f, 0.1f, 1000.0f))
+                {
+                    sc.SetOrthographicSize(size);
+                }
+
+                float nearClip = sc.GetOrthographicNearClip();
+                if (UI::PropertyFloat("Near Clip", nearClip, 0.1f, -1000.0f, 1000.0f))
+                {
+                    sc.SetOrthographicNearClip(nearClip);
+                }
+
+                float farClip = sc.GetOrthographicFarClip();
+                if (UI::PropertyFloat("Far Clip", farClip, 1.0f, 0.1f, 100000.0f))
+                {
+                    sc.SetOrthographicFarClip(farClip);
+                }
+            }
+
+            UI::PropertyCheckbox("Primary", cc.Primary);
+            UI::PropertyCheckbox("Fixed Aspect Ratio", cc.FixedAspectRatio);
+        });
+
         if (entity.HasComponent<MeshRendererComponent>())
         {
 			// 绘制材质编辑器
@@ -396,6 +455,7 @@ namespace Lucky
             }
 
             DrawAddComponentMenuItem<PostProcessVolumeComponent>(entity, "Post Process Volume");
+            DrawAddComponentMenuItem<CameraComponent>(entity, "Camera");
 
             UI::EndPopup();
         }

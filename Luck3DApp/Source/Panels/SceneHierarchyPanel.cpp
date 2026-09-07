@@ -822,6 +822,14 @@ namespace Lucky
             newEntity.AddComponent<PostProcessVolumeComponent>();
         }
         
+        // ´´½¨ Camera
+        if (ImGui::MenuItem("Camera"))
+        {
+            std::string uniqueName = GenerateUniqueName("Camera", parent);
+            newEntity = m_Scene->CreateEntity(uniqueName, parent);
+            newEntity.AddComponent<CameraComponent>();
+        }
+        
         if (newEntity)
         {
             SelectionManager::Deselect();
@@ -858,6 +866,7 @@ namespace Lucky
             icons.push_back(&EditorIconManager::GetLightIcon(lightType));
         }
         if (entity.HasComponent<PostProcessVolumeComponent>())  icons.push_back(&EditorIconManager::GetComponentIcon(ComponentType::PostProcessVolume));
+        if (entity.HasComponent<CameraComponent>())             icons.push_back(&EditorIconManager::GetComponentIcon(ComponentType::Camera));
 
         float iconSize = ImGui::GetTextLineHeight() - UI::Theme::Layout::TreeNodeIconSizeShrink;
         float iconSpacing = UI::Theme::Layout::TreeNodeComponentIconSpacing;

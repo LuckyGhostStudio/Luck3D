@@ -123,6 +123,23 @@ namespace Lucky
         float CascadeSplits[s_MaxCascadeCount] = { 0.067f, 0.2f, 0.467f, 1.0f };    // 级联分割比例
         int ShadowMapResolution = 2048;                                             // 每级 Shadow Map 分辨率
     };
+
+    /// <summary>
+    /// 相机渲染数据：Renderer3D::BeginScene 的相机侧输入
+    /// EditorCamera 与 SceneCamera 都被折算成此结构后进入统一渲染路径
+    /// </summary>
+    struct CameraRenderData
+    {
+        glm::mat4 ViewMatrix{ 1.0f };                       // 视图矩阵
+        glm::mat4 ProjectionMatrix{ 1.0f };                 // 投影矩阵
+        glm::vec3 Position{ 0.0f };                         // 相机世界坐标
+
+        // ---- CSM 计算所需（仅透视投影下有意义） ----
+        ProjectionType Projection = ProjectionType::Perspective;
+        float NearClip = 0.01f;                             // 近裁剪面
+        float FOV = 45.0f;                                  // 垂直张角（度）
+        float AspectRatio = 1.0f;                           // 宽高比
+    };
     
     class Renderer3D
     {
@@ -140,6 +157,14 @@ namespace Lucky
         /// <param name="camera">编辑器相机</param>
         /// <param name="lightData">光照数据</param>
         static void BeginScene(const EditorCamera& camera, const SceneLightData& lightData);
+
+        /// <summary>
+        /// 开始渲染场景（矩阵版）
+        /// 相机所有输入已折算成 CameraRenderData，EditorCamera 与 SceneCamera 走同一路径
+        /// </summary>
+        /// <param name="cam">相机渲染数据</param>
+        /// <param name="lightData">光照数据</param>
+        static void BeginScene(const CameraRenderData& cam, const SceneLightData& lightData);
 
         /// <summary>
         /// 结束渲染场景

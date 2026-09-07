@@ -126,7 +126,14 @@ namespace Lucky
         TransformComponent& transform = lightEntity.GetComponent<TransformComponent>();
         transform.SetRotationEuler(glm::vec3(glm::radians(50.0f), glm::radians(-32.0f), 0.0f));
 
-        // Main Camera：暂缓，等相机组件到位后再补
+        // Main Camera
+        Entity cameraEntity = scene->CreateEntity("Main Camera");
+        CameraComponent& cameraComp = cameraEntity.AddComponent<CameraComponent>();
+        cameraComp.Primary = true;  // 默认场景中唯一的主相机
+
+        TransformComponent& cameraTransform = cameraEntity.GetComponent<TransformComponent>();
+        cameraTransform.Translation = { 0.0f, 1.0f, 5.0f };
+        cameraTransform.SetRotationEuler(glm::vec3(glm::radians(-10.0f), 0.0f, 0.0f));  // 稍俯视
 
         // 落盘 + 注册到资产系统 + 放入缓存
         // 内部会调 scene->SetHandle(newHandle)，此后 Save 可通过 scene->GetHandle() 拿到路径

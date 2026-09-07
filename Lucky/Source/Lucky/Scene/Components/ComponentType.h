@@ -17,7 +17,8 @@ namespace Lucky
         MeshRenderer,
         SpriteRenderer,
         PostProcessVolume,
-        
+        Camera,
+
         // TODO 其他组件
     };
 

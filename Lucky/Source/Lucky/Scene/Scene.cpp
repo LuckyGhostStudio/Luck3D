@@ -157,11 +157,39 @@ namespace Lucky
 
     void Scene::OnRenderEditor(EditorCamera& camera)
     {
-        RenderSceneImpl(camera);
+        CameraRenderData cam;
+        cam.ViewMatrix = camera.GetViewMatrix();
+        cam.ProjectionMatrix = camera.GetProjectionMatrix();
+        cam.Position = camera.GetPosition();
+        cam.Projection = ProjectionType::Perspective;
+        cam.NearClip = camera.GetPerspectiveNearClip();
+        cam.FOV = camera.GetPerspectiveVerticalFOV();
+        cam.AspectRatio = camera.GetAspectRatio();
+
+        RenderSceneImpl(cam);
     }
 
     void Scene::OnRenderRuntime()
     {
+        Entity primary = GetPrimaryCameraEntity();
+        if (!primary)
+        {
+            return;
+        }
+
+        const auto& transform = primary.GetComponent<TransformComponent>();
+        const auto& cameraComp = primary.GetComponent<CameraComponent>();
+
+        CameraRenderData cam;
+        cam.ViewMatrix = glm::inverse(transform.GetWorldTransform());
+        cam.ProjectionMatrix = cameraComp.Camera.GetProjectionMatrix();
+        cam.Position = transform.GetWorldPosition();
+        cam.Projection = cameraComp.Camera.GetProjectionType();
+        cam.NearClip = cameraComp.Camera.GetPerspectiveNearClip();
+        cam.FOV = cameraComp.Camera.GetPerspectiveVerticalFOV();
+        cam.AspectRatio = cameraComp.Camera.GetAspectRatio();
+
+        RenderSceneImpl(cam);
     }
 
     void Scene::OnRuntimeStart()
@@ -174,7 +202,7 @@ namespace Lucky
         m_State = SceneState::Edit;
     }
 
-    void Scene::RenderSceneImpl(EditorCamera& camera)
+    void Scene::RenderSceneImpl(const CameraRenderData& cam)
     {
         // 收集所有光源数据
         SceneLightData sceneLightData;
@@ -269,7 +297,7 @@ namespace Lucky
             }
         }
         
-        Renderer3D::BeginScene(camera, sceneLightData);
+        Renderer3D::BeginScene(cam, sceneLightData);
         {
             // ---- 收集后处理参数 ----
             PostProcessSettings postProcessSettings;
@@ -337,7 +365,32 @@ namespace Lucky
 
     void Scene::OnViewportResize(uint32_t width, uint32_t height)
     {
-        
+        m_ViewportWidth = width;
+        m_ViewportHeight = height;
+
+        auto view = m_Registry.view<CameraComponent>();
+        for (auto entity : view)
+        {
+            auto& cam = view.get<CameraComponent>(entity);
+            if (!cam.FixedAspectRatio)
+            {
+                cam.Camera.SetViewportSize(width, height);
+            }
+        }
+    }
+
+    Entity Scene::GetPrimaryCameraEntity()
+    {
+        auto view = m_Registry.view<TransformComponent, CameraComponent>();
+        for (auto entity : view)
+        {
+            const auto& cam = view.get<CameraComponent>(entity);
+            if (cam.Primary)
+            {
+                return Entity{ entity, this };
+            }
+        }
+        return Entity{};
     }
 
     Entity Scene::GetEntityWithUUID(UUID id)
@@ -517,6 +570,15 @@ namespace Lucky
         if (!component.Material)
         {
             component.Material = Renderer2D::GetDefaultMaterial();
+        }
+    }
+    
+    template<>
+    void Scene::OnComponentAdded<CameraComponent>(Entity entity, CameraComponent& component)
+    {
+        if (m_ViewportWidth > 0 && m_ViewportHeight > 0)
+        {
+            component.Camera.SetViewportSize(m_ViewportWidth, m_ViewportHeight);
         }
     }
     

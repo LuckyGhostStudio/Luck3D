@@ -5,6 +5,7 @@
 #include "Lucky/Core/DeltaTime.h"
 #include "Lucky/Core/UUID.h"
 #include "Lucky/Renderer/EditorCamera.h"
+#include "Lucky/Renderer/Renderer3D.h"
 #include "Lucky/Renderer/RenderContext.h"
 #include "Lucky/Asset/Asset.h"
 
@@ -130,6 +131,13 @@ namespace Lucky
         void OnViewportResize(uint32_t width, uint32_t height);
 
         /// <summary>
+        /// 查找场景中的主相机实体
+        /// 遍历所有拥有 CameraComponent 的实体，返回第一个 Primary=true 的
+        /// 若不存在，返回无效 Entity
+        /// </summary>
+        Entity GetPrimaryCameraEntity();
+
+        /// <summary>
         /// 获取 Entity
         /// </summary>
         /// <param name="id">UUID</param>
@@ -219,12 +227,12 @@ namespace Lucky
         void UpdateWorldTransformRecursive(Entity entity, const glm::mat4& parentWorldTransform);
 
         /// <summary>
-        /// 相机渲染实现：给定 EditorCamera 后跑一遍完整的渲染流程
+        /// 相机渲染实现：给定 CameraRenderData 后跑一遍完整的渲染流程
         /// OnRenderEditor 和 OnRenderRuntime 在拿到自己的相机数据后统一走这里
         /// 内部执行"收集光源 → BeginScene → 收集后处理 → 提交 Mesh/Sprite → EndScene"
         /// </summary>
-        /// <param name="camera">用于渲染的相机</param>
-        void RenderSceneImpl(EditorCamera& camera);
+        /// <param name="cam">相机渲染数据</param>
+        void RenderSceneImpl(const CameraRenderData& cam);
     private:
         friend class Entity;                // 友元类 Entity
         friend class SceneHierarchyPanel;   // 友元类 SceneHierarchyPanel

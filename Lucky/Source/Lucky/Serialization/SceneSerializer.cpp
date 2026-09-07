@@ -248,6 +248,28 @@ namespace Lucky
             out << YAML::EndMap;
         }
 
+        // Camera 组件
+        if (entity.HasComponent<CameraComponent>())
+        {
+            const auto& cc = entity.GetComponent<CameraComponent>();
+            const auto& sc = cc.Camera;
+
+            out << YAML::Key << "CameraComponent";
+            out << YAML::BeginMap;
+
+            out << YAML::Key << "Projection" << YAML::Value << static_cast<int>(sc.GetProjectionType());
+            out << YAML::Key << "PerspectiveFOV" << YAML::Value << sc.GetPerspectiveVerticalFOV();
+            out << YAML::Key << "PerspectiveNear" << YAML::Value << sc.GetPerspectiveNearClip();
+            out << YAML::Key << "PerspectiveFar" << YAML::Value << sc.GetPerspectiveFarClip();
+            out << YAML::Key << "OrthographicSize" << YAML::Value << sc.GetOrthographicSize();
+            out << YAML::Key << "OrthographicNear" << YAML::Value << sc.GetOrthographicNearClip();
+            out << YAML::Key << "OrthographicFar" << YAML::Value << sc.GetOrthographicFarClip();
+            out << YAML::Key << "Primary" << YAML::Value << cc.Primary;
+            out << YAML::Key << "FixedAspectRatio" << YAML::Value << cc.FixedAspectRatio;
+
+            out << YAML::EndMap;
+        }
+
         out << YAML::EndMap;    // 结束实体 Map
     }
 
@@ -655,6 +677,25 @@ namespace Lucky
                     volume.VignetteEnabled = postProcessVolumeNode["VignetteEnabled"].as<bool>();
                     volume.VignetteIntensity = postProcessVolumeNode["VignetteIntensity"].as<float>();
                     volume.VignetteSmoothness = postProcessVolumeNode["VignetteSmoothness"].as<float>();
+                }
+
+                // Camera 组件
+                YAML::Node cameraNode = entity["CameraComponent"];
+                if (cameraNode)
+                {
+                    auto& cc = deserializedEntity.AddComponent<CameraComponent>();
+                    auto& sc = cc.Camera;
+
+                    sc.SetProjectionType(static_cast<ProjectionType>(cameraNode["Projection"].as<int>()));
+                    sc.SetPerspectiveVerticalFOV(cameraNode["PerspectiveFOV"].as<float>());
+                    sc.SetPerspectiveNearClip(cameraNode["PerspectiveNear"].as<float>());
+                    sc.SetPerspectiveFarClip(cameraNode["PerspectiveFar"].as<float>());
+                    sc.SetOrthographicSize(cameraNode["OrthographicSize"].as<float>());
+                    sc.SetOrthographicNearClip(cameraNode["OrthographicNear"].as<float>());
+                    sc.SetOrthographicFarClip(cameraNode["OrthographicFar"].as<float>());
+
+                    cc.Primary = cameraNode["Primary"].as<bool>();
+                    cc.FixedAspectRatio = cameraNode["FixedAspectRatio"].as<bool>();
                 }
             }
         }
