@@ -58,9 +58,9 @@ namespace Lucky
     };
     
     /// <summary>
-    /// 场景光照数据：从 Scene 传递给 Renderer3D
+    /// 光照渲染数据：从 Scene 收集后传递给 Renderer3D
     /// </summary>
-    struct SceneLightData
+    struct LightRenderData
     {
         int DirectionalLightCount = 0;
         DirectionalLightData DirectionalLights[s_MaxDirectionalLights]; // 方向光数组
@@ -156,7 +156,7 @@ namespace Lucky
         /// </summary>
         /// <param name="camera">编辑器相机</param>
         /// <param name="lightData">光照数据</param>
-        static void BeginScene(const EditorCamera& camera, const SceneLightData& lightData);
+        static void BeginScene(const EditorCamera& camera, const LightRenderData& lightData);
 
         /// <summary>
         /// 开始渲染场景（矩阵版）
@@ -164,7 +164,7 @@ namespace Lucky
         /// </summary>
         /// <param name="cam">相机渲染数据</param>
         /// <param name="lightData">光照数据</param>
-        static void BeginScene(const CameraRenderData& cam, const SceneLightData& lightData);
+        static void BeginScene(const CameraRenderData& cam, const LightRenderData& lightData);
 
         /// <summary>
         /// 结束渲染场景

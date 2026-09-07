@@ -351,7 +351,7 @@ namespace Lucky
         return matrices;
     }
 
-    void Renderer3D::BeginScene(const EditorCamera& camera, const SceneLightData& lightData)
+    void Renderer3D::BeginScene(const EditorCamera& camera, const LightRenderData& lightData)
     {
         CameraRenderData cam;
         cam.ViewMatrix = camera.GetViewMatrix();
@@ -365,7 +365,7 @@ namespace Lucky
         BeginScene(cam, lightData);
     }
 
-    void Renderer3D::BeginScene(const CameraRenderData& cam, const SceneLightData& lightData)
+    void Renderer3D::BeginScene(const CameraRenderData& cam, const LightRenderData& lightData)
     {
         // 设置 Camera Uniform 缓冲区数据
         s_Data.CameraBuffer.ViewProjectionMatrix = cam.ProjectionMatrix * cam.ViewMatrix;

@@ -724,20 +724,11 @@ else
 | `SceneCamera` | 阴影系统扩展 | 正交投影下的 CSM 或替代阴影方案 |
 | `Primary` bool | 未来 | 可扩展为 `MainCamera Tag` 系统 |
 
-### 7.1 命名一致性技术债（不在本 Phase 处理）
+### 7.1 命名一致性技术债
 
-本 Phase 引入的 `CameraRenderData` 与项目内既有 `SceneLightData` 命名风格不完全对齐：一个以 "Render" 为语义定位（"Renderer 消费的相机数据"），一个以 "Scene" 为语义定位（"从场景收集的光照数据"）。
+**已完成**：`SceneLightData` 已改名为 `LightRenderData`，与 `CameraRenderData` 形成对称的 "Renderer 视角"命名对（对齐 Unreal `FSceneView` / Unity SRP `CameraData + LightData` 等主流引擎的双子系统结构）。
 
-两者本质是**同一层次的对称类型** ?? 都是"每帧从相机/场景源收集、供 Renderer3D 消费的 CPU 端聚合数据"。它们最终写入 GPU UBO 的字段基本对齐 Unreal `FSceneView` / Unity SRP `CameraData / LightData` 的双子系统结构。命名理应对称。
-
-主流引擎的对齐方式：Unreal 用 `FSceneView / FLightSceneInfo`，Unity SRP 用 `CameraData / LightData`，Filament 用 `CameraInfo / LightManager`?? 都以"Renderer 视角"命名，而非"Scene 视角"。
-
-**建议未来做一次独立的整洁性重构**：`SceneLightData → LightRenderData`。改名机械但影响面涉及 Scene / Renderer3D / ShadowPass 等多处，属于纯粹的整洁性工作，与相机系统无耦合，适合作为独立小 Phase 完成。
-
-本 Phase **不承担**此改动，理由：
-- P0.2 焦点是相机组件落地与 Runtime 路径打通，命名整洁不阻塞任何功能
-- 与相机系统解耦，分开做每次都干净、验证明确
-- `SceneLightData` 已被多处稳定引用，一起改会扩散边界
+影响面：`Renderer3D.h` 定义、`Renderer3D.cpp` 两处 `BeginScene` 签名、`Scene.cpp` `RenderSceneImpl` 内的局部变量。全项目零残留，无跨模块波及。
 
 ---
 

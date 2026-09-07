@@ -205,7 +205,7 @@ namespace Lucky
     void Scene::RenderSceneImpl(const CameraRenderData& cam)
     {
         // 收集所有光源数据
-        SceneLightData sceneLightData;
+        LightRenderData lightData;
         
         // 收集所有光源实体（统一查询）
         {
@@ -218,65 +218,65 @@ namespace Lucky
                 {
                     case LightType::Directional:
                     {
-                        if (sceneLightData.DirectionalLightCount >= s_MaxDirectionalLights)
+                        if (lightData.DirectionalLightCount >= s_MaxDirectionalLights)
                         {
                             break;
                         }
 
-                        DirectionalLightData& dirLight = sceneLightData.DirectionalLights[sceneLightData.DirectionalLightCount];
+                        DirectionalLightData& dirLight = lightData.DirectionalLights[lightData.DirectionalLightCount];
                         dirLight.Direction = transform.GetWorldForward();
                         dirLight.Color = light.Color;
                         dirLight.Intensity = light.Intensity;
 
                         // 收集第一个方向光的阴影参数（当前仅支持单光源阴影）
-                        if (sceneLightData.DirectionalLightCount == 0)
+                        if (lightData.DirectionalLightCount == 0)
                         {
-                            sceneLightData.DirLightShadowType = light.Shadows;
-                            sceneLightData.DirLightShadowBias = light.ShadowBias;
-                            sceneLightData.DirLightShadowStrength = light.ShadowStrength;
+                            lightData.DirLightShadowType = light.Shadows;
+                            lightData.DirLightShadowBias = light.ShadowBias;
+                            lightData.DirLightShadowStrength = light.ShadowStrength;
 
                             // CSM 参数
-                            sceneLightData.CascadeCount = light.CascadeCount;
-                            sceneLightData.ShadowDistance = light.ShadowDistance;
-                            sceneLightData.ShadowMapResolution = light.ShadowMapResolution;
+                            lightData.CascadeCount = light.CascadeCount;
+                            lightData.ShadowDistance = light.ShadowDistance;
+                            lightData.ShadowMapResolution = light.ShadowMapResolution;
                             for (int i = 0; i < s_MaxCascadeCount; ++i)
                             {
-                                sceneLightData.CascadeSplits[i] = light.CascadeSplits[i];
+                                lightData.CascadeSplits[i] = light.CascadeSplits[i];
                             }
                         }
 
-                        sceneLightData.DirectionalLightCount++;
+                        lightData.DirectionalLightCount++;
                         break;
                     }
                     case LightType::Point:
                     {
-                        if (sceneLightData.PointLightCount >= s_MaxPointLights)
+                        if (lightData.PointLightCount >= s_MaxPointLights)
                         {
                             break;
                         }
 
-                        PointLightData& pointLight = sceneLightData.PointLights[sceneLightData.PointLightCount];
+                        PointLightData& pointLight = lightData.PointLights[lightData.PointLightCount];
                         pointLight.Position = transform.GetWorldPosition();
                         pointLight.Color = light.Color;
                         pointLight.Intensity = light.Intensity;
                         pointLight.Range = light.Range;
 
                         // 收集点光源阴影参数
-                        sceneLightData.PointLightShadows[sceneLightData.PointLightCount].Shadows = light.Shadows;
-                        sceneLightData.PointLightShadows[sceneLightData.PointLightCount].ShadowBias = light.ShadowBias;
-                        sceneLightData.PointLightShadows[sceneLightData.PointLightCount].ShadowStrength = light.ShadowStrength;
+                        lightData.PointLightShadows[lightData.PointLightCount].Shadows = light.Shadows;
+                        lightData.PointLightShadows[lightData.PointLightCount].ShadowBias = light.ShadowBias;
+                        lightData.PointLightShadows[lightData.PointLightCount].ShadowStrength = light.ShadowStrength;
 
-                        sceneLightData.PointLightCount++;
+                        lightData.PointLightCount++;
                         break;
                     }
                     case LightType::Spot:
                     {
-                        if (sceneLightData.SpotLightCount >= s_MaxSpotLights)
+                        if (lightData.SpotLightCount >= s_MaxSpotLights)
                         {
                             break;
                         }
 
-                        SpotLightData& spotLight = sceneLightData.SpotLights[sceneLightData.SpotLightCount];
+                        SpotLightData& spotLight = lightData.SpotLights[lightData.SpotLightCount];
                         spotLight.Position = transform.GetWorldPosition();
                         spotLight.Direction = transform.GetWorldForward();
                         spotLight.Color = light.Color;
@@ -286,18 +286,18 @@ namespace Lucky
                         spotLight.OuterCutoff = glm::cos(glm::radians(light.OuterCutoffAngle));
 
                         // 收集聚光灯阴影参数
-                        sceneLightData.SpotLightShadows[sceneLightData.SpotLightCount].Shadows = light.Shadows;
-                        sceneLightData.SpotLightShadows[sceneLightData.SpotLightCount].ShadowBias = light.ShadowBias;
-                        sceneLightData.SpotLightShadows[sceneLightData.SpotLightCount].ShadowStrength = light.ShadowStrength;
+                        lightData.SpotLightShadows[lightData.SpotLightCount].Shadows = light.Shadows;
+                        lightData.SpotLightShadows[lightData.SpotLightCount].ShadowBias = light.ShadowBias;
+                        lightData.SpotLightShadows[lightData.SpotLightCount].ShadowStrength = light.ShadowStrength;
 
-                        sceneLightData.SpotLightCount++;
+                        lightData.SpotLightCount++;
                         break;
                     }
                 }
             }
         }
         
-        Renderer3D::BeginScene(cam, sceneLightData);
+        Renderer3D::BeginScene(cam, lightData);
         {
             // ---- 收集后处理参数 ----
             PostProcessSettings postProcessSettings;
