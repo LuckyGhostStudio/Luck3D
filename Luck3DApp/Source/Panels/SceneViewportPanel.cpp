@@ -156,23 +156,40 @@ namespace Lucky
                 GizmoRenderer::DrawInfiniteGrid(m_EditorCamera);
             }
             
-            // 灯光 Gizmo TODO 只绘制选中项
-            auto lights = m_Scene->GetAllEntitiesWith<TransformComponent, LightComponent>();
-            for (auto entity : lights)
+            // 选中实体的 Gizmo（Light 视锥 / Camera 视锥仅在选中该实体时绘制）
+            if (selectedUUID != 0)
             {
-                auto [transform, light] = lights.get<TransformComponent, LightComponent>(entity);
-
-                switch (light.Type)
+                Entity selectedEntity = m_Scene->TryGetEntityWithUUID(selectedUUID);
+                if (selectedEntity)
                 {
-                    case LightType::Directional:
-                        GizmoRenderer::DrawDirectionalLightGizmo(transform.GetWorldPosition(), transform.GetWorldForward(), light.Color);
-                        break;
-                    case LightType::Point:
-                        GizmoRenderer::DrawPointLightGizmo(transform.GetWorldPosition(), light.Range, light.Color);
-                        break;
-                    case LightType::Spot:
-                        GizmoRenderer::DrawSpotLightGizmo(transform.GetWorldPosition(), transform.GetWorldForward(), light.Range, light.InnerCutoffAngle, light.OuterCutoffAngle, light.Color);
-                        break;
+                    // Light Gizmo
+                    if (selectedEntity.HasComponent<LightComponent>())
+                    {
+                        const auto& transform = selectedEntity.GetComponent<TransformComponent>();
+                        const auto& light = selectedEntity.GetComponent<LightComponent>();
+
+                        switch (light.Type)
+                        {
+                            case LightType::Directional:
+                                GizmoRenderer::DrawDirectionalLightGizmo(transform.GetWorldPosition(), transform.GetWorldForward(), light.Color);
+                                break;
+                            case LightType::Point:
+                                GizmoRenderer::DrawPointLightGizmo(transform.GetWorldPosition(), light.Range, light.Color);
+                                break;
+                            case LightType::Spot:
+                                GizmoRenderer::DrawSpotLightGizmo(transform.GetWorldPosition(), transform.GetWorldForward(), light.Range, light.InnerCutoffAngle, light.OuterCutoffAngle, light.Color);
+                                break;
+                        }
+                    }
+
+                    // Camera Gizmo
+                    if (selectedEntity.HasComponent<CameraComponent>())
+                    {
+                        const auto& transform = selectedEntity.GetComponent<TransformComponent>();
+                        const auto& cameraComp = selectedEntity.GetComponent<CameraComponent>();
+
+                        GizmoRenderer::DrawCameraFrustum(transform.GetWorldTransform(), cameraComp.Camera.GetProjectionMatrix(), { 1.0f, 1.0f, 1.0f, 1.0f });
+                    }
                 }
             }
         }

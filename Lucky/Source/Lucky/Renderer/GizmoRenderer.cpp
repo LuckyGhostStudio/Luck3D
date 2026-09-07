@@ -316,4 +316,50 @@ namespace Lucky
             DrawLine(position, point, c);
         }
     }
+
+    void GizmoRenderer::DrawCameraFrustum(const glm::mat4& worldTransform, const glm::mat4& projectionMatrix, const glm::vec4& color)
+    {
+        // NDC 立方体的 8 个角点（[-1, 1]^3），近平面 z = -1，远平面 z = +1
+        // 通过 inverse(projection) 反变换回相机空间，再由 worldTransform 变换到世界空间
+        const glm::vec4 ndcCorners[8] = {
+            // 近平面 4 角（LB / RB / RT / LT）
+            { -1.0f, -1.0f, -1.0f, 1.0f },
+            {  1.0f, -1.0f, -1.0f, 1.0f },
+            {  1.0f,  1.0f, -1.0f, 1.0f },
+            { -1.0f,  1.0f, -1.0f, 1.0f },
+            // 远平面 4 角（LB / RB / RT / LT）
+            { -1.0f, -1.0f,  1.0f, 1.0f },
+            {  1.0f, -1.0f,  1.0f, 1.0f },
+            {  1.0f,  1.0f,  1.0f, 1.0f },
+            { -1.0f,  1.0f,  1.0f, 1.0f },
+        };
+
+        glm::mat4 invProjection = glm::inverse(projectionMatrix);
+        glm::mat4 clipToWorld = worldTransform * invProjection;
+
+        glm::vec3 v[8];
+        for (int i = 0; i < 8; ++i)
+        {
+            glm::vec4 world = clipToWorld * ndcCorners[i];
+            v[i] = glm::vec3(world) / world.w;  // 齐次除法：透视投影下 w != 1
+        }
+
+        // 近平面 4 条边
+        DrawLine(v[0], v[1], color);
+        DrawLine(v[1], v[2], color);
+        DrawLine(v[2], v[3], color);
+        DrawLine(v[3], v[0], color);
+
+        // 远平面 4 条边
+        DrawLine(v[4], v[5], color);
+        DrawLine(v[5], v[6], color);
+        DrawLine(v[6], v[7], color);
+        DrawLine(v[7], v[4], color);
+
+        // 连接近远平面的 4 条侧棱
+        DrawLine(v[0], v[4], color);
+        DrawLine(v[1], v[5], color);
+        DrawLine(v[2], v[6], color);
+        DrawLine(v[3], v[7], color);
+    }
 }

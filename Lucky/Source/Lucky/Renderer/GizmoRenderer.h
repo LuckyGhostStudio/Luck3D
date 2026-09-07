@@ -44,5 +44,14 @@ namespace Lucky
         static void DrawDirectionalLightGizmo(const glm::vec3& position, const glm::vec3& direction, const glm::vec3& color);
         static void DrawPointLightGizmo(const glm::vec3& position, float range, const glm::vec3& color);
         static void DrawSpotLightGizmo(const glm::vec3& position, const glm::vec3& direction, float range, float innerAngle, float outerAngle, const glm::vec3& color);
+
+        /// <summary>
+        /// 绘制相机视锥体线框：通过 inverse(projectionMatrix) 将 NDC 立方体反变换回相机空间，
+        /// 再由 worldTransform 变换到世界空间，天然支持透视 / 正交等任意投影
+        /// </summary>
+        /// <param name="worldTransform">相机所在实体的世界变换矩阵</param>
+        /// <param name="projectionMatrix">相机投影矩阵</param>
+        /// <param name="color">线框颜色</param>
+        static void DrawCameraFrustum(const glm::mat4& worldTransform, const glm::mat4& projectionMatrix, const glm::vec4& color);
     };
 }
