@@ -3,6 +3,7 @@
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/Components/Components.h"
 #include "Lucky/Scene/Components/ComponentType.h"
+#include "Lucky/Scene/Components/ComponentRegistry.h"
 
 #include "Lucky/Renderer/MeshFactory.h"
 #include "Lucky/Renderer/Renderer3D.h"
@@ -855,18 +856,19 @@ namespace Lucky
         ImGuiContext& g = *GImGui;
         const ImGuiLastItemData savedItemData = g.LastItemData;
 
-        // 收集该实体拥有的非默认组件图标（排除 Transform）
+        // 收集该实体拥有的组件图标（受 Descriptor::ShowInHierarchyIcons 控制，Transform / Name / Relationship 默认排除）
         std::vector<const Ref<Texture2D>*> icons;
-        if (entity.HasComponent<MeshFilterComponent>())         icons.push_back(&EditorIconManager::GetComponentIcon(ComponentType::MeshFilter));
-        if (entity.HasComponent<MeshRendererComponent>())       icons.push_back(&EditorIconManager::GetComponentIcon(ComponentType::MeshRenderer));
-        if (entity.HasComponent<SpriteRendererComponent>())     icons.push_back(&EditorIconManager::GetComponentIcon(ComponentType::SpriteRenderer));
-        if (entity.HasComponent<LightComponent>())
+        ComponentRegistry::ForEach([&](const ComponentDescriptor& desc)
         {
-            LightType lightType = entity.GetComponent<LightComponent>().Type;
-            icons.push_back(&EditorIconManager::GetLightIcon(lightType));
-        }
-        if (entity.HasComponent<PostProcessVolumeComponent>())  icons.push_back(&EditorIconManager::GetComponentIcon(ComponentType::PostProcessVolume));
-        if (entity.HasComponent<CameraComponent>())             icons.push_back(&EditorIconManager::GetComponentIcon(ComponentType::Camera));
+            if (!desc.ShowInHierarchyIcons)
+            {
+                return;
+            }
+            if (desc.Has && desc.Has(entity) && desc.GetIcon)
+            {
+                icons.push_back(&desc.GetIcon(entity));
+            }
+        });
 
         float iconSize = ImGui::GetTextLineHeight() - UI::Theme::Layout::TreeNodeIconSizeShrink;
         float iconSpacing = UI::Theme::Layout::TreeNodeComponentIconSpacing;

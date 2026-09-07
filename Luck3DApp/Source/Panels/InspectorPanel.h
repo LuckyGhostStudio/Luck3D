@@ -6,6 +6,7 @@
 #include "Lucky/Scene/SceneManager.h"
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/Components/Components.h"
+#include "Lucky/Scene/Components/ComponentDescriptor.h"
 
 #include "Lucky/UI/UICore.h"
 #include "Lucky/UI/Theme.h"
@@ -37,15 +38,12 @@ namespace Lucky
         void OnEvent(Event& event) override;
     private:
         /// <summary>
-        /// 绘制组件
+        /// 绘制组件通用外壳（HorizontalLine + TreeNode + 图标 + Name + Settings 按钮 + Remove 弹窗）
+        /// 打开时调用 desc.Draw(entity) 填充组件内容
         /// </summary>
-        /// <typeparam name="TComponent">组件类型</typeparam>
-        /// <typeparam name="UIFunction">组件功能函数类型</typeparam>
-        /// <param name="name">组件名</param>
         /// <param name="entity">实体</param>
-        /// <param name="OnOpened">组件打开时调用</param>
-        template<typename TComponent, typename UIFunction>
-        void DrawComponent(const std::string& name, Entity entity, UIFunction OnOpened);
+        /// <param name="desc">组件描述符</param>
+        void DrawComponentHeader(Entity entity, const ComponentDescriptor& desc);
 
         /// <summary>
         /// 绘制底部 Add Component 按钮及其下拉弹出框
@@ -54,126 +52,16 @@ namespace Lucky
         void DrawAddComponentButton(Entity entity);
 
         /// <summary>
-        /// 绘制 Add Component 弹出框中的一个菜单项（若实体已拥有该组件则置灰）
+        /// 绘制 MeshRenderer / Sprite 的材质编辑器附加块
+        /// 这是"跨组件的附加块"（组件面板之后、AddComponent 按钮之前独立绘制），
+        /// 不属于任何单个组件的 Draw 范围，因此不进 Registry
         /// </summary>
-        /// <typeparam name="TComponent">组件类型</typeparam>
         /// <param name="entity">当前选中实体</param>
-        /// <param name="label">菜单项显示名</param>
-        template<typename TComponent>
-        static void DrawAddComponentMenuItem(Entity entity, const char* label);
+        void DrawMaterialEditors(Entity entity);
     private:
         Ref<Scene> m_Scene;
 
         // SceneManager 订阅句柄：ctor 中 Subscribe，dtor 中 Unsubscribe
         SceneManager::SubscriptionHandle m_SceneChangedSub = 0;
     };
-    
-    template<typename TComponent, typename UIFunction>
-    void InspectorPanel::DrawComponent(const std::string& name, Entity entity, UIFunction OnOpened)
-    {
-        if (!entity.HasComponent<TComponent>())
-        {
-            return;
-        }
-        
-        // 树节点标志：打开|框架|延伸到右边|允许重叠|框架边框
-        const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth;
-        
-        auto& component = entity.GetComponent<TComponent>();
-        
-        // 生成唯一 ID 组件类型哈希 + 实体 UUID
-        const std::string& strComponentID = std::format("{}##{}{}", name, static_cast<uint64_t>(entity.GetUUID()), typeid(TComponent).hash_code());
-        
-        bool opened = false;
-        
-        ImVec2 contentRegionAvail = ImGui::GetContentRegionAvail(); // 可用区域大小
-        float lineHeight = ImGui::GetTextLineHeight();
-        
-        UI::Draw::HorizontalLine();
-        
-        UI::ShiftCursorY(1.0f);
-        {
-            UI::ScopedStyle itemSpacing(ImGuiStyleVar_ItemSpacing, { 0, 0 });   // 树节点和底部水平线之间的 Spacing
-            opened = ImGui::TreeNodeEx(strComponentID.c_str(), flags, "");
-            
-            // 组件图标 + 组件名
-            ImGui::SameLine();
-            UI::ShiftCursorX(UI::Theme::Layout::ComponentHeaderIconSpacing);
-
-            const Ref<Texture2D>& componentIcon = ComponentIconResolver<TComponent>::GetIcon(component);
-            if (componentIcon)
-            {
-                float iconSize = lineHeight - UI::Theme::Layout::TreeNodeIconSizeShrink;
-                UI::ShiftCursorY(UI::Theme::Layout::ComponentHeaderIconOffsetY);
-                UI::ImageFlipped(componentIcon, ImVec2(iconSize, iconSize));
-                ImGui::SameLine();
-                UI::ShiftCursorX(UI::Theme::Layout::ComponentHeaderIconToTextSpacing);
-                UI::ShiftCursorY(-UI::Theme::Layout::ComponentHeaderIconOffsetY);
-            }
-
-            {
-                UI::ScopedFont boldFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO 封装 Fonts
-                ImGui::TextUnformatted(name.c_str());
-            }
-            
-            ImGui::SameLine(contentRegionAvail.x - lineHeight);
-            UI::ShiftCursorY(UI::Theme::Layout::ComponentHeaderIconOffsetY * 0.5f);
-            
-            // 设置按钮
-            const Ref<Texture2D>& settingsIcon = EditorIconManager::GetSettingsIcon();
-            {
-                ColorSettings& colorSettings = EditorPreferences::Get().GetColors();
-            
-                UI::ScopedStyle buttonBorderSize(ImGuiStyleVar_FrameBorderSize, 0.0f);
-                UI::ScopedColor buttonColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-                UI::ScopedColor buttonActiveColor(ImGuiCol_ButtonActive, { colorSettings.ButtonHovered.x, colorSettings.ButtonHovered.y, colorSettings.ButtonHovered.z, colorSettings.ButtonHovered.w });
-                if (UI::ImageButtonFlipped(settingsIcon, ImVec2(lineHeight, lineHeight), 0))
-                {
-                    ImGui::OpenPopup("ComponentSettings");  // 打开弹出框
-                }
-            }
-        
-            ImGui::Indent(-UI::Theme::Layout::IndentSpacing);
-            UI::Draw::HorizontalLine(0.6f);
-            ImGui::Indent(UI::Theme::Layout::IndentSpacing);
-        }
-        
-        // 移除组件
-        bool componentRemoved = false;
-        // 渲染弹出框
-        if (UI::BeginPopup("ComponentSettings"))
-        {
-            // 移除组件菜单项
-            if (ImGui::MenuItem("Remove Component"))
-            {
-                componentRemoved = true;    // 组件标记为移除
-            }
-
-            UI::EndPopup();
-        }
-        
-        if (opened)
-        {
-            OnOpened(component);    // 调用组件功能函数：绘制该组件不同的部分
-
-            ImGui::TreePop();       // 展开结点
-        }
-
-        if (componentRemoved)
-        {
-            entity.RemoveComponent<TComponent>();    // 移除 TComponent 组件
-        }
-    }
-
-    template<typename TComponent>
-    void InspectorPanel::DrawAddComponentMenuItem(Entity entity, const char* label)
-    {
-        bool alreadyHas = entity.HasComponent<TComponent>();
-        const Ref<Texture2D>& icon = EditorIconManager::GetComponentIcon(ComponentTrait<TComponent>::Type);
-
-        if (UI::IconMenuItem(icon, label, alreadyHas))
-        {
-            entity.AddComponent<TComponent>();
-        }
-    }
 }

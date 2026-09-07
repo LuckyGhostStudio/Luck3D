@@ -4,21 +4,18 @@
 #include "Lucky/Scene/Entity.h"
 
 #include "Lucky/Scene/Components/Components.h"
-
-#include "Lucky/Serialization/MaterialSerializer.h"
-#include "Lucky/Renderer/Renderer3D.h"
+#include "Lucky/Scene/Components/ComponentRegistry.h"
 
 #include "Lucky/Asset/AssetManager.h"
 #include "YamlHelpers.h"
 
 #include <fstream>
 #include <yaml-cpp/yaml.h>
-#include <filesystem>
 
 namespace Lucky
 {
     /// <summary>
-    /// 序列化实体
+    /// 序列化实体：遍历 ComponentRegistry，逐个组件写入 YAML
     /// </summary>
     /// <param name="out">发射器</param>
     /// <param name="entity">实体</param>
@@ -27,261 +24,24 @@ namespace Lucky
         out << YAML::BeginMap;
         out << YAML::Key << "Entity" << YAML::Value << entity.GetUUID();
 
-        // Name 组件
-        if (entity.HasComponent<NameComponent>())
+        ComponentRegistry::ForEach([&](const ComponentDescriptor& desc)
         {
-            const auto& nameComponent = entity.GetComponent<NameComponent>(); // Name 组件
-            
-            out << YAML::Key << "NameComponent";
-            
-            out << YAML::BeginMap;
-            out << YAML::Key << "Name" << YAML::Value << nameComponent.Name;
-            out << YAML::EndMap;
-        }
-
-        // Transform 组件
-        if (entity.HasComponent<TransformComponent>())
-        {
-            const auto& transformComponent = entity.GetComponent<TransformComponent>();
-            
-            out << YAML::Key << "TransformComponent";
-            
-            out << YAML::BeginMap;
-            out << YAML::Key << "Position" << YAML::Value << transformComponent.Translation;
-            out << YAML::Key << "Rotation" << YAML::Value << transformComponent.GetRotation();
-            out << YAML::Key << "Scale" << YAML::Value << transformComponent.Scale;
-            out << YAML::EndMap;
-        }
-        
-        // Relationship 组件
-        if (entity.HasComponent<RelationshipComponent>())
-        {
-            const auto& relationshipComponent = entity.GetComponent<RelationshipComponent>();
-            
-            out << YAML::Key << "RelationshipComponent";
-            
-            out << YAML::BeginMap;
-            out << YAML::Key << "Parent" << YAML::Value << relationshipComponent.Parent;
-            
-            out << YAML::Key << "Children" << YAML::Value << YAML::BeginSeq;
-            for (const auto& child : relationshipComponent.Children)
-            {                
-                out << YAML::BeginMap;
-                out << YAML::Key << "Child" << YAML::Value << child;
-                out << YAML::EndMap;
-            }
-            out << YAML::EndSeq;
-            
-            out << YAML::EndMap;
-        }
-        
-        // Light 组件
-        if (entity.HasComponent<LightComponent>())
-        {
-            const auto& light = entity.GetComponent<LightComponent>();
-
-            out << YAML::Key << "LightComponent";
-
-            out << YAML::BeginMap;
-            out << YAML::Key << "Type" << YAML::Value << static_cast<int>(light.Type);
-            out << YAML::Key << "Color" << YAML::Value << light.Color;
-            out << YAML::Key << "Intensity" << YAML::Value << light.Intensity;
-
-            // Point / Spot 属性
-            if (light.Type == LightType::Point || light.Type == LightType::Spot)
+            if (desc.Serialize)
             {
-                out << YAML::Key << "Range" << YAML::Value << light.Range;
+                desc.Serialize(out, entity);
             }
+        });
 
-            // Spot 属性
-            if (light.Type == LightType::Spot)
-            {
-                out << YAML::Key << "InnerCutoffAngle" << YAML::Value << light.InnerCutoffAngle;
-                out << YAML::Key << "OuterCutoffAngle" << YAML::Value << light.OuterCutoffAngle;
-            }
-
-            // 阴影属性（所有类型）
-            out << YAML::Key << "Shadows" << YAML::Value << static_cast<int>(light.Shadows);
-            out << YAML::Key << "ShadowBias" << YAML::Value << light.ShadowBias;
-            out << YAML::Key << "ShadowStrength" << YAML::Value << light.ShadowStrength;
-
-            // CSM 属性（仅方向光）
-            if (light.Type == LightType::Directional)
-            {
-                out << YAML::Key << "CascadeCount" << YAML::Value << light.CascadeCount;
-                out << YAML::Key << "ShadowDistance" << YAML::Value << light.ShadowDistance;
-                out << YAML::Key << "ShadowMapResolution" << YAML::Value << light.ShadowMapResolution;
-                out << YAML::Key << "CascadeSplits" << YAML::Value << YAML::Flow << YAML::BeginSeq;
-                for (int i = 0; i < 4; ++i)
-                {
-                    out << light.CascadeSplits[i];
-                }
-                out << YAML::EndSeq;
-            }
-
-            out << YAML::EndMap;
-        }
-        
-        // MeshFilter 组件
-        if (entity.HasComponent<MeshFilterComponent>())
-        {
-            const auto& meshFilterComponent = entity.GetComponent<MeshFilterComponent>();
-            
-            out << YAML::Key << "MeshFilterComponent";
-            out << YAML::BeginMap;
-            
-            out << YAML::Key << "PrimitiveType" << YAML::Value << static_cast<int>(meshFilterComponent.Primitive);
-            
-            // 外部模型：通过 Mesh 实例获取 AssetHandle
-            if (meshFilterComponent.Mesh && meshFilterComponent.Primitive == PrimitiveType::None)
-            {
-                out << YAML::Key << "MeshAsset" << YAML::Value << static_cast<uint64_t>(meshFilterComponent.Mesh->GetHandle());
-            }
-            else
-            {
-                out << YAML::Key << "MeshAsset" << YAML::Value << static_cast<uint64_t>(0);
-            }
-            
-            out << YAML::EndMap;
-        }
-        
-        // MeshRenderer 组件
-        if (entity.HasComponent<MeshRendererComponent>())
-        {
-            const auto& meshRendererComponent = entity.GetComponent<MeshRendererComponent>();
-            
-            out << YAML::Key << "MeshRendererComponent";
-            
-            out << YAML::BeginMap;
-            
-            // 序列化材质列表（使用 AssetHandle 引用）
-            out << YAML::Key << "Materials" << YAML::Value << YAML::BeginSeq;
-
-            for (const auto& material : meshRendererComponent.Materials)
-            {
-                out << YAML::BeginMap;
-                if (material)
-                {
-                    // 通过 Material 实例获取 AssetHandle（Material 继承 Asset，自带 Handle）
-                    out << YAML::Key << "AssetHandle" << YAML::Value << material->GetHandle();
-                }
-                else
-                {
-                    out << YAML::Key << "AssetHandle" << YAML::Value << static_cast<uint64_t>(0);
-                }
-                out << YAML::EndMap;
-            }
-
-            out << YAML::EndSeq;    // 材质列表结束
-            
-            out << YAML::EndMap;
-        }
-
-        // SpriteRenderer 组件
-        if (entity.HasComponent<SpriteRendererComponent>())
-        {
-            const auto& sprite = entity.GetComponent<SpriteRendererComponent>();
-
-            out << YAML::Key << "SpriteRendererComponent";
-            out << YAML::BeginMap;
-
-            // Texture（AssetHandle 引用，nullptr 写 0）
-            if (sprite.Texture)
-            {
-                out << YAML::Key << "Texture" << YAML::Value << static_cast<uint64_t>(sprite.Texture->GetHandle());
-            }
-            else
-            {
-                out << YAML::Key << "Texture" << YAML::Value << static_cast<uint64_t>(0);
-            }
-
-            out << YAML::Key << "Color" << YAML::Value << sprite.Color;
-            out << YAML::Key << "FlipX" << YAML::Value << sprite.FlipX;
-            out << YAML::Key << "FlipY" << YAML::Value << sprite.FlipY;
-            out << YAML::Key << "UVRect" << YAML::Value << sprite.UVRect;
-            out << YAML::Key << "TilingFactor" << YAML::Value << sprite.TilingFactor;
-
-            // Material（AssetHandle 引用，nullptr 写 0，反序列化时由 Renderer2D 回退默认材质）
-            if (sprite.Material)
-            {
-                out << YAML::Key << "Material" << YAML::Value << static_cast<uint64_t>(sprite.Material->GetHandle());
-            }
-            else
-            {
-                out << YAML::Key << "Material" << YAML::Value << static_cast<uint64_t>(0);
-            }
-
-            out << YAML::Key << "SortingOrder" << YAML::Value << sprite.SortingOrder;
-
-            out << YAML::EndMap;
-        }
-
-        // PostProcessVolume 组件
-        if (entity.HasComponent<PostProcessVolumeComponent>())
-        {
-            const auto& volume = entity.GetComponent<PostProcessVolumeComponent>();
-
-            out << YAML::Key << "PostProcessVolumeComponent";
-
-            out << YAML::BeginMap;
-            out << YAML::Key << "IsGlobal" << YAML::Value << volume.IsGlobal;
-            out << YAML::Key << "Priority" << YAML::Value << volume.Priority;
-
-            // Tonemapping
-            out << YAML::Key << "TonemapMode" << YAML::Value << static_cast<int>(volume.Tonemap);
-            out << YAML::Key << "Exposure" << YAML::Value << volume.Exposure;
-
-            // Bloom
-            out << YAML::Key << "BloomEnabled" << YAML::Value << volume.BloomEnabled;
-            out << YAML::Key << "BloomThreshold" << YAML::Value << volume.BloomThreshold;
-            out << YAML::Key << "BloomIntensity" << YAML::Value << volume.BloomIntensity;
-            out << YAML::Key << "BloomIterations" << YAML::Value << volume.BloomIterations;
-
-            // FXAA
-            out << YAML::Key << "FXAAEnabled" << YAML::Value << volume.FXAAEnabled;
-
-            // Vignette
-            out << YAML::Key << "VignetteEnabled" << YAML::Value << volume.VignetteEnabled;
-            out << YAML::Key << "VignetteIntensity" << YAML::Value << volume.VignetteIntensity;
-            out << YAML::Key << "VignetteSmoothness" << YAML::Value << volume.VignetteSmoothness;
-
-            out << YAML::EndMap;
-        }
-
-        // Camera 组件
-        if (entity.HasComponent<CameraComponent>())
-        {
-            const auto& cc = entity.GetComponent<CameraComponent>();
-            const auto& sc = cc.Camera;
-
-            out << YAML::Key << "CameraComponent";
-            out << YAML::BeginMap;
-
-            out << YAML::Key << "Projection" << YAML::Value << static_cast<int>(sc.GetProjectionType());
-            out << YAML::Key << "PerspectiveFOV" << YAML::Value << sc.GetPerspectiveVerticalFOV();
-            out << YAML::Key << "PerspectiveNear" << YAML::Value << sc.GetPerspectiveNearClip();
-            out << YAML::Key << "PerspectiveFar" << YAML::Value << sc.GetPerspectiveFarClip();
-            out << YAML::Key << "OrthographicSize" << YAML::Value << sc.GetOrthographicSize();
-            out << YAML::Key << "OrthographicNear" << YAML::Value << sc.GetOrthographicNearClip();
-            out << YAML::Key << "OrthographicFar" << YAML::Value << sc.GetOrthographicFarClip();
-            out << YAML::Key << "Primary" << YAML::Value << cc.Primary;
-            out << YAML::Key << "FixedAspectRatio" << YAML::Value << cc.FixedAspectRatio;
-
-            out << YAML::EndMap;
-        }
-
-        out << YAML::EndMap;    // 结束实体 Map
+        out << YAML::EndMap;
     }
 
     void SceneSerializer::Serialize(const Ref<Scene>& scene, const std::string& filepath)
     {
-        YAML::Emitter out;      // 发射器
+        YAML::Emitter out;
 
         out << YAML::BeginMap;
         
-        out << YAML::Key << "Scene" << YAML::Value << scene->GetName();   // 场景：场景名
-        
-        // 场景 AssetHandle
+        out << YAML::Key << "Scene" << YAML::Value << scene->GetName();
         out << YAML::Key << "Handle" << YAML::Value << static_cast<uint64_t>(scene->GetHandle());
         
         // ---- 环境设置 ----
@@ -290,7 +50,6 @@ namespace Lucky
             out << YAML::Key << "EnvironmentSettings" << YAML::Value;
             out << YAML::BeginMap;
             
-            // 天空盒材质（通过 AssetHandle 引用）
             out << YAML::Key << "SkyboxMaterial" << YAML::Value;
             if (env.SkyboxMaterial && env.SkyboxMaterial->GetHandle().IsValid())
             {
@@ -317,9 +76,8 @@ namespace Lucky
         }
         out << YAML::EndSeq;
 
-        out << YAML::Key << "Entities" << YAML::Value << YAML::BeginSeq;    // 实体序列：开始实体序列
+        out << YAML::Key << "Entities" << YAML::Value << YAML::BeginSeq;
 
-        // 遍历场景注册表所有实体
         scene->m_Registry.each([&](auto entityID)
         {
             Entity entity = { entityID, scene.get() };
@@ -328,15 +86,15 @@ namespace Lucky
                 return;
             }
 
-            SerializeEntity(out, entity);   // 序列化实体
+            SerializeEntity(out, entity);
         });
 
-        out << YAML::EndSeq;    // 结束实体序列
+        out << YAML::EndSeq;
         
         out << YAML::EndMap;
 
-        std::ofstream fout(filepath);   // 输出流
-        fout << out.c_str();            // 输出序列化结果到输出流文件
+        std::ofstream fout(filepath);
+        fout << out.c_str();
     }
 
     void SceneSerializer::SerializeRuntime(const Ref<Scene>& scene, const std::string& filepath)
@@ -346,15 +104,14 @@ namespace Lucky
 
     bool SceneSerializer::Deserialize(const Ref<Scene>& scene, const std::string& filepath)
     {
-        YAML::Node data = YAML::LoadFile(filepath); // 加载到 YMAL 结点
+        YAML::Node data = YAML::LoadFile(filepath);
 
-        // Scene 节点不存在
         if (!data["Scene"])
         {
             return false;
         }
 
-        std::string sceneName = data["Scene"].as<std::string>();    // 场景名
+        std::string sceneName = data["Scene"].as<std::string>();
         scene->SetName(sceneName);
 
         LF_CORE_TRACE("Deserializing scene '{0}'", sceneName);
@@ -365,7 +122,6 @@ namespace Lucky
         {
             EnvironmentSettings& env = scene->GetEnvironmentSettings();
             
-            // 反序列化天空盒材质（通过 AssetHandle 引用）
             YAML::Node skyboxMatNode = envNode["SkyboxMaterial"];
             if (skyboxMatNode && !skyboxMatNode.IsNull())
             {
@@ -395,313 +151,37 @@ namespace Lucky
             }
         }
 
-        YAML::Node entities = data["Entities"];   // 实体序列结点
+        YAML::Node entities = data["Entities"];
         
         if (entities)
         {
-            // 遍历结点下所有实体
             for (auto entity : entities)
             {
-                uint64_t uuid = entity["Entity"].as<uint64_t>();    // UUID
+                uint64_t uuid = entity["Entity"].as<uint64_t>();
                 
                 std::string entityName;
-
-                // Name 组件结点
                 YAML::Node nameComponentNode = entity["NameComponent"];
                 if (nameComponentNode)
                 {
-                    entityName = nameComponentNode["Name"].as<std::string>(); // 实体名
+                    entityName = nameComponentNode["Name"].as<std::string>();
                 }
 
                 LF_CORE_TRACE("Deserialized Entity: [UUID = {0}, Name = {1}]", uuid, entityName);
 
-                Entity deserializedEntity = scene->CreateEntity(uuid, entityName);  // 创建实体
+                Entity deserializedEntity = scene->CreateEntity(uuid, entityName);
 
-                // Transform 组件
-                YAML::Node transformComponentNode = entity["TransformComponent"];
-                if (transformComponentNode)
+                ComponentRegistry::ForEach([&](const ComponentDescriptor& desc)
                 {
-                    auto& transformComponent = deserializedEntity.GetComponent<TransformComponent>();  // 获取 Transform 组件
-
-                    transformComponent.Translation = transformComponentNode["Position"].as<glm::vec3>();
-                    transformComponent.SetRotation(transformComponentNode["Rotation"].as<glm::quat>());
-                    transformComponent.Scale = transformComponentNode["Scale"].as<glm::vec3>();
-                }
-
-                // Relationship 组件
-                YAML::Node relationshipComponentNode = entity["RelationshipComponent"];
-                if (relationshipComponentNode)
-                {
-                    auto& relationshipComponent = deserializedEntity.GetComponent<RelationshipComponent>();
-                    
-                    relationshipComponent.Parent = relationshipComponentNode["Parent"].as<UUID>();
-                    
-                    relationshipComponent.Children.clear();
-                    YAML::Node childrenNode = relationshipComponentNode["Children"];
-                    if (childrenNode)
+                    if (desc.Deserialize)
                     {
-                        for (auto children : childrenNode)
-                        {
-                            uint64_t child = children["Child"].as<uint64_t>();
-                            relationshipComponent.Children.push_back(child);
-                        }
+                        desc.Deserialize(deserializedEntity, entity);
                     }
-                }
-                
-                // Light 组件
-                YAML::Node lightComponentNode = entity["LightComponent"];
-                if (lightComponentNode)
-                {
-                    LightType type = static_cast<LightType>(lightComponentNode["Type"].as<int>());
-                    auto& light = deserializedEntity.AddComponent<LightComponent>(type);
-
-                    light.Color = lightComponentNode["Color"].as<glm::vec3>();
-                    light.Intensity = lightComponentNode["Intensity"].as<float>();
-
-                    if (lightComponentNode["Range"])
-                    {
-                        light.Range = lightComponentNode["Range"].as<float>();
-                    }
-                    if (lightComponentNode["InnerCutoffAngle"])
-                    {
-                        light.InnerCutoffAngle = lightComponentNode["InnerCutoffAngle"].as<float>();
-                    }
-                    if (lightComponentNode["OuterCutoffAngle"])
-                    {
-                        light.OuterCutoffAngle = lightComponentNode["OuterCutoffAngle"].as<float>();
-                    }
-
-                    light.Shadows = static_cast<ShadowType>(lightComponentNode["Shadows"].as<int>());
-                    light.ShadowBias = lightComponentNode["ShadowBias"].as<float>();
-                    light.ShadowStrength = lightComponentNode["ShadowStrength"].as<float>();
-
-                    // CSM 属性
-                    if (lightComponentNode["CascadeCount"])
-                    {
-                        light.CascadeCount = lightComponentNode["CascadeCount"].as<int>();
-                    }
-                    if (lightComponentNode["ShadowDistance"])
-                    {
-                        light.ShadowDistance = lightComponentNode["ShadowDistance"].as<float>();
-                    }
-                    if (lightComponentNode["ShadowMapResolution"])
-                    {
-                        light.ShadowMapResolution = lightComponentNode["ShadowMapResolution"].as<int>();
-                    }
-                    if (lightComponentNode["CascadeSplits"])
-                    {
-                        auto splitSeq = lightComponentNode["CascadeSplits"].as<std::vector<float>>();
-                        for (int i = 0; i < 4 && i < (int)splitSeq.size(); ++i)
-                        {
-                            light.CascadeSplits[i] = splitSeq[i];
-                        }
-                    }
-                }
-                
-                // MeshFilter 组件
-                YAML::Node meshFilterComponentNode = entity["MeshFilterComponent"];
-                if (meshFilterComponentNode)
-                {
-                    PrimitiveType primitiveType = static_cast<PrimitiveType>(meshFilterComponentNode["PrimitiveType"].as<int>());
-                    
-                    if (primitiveType != PrimitiveType::None)
-                    {
-                        // 内置图元：通过 MeshFactory 创建
-                        deserializedEntity.AddComponent<MeshFilterComponent>(primitiveType);
-                    }
-                    else if (meshFilterComponentNode["MeshAsset"])
-                    {
-                        // 外部模型：通过 AssetManager 加载
-                        uint64_t meshHandleValue = meshFilterComponentNode["MeshAsset"].as<uint64_t>();
-                        AssetHandle meshHandle(meshHandleValue);
-                        
-                        auto& meshFilterComponent = deserializedEntity.AddComponent<MeshFilterComponent>();
-                        
-                        if (meshHandle.IsValid())
-                        {
-                            Ref<Mesh> mesh = AssetManager::GetAsset<Mesh>(meshHandle);
-                            if (mesh)
-                            {
-                                meshFilterComponent.Mesh = mesh;
-                            }
-                            else
-                            {
-                                LF_CORE_ERROR("SceneSerializer: Failed to load mesh asset [{0}]", meshHandleValue);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // 无图元也无资产引用，添加空组件
-                        deserializedEntity.AddComponent<MeshFilterComponent>();
-                    }
-                }
-                
-                // MeshRenderer 组件
-                YAML::Node meshRendererComponentNode = entity["MeshRendererComponent"];
-                if (meshRendererComponentNode)
-                {
-                    auto& meshRendererComponent = deserializedEntity.AddComponent<MeshRendererComponent>();
-                    
-                    // 反序列化材质列表（通过 AssetHandle 引用）
-                    YAML::Node materialsNode = meshRendererComponentNode["Materials"];
-                    if (materialsNode && materialsNode.IsSequence())
-                    {
-                        meshRendererComponent.Materials.clear();
-                        meshRendererComponent.Materials.reserve(materialsNode.size());
-
-                        for (auto materialNode : materialsNode)
-                        {
-                            if (materialNode["AssetHandle"])
-                            {
-                                // 新格式：通过 AssetHandle 从 AssetManager 获取材质
-                                uint64_t handleValue = materialNode["AssetHandle"].as<uint64_t>();
-                                AssetHandle handle(handleValue);
-                                
-                                Ref<Material> material = nullptr;
-                                if (handle.IsValid())
-                                {
-                                    material = AssetManager::GetAsset<Material>(handle);
-                                }
-                                
-                                if (!material)
-                                {
-                                    LF_CORE_ERROR("SceneSerializer: Failed to load material asset [{0}]", handleValue);
-                                    material = Renderer3D::GetInternalErrorMaterial();
-                                }
-                                
-                                meshRendererComponent.Materials.push_back(material);
-                            }
-                            else
-                            {
-                                // 兼容旧格式：内嵌材质数据
-                                Ref<Material> material = MaterialSerializer::Deserialize(materialNode);
-                                if (!material)
-                                {
-                                    material = Renderer3D::GetInternalErrorMaterial();
-                                }
-                                meshRendererComponent.Materials.push_back(material);
-                            }
-                        }
-                    }
-                }
-
-                // SpriteRenderer 组件
-                YAML::Node spriteRendererComponentNode = entity["SpriteRendererComponent"];
-                if (spriteRendererComponentNode)
-                {
-                    auto& sprite = deserializedEntity.AddComponent<SpriteRendererComponent>();
-
-                    // Texture（AssetHandle 引用，无效 handle 保持 nullptr = 纯色）
-                    if (spriteRendererComponentNode["Texture"])
-                    {
-                        uint64_t handleValue = spriteRendererComponentNode["Texture"].as<uint64_t>();
-                        AssetHandle handle(handleValue);
-                        if (handle.IsValid())
-                        {
-                            Ref<Texture2D> tex = AssetManager::GetAsset<Texture2D>(handle);
-                            if (!tex)
-                            {
-                                LF_CORE_WARN("SceneSerializer: Failed to load sprite texture asset [{0}]", handleValue);
-                            }
-                            sprite.Texture = tex;
-                        }
-                    }
-
-                    if (spriteRendererComponentNode["Color"])
-                    {
-                        sprite.Color = spriteRendererComponentNode["Color"].as<glm::vec4>();
-                    }
-                    if (spriteRendererComponentNode["FlipX"])
-                    {
-                        sprite.FlipX = spriteRendererComponentNode["FlipX"].as<bool>();
-                    }
-                    if (spriteRendererComponentNode["FlipY"])
-                    {
-                        sprite.FlipY = spriteRendererComponentNode["FlipY"].as<bool>();
-                    }
-                    if (spriteRendererComponentNode["UVRect"])
-                    {
-                        sprite.UVRect = spriteRendererComponentNode["UVRect"].as<glm::vec4>();
-                    }
-                    if (spriteRendererComponentNode["TilingFactor"])
-                    {
-                        sprite.TilingFactor = spriteRendererComponentNode["TilingFactor"].as<float>();
-                    }
-
-                    // Material（AssetHandle 引用，无效 handle 保持 nullptr，Renderer2D 会回退默认材质）
-                    if (spriteRendererComponentNode["Material"])
-                    {
-                        uint64_t handleValue = spriteRendererComponentNode["Material"].as<uint64_t>();
-                        AssetHandle handle(handleValue);
-                        if (handle.IsValid())
-                        {
-                            Ref<Material> mat = AssetManager::GetAsset<Material>(handle);
-                            if (!mat)
-                            {
-                                LF_CORE_WARN("SceneSerializer: Failed to load sprite material asset [{0}]", handleValue);
-                            }
-                            sprite.Material = mat;
-                        }
-                    }
-
-                    if (spriteRendererComponentNode["SortingOrder"])
-                    {
-                        sprite.SortingOrder = spriteRendererComponentNode["SortingOrder"].as<int>();
-                    }
-                }
-
-                // PostProcessVolume 组件
-                YAML::Node postProcessVolumeNode = entity["PostProcessVolumeComponent"];
-                if (postProcessVolumeNode)
-                {
-                    auto& volume = deserializedEntity.AddComponent<PostProcessVolumeComponent>();
-
-                    volume.IsGlobal = postProcessVolumeNode["IsGlobal"].as<bool>();
-                    volume.Priority = postProcessVolumeNode["Priority"].as<float>();
-
-                    // Tonemapping
-                    volume.Tonemap = static_cast<TonemapMode>(postProcessVolumeNode["TonemapMode"].as<int>());
-                    volume.Exposure = postProcessVolumeNode["Exposure"].as<float>();
-
-                    // Bloom
-                    volume.BloomEnabled = postProcessVolumeNode["BloomEnabled"].as<bool>();
-                    volume.BloomThreshold = postProcessVolumeNode["BloomThreshold"].as<float>();
-                    volume.BloomIntensity = postProcessVolumeNode["BloomIntensity"].as<float>();
-                    volume.BloomIterations = postProcessVolumeNode["BloomIterations"].as<int>();
-
-                    // FXAA
-                    volume.FXAAEnabled = postProcessVolumeNode["FXAAEnabled"].as<bool>();
-
-                    // Vignette
-                    volume.VignetteEnabled = postProcessVolumeNode["VignetteEnabled"].as<bool>();
-                    volume.VignetteIntensity = postProcessVolumeNode["VignetteIntensity"].as<float>();
-                    volume.VignetteSmoothness = postProcessVolumeNode["VignetteSmoothness"].as<float>();
-                }
-
-                // Camera 组件
-                YAML::Node cameraNode = entity["CameraComponent"];
-                if (cameraNode)
-                {
-                    auto& cc = deserializedEntity.AddComponent<CameraComponent>();
-                    auto& sc = cc.Camera;
-
-                    sc.SetProjectionType(static_cast<ProjectionType>(cameraNode["Projection"].as<int>()));
-                    sc.SetPerspectiveVerticalFOV(cameraNode["PerspectiveFOV"].as<float>());
-                    sc.SetPerspectiveNearClip(cameraNode["PerspectiveNear"].as<float>());
-                    sc.SetPerspectiveFarClip(cameraNode["PerspectiveFar"].as<float>());
-                    sc.SetOrthographicSize(cameraNode["OrthographicSize"].as<float>());
-                    sc.SetOrthographicNearClip(cameraNode["OrthographicNear"].as<float>());
-                    sc.SetOrthographicFarClip(cameraNode["OrthographicFar"].as<float>());
-
-                    cc.Primary = cameraNode["Primary"].as<bool>();
-                    cc.FixedAspectRatio = cameraNode["FixedAspectRatio"].as<bool>();
-                }
+                });
             }
         }
 
-        // ---- 根节点顺序列表（Hierarchy 拖拽排序依据） ----
-        // 注意：CreateEntity(uuid, name) 已经将每个实体 push 到了 m_RootEntityOrder。
+        // ---- 根节点顺序列表 ----
+        // 注意：CreateEntity(uuid, name) 已经将每个实体 push 到了 m_RootEntityOrder
         // 这里需要：
         // 1. 清空反序列化过程中产生的默认顺序（无论实体是否为根）
         // 2. 根据 RootEntityOrder 字段重新构造
@@ -710,7 +190,6 @@ namespace Lucky
         YAML::Node rootOrderNode = data["RootEntityOrder"];
         if (rootOrderNode && rootOrderNode.IsSequence())
         {
-            // 从 RootEntityOrder 字段回填，仅接受仍然有效的根实体，避免脏数据
             for (auto node : rootOrderNode)
             {
                 UUID id = node.as<uint64_t>();

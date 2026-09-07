@@ -17,6 +17,7 @@
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/SelectionManager.h"
 #include "Lucky/Scene/SceneManager.h"
+#include "Lucky/Scene/Components/ComponentRegistry.h"
 
 #include "Lucky/Utils/PlatformUtils.h"
 
@@ -53,6 +54,10 @@ namespace Lucky
 
         // 初始化图标管理器（在创建面板之前）
         EditorIconManager::Init();
+
+        // 组件注册表：集中注册所有组件的 Copy / Serialize / Draw / Icon / AddMenu 元信息
+        // 必须在 EditorIconManager::Init 之后，因为 IconFn 内会读取图标
+        ComponentRegistry::RegisterAll();
 
         // 注册所有资产类型的 Inspector（Inspector 面板会据此分发绘制）
         AssetInspectorRegistry::Register(AssetType::Material,  &MaterialInspector::Draw);
@@ -157,6 +162,8 @@ namespace Lucky
         // 关闭 SceneManager：释放 ActiveScene 引用和订阅表
         // 注意：必须在 PanelManager 释放之前调用，避免面板 dtor 时订阅表已失效
         SceneManager::Shutdown();
+
+        ComponentRegistry::Clear();
 
         EditorIconManager::Shutdown();
     }

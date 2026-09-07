@@ -11,6 +11,8 @@ namespace Lucky
     enum class ComponentType : uint8_t
     {
         None = 0,
+        Name,
+        Relationship,
         Transform,
         Light,
         MeshFilter,

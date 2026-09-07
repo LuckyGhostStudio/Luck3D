@@ -1,11 +1,7 @@
 #include "InspectorPanel.h"
 
 #include "Lucky/Scene/SelectionManager.h"
-
-#include "Lucky/Renderer/Renderer3D.h"
-#include "Lucky/Renderer/RenderContext.h"
-
-#include "Lucky/Utils/PlatformUtils.h"
+#include "Lucky/Scene/Components/ComponentRegistry.h"
 
 #include "Lucky/UI/Controls.h"
 #include "Lucky/UI/PropertyGrid.h"
@@ -14,8 +10,6 @@
 #include "Lucky/Editor/MaterialEditor.h"
 #include "Lucky/Editor/AssetInspectorRegistry.h"
 #include "Lucky/Editor/FolderInspector.h"
-
-#include <glm/gtc/type_ptr.hpp>
 
 namespace Lucky
 {
@@ -85,16 +79,14 @@ namespace Lucky
 
     void InspectorPanel::DrawComponents(Entity entity)
     {
-        UUID id = entity.GetUUID();
-        
-        // Name 组件
+        // Name 组件顶部特殊输入框（不套 TreeNode 外壳，独立绘制）
         if (entity.HasComponent<NameComponent>())
         {
-            const std::string& name = entity.GetName();     // 物体名
+            const std::string& name = entity.GetName();
 
-            char buffer[256];                               // 输入框内容 buffer
-            memset(buffer, 0, sizeof(buffer));              // 将 buffer 置零
-            strcpy_s(buffer, sizeof(buffer), name.c_str()); // buffer = name
+            char buffer[256];
+            memset(buffer, 0, sizeof(buffer));
+            strcpy_s(buffer, sizeof(buffer), name.c_str());
             
             UI::ShiftCursor(8.0f, 8.0f);
             // 提交时机（对齐 Inspector 常规输入体验）：
@@ -109,274 +101,122 @@ namespace Lucky
             }
             UI::ShiftCursorY(8.0f);
         }
-        
-        // Transform 组件
-        DrawComponent<TransformComponent>("Transform", entity, [](TransformComponent& transform)
+
+        // 主组件列表：Registry 循环，按注册顺序绘制拥有的组件
+        // 有 Draw 回调的组件才绘制（Name / Relationship 无 Draw，跳过）
+        ComponentRegistry::ForEach([&](const ComponentDescriptor& desc)
         {
-            UI::PropertyFloat3("Position", transform.Translation, 0.01f);
-            
-            glm::vec3 rotationEuler = glm::degrees(transform.GetRotationEuler());
-            if (UI::PropertyFloat3("Rotation", rotationEuler, 1.0f))
+            if (desc.Draw && desc.Has && desc.Has(entity))
             {
-                transform.SetRotationEuler(glm::radians(rotationEuler));
-            }
-
-            UI::PropertyFloat3("Scale", transform.Scale, 0.01f);
-        });
-        
-        // Light 组件
-        DrawComponent<LightComponent>("Light", entity, [](LightComponent& light)
-        {
-            const char* lightTypes[] = { "Directional", "Point", "Spot" };
-            int currentType = static_cast<int>(light.Type);
-            if (UI::PropertyCombo("Type", currentType, lightTypes, IM_ARRAYSIZE(lightTypes)))
-            {
-                light.Type = static_cast<LightType>(currentType);
-            }
-
-            UI::PropertyColor("Color", light.Color);
-            UI::PropertyFloat("Intensity", light.Intensity, 0.01f, 0.0f, 100.0f);
-            
-            // Point / Spot 属性
-            if (light.Type == LightType::Point || light.Type == LightType::Spot)
-            {
-                UI::PropertyFloat("Range", light.Range, 0.1f, 0.1f, 1000.0f);
-            }
-
-            // Spot 属性
-            if (light.Type == LightType::Spot)
-            {
-                UI::PropertyFloat("Inner Cutoff", light.InnerCutoffAngle, 0.5f, 0.0f, light.OuterCutoffAngle);
-                UI::PropertyFloat("Outer Cutoff", light.OuterCutoffAngle, 0.5f, light.InnerCutoffAngle, 90.0f);
-            }
-
-            // 阴影属性
-            const char* shadowTypes[] = { "No Shadows", "Hard Shadows", "Soft Shadows" };
-            int currentShadow = static_cast<int>(light.Shadows);
-            if (UI::PropertyCombo("Shadow Type", currentShadow, shadowTypes, IM_ARRAYSIZE(shadowTypes)))
-            {
-                light.Shadows = static_cast<ShadowType>(currentShadow);
-            }
-
-            if (light.Shadows != ShadowType::None)
-            {
-                UI::PropertyFloat("Shadow Bias", light.ShadowBias, 0.0001f, 0.0f, 0.05f);
-                UI::PropertyFloat("Shadow Strength", light.ShadowStrength, 0.01f, 0.0f, 1.0f);
-
-                // ---- CSM 属性（仅方向光 + 阴影开启时显示） ----
-                if (light.Type == LightType::Directional)
-                {
-                    UI::PropertyFloat("Shadow Distance", light.ShadowDistance, 1.0f, 1.0f, 1000.0f);
-                    UI::PropertyInt("Cascade Count", light.CascadeCount, 1.0f, 1, 4);
-
-                    // Shadow Map Resolution（下拉框）
-                    const char* resolutionOptions[] = { "512", "1024", "2048", "4096" };
-                    int resolutionValues[] = { 512, 1024, 2048, 4096 };
-                    int currentResIdx = 2;  // 默认 2048
-                    for (int i = 0; i < 4; ++i)
-                    {
-                        if (resolutionValues[i] == light.ShadowMapResolution)
-                        {
-                            currentResIdx = i;
-                            break;
-                        }
-                    }
-                    if (UI::PropertyCombo("Shadow Resolution", currentResIdx, resolutionOptions, 4))
-                    {
-                        light.ShadowMapResolution = resolutionValues[currentResIdx];
-                    }
-
-                    // Cascade Splits（根据 CascadeCount 显示对应数量的滑块）
-                    for (int i = 0; i < light.CascadeCount; ++i)
-                    {
-                        std::string label = "Cascade " + std::to_string(i);
-                        float minVal = (i == 0) ? 0.001f : light.CascadeSplits[i - 1];
-                        UI::PropertyFloat(label.c_str(), light.CascadeSplits[i], 0.001f, minVal, 1.0f);
-                    }
-
-                    // 确保最后一级始终为 1.0
-                    light.CascadeSplits[light.CascadeCount - 1] = 1.0f;
-
-                    // 确保分割比例单调递增
-                    for (int i = 1; i < light.CascadeCount; ++i)
-                    {
-                        if (light.CascadeSplits[i] <= light.CascadeSplits[i - 1])
-                        {
-                            light.CascadeSplits[i] = light.CascadeSplits[i - 1] + 0.001f;
-                        }
-                    }
-                }
+                DrawComponentHeader(entity, desc);
             }
         });
 
-        // MeshFilter 组件
-        static std::string meshName;
-        DrawComponent<MeshFilterComponent>(meshName + " (Mesh Filter)", entity, [](MeshFilterComponent& meshFilter)
+        // 材质编辑器附加块（不属于任何单个组件的 Draw）
+        DrawMaterialEditors(entity);
+
+        UI::Draw::HorizontalLine();
+
+        // 添加组件按钮（居中、固定宽度、点击弹出组件菜单）
+        DrawAddComponentButton(entity);
+    }
+
+    void InspectorPanel::DrawComponentHeader(Entity entity, const ComponentDescriptor& desc)
+    {
+        // 树节点标志：打开|框架|延伸到右边|允许重叠|框架边框
+        const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth;
+
+        // 生成唯一 ID：ComponentType + 实体 UUID
+        const std::string& strComponentID = std::format("{}##{}{}",
+            desc.Name,
+            static_cast<uint64_t>(entity.GetUUID()),
+            static_cast<int>(desc.Type));
+
+        bool opened = false;
+
+        ImVec2 contentRegionAvail = ImGui::GetContentRegionAvail();
+        float lineHeight = ImGui::GetTextLineHeight();
+
+        UI::Draw::HorizontalLine();
+
+        UI::ShiftCursorY(1.0f);
         {
-            meshName = meshFilter.Mesh ? meshFilter.Mesh->GetName() : "";
-            
-            UI::PropertyAsset("Mesh", meshFilter.Mesh);
-        });
+            UI::ScopedStyle itemSpacing(ImGuiStyleVar_ItemSpacing, { 0, 0 });   // 树节点和底部水平线之间的 Spacing
+            opened = ImGui::TreeNodeEx(strComponentID.c_str(), flags, "");
 
-        // MeshRenderer 组件
-        DrawComponent<MeshRendererComponent>("Mesh Renderer", entity, [&](MeshRendererComponent& meshRenderer)
+            // 组件图标 + 组件名
+            ImGui::SameLine();
+            UI::ShiftCursorX(UI::Theme::Layout::ComponentHeaderIconSpacing);
+
+            const Ref<Texture2D>& componentIcon = desc.GetIcon ? desc.GetIcon(entity) : EditorIconManager::GetComponentIcon(desc.Type);
+            if (componentIcon)
+            {
+                float iconSize = lineHeight - UI::Theme::Layout::TreeNodeIconSizeShrink;
+                UI::ShiftCursorY(UI::Theme::Layout::ComponentHeaderIconOffsetY);
+                UI::ImageFlipped(componentIcon, ImVec2(iconSize, iconSize));
+                ImGui::SameLine();
+                UI::ShiftCursorX(UI::Theme::Layout::ComponentHeaderIconToTextSpacing);
+                UI::ShiftCursorY(-UI::Theme::Layout::ComponentHeaderIconOffsetY);
+            }
+
+            {
+                UI::ScopedFont boldFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO 封装 Fonts
+                ImGui::TextUnformatted(desc.Name.c_str());
+            }
+
+            ImGui::SameLine(contentRegionAvail.x - lineHeight);
+            UI::ShiftCursorY(UI::Theme::Layout::ComponentHeaderIconOffsetY * 0.5f);
+
+            // 设置按钮
+            const Ref<Texture2D>& settingsIcon = EditorIconManager::GetSettingsIcon();
+            {
+                ColorSettings& colorSettings = EditorPreferences::Get().GetColors();
+
+                UI::ScopedStyle buttonBorderSize(ImGuiStyleVar_FrameBorderSize, 0.0f);
+                UI::ScopedColor buttonColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+                UI::ScopedColor buttonActiveColor(ImGuiCol_ButtonActive, { colorSettings.ButtonHovered.x, colorSettings.ButtonHovered.y, colorSettings.ButtonHovered.z, colorSettings.ButtonHovered.w });
+                if (UI::ImageButtonFlipped(settingsIcon, ImVec2(lineHeight, lineHeight), 0))
+                {
+                    ImGui::OpenPopup("ComponentSettings");
+                }
+            }
+
+            ImGui::Indent(-UI::Theme::Layout::IndentSpacing);
+            UI::Draw::HorizontalLine(0.6f);
+            ImGui::Indent(UI::Theme::Layout::IndentSpacing);
+        }
+
+        // 移除组件
+        bool componentRemoved = false;
+        if (UI::BeginPopup("ComponentSettings"))
         {
-            const std::string& strID = std::format("Materials##{0}", static_cast<uint64_t>(id));
-
-            if (UI::BeginCollapsing(strID.c_str()))
+            if (desc.CanRemove && desc.Remove)
             {
-                // 材质数量 TODO: 可编辑
-                int materialSize = static_cast<int>(meshRenderer.Materials.size());
-                UI::PropertyInt("Size", materialSize);
-                
-                // 材质列表
-                for (int i = 0; i < materialSize; i++)
+                if (ImGui::MenuItem("Remove Component"))
                 {
-                    const std::string& label = std::format("Element {0}", i);
-                
-                    UI::PropertyAsset(label.c_str(), meshRenderer.Materials[i]);
+                    componentRemoved = true;
                 }
-                
-                UI::EndCollapsing();
             }
-        });
 
-        // SpriteRenderer 组件（世界空间 2D 精灵）
-        DrawComponent<SpriteRendererComponent>("Sprite Renderer", entity, [](SpriteRendererComponent& sprite)
+            UI::EndPopup();
+        }
+
+        if (opened)
         {
-            UI::PropertyAsset("Sprite", sprite.Texture);
-            UI::PropertyColor("Color", sprite.Color);
-            UI::PropertyCheckbox("Flip X", sprite.FlipX);
-            UI::PropertyCheckbox("Flip Y", sprite.FlipY);
-            UI::PropertyFloat4("UV Rect", sprite.UVRect, 0.01f);
-            UI::PropertyFloat("Tiling", sprite.TilingFactor, 0.1f, 0.0f, 100.0f);
-            UI::PropertyAsset("Material", sprite.Material);
-            UI::PropertyInt("Sorting Order", sprite.SortingOrder);
-        });
-        
-        // PostProcessVolume 组件
-        DrawComponent<PostProcessVolumeComponent>("Post Process Volume", entity, [&](PostProcessVolumeComponent& volume)
+            desc.Draw(entity);
+            ImGui::TreePop();
+        }
+
+        if (componentRemoved)
         {
-            // Volume 设置
-            UI::PropertyCheckbox("Is Global", volume.IsGlobal);
-            UI::PropertyFloat("Priority", volume.Priority, 0.1f);
-            
-            // ---- Tonemapping ----
-            const std::string& strTonemappingID = std::format("Tonemapping##{0}", static_cast<uint64_t>(id));
-            if (UI::BeginCollapsing(strTonemappingID.c_str()))
-            {
-                const char* tonemapModes[] = { "Reinhard", "ACES Filmic", "Uncharted 2" };
-                int tonemapIndex = static_cast<int>(volume.Tonemap);
-                if (UI::PropertyCombo("Tonemap Mode", tonemapIndex, tonemapModes, IM_ARRAYSIZE(tonemapModes)))
-                {
-                    volume.Tonemap = static_cast<TonemapMode>(tonemapIndex);
-                }
-                UI::PropertyFloat("Exposure", volume.Exposure, 0.01f, 0.0f, 10.0f);
-                
-                UI::EndCollapsing();
-            }
+            desc.Remove(entity);
+        }
+    }
 
-            // ---- Bloom ----
-            const std::string& strBloomID = std::format("Bloom##{0}", static_cast<uint64_t>(id));
-            if (UI::BeginCollapsing(strBloomID.c_str()))
-            {
-                UI::PropertyCheckbox("Bloom Enabled", volume.BloomEnabled);
-                if (volume.BloomEnabled)
-                {
-                    UI::PropertyFloat("Threshold", volume.BloomThreshold, 0.01f, 0.0f, 10.0f);
-                    UI::PropertyFloat("Bloom Intensity", volume.BloomIntensity, 0.01f, 0.0f, 10.0f);
-                    UI::PropertyInt("Iterations", volume.BloomIterations, 1, 1, 10);
-                }
-
-                UI::EndCollapsing();
-            }
-
-            // ---- FXAA ----
-            const std::string& strFXAAID = std::format("FXAA##{0}", static_cast<uint64_t>(id));
-            if (UI::BeginCollapsing(strFXAAID.c_str()))
-            {
-                UI::PropertyCheckbox("FXAA Enabled", volume.FXAAEnabled);
-                
-                UI::EndCollapsing();
-            }
-
-            // ---- Vignette ----
-            const std::string& strVignetteID = std::format("Vignette##{0}", static_cast<uint64_t>(id));
-            if (UI::BeginCollapsing(strVignetteID.c_str()))
-            {
-                UI::PropertyCheckbox("Vignette Enabled", volume.VignetteEnabled);
-                if (volume.VignetteEnabled)
-                {
-                    UI::PropertyFloat("Vignette Intensity", volume.VignetteIntensity, 0.01f, 0.0f, 1.0f);
-                    UI::PropertyFloat("Smoothness", volume.VignetteSmoothness, 0.01f, 0.0f, 10.0f);
-                }
-                
-                UI::EndCollapsing();
-            }
-        });
-
-        // Camera 组件
-        DrawComponent<CameraComponent>("Camera", entity, [](CameraComponent& cc)
-        {
-            auto& sc = cc.Camera;
-
-            // Projection 类型
-            const char* projectionTypes[] = { "Perspective", "Orthographic" };
-            int currentProj = static_cast<int>(sc.GetProjectionType());
-            if (UI::PropertyCombo("Projection", currentProj, projectionTypes, IM_ARRAYSIZE(projectionTypes)))
-            {
-                sc.SetProjectionType(static_cast<ProjectionType>(currentProj));
-            }
-
-            // 按类型显示不同参数
-            if (sc.GetProjectionType() == ProjectionType::Perspective)
-            {
-                float fov = sc.GetPerspectiveVerticalFOV();
-                if (UI::PropertyFloat("Field of View", fov, 0.1f, 1.0f, 179.0f))
-                {
-                    sc.SetPerspectiveVerticalFOV(fov);
-                }
-
-                float nearClip = sc.GetPerspectiveNearClip();
-                if (UI::PropertyFloat("Near Clip", nearClip, 0.001f, 0.001f, 1000.0f))
-                {
-                    sc.SetPerspectiveNearClip(nearClip);
-                }
-
-                float farClip = sc.GetPerspectiveFarClip();
-                if (UI::PropertyFloat("Far Clip", farClip, 1.0f, 0.1f, 100000.0f))
-                {
-                    sc.SetPerspectiveFarClip(farClip);
-                }
-            }
-            else
-            {
-                float size = sc.GetOrthographicSize();
-                if (UI::PropertyFloat("Size", size, 0.1f, 0.1f, 1000.0f))
-                {
-                    sc.SetOrthographicSize(size);
-                }
-
-                float nearClip = sc.GetOrthographicNearClip();
-                if (UI::PropertyFloat("Near Clip", nearClip, 0.1f, -1000.0f, 1000.0f))
-                {
-                    sc.SetOrthographicNearClip(nearClip);
-                }
-
-                float farClip = sc.GetOrthographicFarClip();
-                if (UI::PropertyFloat("Far Clip", farClip, 1.0f, 0.1f, 100000.0f))
-                {
-                    sc.SetOrthographicFarClip(farClip);
-                }
-            }
-
-            UI::PropertyCheckbox("Primary", cc.Primary);
-            UI::PropertyCheckbox("Fixed Aspect Ratio", cc.FixedAspectRatio);
-        });
-
+    void InspectorPanel::DrawMaterialEditors(Entity entity)
+    {
         if (entity.HasComponent<MeshRendererComponent>())
         {
-			// 绘制材质编辑器
             MeshRendererComponent& meshRenderer = entity.GetComponent<MeshRendererComponent>();
             for (Ref<Material>& material : meshRenderer.Materials)
             {
@@ -386,21 +226,15 @@ namespace Lucky
                 }
             }
         }
-        
+
         if (entity.HasComponent<SpriteRendererComponent>())
         {
-            // 绘制材质编辑器
             SpriteRendererComponent& spriteRenderer = entity.GetComponent<SpriteRendererComponent>();
             if (spriteRenderer.Material)
             {
                 MaterialEditor::OnGUI(spriteRenderer.Material);
             }
         }
-        
-        UI::Draw::HorizontalLine();
-        
-        // 添加组件按钮（居中、固定宽度、点击弹出组件菜单）
-        DrawAddComponentButton(entity);
     }
 
     void InspectorPanel::DrawAddComponentButton(Entity entity)
@@ -433,29 +267,25 @@ namespace Lucky
 
         if (UI::BeginPopup(popupID))
         {
-            // 通用组件（模板 helper 会自动处理已存在时的置灰）
-            DrawAddComponentMenuItem<MeshFilterComponent>(entity, "Mesh Filter");
-            DrawAddComponentMenuItem<MeshRendererComponent>(entity, "Mesh Renderer");
-            DrawAddComponentMenuItem<SpriteRendererComponent>(entity, "Sprite Renderer");
-
-            // Light 子类型：LightComponent 只允许添加一次，但三种子类型图标不同，需按子类型解析
-            bool alreadyHasLight = entity.HasComponent<LightComponent>();
-
-            if (UI::IconMenuItem(EditorIconManager::GetLightIcon(LightType::Directional), "Directional Light", alreadyHasLight))
+            // Registry 循环：每个组件按其 AddMenuItems 依次绘制菜单项
+            // Light 三子类型（Directional / Point / Spot）通过 AddMenuItems 3 项表达，同属 LightComponent
+            ComponentRegistry::ForEach([&](const ComponentDescriptor& desc)
             {
-                entity.AddComponent<LightComponent>(LightType::Directional);
-            }
-            if (UI::IconMenuItem(EditorIconManager::GetLightIcon(LightType::Point), "Point Light", alreadyHasLight))
-            {
-                entity.AddComponent<LightComponent>(LightType::Point);
-            }
-            if (UI::IconMenuItem(EditorIconManager::GetLightIcon(LightType::Spot), "Spot Light", alreadyHasLight))
-            {
-                entity.AddComponent<LightComponent>(LightType::Spot);
-            }
+                if (desc.AddMenuItems.empty())
+                {
+                    return;
+                }
 
-            DrawAddComponentMenuItem<PostProcessVolumeComponent>(entity, "Post Process Volume");
-            DrawAddComponentMenuItem<CameraComponent>(entity, "Camera");
+                bool alreadyHas = desc.Has && desc.Has(entity);
+                for (const ComponentAddMenuItem& item : desc.AddMenuItems)
+                {
+                    const Ref<Texture2D>& icon = item.GetIcon ? item.GetIcon() : EditorIconManager::GetComponentIcon(desc.Type);
+                    if (UI::IconMenuItem(icon, item.Label.c_str(), alreadyHas))
+                    {
+                        item.AddFn(entity);
+                    }
+                }
+            });
 
             UI::EndPopup();
         }

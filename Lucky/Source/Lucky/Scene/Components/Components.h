@@ -21,6 +21,16 @@ namespace Lucky
 {
     // ======== ComponentTrait ÌØ»¯ ========
 
+    template<> struct ComponentTrait<NameComponent>
+    {
+        static constexpr ComponentType Type = ComponentType::Name;
+    };
+
+    template<> struct ComponentTrait<RelationshipComponent>
+    {
+        static constexpr ComponentType Type = ComponentType::Relationship;
+    };
+
     template<> struct ComponentTrait<TransformComponent>
     {
         static constexpr ComponentType Type = ComponentType::Transform;
