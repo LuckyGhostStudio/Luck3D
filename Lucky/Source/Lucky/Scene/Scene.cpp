@@ -8,6 +8,32 @@
 
 #include "Entity.h"
 
+namespace
+{
+    /// <summary>
+    /// 若源实体拥有 TComponent 组件，则以值语义拷贝到目标实体
+    /// 直接走 entt::registry::emplace_or_replace，绕过 Entity::AddComponent，避免触发 OnComponentAdded 特化
+    /// </summary>
+    template<typename TComponent>
+    void CopyComponentIfExists(entt::registry& dst, entt::entity dstEntity, entt::registry& src, entt::entity srcEntity)
+    {
+        if (src.has<TComponent>(srcEntity))
+        {
+            const TComponent& srcComp = src.get<TComponent>(srcEntity);
+            dst.emplace_or_replace<TComponent>(dstEntity, srcComp);
+        }
+    }
+
+    /// <summary>
+    /// 按参数包中的类型依次调用 CopyComponentIfExists（C++17 折叠表达式展开）
+    /// </summary>
+    template<typename... TComponent>
+    void CopyComponents(entt::registry& dst, entt::entity dstEntity, entt::registry& src, entt::entity srcEntity)
+    {
+        (CopyComponentIfExists<TComponent>(dst, dstEntity, src, srcEntity), ...);
+    }
+}
+
 namespace Lucky
 {
     Scene::Scene(const std::string& name)
@@ -110,6 +136,57 @@ namespace Lucky
         
         m_Registry.destroy(entity);
         m_EntityIDMap.erase(id);    // 从 m_EntityIDMap 移除
+    }
+
+    Ref<Scene> Scene::Copy(const Ref<Scene>& other)
+    {
+        LF_CORE_ASSERT(other, "Scene::Copy - source scene must not be null");
+
+        Ref<Scene> newScene = CreateRef<Scene>(other->GetName());
+
+        // ---- Step A：场景级字段 ----
+        newScene->m_ViewportWidth = other->m_ViewportWidth;
+        newScene->m_ViewportHeight = other->m_ViewportHeight;
+        newScene->m_EnvironmentSettings = other->m_EnvironmentSettings;
+
+        entt::registry& srcRegistry = other->m_Registry;
+        entt::registry& dstRegistry = newScene->m_Registry;
+
+        // ---- Step B：按 UUID 建实体（不拷组件） ----
+        // 建完后 m_EntityIDMap 就位；CreateEntity 会把每个实体追加到 m_RootEntityOrder 末尾，顺序在 Step D 修正
+        auto idView = srcRegistry.view<IDComponent>();
+        for (auto srcEntity : idView)
+        {
+            UUID uuid = srcRegistry.get<IDComponent>(srcEntity).ID;
+            const std::string& name = srcRegistry.get<NameComponent>(srcEntity).Name;
+            newScene->CreateEntity(uuid, name);
+        }
+
+        // ---- Step C：逐组件类型值拷贝 ----
+        // 不含 IDComponent（Step B 已建）；含 NameComponent 以覆盖 CreateEntity 传入的 name
+        // 不走 Entity::AddComponent，避免触发 OnComponentAdded 特化对副本"再初始化"（会破坏 MeshRenderer 材质列表 / CameraComponent aspect 等已稳定的数据）
+        for (auto srcEntity : idView)
+        {
+            UUID uuid = srcRegistry.get<IDComponent>(srcEntity).ID;
+            entt::entity dstEntity = static_cast<entt::entity>(newScene->m_EntityIDMap.at(uuid));
+
+            CopyComponents<
+                NameComponent,
+                TransformComponent,
+                RelationshipComponent,
+                MeshFilterComponent,
+                MeshRendererComponent,
+                SpriteRendererComponent,
+                LightComponent,
+                PostProcessVolumeComponent,
+                CameraComponent
+            >(dstRegistry, dstEntity, srcRegistry, srcEntity);
+        }
+
+        // ---- Step D：重建根节点顺序 ----
+        newScene->m_RootEntityOrder = other->m_RootEntityOrder;
+
+        return newScene;
     }
     
     void Scene::UpdateTransformHierarchy()

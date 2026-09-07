@@ -90,6 +90,22 @@ namespace Lucky
         /// <param name="entity">实体</param>
         void DestroyEntity(Entity entity);
 
+        /// <summary>
+        /// 深拷贝一份 Scene 副本
+        /// 
+        /// 语义边界：
+        /// - 组件：值语义完整拷贝（新 registry 不与源共享任何组件存储）
+        /// - 资产引用（Mesh / Material / Texture / SkyboxMaterial 等 Ref&lt;Asset&gt;）：共享，副本与源指向同一份资产
+        /// - UUID / RootEntityOrder / EnvironmentSettings / ViewportSize / Name：完整拷贝
+        /// - Asset Handle：副本为无效 Handle（副本不进入 AssetRegistry）
+        /// - SceneState：副本一律初始为 Edit
+        /// 
+        /// 副本不会触发任何 OnComponentAdded 回调
+        /// </summary>
+        /// <param name="other">源场景（不为空）</param>
+        /// <returns>与源等价的新 Scene 实例</returns>
+        static Ref<Scene> Copy(const Ref<Scene>& other);
+
         // ---- 世界推进：每帧唯一一次，由 EditorLayer 驱动 ----
 
         /// <summary>
