@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Lucky/Editor/EditorPanel.h"
-#include "Lucky/Renderer/Framebuffer.h"
+#include "Lucky/Renderer/SceneRenderer.h"
 #include "Lucky/Scene/Scene.h"
 #include "Lucky/Scene/SceneManager.h"
 
@@ -25,7 +25,7 @@ namespace Lucky
         void OnGUI() override;
     private:
         Ref<Scene> m_Scene;
-        Ref<Framebuffer> m_Framebuffer;         // 帧缓冲区
+        Ref<SceneRenderer> m_SceneRenderer;     // 场景渲染器（持有 FBO / 状态）
 
         glm::vec2 m_ViewportSize = { 0, 0 };    // 视口大小
 

@@ -14,6 +14,7 @@
 namespace Lucky
 {
     class Entity;
+    class SceneRenderer;
 
     /// <summary>
     /// 场景运行状态
@@ -131,13 +132,15 @@ namespace Lucky
         /// 由调用方在此调用之后自行绘制
         /// </summary>
         /// <param name="camera">编辑器相机</param>
-        void OnRenderEditor(EditorCamera& camera);
+        /// <param name="renderer">目标 SceneRenderer 实例</param>
+        void OnRenderEditor(EditorCamera& camera, SceneRenderer& renderer);
 
         /// <summary>
         /// 游戏视角渲染：由 Game 面板调用
         /// 使用场景内 Primary CameraComponent 作为视图/投影来源
         /// </summary>
-        void OnRenderRuntime();
+        /// <param name="renderer">目标 SceneRenderer 实例</param>
+        void OnRenderRuntime(SceneRenderer& renderer);
 
         /// <summary>
         /// 重置视口大小：视口改变时调用
@@ -248,7 +251,8 @@ namespace Lucky
         /// 内部执行"收集光源 → BeginScene → 收集后处理 → 提交 Mesh/Sprite → EndScene"
         /// </summary>
         /// <param name="cam">相机渲染数据</param>
-        void RenderSceneImpl(const CameraRenderData& cam);
+        /// <param name="renderer">目标 SceneRenderer 实例</param>
+        void RenderSceneImpl(const CameraRenderData& cam, SceneRenderer& renderer);
     private:
         friend class Entity;                // 友元类 Entity
         friend class SceneHierarchyPanel;   // 友元类 SceneHierarchyPanel
@@ -264,6 +268,8 @@ namespace Lucky
 
         SceneState m_State = SceneState::Edit;
         
-        EnvironmentSettings m_EnvironmentSettings;  // 环境设置参数
+        EnvironmentSettings m_EnvironmentSettings;              // 环境设置参数
+        Ref<Material> m_LastSkyboxMaterialForIBL;               // 上一帧用于 IBL 生成的天空盒材质（用于检测变化）
+        int m_LastReflectionResolutionForIBL = -1;              // 上一帧的 Reflection 分辨率（用于检测变化）
     };
 }

@@ -38,19 +38,20 @@ namespace Lucky
     {
         SetFlags(ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);    // 禁用滚动条
         
-        FramebufferSpecification fbSpec; // 帧缓冲区规范
+        SceneRendererSpec spec;
+        spec.Width = 1280;
+        spec.Height = 720;
+        spec.EnableShadow = true;
+        spec.EnablePicking = true;
+        spec.EnableOutline = true;
+        spec.EnableDebugVisualize = true;
+        spec.EnablePostProcess = true;
 
-        fbSpec.Attachments =
-        {
-            FramebufferTextureFormat::RGBA8,        // 颜色缓冲区 0
-            FramebufferTextureFormat::RED_INTEGER,  // 颜色缓冲区 1：作为 id 实现鼠标点击拾取
-            FramebufferTextureFormat::Depth         // 深度缓冲区
-        };
+        m_SceneRenderer = CreateRef<SceneRenderer>();
+        m_SceneRenderer->Init(spec);
 
-        fbSpec.Width = 1280;
-        fbSpec.Height = 720;
-
-        m_Framebuffer = Framebuffer::Create(fbSpec);   // 创建帧缓冲区
+        // 注册为主 SceneRenderer（RenderPipelinePanel 会读它显示 Stats）
+        SceneRenderer::SetPrimary(m_SceneRenderer.get());
 
         // 订阅 SceneManager 的场景切换事件
         // 拖拽 .luck3d 到视口后 SceneManager::OpenScene 会广播新场景，此处自动接收并更新 m_Scene
@@ -63,6 +64,16 @@ namespace Lucky
     SceneViewportPanel::~SceneViewportPanel()
     {
         SceneManager::Unsubscribe(m_SceneChangedSub);
+
+        if (SceneRenderer::GetPrimary() == m_SceneRenderer.get())
+        {
+            SceneRenderer::SetPrimary(nullptr);
+        }
+
+        if (m_SceneRenderer)
+        {
+            m_SceneRenderer->Shutdown();
+        }
     }
 
     void SceneViewportPanel::SetScene(const Ref<Scene>& scene)
@@ -72,36 +83,34 @@ namespace Lucky
 
     void SceneViewportPanel::OnUpdate(DeltaTime dt)
     {
-        if (FramebufferSpecification spec = m_Framebuffer->GetSpecification();
+        const Ref<Framebuffer>& framebuffer = m_SceneRenderer->GetFramebuffer();
+
+        if (FramebufferSpecification spec = framebuffer->GetSpecification();
             m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f &&
             (spec.Width != m_ViewportSize.x || spec.Height != m_ViewportSize.y))
         {
-            m_Framebuffer->Resize(static_cast<uint32_t>(m_ViewportSize.x), static_cast<uint32_t>(m_ViewportSize.y));  // 重置帧缓冲区大小
-            m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);             // 重置编辑器相机视口大小
-            
-            // 同步渲染管线中所有 Pass 的 FBO 大小
-            Renderer3D::ResizePipeline(static_cast<uint32_t>(m_ViewportSize.x), static_cast<uint32_t>(m_ViewportSize.y));
+            uint32_t w = static_cast<uint32_t>(m_ViewportSize.x);
+            uint32_t h = static_cast<uint32_t>(m_ViewportSize.y);
 
-            // 同步场景中非固定宽高比的相机（如 CameraComponent）
+            m_SceneRenderer->OnViewportResize(w, h);            // 同时处理 FBO + Pipeline
+            m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
+
             if (m_Scene)
             {
-                m_Scene->OnViewportResize(static_cast<uint32_t>(m_ViewportSize.x), static_cast<uint32_t>(m_ViewportSize.y));
+                m_Scene->OnViewportResize(w, h);
             }
         }
 
         m_EditorCamera.OnUpdate(dt);    // 更新编辑器相机
         
-        m_Framebuffer->Bind();          // 绑定帧缓冲区
+        framebuffer->Bind();
 
         const ColorSettings& colors = EditorPreferences::Get().GetColors();
         RenderCommand::SetClearColor(colors.ViewportClearColor);
         RenderCommand::Clear();
 
-        // 传入主 FBO 引用（用于 Outline Pass 阶段 2 重新绑定）
-        Renderer3D::SetTargetFramebuffer(m_Framebuffer);
-        
         // 传递清屏颜色给渲染器（HDR FBO 使用相同的清屏颜色）
-        Renderer3D::SetClearColor(colors.ViewportClearColor);
+        m_SceneRenderer->SetClearColor(colors.ViewportClearColor);
         
         // 设置描边实体集合和描边颜色
         UUID selectedUUID = SelectionManager::GetSelection();
@@ -118,13 +127,13 @@ namespace Lucky
                 {
                     // 叶节点：仅描边自身，橙色
                     outlineEntityIDs.insert(selectedID);
-                    Renderer3D::SetOutlineColor(colors.OutlineLeafColor);
+                    m_SceneRenderer->SetOutlineColor(colors.OutlineLeafColor);
                 }
                 else
                 {
                     // 非叶节点：描边自身 + 所有子孙节点，蓝色
                     outlineEntityIDs.insert(selectedID);
-                    Renderer3D::SetOutlineColor(colors.OutlineParentColor);
+                    m_SceneRenderer->SetOutlineColor(colors.OutlineParentColor);
                     
                     // 递归收集所有子孙节点
                     std::function<void(Entity)> collectChildren = [&](Entity entity)
@@ -143,9 +152,9 @@ namespace Lucky
                 }
             }
         }
-        Renderer3D::SetOutlineEntities(outlineEntityIDs);
+        m_SceneRenderer->SetOutlineEntities(outlineEntityIDs);
 
-        m_Scene->OnRenderEditor(m_EditorCamera);   // 渲染场景（编辑器视角）
+        m_Scene->OnRenderEditor(m_EditorCamera, *m_SceneRenderer);   // 渲染场景（编辑器视角）
         
         // ---- Gizmo ----
         GizmoRenderer::BeginScene(m_EditorCamera);
@@ -196,9 +205,9 @@ namespace Lucky
         GizmoRenderer::EndScene();
         
         // ---- 描边（在 Gizmo 之后渲染，确保描边覆盖在 Gizmo 之上） ----
-        Renderer3D::RenderOutline();
+        m_SceneRenderer->RenderOutline();
         
-        m_Framebuffer->Unbind();    // 解除绑定帧缓冲区
+        framebuffer->Unbind();
     }
 
     void SceneViewportPanel::OnGUI()
@@ -257,7 +266,7 @@ namespace Lucky
                 ImGui::SameLine();
                 UI::ShiftCursorX(2.0f);
 
-                auto debugPass = Renderer3D::GetPipeline().GetPass<DebugVisualizePass>();
+                auto debugPass = m_SceneRenderer->GetPipeline().GetPass<DebugVisualizePass>();
                 bool csmChecked = debugPass && debugPass->GetMode() == DebugVisualizeMode::CSMCascades;
 
                 ImVec4 csmColor        = csmChecked ? ImVec4{ 0.275f, 0.377f, 0.486f, 1.0f } : ImVec4{ 0.345f, 0.345f, 0.345f, 1.0f };
@@ -292,7 +301,7 @@ namespace Lucky
         ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();      // 当前面板大小
         m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };  // 视口大小
         
-        uint32_t textureID = m_Framebuffer->GetColorAttachmentRendererID(); // 颜色缓冲区 0 ID
+        uint32_t textureID = m_SceneRenderer->GetFinalColorAttachmentID(); // 颜色缓冲区 0 ID
 
         ImGui::BeginChild("Viewport", { m_ViewportSize.x, m_ViewportSize.y }, false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
         {
@@ -506,7 +515,7 @@ namespace Lucky
         {
             // 从 HDR FBO 读取 Entity ID（PickingPass 渲染到 HDR FBO 的 Attachment 1）
             int pixelData = -1;
-            auto postProcessPass = Renderer3D::GetPipeline().GetPass<PostProcessPass>();
+            auto postProcessPass = m_SceneRenderer->GetPipeline().GetPass<PostProcessPass>();
             if (postProcessPass)
             {
                 const auto& hdrFBO = postProcessPass->GetHDR_FBO();
@@ -516,9 +525,7 @@ namespace Lucky
             }
             else
             {
-                m_Framebuffer->Bind();
-                pixelData = m_Framebuffer->GetPixel(1, mouseX, mouseY);
-                m_Framebuffer->Unbind();
+                pixelData = m_SceneRenderer->ReadPixelEntityID(mouseX, mouseY);
             }
 
             if (pixelData == -1)

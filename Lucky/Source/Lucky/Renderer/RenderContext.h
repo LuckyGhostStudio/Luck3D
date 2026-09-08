@@ -5,7 +5,7 @@
 #include "Mesh.h"
 #include "Material.h"
 #include "Texture.h"
-#include "Renderer3D.h"
+#include "LightRenderData.h"
 
 #include <glm/glm.hpp>
 #include <vector>
@@ -13,6 +13,17 @@
 
 namespace Lucky
 {
+    /// <summary>
+    /// 渲染统计数据（每一个 SceneRenderer 一份）
+    /// </summary>
+    struct RendererStats
+    {
+        uint32_t DrawCalls = 0;         // 绘制调用次数
+        uint32_t TriangleCount = 0;     // 三角形个数
+
+        uint32_t GetTotalVertexCount() const { return TriangleCount * 3; }
+        uint32_t GetTotalIndexCount() const { return TriangleCount * 6; }
+    };
     /// <summary>
     /// 环境光来源
     /// </summary>
@@ -246,6 +257,6 @@ namespace Lucky
         ShaderShadowData ShadowData;
 
         // ---- 统计数据（可写） ----
-        Renderer3D::Statistics* Stats = nullptr;    // 渲染统计（DrawCalls、TriangleCount）
+        RendererStats* Stats = nullptr;     // 渲染统计（DrawCalls、TriangleCount）
     };
 }

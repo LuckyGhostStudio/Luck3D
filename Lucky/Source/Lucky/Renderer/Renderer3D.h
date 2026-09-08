@@ -7,294 +7,33 @@
 #include "Mesh.h"
 #include "Material.h"
 
-#include "Lucky/Scene/Components/LightComponent.h"
+#include "LightRenderData.h"
+#include "CameraRenderData.h"
 
 namespace Lucky
 {
-    class RenderPipeline;       // 前向声明
-    struct PostProcessSettings; // 前向声明
-    struct EnvironmentSettings; // 前向声明
-
-    constexpr static int s_MaxDirectionalLights = 4;
-    constexpr static int s_MaxPointLights = 8;
-    constexpr static int s_MaxSpotLights = 4;
-    constexpr static int s_MaxCascadeCount = 4;     // CSM 最大级联数
-    
     /// <summary>
-    /// 方向光 GPU 数据
+    /// 全局渲染服务：提供跨 SceneRenderer 共享的资源与初始化
+    /// 具体的场景渲染由 SceneRenderer 实例承担
     /// </summary>
-    struct DirectionalLightData
-    {
-        glm::vec3 Direction = glm::vec3(0.0f, -1.0f, 0.0f); // 光照方向（世界空间）
-        float Intensity = 1.0f;                             // 光照强度
-        glm::vec3 Color = glm::vec3(1.0f);                  // 光照颜色
-        char padding[4];                                    // 填充到 16 字节对齐
-    };
-        
-    /// <summary>
-    /// 点光源 GPU 数据
-    /// </summary>
-    struct PointLightData
-    {
-        glm::vec3 Position = glm::vec3(0.0f);   // 位置
-        float Intensity = 1.0f;                 // 强度
-        glm::vec3 Color = glm::vec3(1.0f);      // 颜色
-        float Range = 10.0f;                    // 范围
-    };
-        
-    /// <summary>
-    /// 聚光灯 GPU 数据
-    /// </summary>
-    struct SpotLightData
-    {
-        glm::vec3 Position = glm::vec3(0.0f);               // 位置
-        float Intensity = 1.0f;                             // 强度
-        glm::vec3 Direction = glm::vec3(0.0f, -1.0f, 0.0f); // 方向
-        float Range = 10.0f;                                // 范围
-        glm::vec3 Color = glm::vec3(1.0f);                  // 颜色
-        float InnerCutoff = 0.9763f;                        // 内锥角（全亮区域）cos(12.5°)
-        float OuterCutoff = 0.9537f;                        // 外锥角（衰减到 0 的边界）cos(17.5°)
-        char padding[12];                                   // 填充到 16 字节对齐
-    };
-    
-    /// <summary>
-    /// 光照渲染数据：从 Scene 收集后传递给 Renderer3D
-    /// </summary>
-    struct LightRenderData
-    {
-        int DirectionalLightCount = 0;
-        DirectionalLightData DirectionalLights[s_MaxDirectionalLights]; // 方向光数组
-        
-        int PointLightCount = 0;
-        PointLightData PointLights[s_MaxPointLights];                   // 点光源数组
-        
-        int SpotLightCount = 0;
-        SpotLightData SpotLights[s_MaxSpotLights];                      // 聚光灯数组
-        
-        // ======== 每光源阴影参数（支持多光源阴影） ========
-
-        /// <summary>
-        /// 方向光阴影参数（每个方向光独立）
-        /// </summary>
-        struct DirLightShadowParams
-        {
-            ShadowType Shadows = ShadowType::None;                              // 阴影类型
-            float ShadowBias = 0.0003f;                                         // 阴影偏移
-            float ShadowStrength = 1.0f;                                        // 阴影强度 [0, 1]
-            int CascadeCount = 4;                                               // 级联数量 [1, 4]
-            float ShadowDistance = 150.0f;                                      // 阴影最大距离
-            float CascadeSplits[s_MaxCascadeCount] = { 0.067f, 0.2f, 0.467f, 1.0f };  // 级联分割比例
-            int ShadowMapResolution = 1024;                                     // Atlas 中每级 Tile 分辨率
-        };
-        DirLightShadowParams DirLightShadows[s_MaxDirectionalLights];
-
-        /// <summary>
-        /// 聚光灯阴影参数（每个聚光灯独立）
-        /// </summary>
-        struct SpotLightShadowParams
-        {
-            ShadowType Shadows = ShadowType::None;      // 阴影类型
-            float ShadowBias = 0.001f;                  // 阴影偏移
-            float ShadowStrength = 1.0f;                // 阴影强度 [0, 1]
-            int ShadowMapResolution = 512;              // Atlas 中 Tile 分辨率
-        };
-        SpotLightShadowParams SpotLightShadows[s_MaxSpotLights];
-
-        /// <summary>
-        /// 点光源阴影参数（每个点光源独立）
-        /// </summary>
-        struct PointLightShadowParams
-        {
-            ShadowType Shadows = ShadowType::None;      // 阴影类型
-            float ShadowBias = 0.05f;                   // 阴影偏移（点光源需要更大的 bias）
-            float ShadowStrength = 1.0f;                // 阴影强度 [0, 1]
-            int ShadowMapResolution = 512;              // Atlas 中每面 Tile 分辨率
-        };
-        PointLightShadowParams PointLightShadows[s_MaxPointLights];
-
-        // ---- 向后兼容（过渡期保留，R29 完成后删除） ----
-        ShadowType DirLightShadowType = ShadowType::None;  // 方向光阴影类型
-        float DirLightShadowBias = 0.005f;                  // 方向光阴影偏移
-        float DirLightShadowStrength = 1.0f;                // 方向光阴影强度 [0, 1]
-
-        // ---- CSM 参数（过渡期保留，R29 完成后删除） ----
-        int CascadeCount = 4;                                                       // 级联数量
-        float ShadowDistance = 150.0f;                                              // 阴影最大距离
-        float CascadeSplits[s_MaxCascadeCount] = { 0.067f, 0.2f, 0.467f, 1.0f };    // 级联分割比例
-        int ShadowMapResolution = 2048;                                             // 每级 Shadow Map 分辨率
-    };
-
-    /// <summary>
-    /// 相机渲染数据：Renderer3D::BeginScene 的相机侧输入
-    /// EditorCamera 与 SceneCamera 都被折算成此结构后进入统一渲染路径
-    /// </summary>
-    struct CameraRenderData
-    {
-        glm::mat4 ViewMatrix{ 1.0f };                       // 视图矩阵
-        glm::mat4 ProjectionMatrix{ 1.0f };                 // 投影矩阵
-        glm::vec3 Position{ 0.0f };                         // 相机世界坐标
-
-        // ---- CSM 计算所需（仅透视投影下有意义） ----
-        ProjectionType Projection = ProjectionType::Perspective;
-        float NearClip = 0.01f;                             // 近裁剪面
-        float FOV = 45.0f;                                  // 垂直张角（度）
-        float AspectRatio = 1.0f;                           // 宽高比
-    };
-    
     class Renderer3D
     {
     public:
         /// <summary>
-        /// 初始化渲染器
+        /// 全局初始化：加载 ShaderLibrary、默认材质、默认纹理、IBLPrecompute
+        /// 在 Application 启动、创建任何 SceneRenderer 之前调用一次
         /// </summary>
         static void Init();
 
+        /// <summary>
+        /// 全局释放
+        /// </summary>
         static void Shutdown();
 
-        /// <summary>
-        /// 开始渲染场景
-        /// </summary>
-        /// <param name="camera">编辑器相机</param>
-        /// <param name="lightData">光照数据</param>
-        static void BeginScene(const EditorCamera& camera, const LightRenderData& lightData);
-
-        /// <summary>
-        /// 开始渲染场景（矩阵版）
-        /// 相机所有输入已折算成 CameraRenderData，EditorCamera 与 SceneCamera 走同一路径
-        /// </summary>
-        /// <param name="cam">相机渲染数据</param>
-        /// <param name="lightData">光照数据</param>
-        static void BeginScene(const CameraRenderData& cam, const LightRenderData& lightData);
-
-        /// <summary>
-        /// 结束渲染场景
-        /// </summary>
-        static void EndScene();
-        
-        /// <summary>
-        /// 绘制网格（使用指定材质列表）
-        /// 材质列表的索引对应 SubMesh 的 MaterialIndex
-        /// </summary>
-        /// <param name="transform">模型变换矩阵</param>
-        /// <param name="mesh">网格</param>
-        /// <param name="materials">材质列表</param>
-        /// <param name="entityID">实体 ID（用于鼠标拾取，-1 表示无效）</param>
-        static void DrawMesh(const glm::mat4& transform, Ref<Mesh>& mesh, const std::vector<Ref<Material>>& materials, int entityID = -1);
-
-        /// <summary>
-        /// 提交一个 Sprite 绘制命令
-        /// </summary>
-        /// <param name="transform">模型变换矩阵（世界空间）</param>
-        /// <param name="texture">纹理引用（nullptr = 纯色）</param>
-        /// <param name="color">Tint 颜色</param>
-        /// <param name="flipX">是否水平翻转 UV</param>
-        /// <param name="flipY">是否垂直翻转 UV</param>
-        /// <param name="uvRect">UV 区域（xy=uvMin, zw=uvMax）</param>
-        /// <param name="tilingFactor">平铺倍数</param>
-        /// <param name="material">材质引用（nullptr = 使用 Renderer2D 默认材质）</param>
-        /// <param name="sortingOrder">排序序号（数值越大越靠前）</param>
-        /// <param name="entityID">实体 ID</param>
-        static void DrawSprite(const glm::mat4& transform,
-                               const Ref<Texture2D>& texture,
-                               const glm::vec4& color,
-                               bool flipX,
-                               bool flipY,
-                               const glm::vec4& uvRect,
-                               float tilingFactor,
-                               const Ref<Material>& material,
-                               int sortingOrder,
-                               int entityID = -1);
-
-        /// <summary>
-        /// 统计数据
-        /// </summary>
-        struct Statistics
-        {
-            uint32_t DrawCalls = 0;     // 绘制调用次数
-            uint32_t TriangleCount = 0; // 三角形个数
-
-            /// <summary>
-            /// 返回总顶点个数
-            /// </summary>
-            /// <returns></returns>
-            uint32_t GetTotalVertexCount() const { return TriangleCount * 3; }
-
-            /// <summary>
-            /// 返回总索引个数
-            /// </summary>
-            /// <returns></returns>
-            uint32_t GetTotalIndexCount() const { return TriangleCount * 6; }
-        };
-
-        static Statistics GetStats();
-
-        /// <summary>
-        /// 重置统计数据
-        /// </summary>
-        static void ResetStats();
-        
         static Ref<ShaderLibrary>& GetShaderLibrary();
         static Ref<Material>& GetInternalErrorMaterial();
         static Ref<Material>& GetDefaultMaterial();
-        static Ref<Material>& GetSkyboxMaterial();
+        static Ref<Material>& GetDefaultSkyboxMaterial();
         static const Ref<Texture2D>& GetDefaultTexture(TextureDefault type);
-        
-        /// <summary>
-        /// 设置天空盒材质并重新生成 IBL 数据
-        /// 当天空盒 Cubemap 变更时调用
-        /// </summary>
-        /// <param name="skyboxMaterial">新的天空盒材质</param>
-        static void SetSkyboxMaterial(const Ref<Material>& skyboxMaterial);
-        
-        /// <summary>
-        /// 设置主 FBO 引用（描边合成后需要重新绑定）
-        /// 在 SceneViewportPanel::OnUpdate 中调用，位于 Framebuffer::Bind() 之后
-        /// </summary>
-        static void SetTargetFramebuffer(const Ref<Framebuffer>& framebuffer);
-        
-        /// <summary>
-        /// 设置视口清屏颜色（传递给 HDR FBO 清屏，保持背景颜色一致）
-        /// </summary>
-        static void SetClearColor(const glm::vec4& color);
-        
-        /// <summary>
-        /// 设置需要描边的实体 ID 集合
-        /// 在 SceneViewportPanel::OnUpdate 中调用，位于 BeginScene() 之前
-        /// 空集合表示无选中
-        /// </summary>
-        static void SetOutlineEntities(const std::unordered_set<int>& entityIDs);
-        
-        /// <summary>
-        /// 设置描边颜色
-        /// </summary>
-        static void SetOutlineColor(const glm::vec4& color);
-        
-        /// <summary>
-        /// 同步渲染管线中所有 Pass 的 FBO 大小（视口 Resize 时调用）
-        /// </summary>
-        static void ResizePipeline(uint32_t width, uint32_t height);
-        
-        /// <summary>
-        /// 渲染描边（在 Gizmo 之后调用，确保描边覆盖在 Gizmo 之上）
-        /// 执行 Silhouette 渲染 + 边缘检测描边合成
-        /// 使用 EndScene() 中提取的 OutlineDrawCommands（独立于 OpaqueDrawCommands）
-        /// 调用后会清空 OutlineDrawCommands
-        /// </summary>
-        static void RenderOutline();
-        
-        /// <summary>
-        /// 获取渲染管线（用于外部访问特定 Pass，如 Resize）
-        /// </summary>
-        static RenderPipeline& GetPipeline();
-        
-        /// <summary>
-        /// 设置后处理参数（由 Scene 收集 Volume 后调用）
-        /// </summary>
-		static void SetPostProcessSettings(const PostProcessSettings& settings);
-        
-        /// <summary>
-        /// 设置环境设置参数（由 Scene 每帧调用）
-        /// </summary>
-        static void SetEnvironmentSettings(const EnvironmentSettings& settings);
     };
 }

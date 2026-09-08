@@ -1,6 +1,6 @@
 #include "RenderPipelinePanel.h"
 
-#include "Lucky/Renderer/Renderer3D.h"
+#include "Lucky/Renderer/SceneRenderer.h"
 #include "Lucky/Renderer/RenderPipeline.h"
 
 #include "Lucky/UI/Widgets.h"
@@ -21,11 +21,12 @@ namespace Lucky
     {
         UI::ShiftCursorY(2.0f);
         
-        // 显示统计数据
+        // 显示统计数据（读取主 SceneRenderer）
         if (UI::BeginPrimaryCollapsing("Statistics"))
         {
-            Renderer3D::Statistics stats = Renderer3D::GetStats();
-            
+            SceneRenderer* primary = SceneRenderer::GetPrimary();
+            RendererStats stats = primary ? primary->GetStats() : RendererStats{};
+
             UI::PropertyReadOnlyString("Draw Calls", std::to_string(stats.DrawCalls).c_str());
             UI::PropertyReadOnlyString("Triangles", std::to_string(stats.TriangleCount).c_str());
             UI::PropertyReadOnlyString("Vertices", std::to_string(stats.GetTotalVertexCount()).c_str());
@@ -36,17 +37,23 @@ namespace Lucky
         // 显示 Pass 列表，按分组显示
         if (UI::BeginPrimaryCollapsing("Passes"))
         {
-            RenderPipeline& pipeline = Renderer3D::GetPipeline();
+            SceneRenderer* primaryRenderer = SceneRenderer::GetPrimary();
+            if (!primaryRenderer)
+            {
+                UI::EndPrimaryCollapsing();
+                return;
+            }
+            RenderPipeline& pipeline = primaryRenderer->GetPipeline();
             const std::vector<Ref<RenderPass>>& passes = pipeline.GetPasses();
             
             std::string currentGroup = "";
             int passIndex = 0;
-
+        
             for (const Ref<RenderPass>& pass : passes)
             {
                 const std::string& group = pass->GetGroup();
                 bool groupOpened = false;
-    
+        
                 // 分组变化时显示分组标题
                 if (group != currentGroup)
                 {

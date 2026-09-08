@@ -11,6 +11,7 @@ namespace Lucky
     }
 
     UniformBuffer::UniformBuffer(uint32_t size, uint32_t binding)
+        : m_Binding(binding)
     {
         glCreateBuffers(1, &m_RendererID);  // 创建缓冲区
 
@@ -26,5 +27,10 @@ namespace Lucky
     void UniformBuffer::SetData(const void* data, uint32_t size, uint32_t offset)
     {
         glNamedBufferSubData(m_RendererID, offset, size, data); // 更新缓冲区数据
+    }
+
+    void UniformBuffer::Bind() const
+    {
+        glBindBufferBase(GL_UNIFORM_BUFFER, m_Binding, m_RendererID);
     }
 }

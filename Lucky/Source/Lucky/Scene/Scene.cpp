@@ -3,6 +3,9 @@
 
 #include "Lucky/Renderer/Renderer3D.h"
 #include "Lucky/Renderer/Renderer2D.h"
+#include "Lucky/Renderer/SceneRenderer.h"
+#include "Lucky/Renderer/IBLPrecompute.h"
+#include "Lucky/Renderer/TextureCube.h"
 
 #include "Components/Components.h"
 #include "ComponentRegistry.h"
@@ -15,7 +18,7 @@ namespace Lucky
         : Asset(name)
     {
         // 从渲染器获取默认天空盒材质
-        m_EnvironmentSettings.SkyboxMaterial = Renderer3D::GetSkyboxMaterial();
+        m_EnvironmentSettings.SkyboxMaterial = Renderer3D::GetDefaultSkyboxMaterial();
     }
 
     Scene::~Scene()
@@ -203,7 +206,7 @@ namespace Lucky
         UpdateTransformHierarchy();
     }
 
-    void Scene::OnRenderEditor(EditorCamera& camera)
+    void Scene::OnRenderEditor(EditorCamera& camera, SceneRenderer& renderer)
     {
         CameraRenderData cam;
         cam.ViewMatrix = camera.GetViewMatrix();
@@ -214,10 +217,10 @@ namespace Lucky
         cam.FOV = camera.GetPerspectiveVerticalFOV();
         cam.AspectRatio = camera.GetAspectRatio();
 
-        RenderSceneImpl(cam);
+        RenderSceneImpl(cam, renderer);
     }
 
-    void Scene::OnRenderRuntime()
+    void Scene::OnRenderRuntime(SceneRenderer& renderer)
     {
         Entity primary = GetPrimaryCameraEntity();
         if (!primary)
@@ -237,7 +240,7 @@ namespace Lucky
         cam.FOV = cameraComp.Camera.GetPerspectiveVerticalFOV();
         cam.AspectRatio = cameraComp.Camera.GetAspectRatio();
 
-        RenderSceneImpl(cam);
+        RenderSceneImpl(cam, renderer);
     }
 
     void Scene::OnRuntimeStart()
@@ -250,7 +253,7 @@ namespace Lucky
         m_State = SceneState::Edit;
     }
 
-    void Scene::RenderSceneImpl(const CameraRenderData& cam)
+    void Scene::RenderSceneImpl(const CameraRenderData& cam, SceneRenderer& renderer)
     {
         // 收集所有光源数据
         LightRenderData lightData;
@@ -345,7 +348,7 @@ namespace Lucky
             }
         }
         
-        Renderer3D::BeginScene(cam, lightData);
+        renderer.BeginScene(cam, lightData);
         {
             // ---- 收集后处理参数 ----
             PostProcessSettings postProcessSettings;
@@ -374,10 +377,29 @@ namespace Lucky
                     }
                 }
             }
-            Renderer3D::SetPostProcessSettings(postProcessSettings);
+            renderer.SetPostProcessSettings(postProcessSettings);
+            
+            // ---- 检测 EnvironmentSettings 变化并触发 IBL 重生成 ----
+            // IBL 是场景级共享资源，由 Scene 单一驱动源触发（避免多个 SceneRenderer 重复触发）
+            const Ref<Material>& skyboxMat = m_EnvironmentSettings.SkyboxMaterial;
+            int reflectionRes = m_EnvironmentSettings.ReflectionResolution;
+            if (skyboxMat != m_LastSkyboxMaterialForIBL || reflectionRes != m_LastReflectionResolutionForIBL)
+            {
+                if (skyboxMat)
+                {
+                    Ref<TextureCube> cubemap = skyboxMat->GetTextureCube("u_SkyboxMap");
+                    if (cubemap)
+                    {
+                        IBLPrecompute::GenerateFromCubemap(cubemap->GetRendererID(), reflectionRes);
+                        LF_CORE_INFO("IBL data regenerated (skybox or resolution changed)");
+                    }
+                }
+                m_LastSkyboxMaterialForIBL = skyboxMat;
+                m_LastReflectionResolutionForIBL = reflectionRes;
+            }
             
             // 传递环境设置到渲染器
-            Renderer3D::SetEnvironmentSettings(m_EnvironmentSettings);
+            renderer.SetEnvironmentSettings(m_EnvironmentSettings);
 
             // 获取同时拥有 TransformComponent MeshFilterComponent MeshRendererComponent 的实体
             auto meshGroup = m_Registry.group<TransformComponent>(entt::get<MeshFilterComponent, MeshRendererComponent>);
@@ -386,7 +408,7 @@ namespace Lucky
             {
                 auto [transform, meshFilter, meshRenderer] = meshGroup.get<TransformComponent, MeshFilterComponent, MeshRendererComponent>(entity);
 
-                Renderer3D::DrawMesh(transform.GetWorldTransform(), meshFilter.Mesh, meshRenderer.Materials, static_cast<int>(static_cast<uint32_t>(entity)));    // 绘制网格
+                renderer.SubmitMesh(transform.GetWorldTransform(), meshFilter.Mesh, meshRenderer.Materials, static_cast<int>(static_cast<uint32_t>(entity)));    // 绘制网格
             }
 
             // 收集 Sprite（TransformComponent + SpriteRendererComponent 组合）
@@ -395,7 +417,7 @@ namespace Lucky
             {
                 auto [transform, sprite] = spriteView.get<TransformComponent, SpriteRendererComponent>(entity);
 
-                Renderer3D::DrawSprite(
+                renderer.SubmitSprite(
                     transform.GetWorldTransform(),
                     sprite.Texture,
                     sprite.Color,
@@ -408,7 +430,7 @@ namespace Lucky
                     static_cast<int>(static_cast<uint32_t>(entity)));
             }
         }
-        Renderer3D::EndScene();
+        renderer.EndScene();
     }
 
     void Scene::OnViewportResize(uint32_t width, uint32_t height)

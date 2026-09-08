@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Lucky/Editor/EditorPanel.h"
-#include "Lucky/Renderer/Framebuffer.h"
+#include "Lucky/Renderer/SceneRenderer.h"
 #include "Lucky/Scene/Scene.h"
 #include "Lucky/Scene/SceneManager.h"
 #include "Lucky/Core/Events/KeyEvent.h"
@@ -41,7 +41,7 @@ namespace Lucky
         bool OnMouseButtonPressed(MouseButtonPressedEvent& e);
     private:
         Ref<Scene> m_Scene;
-        Ref<Framebuffer> m_Framebuffer; // Ö¡»º³åÇø
+        Ref<SceneRenderer> m_SceneRenderer;     // ³¡¾°äÖÈ¾Æ÷£¨³ÖÓÐ FBO / Pipeline / ×´Ì¬£©
         
         EditorCamera m_EditorCamera;    // ±à¼­Æ÷Ïà»ú
         

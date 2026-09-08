@@ -178,8 +178,8 @@ namespace Lucky
 
     void EditorLayer::OnUpdate(DeltaTime dt)
     {
-        // 每帧渲染统计清零：保证 Scene / Game 面板各自渲染的统计汇总到同一帧
-        Renderer3D::ResetStats();
+        // 每帧 Renderer2D 统计清零（全局单例，多面板串行使用）
+        // SceneRenderer 的 Stats 由 SceneRenderer::BeginScene 内部自动重置
         Renderer2D::ResetStats();
 
         // 世界推进：每帧唯一一次，与具体面板无关
