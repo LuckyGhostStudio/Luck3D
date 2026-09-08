@@ -316,7 +316,88 @@ LF_CORE_ERROR("AssetManager::MoveAsset - Failed to rename '{0}' -> '{1}': {2}",
 2. IDE 与 Diff 工具都能横向查看长行，无需靠人工换行"预排版"；
 3. 拆行反而会破坏 grep / 全文搜索时的语义完整性。
 
-### 5.4 空行
+### 5.4 对齐规则
+
+**允许的对齐**：只有在**高度重复、高度有规律的代码块**上做纵向对齐才有意义，目的是让人一眼看出规律，方便修改和阅读。项目中允许并**保留**的对齐场景仅限以下两类：
+
+1. **结构体字段声明后、行尾 `//` 注释前**的空格对齐（让整块声明的注释列对齐）：
+
+```cpp
+struct DrawCommand
+{
+    uint64_t SortKey = 0;               // 排序键
+    float DistanceToCamera = 0.0f;      // 到相机的距离
+    int EntityID = -1;                  // 实体 ID
+};
+```
+
+2. **枚举值定义 / 位标志**、以及**多行同结构的映射注册**这类高度对称的代码块，可在项目已有风格的位置维持对齐，不做基于个人审美的额外清理。
+
+**禁止的对齐**：以下场景一律使用**单空格**普通风格，禁止为对齐而对齐：
+
+- **赋值语句的等号纵向对齐**：不要为了让相邻两行的 `=` 对齐而在变量名后加多个空格
+
+```cpp
+// ? 错误：为对齐 = 而加多余空格
+s_IconData.PlayIcon  = LoadIcon("ToolBar/Play.png");
+s_IconData.PauseIcon = LoadIcon("ToolBar/Pause.png");
+
+// ? 正确：单空格
+s_IconData.PlayIcon = LoadIcon("ToolBar/Play.png");
+s_IconData.PauseIcon = LoadIcon("ToolBar/Pause.png");
+```
+
+- **变量声明中类型与变量名之间的对齐**：不要为了让相邻声明的变量名列对齐而在类型后加多空格
+
+```cpp
+// ? 错误
+static constexpr float s_ToolbarHeight = 34.0f;
+static constexpr float s_ButtonSize    = 22.0f;
+static constexpr float s_ButtonSpacing = 6.0f;
+
+// ? 正确
+static constexpr float s_ToolbarHeight = 34.0f;
+static constexpr float s_ButtonSize = 22.0f;
+static constexpr float s_ButtonSpacing = 6.0f;
+```
+
+- **复合赋值运算符 `+= / -=` 的对齐**：不要让 `+=` 与相邻行的 `-=` 纵向对齐
+
+```cpp
+// ? 错误
+viewport->WorkPos.y  += toolbarHeight;
+viewport->WorkSize.y -= toolbarHeight;
+
+// ? 正确
+viewport->WorkPos.y += toolbarHeight;
+viewport->WorkSize.y -= toolbarHeight;
+```
+
+- **函数调用参数、`|` 位运算连接项的分列对齐**
+
+```cpp
+// ? 错误：让第二列参数与 `|` 纵向对齐
+ImGui::PushStyleColor(ImGuiCol_Button,        color1);
+ImGui::PushStyleColor(ImGuiCol_ButtonHovered, color2);
+
+ImGuiWindowFlags flags =
+    ImGuiWindowFlags_NoDecoration      |
+    ImGuiWindowFlags_NoMove            |
+    ImGuiWindowFlags_NoDocking         ;
+
+// ? 正确：单空格
+ImGui::PushStyleColor(ImGuiCol_Button, color1);
+ImGui::PushStyleColor(ImGuiCol_ButtonHovered, color2);
+
+ImGuiWindowFlags flags =
+    ImGuiWindowFlags_NoDecoration |
+    ImGuiWindowFlags_NoMove |
+    ImGuiWindowFlags_NoDocking;
+```
+
+**判断原则**：对齐只用于"让人一眼看出规律"的高度重复代码（结构体字段注释），其他一切"为对齐而对齐"的行为都禁止。
+
+### 5.5 空行
 
 - 函数之间保留一个空行
 - 逻辑块之间保留一个空行

@@ -85,6 +85,18 @@ namespace Lucky
         /// </summary>
         /// <returns>设置图标纹理</returns>
         static const Ref<Texture2D>& GetSettingsIcon();
+
+        // ======== 工具条图标 ========
+
+        /// <summary>
+        /// 获取播放按钮图标
+        /// </summary>
+        static const Ref<Texture2D>& GetPlayIcon();
+
+        /// <summary>
+        /// 获取暂停按钮图标
+        /// </summary>
+        static const Ref<Texture2D>& GetPauseIcon();
     };
 
     // ======== 组件图标解析器 ========

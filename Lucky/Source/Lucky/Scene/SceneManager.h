@@ -103,6 +103,39 @@ namespace Lucky
         /// <returns>是否成功（无活动场景 / 用户取消 / 写盘失败均返回 false）</returns>
         static bool SaveSceneAs();
 
+        // ---- 运行态切换 ----
+
+        /// <summary>
+        /// 进入运行态：Edit → Play
+        /// 
+        /// 内部流程：
+        /// 1. 若当前 ActiveScene 不处于 Edit，直接返回（幂等）
+        /// 2. 保存当前 ActiveScene 为编辑态快照
+        /// 3. 调用 Scene::Copy 深拷贝出 runtimeScene
+        /// 4. runtimeScene->OnRuntimeStart() 切换状态到 Play
+        /// 5. SetActiveScene(runtimeScene) 广播到所有订阅方
+        /// </summary>
+        static void OnScenePlay();
+
+        /// <summary>
+        /// 退出运行态：Play/Pause → Edit
+        /// 
+        /// 内部流程：
+        /// 1. 若当前 ActiveScene 处于 Edit，直接返回（幂等）
+        /// 2. runtimeScene->OnRuntimeStop() 切换状态到 Edit
+        /// 3. SetActiveScene(editorScene) 还原到编辑态快照，广播到所有订阅方
+        /// 4. 清空编辑态快照
+        /// </summary>
+        static void OnSceneStop();
+
+        /// <summary>
+        /// 设置暂停位（仅在运行态生效）
+        /// - 仅当 ActiveScene 处于 Play/Pause 时才动 Scene；Edit 态下为 no-op
+        /// - 直接 SetState(Pause / Play)，不切换 ActiveScene，不广播
+        /// </summary>
+        /// <param name="paused">true = 进入 Pause；false = 恢复 Play</param>
+        static void SetScenePaused(bool paused);
+
         // ---- 事件订阅 ----
 
         /// <summary>

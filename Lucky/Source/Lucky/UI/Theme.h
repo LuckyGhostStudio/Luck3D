@@ -54,7 +54,7 @@ namespace Lucky::UI::Theme
         constexpr float WindowRounding = 4.0f;              // 窗口圆角半径
         constexpr float WindowBorderSize = 1.0f;            // 窗口边框大小
         constexpr float WindowMinSizeX = 50.0f;             // 窗口最小尺寸 X
-        constexpr float WindowMinSizeY = 50.0f;             // 窗口最小尺寸 Y
+        constexpr float WindowMinSizeY = 30.0f;             // 窗口最小尺寸 Y
         constexpr float WindowTitleAlignX = 0.0f;           // 窗口标题对齐 X
         constexpr float WindowTitleAlignY = 0.5f;           // 窗口标题对齐 Y
         constexpr int WindowMenuButtonPosition = -1;        // 窗口菜单按钮位置 (-1=左, 0=无, 1=右)

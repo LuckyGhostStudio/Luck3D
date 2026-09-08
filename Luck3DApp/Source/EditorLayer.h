@@ -3,6 +3,7 @@
 #include "Lucky.h"
 
 #include "EditorDockSpace.h"
+#include "EditorToolbar.h"
 #include "Lucky/Editor/PanelManager.h"
 
 #include <filesystem>
@@ -56,6 +57,7 @@ namespace Lucky
         void ImportModel(const std::filesystem::path& filepath);
     private:
         EditorDockSpace m_EditorDockSpace;  // 停靠空间
+        EditorToolbar m_EditorToolbar;      // 全局工具条（Play / Pause）
 
         Scope<PanelManager> m_PanelManager; // 编辑器面板管理器
     };

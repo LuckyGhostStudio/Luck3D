@@ -199,10 +199,24 @@ namespace Lucky
 
     void EditorLayer::OnImGuiRender()
     {
-        // 渲染 DockSpace
+        // 主菜单栏：内部会把自身高度累加到 viewport->WorkPos / WorkSize
+        UI_DrawMenuBar();
+
+        // 全局工具条：贴在 MainMenuBar 下方，手动把 Toolbar 高度从 WorkPos/WorkSize 中扣除
+        // 这样后续使用 WorkPos/WorkSize 定位的窗口（DockSpace）会自动下移
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        const float toolbarHeight = EditorToolbar::GetHeight();
+
+        m_EditorToolbar.ImGuiRender();
+
+        viewport->WorkPos.y += toolbarHeight;
+        viewport->WorkSize.y -= toolbarHeight;
+
         m_EditorDockSpace.ImGuiRender();
 
-        UI_DrawMenuBar();
+        // 复位：不影响后续对 WorkPos/WorkSize 的读取
+        viewport->WorkPos.y -= toolbarHeight;
+        viewport->WorkSize.y += toolbarHeight;
 
         m_PanelManager->OnImGuiRender();
     }

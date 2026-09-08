@@ -3,12 +3,14 @@
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
 
+#include "Lucky/Core/Log.h"
+
 namespace Lucky
 {
     EditorDockSpace::EditorDockSpace(bool fullScreen)
         : m_IsFullScreen(fullScreen),
         m_Flags(ImGuiDockNodeFlags_None),
-        m_WindowFlags(ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking)
+        m_WindowFlags(ImGuiWindowFlags_NoDocking)
     {
 
     }
@@ -19,8 +21,8 @@ namespace Lucky
         {
             ImGuiViewport* viewport = ImGui::GetMainViewport();
 
-            ImGui::SetNextWindowPos(viewport->Pos);
-            ImGui::SetNextWindowSize(viewport->Size);
+            ImGui::SetNextWindowPos(viewport->WorkPos);
+            ImGui::SetNextWindowSize(viewport->WorkSize);
             ImGui::SetNextWindowViewport(viewport->ID);
 
             ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);

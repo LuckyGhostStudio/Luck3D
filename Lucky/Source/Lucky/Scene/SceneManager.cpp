@@ -19,6 +19,10 @@ namespace Lucky
         std::unordered_map<SceneManager::SubscriptionHandle, SceneManager::SceneChangedCallback> s_Subscribers;
         SceneManager::SubscriptionHandle s_NextHandle = 1;   // 0 保留作为无效值
 
+        // 进入 Play 前保存的编辑态原始 Scene；Stop 时用来还原 ActiveScene
+        // Edit 状态下始终为 null；Play/Pause 状态下持有原始编辑态 Scene 的 Ref
+        Ref<Scene> s_EditorScene;
+
         /// <summary>
         /// 通知所有订阅者场景已切换
         /// 复制订阅表快照后再遍历，避免回调中修改订阅表导致迭代器失效
@@ -47,6 +51,7 @@ namespace Lucky
     void SceneManager::Init()
     {
         s_ActiveScene.reset();
+        s_EditorScene.reset();
         s_Subscribers.clear();
         s_NextHandle = 1;
     }
@@ -55,6 +60,7 @@ namespace Lucky
     {
         s_Subscribers.clear();
         s_ActiveScene.reset();
+        s_EditorScene.reset();
     }
 
     // ---- ActiveScene 访问 ----
@@ -207,6 +213,50 @@ namespace Lucky
 
         LF_CORE_INFO("SceneManager::SaveSceneAs - Saved scene '{0}' to '{1}'.", s_ActiveScene->GetName(), normalizedPath);
         return true;
+    }
+
+    // ---- 运行态切换 ----
+
+    void SceneManager::OnScenePlay()
+    {
+        if (!s_ActiveScene || s_ActiveScene->GetState() != SceneState::Edit)
+        {
+            return;
+        }
+
+        s_EditorScene = s_ActiveScene;
+
+        Ref<Scene> runtimeScene = Scene::Copy(s_ActiveScene);
+        runtimeScene->OnRuntimeStart();
+
+        SetActiveScene(runtimeScene);
+        LF_CORE_INFO("SceneManager::OnScenePlay - Entered Play mode.");
+    }
+
+    void SceneManager::OnSceneStop()
+    {
+        if (!s_ActiveScene || s_ActiveScene->GetState() == SceneState::Edit)
+        {
+            return;
+        }
+
+        s_ActiveScene->OnRuntimeStop();
+
+        Ref<Scene> editorScene = s_EditorScene;
+        s_EditorScene.reset();
+
+        SetActiveScene(editorScene);
+        LF_CORE_INFO("SceneManager::OnSceneStop - Returned to Edit mode.");
+    }
+
+    void SceneManager::SetScenePaused(bool paused)
+    {
+        if (!s_ActiveScene || s_ActiveScene->GetState() == SceneState::Edit)
+        {
+            return;
+        }
+
+        s_ActiveScene->SetState(paused ? SceneState::Pause : SceneState::Play);
     }
 
     // ---- 事件订阅 ----

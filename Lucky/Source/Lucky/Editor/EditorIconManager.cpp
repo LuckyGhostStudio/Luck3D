@@ -31,6 +31,10 @@ namespace Lucky
 
         // ---- 设置图标 ----
         Ref<Texture2D> SettingsIcon;         // 设置图标
+
+        // ---- 工具条图标 ----
+        Ref<Texture2D> PlayIcon;
+        Ref<Texture2D> PauseIcon;
     };
 
     static EditorIconData s_IconData;
@@ -69,6 +73,10 @@ namespace Lucky
 
         // ---- 加载设置图标 ----
         s_IconData.SettingsIcon     = LoadIcon("Common/Settings.png");
+
+        // ---- 加载工具条图标 ----
+        s_IconData.PlayIcon = LoadIcon("Toolbar/Play.png");
+        s_IconData.PauseIcon = LoadIcon("Toolbar/Pause.png");
 
         // ---- 加载资产类型图标 ----
         s_IconData.AssetTypeIcons[AssetType::Material]  = LoadIcon("Asset/Material.png");
@@ -111,6 +119,8 @@ namespace Lucky
         s_IconData.DragDropIcon.reset();
         s_IconData.DragRejectedIcon.reset();
         s_IconData.SettingsIcon.reset();
+        s_IconData.PlayIcon.reset();
+        s_IconData.PauseIcon.reset();
     }
 
     const Ref<Texture2D>& EditorIconManager::GetAssetTypeIcon(AssetType type)
@@ -176,5 +186,15 @@ namespace Lucky
     const Ref<Texture2D>& EditorIconManager::GetSettingsIcon()
     {
         return s_IconData.SettingsIcon;
+    }
+
+    const Ref<Texture2D>& EditorIconManager::GetPlayIcon()
+    {
+        return s_IconData.PlayIcon;
+    }
+
+    const Ref<Texture2D>& EditorIconManager::GetPauseIcon()
+    {
+        return s_IconData.PauseIcon;
     }
 }
