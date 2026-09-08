@@ -10,9 +10,62 @@
 #include "Lucky/Editor/MaterialEditor.h"
 #include "Lucky/Editor/AssetInspectorRegistry.h"
 #include "Lucky/Editor/FolderInspector.h"
+#include "Lucky/Editor/ComponentContextMenuRegistry.h"
 
 namespace Lucky
 {
+    namespace
+    {
+        /// <summary>
+        /// 绘制单个 Settings 菜单项：处理可见性、启用性、点击回调、分隔线
+        /// 组件设置菜单项统一无图标
+        /// </summary>
+        void DrawContextMenuItem(const ComponentContextMenuItem& item, Entity entity, const ComponentDescriptor& desc)
+        {
+            if (item.IsVisible && !item.IsVisible(entity, desc))
+            {
+                return;
+            }
+
+            bool enabled = !item.IsEnabled || item.IsEnabled(entity, desc);
+
+            if (!enabled)
+            {
+                ImGui::BeginDisabled();
+            }
+            bool clicked = ImGui::MenuItem(item.Label.c_str());
+            if (!enabled)
+            {
+                ImGui::EndDisabled();
+            }
+
+            if (clicked && enabled && item.Execute)
+            {
+                item.Execute(entity, desc);
+            }
+
+            if (item.SeparatorAfter)
+            {
+                ImGui::Separator();
+            }
+        }
+
+        /// <summary>
+        /// 判定通用段内是否至少存在一个当前可见项，用于决定是否需要段间分隔线
+        /// </summary>
+        bool HasAnyVisibleBuiltin(Entity entity, const ComponentDescriptor& desc)
+        {
+            for (const ComponentContextMenuItem& item : ComponentContextMenuRegistry::All())
+            {
+                if (!item.IsVisible || item.IsVisible(entity, desc))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
     InspectorPanel::InspectorPanel(const Ref<Scene>& scene)
         : m_Scene(scene)
     {
@@ -119,6 +172,10 @@ namespace Lucky
 
         // 添加组件按钮（居中、固定宽度、点击弹出组件菜单）
         DrawAddComponentButton(entity);
+
+        // 帧末统一执行菜单项排队的 Entity 组件变更（Remove/Copy/Paste 等），
+        // 避免当前帧的 ForEach 循环访问被 Execute 立即修改后的组件集合
+        ComponentContextMenuRegistry::FlushDeferredActions();
     }
 
     void InspectorPanel::DrawComponentHeader(Entity entity, const ComponentDescriptor& desc)
@@ -133,6 +190,9 @@ namespace Lucky
             static_cast<int>(desc.Type));
 
         bool opened = false;
+
+        // 按组件类型区分 Popup ID，避免同一实体多个组件弹窗之间的状态串扰
+        const std::string popupID = std::format("ComponentSettings##{}", static_cast<int>(desc.Type));
 
         ImVec2 contentRegionAvail = ImGui::GetContentRegionAvail();
         float lineHeight = ImGui::GetTextLineHeight();
@@ -177,7 +237,7 @@ namespace Lucky
                 UI::ScopedColor buttonActiveColor(ImGuiCol_ButtonActive, { colorSettings.ButtonHovered.x, colorSettings.ButtonHovered.y, colorSettings.ButtonHovered.z, colorSettings.ButtonHovered.w });
                 if (UI::ImageButtonFlipped(settingsIcon, ImVec2(lineHeight, lineHeight), 0))
                 {
-                    ImGui::OpenPopup("ComponentSettings");
+                    ImGui::OpenPopup(popupID.c_str());
                 }
             }
 
@@ -186,16 +246,26 @@ namespace Lucky
             ImGui::Indent(UI::Theme::Layout::IndentSpacing);
         }
 
-        // 移除组件
-        bool componentRemoved = false;
-        if (UI::BeginPopup("ComponentSettings"))
+        // Settings 弹窗：通用段（ComponentContextMenuRegistry） + 段间分隔 + 私有段（desc.ExtraContextMenuItems）
+        // Execute 内的组件变更（Remove 等）通过 ComponentContextMenuRegistry::EnqueueDeferredAction 延后到帧末执行
+        if (UI::BeginPopup(popupID.c_str()))
         {
-            if (desc.CanRemove && desc.Remove)
+            // ---- 通用段 ----
+            for (const ComponentContextMenuItem& item : ComponentContextMenuRegistry::All())
             {
-                if (ImGui::MenuItem("Remove Component"))
-                {
-                    componentRemoved = true;
-                }
+                DrawContextMenuItem(item, entity, desc);
+            }
+
+            // ---- 段间分隔 ----
+            if (!desc.ExtraContextMenuItems.empty() && HasAnyVisibleBuiltin(entity, desc))
+            {
+                ImGui::Separator();
+            }
+
+            // ---- 私有段 ----
+            for (const ComponentContextMenuItem& item : desc.ExtraContextMenuItems)
+            {
+                DrawContextMenuItem(item, entity, desc);
             }
 
             UI::EndPopup();
@@ -205,11 +275,6 @@ namespace Lucky
         {
             desc.Draw(entity);
             ImGui::TreePop();
-        }
-
-        if (componentRemoved)
-        {
-            desc.Remove(entity);
         }
     }
 

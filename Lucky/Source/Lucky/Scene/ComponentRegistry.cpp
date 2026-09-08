@@ -53,7 +53,8 @@ namespace Lucky
                                               std::vector<ComponentAddMenuItem> addMenuItems,
                                               ComponentDescriptor::RemoveFn remove,
                                               bool showInHierarchyIcons,
-                                              bool canRemove)
+                                              bool canRemove,
+                                              std::vector<ComponentContextMenuItem> extraContextMenuItems)
     {
         auto it = GetIndexMap().find(type);
         LF_CORE_ASSERT(it != GetIndexMap().end(), "ComponentRegistry::RegisterInspector - Core must be registered first");
@@ -65,6 +66,7 @@ namespace Lucky
         desc.Remove = std::move(remove);
         desc.ShowInHierarchyIcons = showInHierarchyIcons;
         desc.CanRemove = canRemove;
+        desc.ExtraContextMenuItems = std::move(extraContextMenuItems);
     }
 
     void ComponentRegistry::Clear()

@@ -84,13 +84,15 @@ namespace Lucky
         /// <param name="remove">从 entity 移除该组件的回调（canRemove 为 false 时可为空）</param>
         /// <param name="showInHierarchyIcons">是否出现在 Hierarchy 右侧图标条</param>
         /// <param name="canRemove">Settings 弹窗是否显示 Remove 项</param>
+        /// <param name="extraContextMenuItems">组件独有的 Settings 弹窗菜单项（空表示无）</param>
         static void RegisterInspector(ComponentType type,
                                       ComponentDescriptor::DrawFn draw,
                                       ComponentDescriptor::IconFn getIcon,
                                       std::vector<ComponentAddMenuItem> addMenuItems,
                                       ComponentDescriptor::RemoveFn remove,
                                       bool showInHierarchyIcons = true,
-                                      bool canRemove = true);
+                                      bool canRemove = true,
+                                      std::vector<ComponentContextMenuItem> extraContextMenuItems = {});
     private:
         /// <summary>
         /// 注册全部组件的 ECS 元信息

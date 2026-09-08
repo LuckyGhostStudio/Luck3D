@@ -20,6 +20,7 @@ namespace Lucky
 {
     class Entity;
     class Texture2D;
+    struct ComponentDescriptor;
 
     /// <summary>
     /// AddComponent 菜单中的一项
@@ -30,6 +31,19 @@ namespace Lucky
         std::string Label;                                              // 菜单显示名（如 "Directional Light"）
         std::function<const Ref<Texture2D>&()> GetIcon;                 // 菜单项图标（无 entity 上下文，取默认图标）
         std::function<void(Entity)> AddFn;                              // 点击后执行（走 Entity::AddComponent，触发 OnComponentAdded）
+    };
+
+    /// <summary>
+    /// 组件设置弹窗（齿轮按钮）中的一项菜单
+    /// 通用项（Remove Component 等）与组件私有项（如脚本的 Edit Script）复用同一结构
+    /// </summary>
+    struct ComponentContextMenuItem
+    {
+        std::string Label;                                                                              // 菜单显示名（如 "Remove Component"）
+        std::function<bool(Entity, const ComponentDescriptor&)> IsVisible;                              // 运行期可见性判定；nullptr 视为始终可见
+        std::function<bool(Entity, const ComponentDescriptor&)> IsEnabled;                              // 运行期启用性判定；nullptr 视为始终启用
+        std::function<void(Entity, const ComponentDescriptor&)> Execute;                                // 点击回调
+        bool SeparatorAfter = false;                                                                    // 在此项之后画一条分隔线
     };
 
     /// <summary>
@@ -99,6 +113,10 @@ namespace Lucky
         // ---- AddComponent 菜单 ----
 
         std::vector<ComponentAddMenuItem> AddMenuItems;                 // 空数组表示不出现在 AddComponent 菜单
+
+        // ---- Settings 弹窗私有菜单项 ----
+
+        std::vector<ComponentContextMenuItem> ExtraContextMenuItems;    // 组件独有的 Settings 弹窗菜单项（空表示无）
 
         // ---- 展示控制 ----
 

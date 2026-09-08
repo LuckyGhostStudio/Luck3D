@@ -28,6 +28,7 @@
 #include "Lucky/Editor/EditorIconManager.h"
 #include "Lucky/Editor/AssetInspectorRegistry.h"
 #include "Lucky/Editor/AssetInspectors.h"
+#include "Lucky/Editor/ComponentContextMenuRegistry.h"
 
 #include <filesystem>
 
@@ -58,6 +59,9 @@ namespace Lucky
         // 组件注册表：集中注册所有组件的 Copy / Serialize / Draw / Icon / AddMenu 元信息
         // 必须在 EditorIconManager::Init 之后，因为 IconFn 内会读取图标
         ComponentRegistry::RegisterAll();
+
+        // 组件设置菜单通用项（Remove Component 等）
+        ComponentContextMenuRegistry::RegisterBuiltins();
 
         // 注册所有资产类型的 Inspector（Inspector 面板会据此分发绘制）
         AssetInspectorRegistry::Register(AssetType::Material,  &MaterialInspector::Draw);
@@ -163,6 +167,7 @@ namespace Lucky
         // 注意：必须在 PanelManager 释放之前调用，避免面板 dtor 时订阅表已失效
         SceneManager::Shutdown();
 
+        ComponentContextMenuRegistry::Clear();
         ComponentRegistry::Clear();
 
         EditorIconManager::Shutdown();
