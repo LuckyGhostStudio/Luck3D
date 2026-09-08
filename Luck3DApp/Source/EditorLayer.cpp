@@ -17,7 +17,7 @@
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/SelectionManager.h"
 #include "Lucky/Scene/SceneManager.h"
-#include "Lucky/Scene/Components/ComponentRegistry.h"
+#include "Lucky/Scene/ComponentRegistry.h"
 
 #include "Lucky/Utils/PlatformUtils.h"
 

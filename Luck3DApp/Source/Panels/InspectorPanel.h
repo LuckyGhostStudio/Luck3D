@@ -6,7 +6,7 @@
 #include "Lucky/Scene/SceneManager.h"
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/Components/Components.h"
-#include "Lucky/Scene/Components/ComponentDescriptor.h"
+#include "Lucky/Scene/ComponentDescriptor.h"
 
 #include "Lucky/UI/UICore.h"
 #include "Lucky/UI/Theme.h"

@@ -3,7 +3,7 @@
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/Components/Components.h"
 #include "Lucky/Scene/Components/ComponentType.h"
-#include "Lucky/Scene/Components/ComponentRegistry.h"
+#include "Lucky/Scene/ComponentRegistry.h"
 
 #include "Lucky/Renderer/MeshFactory.h"
 #include "Lucky/Renderer/Renderer3D.h"

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ComponentType.h"
+#include "Components/ComponentType.h"
 
 #include "Lucky/Core/Base.h"
 

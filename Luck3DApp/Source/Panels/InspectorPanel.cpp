@@ -1,7 +1,7 @@
 #include "InspectorPanel.h"
 
 #include "Lucky/Scene/SelectionManager.h"
-#include "Lucky/Scene/Components/ComponentRegistry.h"
+#include "Lucky/Scene/ComponentRegistry.h"
 
 #include "Lucky/UI/Controls.h"
 #include "Lucky/UI/PropertyGrid.h"

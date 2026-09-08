@@ -5,7 +5,7 @@
 #include "Lucky/Renderer/Renderer2D.h"
 
 #include "Components/Components.h"
-#include "Components/ComponentRegistry.h"
+#include "ComponentRegistry.h"
 
 #include "Entity.h"
 
