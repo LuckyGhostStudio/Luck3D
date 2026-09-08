@@ -48,6 +48,7 @@ namespace Lucky
         // 将窗口停靠到对应节点
         ImGui::DockBuilderDockWindow("Hierarchy", dockHierarchy);
         ImGui::DockBuilderDockWindow("Scene", dockViewport);
+        ImGui::DockBuilderDockWindow("Game", dockViewport);         // 与 Scene 共享同一节点，形成 Tab
         ImGui::DockBuilderDockWindow("Project", dockBottom);
         ImGui::DockBuilderDockWindow("Render Pipeline", dockRight); // 与 Inspector 共享 Tab
         ImGui::DockBuilderDockWindow("Inspector", dockRight);

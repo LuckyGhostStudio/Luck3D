@@ -4,6 +4,7 @@
 
 #include "Panels/SceneHierarchyPanel.h"
 #include "Panels/SceneViewportPanel.h"
+#include "Panels/GameViewportPanel.h"
 #include "Panels/InspectorPanel.h"
 #include "Panels/ProjectAssetsPanel.h"
 #include "Panels/RenderPipelinePanel.h"
@@ -36,6 +37,7 @@ namespace Lucky
 {
 #define SCENE_HIERARCHY_PANEL_ID "SceneHierarchyPanel"
 #define SCENE_VIEWPORT_PANEL_ID "SceneViewportPanel"
+#define GAME_VIEWPORT_PANEL_ID "GameViewportPanel"
 #define INSPECTOR_PANEL_ID "InspectorPanel"
 #define PROJECT_ASSETS_PANEL_ID "ProjectAssetsPanel"
 #define RENDER_PIPELINE_PANEL_ID "RenderPipelinePanel"
@@ -81,6 +83,7 @@ namespace Lucky
         Ref<Scene> placeholder = CreateRef<Scene>("New Scene");
         m_PanelManager->AddPanel<SceneHierarchyPanel>(SCENE_HIERARCHY_PANEL_ID, "Hierarchy", true, placeholder);
         m_PanelManager->AddPanel<SceneViewportPanel>(SCENE_VIEWPORT_PANEL_ID, "Scene", true, placeholder);
+        m_PanelManager->AddPanel<GameViewportPanel>(GAME_VIEWPORT_PANEL_ID, "Game", true, placeholder);
         m_PanelManager->AddPanel<InspectorPanel>(INSPECTOR_PANEL_ID, "Inspector", true, placeholder);
         m_PanelManager->AddPanel<ProjectAssetsPanel>(PROJECT_ASSETS_PANEL_ID, "Project", true);
         m_PanelManager->AddPanel<RenderPipelinePanel>(RENDER_PIPELINE_PANEL_ID, "Render Pipeline", true);
@@ -329,6 +332,13 @@ namespace Lucky
                         PanelData* panelData = m_PanelManager->GetPanelData(panelID);
                         panelData->IsOpen = true;
                     }
+
+                    if (ImGui::MenuItem("Game"))
+                    {
+                        uint32_t panelID = Hash::GenerateFNVHash(GAME_VIEWPORT_PANEL_ID);
+                        PanelData* panelData = m_PanelManager->GetPanelData(panelID);
+                        panelData->IsOpen = true;
+                    }
                     
                     ImGui::EndMenu();
                 }
@@ -351,6 +361,7 @@ namespace Lucky
 
                         OpenPanel(SCENE_HIERARCHY_PANEL_ID);
                         OpenPanel(SCENE_VIEWPORT_PANEL_ID);
+                        OpenPanel(GAME_VIEWPORT_PANEL_ID);
                         OpenPanel(INSPECTOR_PANEL_ID);
                         OpenPanel(PROJECT_ASSETS_PANEL_ID);
                         OpenPanel(RENDER_PIPELINE_PANEL_ID);
