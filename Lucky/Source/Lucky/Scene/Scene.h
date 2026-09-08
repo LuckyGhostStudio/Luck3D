@@ -5,9 +5,10 @@
 #include "Lucky/Core/DeltaTime.h"
 #include "Lucky/Core/UUID.h"
 #include "Lucky/Renderer/EditorCamera.h"
-#include "Lucky/Renderer/Renderer3D.h"
 #include "Lucky/Renderer/RenderContext.h"
 #include "Lucky/Asset/Asset.h"
+
+#include "Lucky/Renderer/CameraRenderData.h"
 
 #include <glm/glm.hpp>
 

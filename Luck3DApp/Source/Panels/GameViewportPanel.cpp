@@ -1,6 +1,5 @@
 #include "GameViewportPanel.h"
 
-#include "Lucky/Renderer/RenderCommand.h"
 #include "Lucky/Renderer/Renderer3D.h"
 #include "Lucky/Renderer/Framebuffer.h"
 
@@ -66,19 +65,12 @@ namespace Lucky
             return;
         }
 
-        framebuffer->Bind();
-
         // Game 面板固定黑色清屏：无 Primary Camera 时看到的即是纯黑
         constexpr glm::vec4 blackClear{ 0.0f, 0.0f, 0.0f, 1.0f };
-        RenderCommand::SetClearColor(blackClear);
-        RenderCommand::Clear();
-
         m_SceneRenderer->SetClearColor(blackClear);
 
         // 使用场景内 Primary CameraComponent 渲染；无主相机时 Scene 内部直接 return，画面停留在黑色 Clear
         m_Scene->OnRenderRuntime(*m_SceneRenderer);
-
-        framebuffer->Unbind();
     }
 
     void GameViewportPanel::OnGUI()

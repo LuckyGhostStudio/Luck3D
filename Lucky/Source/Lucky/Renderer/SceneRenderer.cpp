@@ -3,6 +3,7 @@
 
 #include "Renderer3D.h"
 #include "RenderPipeline.h"
+#include "RenderCommand.h"
 #include "IBLPrecompute.h"
 #include "ShadowAtlas.h"
 
@@ -173,6 +174,12 @@ namespace Lucky
     {
         // 每帧重置本实例统计
         m_Stats = {};
+
+        // 绑定目标 FBO 并按 ClearColor 清屏（Attachment 0 + Depth）
+        // 保证即使 Pipeline 里所有 Pass 都被跳过，画面也是干净的清屏色
+        m_Framebuffer->Bind();
+        RenderCommand::SetClearColor(m_ClearColor);
+        RenderCommand::Clear();
 
         // 把本实例的 UBO 重新绑定到自己的 binding slot
         // 多个 SceneRenderer 共用相同的 binding 索引，谁 BeginScene 谁接管
@@ -627,6 +634,10 @@ namespace Lucky
         m_OpaqueDrawCommands.clear();
         m_TransparentDrawCommands.clear();
         m_SpriteDrawCommands.clear();
+
+        // 解绑目标 FBO：BeginScene 里 Bind 的对偶操作
+        // 若外部还需要往该 FBO 画东西（如 Gizmo / Outline），会自行 Bind
+        m_Framebuffer->Unbind();
     }
 
     void SceneRenderer::ExtractOutlineDrawCommands()
@@ -679,7 +690,9 @@ namespace Lucky
         context.TargetFramebuffer = m_Framebuffer;
         context.Stats = &m_Stats;
 
+        m_Framebuffer->Bind();
         m_Pipeline.ExecuteGroup("Outline", context);
+        m_Framebuffer->Unbind();
 
         m_OutlineDrawCommands.clear();
     }
@@ -736,9 +749,16 @@ namespace Lucky
             return -1;
         }
 
-        m_Framebuffer->Bind();
-        int pixel = m_Framebuffer->GetPixel(1, x, y);
-        m_Framebuffer->Unbind();
+        // 启用 PostProcess 时 EntityID 实际写入 HDR FBO 的 Attachment 1
+        // 否则回落到 m_Framebuffer 的 Attachment 1
+        auto postProcessPass = m_Pipeline.GetPass<PostProcessPass>();
+        const Ref<Framebuffer>& source = (postProcessPass && postProcessPass->GetHDR_FBO())
+            ? postProcessPass->GetHDR_FBO()
+            : m_Framebuffer;
+
+        source->Bind();
+        int pixel = source->GetPixel(1, x, y);
+        source->Unbind();
         return pixel;
     }
 }

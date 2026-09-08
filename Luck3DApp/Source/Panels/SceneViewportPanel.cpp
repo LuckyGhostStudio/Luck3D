@@ -1,9 +1,7 @@
 #include "SceneViewportPanel.h"
 
-#include "Lucky/Renderer/RenderCommand.h"
 #include "Lucky/Renderer/Renderer3D.h"
 #include "Lucky/Renderer/RenderPipeline.h"
-#include "Lucky/Renderer/Passes/PostProcessPass.h"
 #include "Lucky/Renderer/Passes/DebugVisualizePass.h"
 
 #include "Lucky/Core/Input/Input.h"
@@ -102,14 +100,10 @@ namespace Lucky
         }
 
         m_EditorCamera.OnUpdate(dt);    // 更新编辑器相机
-        
-        framebuffer->Bind();
 
         const ColorSettings& colors = EditorPreferences::Get().GetColors();
-        RenderCommand::SetClearColor(colors.ViewportClearColor);
-        RenderCommand::Clear();
 
-        // 传递清屏颜色给渲染器（HDR FBO 使用相同的清屏颜色）
+        // 传递清屏颜色给渲染器（SceneRenderer 内部会 Bind FBO + Clear）
         m_SceneRenderer->SetClearColor(colors.ViewportClearColor);
         
         // 设置描边实体集合和描边颜色
@@ -206,8 +200,6 @@ namespace Lucky
         
         // ---- 描边（在 Gizmo 之后渲染，确保描边覆盖在 Gizmo 之上） ----
         m_SceneRenderer->RenderOutline();
-        
-        framebuffer->Unbind();
     }
 
     void SceneViewportPanel::OnGUI()
@@ -513,20 +505,7 @@ namespace Lucky
         // 检查是否在视口范围内
 		if (mouseX >= 0 && mouseY >= 0 && mouseX < static_cast<int>(viewportWidth) && mouseY < static_cast<int>(viewportHeight))
         {
-            // 从 HDR FBO 读取 Entity ID（PickingPass 渲染到 HDR FBO 的 Attachment 1）
-            int pixelData = -1;
-            auto postProcessPass = m_SceneRenderer->GetPipeline().GetPass<PostProcessPass>();
-            if (postProcessPass)
-            {
-                const auto& hdrFBO = postProcessPass->GetHDR_FBO();
-                hdrFBO->Bind();
-                pixelData = hdrFBO->GetPixel(1, mouseX, mouseY);
-                hdrFBO->Unbind();
-            }
-            else
-            {
-                pixelData = m_SceneRenderer->ReadPixelEntityID(mouseX, mouseY);
-            }
+            int pixelData = m_SceneRenderer->ReadPixelEntityID(mouseX, mouseY);
 
             if (pixelData == -1)
             {

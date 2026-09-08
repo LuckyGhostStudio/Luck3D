@@ -1,14 +1,9 @@
 #pragma once
 
-#include "EditorCamera.h"
 #include "Framebuffer.h"
 
 #include "Texture.h"
-#include "Mesh.h"
 #include "Material.h"
-
-#include "LightRenderData.h"
-#include "CameraRenderData.h"
 
 namespace Lucky
 {
