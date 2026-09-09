@@ -146,6 +146,9 @@ namespace Lucky
         m_Scene->OnRenderEditor(m_EditorCamera, *m_SceneRenderer);   // 渲染场景（编辑器视角）
         
         // ---- Gizmo ----
+        // SceneRenderer::EndScene 结束时已解绑 FBO，此处需自行 Bind 才能画进目标 FBO
+        const Ref<Framebuffer>& gizmoTarget = m_SceneRenderer->GetFramebuffer();
+        gizmoTarget->Bind();
         GizmoRenderer::BeginScene(m_EditorCamera);
         {
             // 坐标系无限网格
@@ -192,6 +195,7 @@ namespace Lucky
             }
         }
         GizmoRenderer::EndScene();
+        gizmoTarget->Unbind();
         
         // ---- 描边（在 Gizmo 之后渲染，确保描边覆盖在 Gizmo 之上） ----
         m_SceneRenderer->RenderOutline();
