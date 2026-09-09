@@ -9,6 +9,7 @@ Intermediates/
 # Files
 *.log
 *.ini
+Luck3DApp/Resources/Scripts
 
 # Exclude
 !Vendor/Binaries
