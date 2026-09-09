@@ -36,6 +36,7 @@ project "Lucky"
         "%{IncludeDir.yaml_cpp}",
         "%{IncludeDir.ImGuizmo}",
         "%{IncludeDir.assimp}",
+        "%{IncludeDir.mono}",
     }
 
     links
@@ -45,6 +46,7 @@ project "Lucky"
         "ImGui",
         "yaml-cpp",
         "opengl32.lib",
+        "%{Library.mono}",
     }
 
     filter "files:Vendor/ImGuizmo/**.cpp"
