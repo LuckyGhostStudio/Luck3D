@@ -6,6 +6,7 @@
 
 #include "Lucky/Asset/AssetManager.h"
 #include "Lucky/Renderer/Renderer.h"
+#include "Lucky/Scripting/ScriptEngine.h"
 
 #include <filesystem>
 
@@ -33,6 +34,7 @@ namespace Lucky
         
         AssetManager::Init();   // 初始化资产系统
         Renderer::Init();       // 初始化渲染器
+        ScriptEngine::Init();   // 初始化脚本引擎
 
         m_ImGuiLayer = new ImGuiLayer();    // 创建 ImGui 层
         PushOverlay(m_ImGuiLayer);          // 添加 ImGuiLayer 到覆盖层
@@ -40,6 +42,7 @@ namespace Lucky
 
     Application::~Application()
     {
+        ScriptEngine::Shutdown();
         Renderer::Shutdown();
         AssetManager::Shutdown();
     }
