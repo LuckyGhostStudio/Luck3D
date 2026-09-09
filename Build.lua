@@ -20,6 +20,7 @@ group ""
 
 group "Core"
     include "Lucky/Build-Lucky.lua"
+    include "Lucky-ScriptCore/Build-Lucky-ScriptCore.lua"
 group ""
 
 group "Tools"
