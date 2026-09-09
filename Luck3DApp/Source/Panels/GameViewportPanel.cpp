@@ -167,16 +167,6 @@ namespace Lucky
             return;
         }
 
-        // 覆盖 Primary Camera aspect：防止被 Scene 面板 resize 污染
-        if (rtSize.x > 0 && rtSize.y > 0)
-        {
-            Entity primary = m_Scene->GetPrimaryCameraEntity();
-            if (primary)
-            {
-                primary.GetComponent<CameraComponent>().Camera.SetViewportSize(rtSize.x, rtSize.y);
-            }
-        }
-
         // Game 面板固定黑色清屏：无 Primary Camera 时看到的即是纯黑
         constexpr glm::vec4 blackClear{ 0.0f, 0.0f, 0.0f, 1.0f };
         m_SceneRenderer->SetClearColor(blackClear);

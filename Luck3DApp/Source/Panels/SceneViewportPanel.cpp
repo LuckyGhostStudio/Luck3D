@@ -92,11 +92,6 @@ namespace Lucky
 
             m_SceneRenderer->OnViewportResize(w, h);            // 同时处理 FBO + Pipeline
             m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
-
-            if (m_Scene)
-            {
-                m_Scene->OnViewportResize(w, h);
-            }
         }
 
         m_EditorCamera.OnUpdate(dt);    // 更新编辑器相机
