@@ -287,6 +287,21 @@ namespace Lucky
             UI::PropertyCheckbox("Primary", cc.Primary);
             UI::PropertyCheckbox("Fixed Aspect Ratio", cc.FixedAspectRatio);
         }
+
+        // ======== ScriptComponent ========
+
+        void Draw_Script(Entity entity)
+        {
+            ScriptComponent& sc = entity.GetComponent<ScriptComponent>();
+
+            char buf[256] = {};
+            std::strncpy(buf, sc.ClassName.c_str(), sizeof(buf) - 1);
+            
+            if (UI::PropertyString("Class", buf, sizeof(buf)))
+            {
+                sc.ClassName = buf;
+            }
+        }
     }
 
     // ======== RegisterAllInspectors ========
@@ -397,5 +412,16 @@ namespace Lucky
                   [](Entity e) { e.AddComponent<CameraComponent>(); } },
             },
             [](Entity e) { e.RemoveComponent<CameraComponent>(); });
+
+        // ---- ScriptComponent ----
+        RegisterInspector(ComponentType::Script,
+            &Draw_Script,
+            &DefaultIcon<ScriptComponent>,
+            {
+                { "Script",
+                  []() -> const Ref<Texture2D>& { return EditorIconManager::GetComponentIcon(ComponentType::Script); },
+                  [](Entity e) { e.AddComponent<ScriptComponent>(); } },
+            },
+            [](Entity e) { e.RemoveComponent<ScriptComponent>(); });
     }
 }

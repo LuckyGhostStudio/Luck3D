@@ -579,6 +579,33 @@ namespace Lucky
             cc.Primary = node["Primary"].as<bool>();
             cc.FixedAspectRatio = node["FixedAspectRatio"].as<bool>();
         }
+
+        // ======== ScriptComponent ========
+
+        void Serialize_Script(YAML::Emitter& out, Entity entity)
+        {
+            if (!entity.HasComponent<ScriptComponent>())
+            {
+                return;
+            }
+            const ScriptComponent& sc = entity.GetComponent<ScriptComponent>();
+
+            out << YAML::Key << "ScriptComponent";
+            out << YAML::BeginMap;
+            out << YAML::Key << "ClassName" << YAML::Value << sc.ClassName;
+            out << YAML::EndMap;
+        }
+
+        void Deserialize_Script(Entity entity, const YAML::Node& entityNode)
+        {
+            YAML::Node node = entityNode["ScriptComponent"];
+            if (!node)
+            {
+                return;
+            }
+            ScriptComponent& sc = entity.AddComponent<ScriptComponent>();
+            sc.ClassName = node["ClassName"].as<std::string>("");
+        }
     }
 
     void ComponentRegistry::RegisterAllSerializations()
@@ -592,5 +619,6 @@ namespace Lucky
         RegisterSerialization(ComponentType::SpriteRenderer,    "SpriteRendererComponent",    &Serialize_SpriteRenderer,    &Deserialize_SpriteRenderer);
         RegisterSerialization(ComponentType::PostProcessVolume, "PostProcessVolumeComponent", &Serialize_PostProcessVolume, &Deserialize_PostProcessVolume);
         RegisterSerialization(ComponentType::Camera,            "CameraComponent",            &Serialize_Camera,            &Deserialize_Camera);
+        RegisterSerialization(ComponentType::Script,            "ScriptComponent",            &Serialize_Script,            &Deserialize_Script);
     }
 }

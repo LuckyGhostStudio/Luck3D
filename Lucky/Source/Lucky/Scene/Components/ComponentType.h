@@ -20,6 +20,7 @@ namespace Lucky
         SpriteRenderer,
         PostProcessVolume,
         Camera,
+        Script,
 
         // TODO 其他组件
     };

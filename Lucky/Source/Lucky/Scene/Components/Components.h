@@ -16,6 +16,7 @@
 #include "LightComponent.h"
 #include "PostProcessVolumeComponent.h"
 #include "CameraComponent.h"
+#include "ScriptComponent.h"
 
 namespace Lucky
 {
@@ -64,5 +65,10 @@ namespace Lucky
     template<> struct ComponentTrait<CameraComponent>
     {
         static constexpr ComponentType Type = ComponentType::Camera;
+    };
+
+    template<> struct ComponentTrait<ScriptComponent>
+    {
+        static constexpr ComponentType Type = ComponentType::Script;
     };
 }

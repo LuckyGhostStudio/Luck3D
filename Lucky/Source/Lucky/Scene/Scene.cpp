@@ -1,4 +1,4 @@
-﻿#include "lcpch.h"
+#include "lcpch.h"
 #include "Scene.h"
 
 #include "Lucky/Renderer/Renderer3D.h"
@@ -650,6 +650,12 @@ namespace Lucky
         {
             component.Camera.SetViewportSize(m_ViewportWidth, m_ViewportHeight);
         }
+    }
+
+    template<>
+    void Scene::OnComponentAdded<ScriptComponent>(Entity entity, ScriptComponent& component)
+    {
+
     }
     
     // TODO 添加新组件

@@ -117,5 +117,15 @@ namespace Lucky
             desc.Has = [](Entity e) { return e.HasComponent<CameraComponent>(); };
             RegisterCore(std::move(desc));
         }
+
+        // ---- ScriptComponent ----
+        {
+            ComponentDescriptor desc;
+            desc.Type = ComponentType::Script;
+            desc.Name = "Script";
+            desc.Copy = &CopyComponentValue<ScriptComponent>;
+            desc.Has = [](Entity e) { return e.HasComponent<ScriptComponent>(); };
+            RegisterCore(std::move(desc));
+        }
     }
 }
