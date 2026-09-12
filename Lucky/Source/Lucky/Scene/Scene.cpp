@@ -12,6 +12,8 @@
 
 #include "Entity.h"
 
+#include "Lucky/Scripting/ScriptEngine.h"
+
 namespace Lucky
 {
     Scene::Scene(const std::string& name)
@@ -203,6 +205,16 @@ namespace Lucky
 
     void Scene::OnUpdateRuntime(DeltaTime dt)
     {
+        if (m_State == SceneState::Play)
+        {
+            auto view = m_Registry.view<ScriptComponent>();
+            for (entt::entity entityHandle : view)
+            {
+                Entity entity{ entityHandle, this };
+                ScriptEngine::OnUpdateEntityScript(entity, dt);
+            }
+        }
+
         UpdateTransformHierarchy();
     }
 
@@ -245,11 +257,33 @@ namespace Lucky
 
     void Scene::OnRuntimeStart()
     {
+        ScriptEngine::OnRuntimeStart(this);
+
+        auto view = m_Registry.view<ScriptComponent>();
+        for (entt::entity entityHandle : view)
+        {
+            Entity entity{ entityHandle, this };
+            const ScriptComponent& sc = entity.GetComponent<ScriptComponent>();
+
+            if (sc.ClassName.empty())
+            {
+                continue;
+            }
+            if (!ScriptEngine::EntityScriptClassExists(sc.ClassName))
+            {
+                LF_CORE_WARN("Scene::OnRuntimeStart - script class '{0}' not found for entity '{1}'", sc.ClassName, entity.GetName());
+                continue;
+            }
+
+            ScriptEngine::OnCreateEntityScript(entity, sc.ClassName);
+        }
+
         m_State = SceneState::Play;
     }
 
     void Scene::OnRuntimeStop()
     {
+        ScriptEngine::OnRuntimeStop();
         m_State = SceneState::Edit;
     }
 
