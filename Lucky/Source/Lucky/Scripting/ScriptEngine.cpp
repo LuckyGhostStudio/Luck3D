@@ -1,5 +1,6 @@
 #include "lcpch.h"
 #include "ScriptEngine.h"
+#include "ScriptGlue.h"
 
 #include <mono/jit/jit.h>
 #include <mono/metadata/assembly.h>
@@ -111,6 +112,9 @@ namespace Lucky
         LoadAssemblyClasses();
 
         s_Data->EntityBaseClass = CreateRef<ScriptClass>("Lucky", "Entity", true);
+
+        ScriptGlue::RegisterFunctions();
+        ScriptGlue::RegisterComponents();
 
         LF_CORE_INFO("ScriptEngine: initialized ({} user script classes loaded)", s_Data->EntityClasses.size());
     }

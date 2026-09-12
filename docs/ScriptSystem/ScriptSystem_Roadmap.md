@@ -229,6 +229,5 @@ flowchart TD
 
 ## 8. 参考
 
-- Hazel Engine ScriptEngine（`Hazel-ScriptCore` 项目）
 - Unity Scripting Runtime（mono embedding 参考实现）
 - Mono Embedding 官方文档：<https://www.mono-project.com/docs/advanced/embedding/>
