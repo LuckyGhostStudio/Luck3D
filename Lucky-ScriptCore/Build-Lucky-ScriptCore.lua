@@ -1,10 +1,15 @@
+-- 反推仓库根：本 lua 文件位于 <repo>/Lucky-ScriptCore/Build-Lucky-ScriptCore.lua
+local ThisFile = debug.getinfo(1, "S").source:sub(2)                            -- 去掉开头的 '@'
+local ThisDir = ThisFile:match("(.*/)") or ThisFile:match("(.*\\)") or "./"     -- 当前脚本所在目录
+local LuckyRepoRoot = string.gsub(path.getabsolute(ThisDir .. ".."), "\\", "/") -- 上一级即仓库根
+
 project "Lucky-ScriptCore"
     kind "SharedLib"
     language "C#"
     dotnetframework "4.7.2"
 
-    targetdir ("%{wks.location}/Luck3DApp/Resources/Scripts")
-    objdir ("%{wks.location}/Luck3DApp/Resources/Scripts/Intermediates")
+    targetdir (LuckyRepoRoot .. "/Luck3DApp/Resources/Scripts")
+    objdir (LuckyRepoRoot .. "/Luck3DApp/Resources/Scripts/Intermediates")
 
     files
     {

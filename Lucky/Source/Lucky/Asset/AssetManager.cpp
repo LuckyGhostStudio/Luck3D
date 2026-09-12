@@ -8,6 +8,7 @@
 #include "TextureImporter.h"
 #include "SceneImporter.h"
 
+#include "Lucky/Project/Project.h"
 #include "Lucky/Renderer/Material.h"
 #include "Lucky/Renderer/Mesh.h"
 #include "Lucky/Renderer/MeshFactory.h"
@@ -25,9 +26,6 @@ namespace Lucky
         AssetRegistry Registry;
         std::unordered_map<AssetHandle, Ref<void>> Cache;               // 强引用缓存
         std::unordered_map<AssetType, Scope<AssetImporter>> Importers;  // Importer 注册表
-
-        std::string RegistryFilePath = "AssetRegistry.lcr";             // Registry 文件路径
-        std::string AssetsDirectory = "Assets";                         // Assets 根目录（相对项目根）
     };
 
     static AssetManagerData s_Data;
@@ -52,14 +50,16 @@ namespace Lucky
 
     void AssetManager::Init()
     {
+        LF_CORE_ASSERT(Project::GetActive(), "AssetManager::Init requires an active Project");
+
         // 注册 Importers
         s_Data.Importers[AssetType::Material] = CreateScope<MaterialImporter>();
         s_Data.Importers[AssetType::Mesh] = CreateScope<MeshImporter>();
         s_Data.Importers[AssetType::Texture2D] = CreateScope<TextureImporter>();
         s_Data.Importers[AssetType::Scene] = CreateScope<SceneImporter>();
 
-        // 加载 Registry
-        s_Data.Registry.Load(s_Data.RegistryFilePath);
+        // 加载 Registry（从 Project 派生绝对路径）
+        s_Data.Registry.Load(Project::GetActive()->GetAssetRegistryPath().string());
 
         // 初始化内置图元 Mesh 资产
         // 必须先于 Refresh：
@@ -92,7 +92,7 @@ namespace Lucky
         // filepath 应为相对路径，规范化（统一正斜杠）
         std::filesystem::path path(filepath);
         std::string normalizedPath = path.generic_string();
-        std::string absolutePath = std::filesystem::absolute(path).string();
+        std::string absolutePath = Project::GetActive()->ResolveAbsolute(path).string();
         std::string assetName = path.stem().string();
         
         AssetType assetType = asset->GetAssetType();
@@ -136,7 +136,7 @@ namespace Lucky
         // filepath 应为相对路径，规范化（统一正斜杠）
         std::filesystem::path path(filepath);
         std::string normalizedPath = path.generic_string();
-        std::string absolutePath = std::filesystem::absolute(path).string();
+        std::string absolutePath = Project::GetActive()->ResolveAbsolute(path).string();
 
         AssetType assetType = asset->GetAssetType();
 
@@ -214,9 +214,9 @@ namespace Lucky
     {
         RefreshResult result;
 
-        // 1. 扫描磁盘文件（相对路径，正斜杠格式）
+        // 1. 扫描磁盘文件（相对项目根的相对路径，正斜杠格式）
         std::set<std::string> diskPaths;
-        ScanDirectory(s_Data.AssetsDirectory, diskPaths);
+        ScanDirectory(Project::GetActive()->GetAssetDirectory(), diskPaths);
 
         // 2. 收集 Registry 中所有路径
         std::set<std::string> registryPaths;
@@ -281,24 +281,30 @@ namespace Lucky
         return result;
     }
 
-    void AssetManager::ScanDirectory(const std::string& directory, std::set<std::string>& outPaths)
+    void AssetManager::ScanDirectory(const std::filesystem::path& absoluteDirectory, std::set<std::string>& outPaths)
     {
-        std::filesystem::path dirPath(directory);
-        if (!std::filesystem::exists(dirPath) || !std::filesystem::is_directory(dirPath))
+        if (!std::filesystem::exists(absoluteDirectory) || !std::filesystem::is_directory(absoluteDirectory))
         {
-            LF_CORE_WARN("AssetManager::ScanDirectory - Directory not found: '{0}'", directory);
+            LF_CORE_WARN("AssetManager::ScanDirectory - Directory not found: '{0}'", absoluteDirectory.string());
             return;
         }
 
-        for (const auto& entry : std::filesystem::recursive_directory_iterator(dirPath))
+        const std::filesystem::path& projectDir = Project::GetActive()->GetProjectDirectory();
+
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(absoluteDirectory))
         {
             if (!entry.is_regular_file())
             {
                 continue;
             }
 
-            // 相对项目根目录（cwd）的相对路径，正斜杠格式
-            std::filesystem::path relativePath = std::filesystem::relative(entry.path());
+            // 相对项目根的相对路径，正斜杠格式
+            std::error_code ec;
+            std::filesystem::path relativePath = std::filesystem::relative(entry.path(), projectDir, ec);
+            if (ec)
+            {
+                continue;
+            }
 
             // 跳过隐藏文件/目录（任一路径段以 . 开头）
             bool isHidden = false;
@@ -339,7 +345,7 @@ namespace Lucky
 
         // 拷贝一份路径，避免 Unregister 后 metadata 指针失效
         std::string relativePath = metadata->FilePath;
-        std::string absolutePath = std::filesystem::absolute(relativePath).string();
+        std::string absolutePath = Project::GetActive()->ResolveAbsolute(relativePath).string();
 
         // 1. 删磁盘文件（文件已被外部删掉时 remove 不视为错误，仅当出错才失败）
         std::error_code ec;
@@ -382,8 +388,8 @@ namespace Lucky
         }
 
         std::string oldRelative = metadata->FilePath;
-        std::string oldAbs = std::filesystem::absolute(oldRelative).string();
-        std::string newAbs = std::filesystem::absolute(normalizedNewPath).string();
+        std::string oldAbs = Project::GetActive()->ResolveAbsolute(oldRelative).string();
+        std::string newAbs = Project::GetActive()->ResolveAbsolute(normalizedNewPath).string();
 
         // 目标路径已存在则拒绝（避免覆盖）
         if (std::filesystem::exists(newAbs))
@@ -549,7 +555,7 @@ namespace Lucky
 
     void AssetManager::SaveRegistry()
     {
-        s_Data.Registry.Save(s_Data.RegistryFilePath);
+        s_Data.Registry.Save(Project::GetActive()->GetAssetRegistryPath().string());
     }
 
     Ref<void> AssetManager::LoadAsset(const AssetMetadata& metadata)
@@ -568,7 +574,8 @@ namespace Lucky
 
     void AssetManager::InitBuiltinMeshAssets()
     {
-        const std::string builtinDir = "Assets/Meshes/Builtin/";
+        const Ref<Project>& project = Project::GetActive();
+        const std::filesystem::path builtinAbsoluteDir = project->GetAssetDirectory() / "Meshes" / "Builtin";
 
         struct BuiltinMeshDef
         {
@@ -586,22 +593,20 @@ namespace Lucky
 
         for (const auto& def : builtins)
         {
-            std::string filepath = builtinDir + def.Name + ".lmesh";
-            std::string absolutePath = std::filesystem::absolute(filepath).string();
+            std::filesystem::path absolutePath = builtinAbsoluteDir / (std::string(def.Name) + ".lmesh");
+            std::string normalizedRelative = project->MakeRelative(absolutePath);
 
             // 如果文件不存在则生成
             if (!std::filesystem::exists(absolutePath))
             {
                 Ref<Mesh> mesh = MeshFactory::CreatePrimitive(def.Type);
                 mesh->SetName(def.Name);
-                MeshSerializer::Serialize(mesh, absolutePath);
+                MeshSerializer::Serialize(mesh, absolutePath.string());
                 LF_CORE_INFO("AssetManager: Generated builtin mesh '{0}'", def.Name);
             }
 
             // 注册到资产系统
-            std::filesystem::path path(filepath);
-            std::string normalizedPath = path.generic_string();
-            ImportAsset(normalizedPath, AssetType::Mesh);
+            ImportAsset(normalizedRelative, AssetType::Mesh);
         }
     }
 }

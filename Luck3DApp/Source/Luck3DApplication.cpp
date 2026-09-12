@@ -1,6 +1,8 @@
 #include <Lucky.h>
 #include <Lucky/Core/EntryPoint.h>
 
+#include <filesystem>
+
 #include "EditorLayer.h"
 
 class Luck3DApplication : public Lucky::Application
@@ -18,6 +20,7 @@ Lucky::Application* Lucky::CreateApplication(ApplicationCommandLineArgs args)
     ApplicationSpecification spec;
     spec.Name = "Luck3D";
     spec.CommandLineArgs = args;
+    spec.StartupProjectPath = std::filesystem::path(LF_REPO_ROOT) / "Luck3DApp" / "Project" / "Project.lcproj";
 
     return new Luck3DApplication(spec);
 }

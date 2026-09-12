@@ -1,3 +1,8 @@
+-- 反推仓库根：本 lua 文件位于 <repo>/Luck3DApp/Build-Luck3DApp.lua
+local ThisFile = debug.getinfo(1, "S").source:sub(2)
+local ThisDir = ThisFile:match("(.*/)") or ThisFile:match("(.*\\)") or "./"
+local LuckyRepoRoot = string.gsub(path.getabsolute(ThisDir .. ".."), "\\", "/")
+
 project "Luck3DApp"
     kind "ConsoleApp"
     language "C++"
@@ -34,7 +39,11 @@ project "Luck3DApp"
 
     filter "system:windows"
         systemversion "latest"
-        defines { "WINDOWS" }
+        defines
+        {
+            "WINDOWS",
+            'LF_REPO_ROOT="' .. LuckyRepoRoot .. '"'
+        }
 
     filter "configurations:Debug"
         defines { "LF_DEBUG" }
@@ -44,6 +53,8 @@ project "Luck3DApp"
         postbuildcommands
         {
             '{COPY} "%{wks.location}/Lucky/Vendor/assimp/bin/windows/Debug/assimp-vc143-mtd.dll" "%{cfg.targetdir}"',
+            'xcopy /D /E /I /Y /Q "%{wks.location}/Luck3DApp/mono" "%{cfg.targetdir}/mono\\" >NUL',
+            'xcopy /D /E /I /Y /Q "%{wks.location}/Luck3DApp/Resources" "%{cfg.targetdir}/Resources\\" >NUL',
         }
 
     filter "configurations:Release"
@@ -55,6 +66,8 @@ project "Luck3DApp"
         postbuildcommands
         {
             '{COPY} "%{wks.location}/Lucky/Vendor/assimp/bin/windows/Release/assimp-vc143-mt.dll" "%{cfg.targetdir}"',
+            'xcopy /D /E /I /Y /Q "%{wks.location}/Luck3DApp/mono" "%{cfg.targetdir}/mono\\" >NUL',
+            'xcopy /D /E /I /Y /Q "%{wks.location}/Luck3DApp/Resources" "%{cfg.targetdir}/Resources\\" >NUL',
         }
 
     filter "configurations:Dist"
@@ -66,4 +79,6 @@ project "Luck3DApp"
         postbuildcommands
         {
             '{COPY} "%{wks.location}/Lucky/Vendor/assimp/bin/windows/Release/assimp-vc143-mt.dll" "%{cfg.targetdir}"',
+            'xcopy /D /E /I /Y /Q "%{wks.location}/Luck3DApp/mono" "%{cfg.targetdir}/mono\\" >NUL',
+            'xcopy /D /E /I /Y /Q "%{wks.location}/Luck3DApp/Resources" "%{cfg.targetdir}/Resources\\" >NUL',
         }

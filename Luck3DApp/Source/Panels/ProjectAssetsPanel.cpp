@@ -9,6 +9,7 @@
 #include "Lucky/Editor/EditorIconManager.h"
 #include "Lucky/Editor/DragDropPayloads.h"
 #include "Lucky/Editor/DragDropContext.h"
+#include "Lucky/Project/Project.h"
 #include "Lucky/Scene/SelectionManager.h"
 #include "Lucky/Scene/Scene.h"
 #include "Lucky/Renderer/Material.h"
@@ -28,7 +29,7 @@ namespace Lucky
     {
         SetFlags(ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);    // 禁用滚动条
         
-        m_AssetsDirectory = "Assets";
+        m_AssetsDirectory = Project::GetActive()->GetAssetDirectory();
         m_CurrentDirectory = m_AssetsDirectory;
         
         // 初始构建目录树
@@ -339,11 +340,11 @@ namespace Lucky
         // 获取图标
         const Ref<Texture2D>& icon = isDirectory ? EditorIconManager::GetFolderIcon(false) : EditorIconManager::GetAssetTypeIcon(GetAssetTypeFromPath(path));
         
-        // 提前获取资产 Handle（使用 generic_string 与 AssetRegistry 存储格式一致，避免 Windows 反斜杠不匹配）
+        // 提前获取资产 Handle（使用 Project::MakeRelative 反算相对项目根的相对路径，与 AssetRegistry 存储格式一致）
         AssetHandle assetHandle;
         if (!isDirectory)
         {
-            assetHandle = AssetManager::GetAssetHandle(path.generic_string());
+            assetHandle = AssetManager::GetAssetHandle(Project::GetActive()->MakeRelative(path));
             strID = std::format("{}##{}", path.stem().string(), static_cast<uint32_t>(assetHandle));
         }
 
@@ -788,7 +789,7 @@ namespace Lucky
         std::string materialName = target.stem().string();
         Ref<Material> material = CreateRef<Material>(materialName, standardShader);
 
-        AssetHandle handle = AssetManager::CreateAsset(material, target.generic_string());
+        AssetHandle handle = AssetManager::CreateAsset(material, Project::GetActive()->MakeRelative(target));
         if (!handle.IsValid())
         {
             LF_CORE_ERROR("ProjectAssetsPanel::CommitCreateMaterial - Failed to create material at '{0}'", target.generic_string());
@@ -809,7 +810,7 @@ namespace Lucky
         Ref<Scene> scene = CreateRef<Scene>();
         scene->SetName(target.stem().string());
 
-        AssetHandle handle = AssetManager::CreateAsset(scene, target.generic_string());
+        AssetHandle handle = AssetManager::CreateAsset(scene, Project::GetActive()->MakeRelative(target));
         if (!handle.IsValid())
         {
             LF_CORE_ERROR("ProjectAssetsPanel::CommitCreateScene - Failed to create scene at '{0}'", target.generic_string());
@@ -837,7 +838,7 @@ namespace Lucky
                 continue;
             }
 
-            AssetHandle handle = AssetManager::GetAssetHandle(entry.path().generic_string());
+            AssetHandle handle = AssetManager::GetAssetHandle(Project::GetActive()->MakeRelative(entry.path()));
             if (handle.IsValid())
             {
                 toDelete.push_back(handle);
@@ -899,7 +900,8 @@ namespace Lucky
 
         // ---- 2. 提前收集"旧目录下所有已注册资产"的 (Handle, 旧相对路径)，用于改名后级联更新 Registry ----
         // 注意：必须在磁盘 rename 之前收集，因为 rename 后旧路径已不存在，无法再枚举
-        // 使用 generic_string() 与 AssetRegistry 存储格式一致（正斜杠）
+        // 使用 Project::MakeRelative 反算相对项目根的相对路径，与 AssetRegistry 存储格式一致
+        const Ref<Project>& project = Project::GetActive();
         std::vector<std::pair<AssetHandle, std::string>> handleAndOldRelPath;
         for (auto& entry : std::filesystem::recursive_directory_iterator(oldPath))
         {
@@ -907,7 +909,7 @@ namespace Lucky
             {
                 continue;
             }
-            std::string relPath = entry.path().generic_string();
+            std::string relPath = project->MakeRelative(entry.path());
             AssetHandle handle = AssetManager::GetAssetHandle(relPath);
             if (handle.IsValid())
             {
@@ -926,32 +928,34 @@ namespace Lucky
 
         // ---- 4. Registry 级联更新（Handle 保持不变，跨资产引用不断裂） ----
         // 旧相对路径前缀 → 新相对路径前缀，逐个替换 metadata->FilePath
-        std::string oldPrefix = oldPath.generic_string();
-        std::string newPrefix = newPath.generic_string();
+        std::string oldRelPrefix = project->MakeRelative(oldPath);
+        std::string newRelPrefix = project->MakeRelative(newPath);
         for (const std::pair<AssetHandle, std::string>& item : handleAndOldRelPath)
         {
             const std::string& oldRel = item.second;
-            // 拼新相对路径：newPrefix + oldRel 去掉 oldPrefix 的部分
-            std::string newRel = newPrefix + oldRel.substr(oldPrefix.size());
+            // 拼新相对路径：newRelPrefix + oldRel 去掉 oldRelPrefix 的部分
+            std::string newRel = newRelPrefix + oldRel.substr(oldRelPrefix.size());
             AssetManager::UpdateAssetPath(item.first, newRel);
         }
 
-        LF_CORE_INFO("ProjectAssetsPanel::RenameFolderTo - '{0}' -> '{1}' (cascaded {2} assets)", oldPrefix, newPrefix, handleAndOldRelPath.size());
+        LF_CORE_INFO("ProjectAssetsPanel::RenameFolderTo - '{0}' -> '{1}' (cascaded {2} assets)", oldPath.generic_string(), newPath.generic_string(), handleAndOldRelPath.size());
 
         // ---- 5. 目录树重建 ----
         RebuildDirectoryTree();
 
         // ---- 6. m_CurrentDirectory 若在被改名子树内，同步纠正到新路径 ----
+        std::string oldAbsPrefix = oldPath.generic_string();
+        std::string newAbsPrefix = newPath.generic_string();
         std::string curStr = m_CurrentDirectory.generic_string();
-        if (curStr == oldPrefix)
+        if (curStr == oldAbsPrefix)
         {
             m_CurrentDirectory = newPath;
         }
-        else if (curStr.size() > oldPrefix.size()
-              && curStr.compare(0, oldPrefix.size(), oldPrefix) == 0
-              && curStr[oldPrefix.size()] == '/')
+        else if (curStr.size() > oldAbsPrefix.size()
+              && curStr.compare(0, oldAbsPrefix.size(), oldAbsPrefix) == 0
+              && curStr[oldAbsPrefix.size()] == '/')
         {
-            m_CurrentDirectory = newPrefix + curStr.substr(oldPrefix.size());
+            m_CurrentDirectory = newAbsPrefix + curStr.substr(oldAbsPrefix.size());
         }
 
         // ---- 7. 若选中的是被改名目录本身，同步选中新路径 ----

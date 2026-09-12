@@ -1,6 +1,7 @@
 #include "lcpch.h"
 #include "TextureImporter.h"
 
+#include "Lucky/Project/Project.h"
 #include "Lucky/Renderer/Texture.h"
 
 #include <filesystem>
@@ -9,7 +10,7 @@ namespace Lucky
 {
     Ref<void> TextureImporter::Load(const AssetMetadata& metadata)
     {
-        std::string absolutePath = std::filesystem::absolute(metadata.FilePath).string();
+        std::string absolutePath = Project::GetActive()->ResolveAbsolute(metadata.FilePath).string();
 
         if (!std::filesystem::exists(absolutePath))
         {

@@ -7,6 +7,7 @@
 #include "IBLPrecompute.h"
 
 #include "Lucky/Asset/AssetManager.h"
+#include "Lucky/Project/Project.h"
 
 #include <filesystem>
 
@@ -35,28 +36,30 @@ namespace Lucky
     {
         s_Data.ShaderLib = CreateRef<ShaderLibrary>();
 
+        const std::filesystem::path assetDir = Project::GetActive()->GetAssetDirectory();
+
         // 加载引擎内部着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/InternalError");
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/EntityID");
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Outline/Silhouette");
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Outline/OutlineComposite");
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Shadow/Shadow");
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Shadow/PointShadow");
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/Tonemapping");
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/BrightExtract");
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/GaussianBlur");
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/BloomComposite");
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/FXAA");
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/PostProcess/Vignette");
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/Debug/DebugCSMVisualize");
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/IBL/BRDFIntegration");
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/IBL/IrradianceConvolution");
-        s_Data.ShaderLib->Load("Assets/Shaders/Internal/IBL/PrefilterConvolution");
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Internal/InternalError").string());
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Internal/EntityID").string());
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Internal/Outline/Silhouette").string());
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Internal/Outline/OutlineComposite").string());
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Internal/Shadow/Shadow").string());
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Internal/Shadow/PointShadow").string());
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Internal/PostProcess/Tonemapping").string());
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Internal/PostProcess/BrightExtract").string());
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Internal/PostProcess/GaussianBlur").string());
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Internal/PostProcess/BloomComposite").string());
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Internal/PostProcess/FXAA").string());
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Internal/PostProcess/Vignette").string());
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Internal/Debug/DebugCSMVisualize").string());
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Internal/IBL/BRDFIntegration").string());
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Internal/IBL/IrradianceConvolution").string());
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Internal/IBL/PrefilterConvolution").string());
 
         // 加载用户可见着色器
-        s_Data.ShaderLib->Load("Assets/Shaders/Standard");
-        s_Data.ShaderLib->Load("Assets/Shaders/Skybox");
-        s_Data.ShaderLib->Load("Assets/Shaders/Sprite");
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Standard").string());
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Skybox").string());
+        s_Data.ShaderLib->Load((assetDir / "Shaders/Sprite").string());
 
         s_Data.InternalErrorShader = s_Data.ShaderLib->Get("InternalError");
         s_Data.StandardShader = s_Data.ShaderLib->Get("Standard");
@@ -76,14 +79,14 @@ namespace Lucky
         s_Data.DefaultMaterial->SetFloat("u_EmissionIntensity", 1.0f);
 
         // ======== 天空盒加载（硬编码 6 面 Cubemap） ========
-        const std::string skyboxDir = "Assets/Textures/Skybox/";
+        const std::filesystem::path skyboxDir = assetDir / "Textures/Skybox";
         std::array skyboxFaces = {
-            skyboxDir + "right.jpg",
-            skyboxDir + "left.jpg",
-            skyboxDir + "up.jpg",
-            skyboxDir + "down.jpg",
-            skyboxDir + "front.jpg",
-            skyboxDir + "back.jpg"
+            (skyboxDir / "right.jpg").string(),
+            (skyboxDir / "left.jpg").string(),
+            (skyboxDir / "up.jpg").string(),
+            (skyboxDir / "down.jpg").string(),
+            (skyboxDir / "front.jpg").string(),
+            (skyboxDir / "back.jpg").string()
         };
 
         Ref<TextureCube> skyboxCubemap = nullptr;
@@ -95,11 +98,11 @@ namespace Lucky
             s_Data.DefaultSkyboxMaterial->SetFloat("u_Exposure", 1.0f);
             s_Data.DefaultSkyboxMaterial->SetFloat4("u_Tint", glm::vec4(1.0f));
 
-            LF_INFO("Skybox loaded successfully from: {0}", skyboxDir);
+            LF_INFO("Skybox loaded successfully from: {0}", skyboxDir.string());
         }
         else
         {
-            LF_WARN("Skybox textures not found at: {0} (skipping skybox)", skyboxDir);
+            LF_WARN("Skybox textures not found at: {0} (skipping skybox)", skyboxDir.string());
         }
 
         AssetManager::EnsureAsset(s_Data.DefaultMaterial, "Assets/Internal/Materials/Default-Material.lmat");

@@ -1,7 +1,7 @@
 Version: 1
 Material:
-  Handle: 17111660239820637653
-  Name: 03 - Default.001
+  Handle: 12737670671644045329
+  Name: Default-Material
   Shader: Standard
   RenderState:
     RenderingMode: 0
@@ -21,7 +21,7 @@ Material:
         Path: ""
     - Name: u_Albedo
       Type: Float4
-      Value: [0.588235319, 0.588235319, 0.588235319, 1]
+      Value: [0.800000012, 0.800000012, 0.800000012, 1]
     - Name: u_AlbedoMap
       Type: Sampler2D
       Value:
@@ -79,7 +79,7 @@ Material:
         Path: ""
     - Name: u_Roughness
       Type: Float
-      Value: 0.899999976
+      Value: 0.5
     - Name: u_RoughnessMap
       Type: Sampler2D
       Value:

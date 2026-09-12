@@ -5,9 +5,12 @@
 #include "Shader.h"
 #include "RenderCommand.h"
 #include "Lucky/Editor/EditorPreferences.h"
+#include "Lucky/Project/Project.h"
 
 #include "glm/ext/scalar_constants.hpp"
 #include "glm/gtc/matrix_inverse.hpp"
+
+#include <filesystem>
 
 namespace Lucky
 {
@@ -57,11 +60,12 @@ namespace Lucky
         s_GizmoData.LineVertexBufferBase = new GizmoVertex[GizmoRendererData::MaxVertices];
         
         // 加载 Gizmo Shader
-        s_GizmoData.LineShader = Shader::Create("Assets/Shaders/Internal/GizmoLine");
+        const std::filesystem::path assetDir = Project::GetActive()->GetAssetDirectory();
+        s_GizmoData.LineShader = Shader::Create((assetDir / "Shaders/Internal/GizmoLine").string());
         
         // ---- 无限网格初始化 ----
         s_GizmoData.GridVertexArray = VertexArray::Create();    // 空 VAO（顶点在 Shader 中硬编码）
-        s_GizmoData.GridShader = Shader::Create("Assets/Shaders/Internal/InfiniteGrid");
+        s_GizmoData.GridShader = Shader::Create((assetDir / "Shaders/Internal/InfiniteGrid").string());
     }
 
     void GizmoRenderer::Shutdown()

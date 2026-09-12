@@ -5,6 +5,7 @@
 #include "SelectionManager.h"
 
 #include "Lucky/Asset/AssetManager.h"
+#include "Lucky/Project/Project.h"
 #include "Lucky/Utils/PlatformUtils.h"
 
 #include <unordered_map>
@@ -117,9 +118,15 @@ namespace Lucky
             return false;
         }
 
-        // 转为相对项目根目录的正斜杠路径（与 AssetRegistry 存储格式一致）
-        std::filesystem::path relPath = std::filesystem::relative(filepath);
-        std::string normalizedPath = relPath.generic_string();
+        // 归一化为相对项目根目录的正斜杠路径（与 AssetRegistry 存储格式一致）
+        const Ref<Project>& project = Project::GetActive();
+        std::filesystem::path absPath = filepath.is_absolute() ? filepath : project->ResolveAbsolute(filepath);
+        std::string normalizedPath = project->MakeRelative(absPath);
+        if (normalizedPath.empty())
+        {
+            LF_CORE_ERROR("SceneManager::OpenScene - Path is outside project: '{0}'.", filepath.string());
+            return false;
+        }
 
         AssetHandle handle = AssetManager::ImportAsset(normalizedPath, AssetType::Scene);
         if (!handle.IsValid())

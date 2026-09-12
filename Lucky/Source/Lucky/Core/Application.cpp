@@ -5,6 +5,7 @@
 #include "Log.h"
 
 #include "Lucky/Asset/AssetManager.h"
+#include "Lucky/Project/Project.h"
 #include "Lucky/Renderer/Renderer.h"
 #include "Lucky/Scripting/ScriptEngine.h"
 
@@ -31,7 +32,14 @@ namespace Lucky
 
         m_Window = Window::Create(WindowProps(m_Specification.Name));           // 创建窗口
         m_Window->SetEventCallback(LF_BIND_EVENT_FUNC(Application::OnEvent));   // 设置回调函数
-        
+
+        // 加载项目：必须在 AssetManager / ScriptEngine 之前，因为它们的路径都依赖 Project::GetActive()
+        if (!m_Specification.StartupProjectPath.empty())
+        {
+            Ref<Project> project = Project::Load(m_Specification.StartupProjectPath);
+            LF_CORE_ASSERT(project, "Failed to load startup project");
+        }
+
         AssetManager::Init();   // 初始化资产系统
         Renderer::Init();       // 初始化渲染器
         ScriptEngine::Init();   // 初始化脚本引擎
@@ -45,6 +53,7 @@ namespace Lucky
         ScriptEngine::Shutdown();
         Renderer::Shutdown();
         AssetManager::Shutdown();
+        Project::ClearActive();
     }
 
     void Application::OnEvent(Event& event)

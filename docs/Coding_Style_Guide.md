@@ -939,6 +939,53 @@ const auto& icon = EditorIconManager::GetEntityIcon();
 auto count = entity.GetChildren().size();
 ```
 
+### 13.10 路径解析规范
+
+Luck3D 项目里所有"路径"必须显式区分**归属主体**，禁止依赖进程 cwd（`std::filesystem::current_path()`）作为基点。三类路径的解析入口互不混用：
+
+| 路径类别 | 归属 | 解析入口 |
+|---|---|---|
+| ① 编辑器自用资源（Icons、字体等） | 编辑器 | `FileSystem::GetEditorExecutableDirectory() / ...` |
+| ② 引擎运行时依赖（Mono、Lucky-ScriptCore.dll 等） | 引擎 | `FileSystem::GetEditorExecutableDirectory() / ...` |
+| ③ 当前项目资产（Scenes/Materials/Meshes/Textures/Shaders/Scripts） | 用户项目 | `Project::GetActive()->ResolveAbsolute(...)` 或 `GetAssetDirectory() / ...` |
+
+**强制约束**：
+
+1. **`AssetMetadata::FilePath` 契约**：始终存储"相对项目根"的相对路径（正斜杠，如 `"Assets/Materials/Metal.lmat"`）。任何消费该字段并需要转绝对路径的地方，**必须**走 `Project::GetActive()->ResolveAbsolute(...)`，**禁止**用 `std::filesystem::absolute(...)`??后者是"相对 cwd → 绝对"，会在 cwd 与项目根不重合时崩掉。
+2. **Importer / Serializer 内部的绝对路径转换**：Importer 拿到 `AssetMetadata` 之后、传给底层 IO 之前，只允许通过 `Project::GetActive()->ResolveAbsolute(metadata.FilePath)` 得到绝对路径。参考 [SceneImporter.cpp](../Lucky/Source/Lucky/Asset/SceneImporter.cpp)。
+3. **`.lmat` 等资产文件里存储的第二级路径引用**（例如材质里引用的纹理 `Path` 字段）同样是"相对项目根"，解析时同样走 `ResolveAbsolute`。
+4. **`std::filesystem::absolute` 的合法使用场景**：仅在**接收外部输入的入口层**（例如 `Project::Load(lcprojPath)` 里把 `.lcproj` 参数规范化、`PlatformUtils` 里对用户选择的文件对话框返回值规范化）允许。除此以外的业务代码禁用。
+
+```cpp
+// ? 正确：消费 AssetMetadata::FilePath
+Ref<void> MaterialImporter::Load(const AssetMetadata& metadata)
+{
+    std::string absolutePath = Project::GetActive()->ResolveAbsolute(metadata.FilePath).string();
+    return MaterialSerializer::DeserializeFromFile(absolutePath);
+}
+
+// ? 错误：cwd 依赖
+Ref<void> MaterialImporter::Load(const AssetMetadata& metadata)
+{
+    std::string absolutePath = std::filesystem::absolute(metadata.FilePath).string();  // cwd 依赖
+    return MaterialSerializer::DeserializeFromFile(absolutePath);
+}
+
+// ? 正确：编辑器自用资源走 exe 相对
+static const std::filesystem::path& GetIconRootPath()
+{
+    static const std::filesystem::path s_IconRootPath =
+        FileSystem::GetEditorExecutableDirectory() / "Resources" / "Icons";
+    return s_IconRootPath;
+}
+
+// ? 正确：引擎内置 shader 属于项目 Assets，走 Project 相对
+const std::filesystem::path assetDir = Project::GetActive()->GetAssetDirectory();
+s_Data.ShaderLib->Load((assetDir / "Shaders/Internal/InternalError").string());
+```
+
+**验证方式**：把 VS `Debugging → Working Directory` 改成任意无关目录（如 `C:\Windows`）启动编辑器，若所有图标 / 场景 / 资产 / 脚本仍能正常加载，说明代码不依赖 cwd；反之说明还有 cwd 泄漏点未清理。
+
 ---
 
 ## 附录：常用类型速查

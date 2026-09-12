@@ -189,12 +189,12 @@ namespace Lucky
         static void InitBuiltinMeshAssets();
 
         /// <summary>
-        /// 递归扫描目录，收集所有可识别资产文件的相对路径（正斜杠格式）
+        /// 递归扫描目录，收集所有可识别资产文件的相对路径（正斜杠格式，相对项目根）
         /// 跳过隐藏目录（以 . 开头）和不可识别扩展名的文件
         /// </summary>
-        /// <param name="directory">要扫描的目录（相对项目根目录）</param>
-        /// <param name="outPaths">输出：收集到的文件相对路径集合</param>
-        static void ScanDirectory(const std::string& directory, std::set<std::string>& outPaths);
+        /// <param name="absoluteDirectory">要扫描的目录（绝对路径）</param>
+        /// <param name="outPaths">输出：收集到的文件相对路径集合（相对项目根）</param>
+        static void ScanDirectory(const std::filesystem::path& absoluteDirectory, std::set<std::string>& outPaths);
 
         /// <summary>
         /// 加载资产到内存（内部方法）

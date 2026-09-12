@@ -1,0 +1,7 @@
+Project:
+  Name: Sandbox
+  EngineVersion: 0.1.0
+  AssetDirectory: Assets
+  ScriptModulePath: Binaries/Assembly-CSharp.dll
+  DefaultNamespace: Sandbox
+  StartScene: Assets/Scenes/New Scene.luck3d

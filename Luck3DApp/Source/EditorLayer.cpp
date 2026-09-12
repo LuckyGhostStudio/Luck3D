@@ -22,6 +22,8 @@
 
 #include "Lucky/Utils/PlatformUtils.h"
 
+#include "Lucky/Project/Project.h"
+
 #include "Lucky/Serialization/SceneSerializer.h"
 #include "Lucky/Serialization/MeshSerializer.h"
 #include "Lucky/Asset/ModelLoader.h"
@@ -105,17 +107,22 @@ namespace Lucky
 
     void EditorLayer::EnsureDefaultScene()
     {
-        // 默认场景固定路径：Assets/Scenes/New Scene.luck3d
-        // 使用 std::filesystem::path 构造以正确处理路径分隔符和空格
-        const std::filesystem::path relPath = std::filesystem::path("Assets") / "Scenes" / "New Scene.luck3d";
-        const std::string normalizedPath = relPath.generic_string();
-        const std::filesystem::path absPath = std::filesystem::absolute(relPath);
+        // 默认场景：优先使用 Project.StartScene，未配置时用 Assets/Scenes/New Scene.luck3d
+        const Ref<Project>& project = Project::GetActive();
+
+        std::filesystem::path absPath = project->GetStartScenePath();
+        if (absPath.empty())
+        {
+            absPath = project->GetAssetDirectory() / "Scenes" / "New Scene.luck3d";
+        }
+
+        std::string normalizedPath = project->MakeRelative(absPath);
 
         if (std::filesystem::exists(absPath))
         {
             // 场景文件已存在（例如上次启动创建过）：直接加载，保留用户在其上的所有修改
             // 内部会 ImportAsset 注册 -> UnloadAsset 清缓存 -> GetAsset 反序列化 -> SetActiveScene 广播
-            SceneManager::OpenScene(relPath);
+            SceneManager::OpenScene(std::filesystem::path(normalizedPath));
             return;
         }
 
@@ -418,7 +425,7 @@ namespace Lucky
         }
         
         const std::string& filepath = AssetManager::GetAssetFilePath(scene->GetHandle());
-        std::string absolutePath = std::filesystem::absolute(filepath).string();
+        std::string absolutePath = Project::GetActive()->ResolveAbsolute(filepath).string();
         
         SceneSerializer::Serialize(scene, absolutePath);
     }
@@ -449,9 +456,10 @@ namespace Lucky
         }
 
         // 2. 确定 .lmesh 输出路径（在 Assets 目录中）
+        const Ref<Project>& project = Project::GetActive();
         std::string meshName = filepath.stem().string();
-        std::filesystem::path lmeshRelPath = std::filesystem::path("Assets/Meshes") / (meshName + ".lmesh");
-        std::string absoluteLmeshPath = std::filesystem::absolute(lmeshRelPath).string();
+        std::filesystem::path lmeshAbsPath = project->GetAssetDirectory() / "Meshes" / (meshName + ".lmesh");
+        std::string absoluteLmeshPath = lmeshAbsPath.string();
 
         // 3. 序列化 Mesh 到 .lmesh 文件
         result.MeshData->SetName(meshName);
@@ -462,7 +470,7 @@ namespace Lucky
         }
 
         // 4. 注册 .lmesh 文件到资产系统
-        std::string normalizedLmeshPath = lmeshRelPath.generic_string();
+        std::string normalizedLmeshPath = project->MakeRelative(lmeshAbsPath);
         AssetHandle meshHandle = AssetManager::ImportAsset(normalizedLmeshPath, AssetType::Mesh);
         if (!meshHandle.IsValid())
         {
@@ -491,7 +499,7 @@ namespace Lucky
         if (!result.Materials.empty())
         {
             // 为每个导入的材质保存为独立 .lmat 文件并注册到资产系统
-            std::filesystem::path materialsDir = "Assets/Materials";
+            std::filesystem::path materialsDir = project->GetAssetDirectory() / "Materials";
 
             for (size_t i = 0; i < result.Materials.size(); ++i)
             {
@@ -509,11 +517,11 @@ namespace Lucky
                     material->SetName(matName);
                 }
 
-                // 构造 .lmat 文件路径（相对路径）
-                std::filesystem::path matFilePath = materialsDir / (matName + ".lmat");
-                std::string matFilePathStr = matFilePath.generic_string();
+                // 构造 .lmat 文件绝对路径 → 反算相对项目根的相对路径
+                std::filesystem::path matAbsPath = materialsDir / (matName + ".lmat");
+                std::string matRelPath = project->MakeRelative(matAbsPath);
 
-                AssetManager::CreateAsset(material, matFilePathStr);  // 创建材质资产
+                AssetManager::CreateAsset(material, matRelPath);  // 创建材质资产
             }
             meshRenderer.Materials = result.Materials;
         }

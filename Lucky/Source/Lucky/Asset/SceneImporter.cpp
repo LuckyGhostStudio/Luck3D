@@ -1,6 +1,7 @@
 #include "lcpch.h"
 #include "SceneImporter.h"
 
+#include "Lucky/Project/Project.h"
 #include "Lucky/Scene/Scene.h"
 #include "Lucky/Serialization/SceneSerializer.h"
 
@@ -10,7 +11,7 @@ namespace Lucky
 {
     Ref<void> SceneImporter::Load(const AssetMetadata& metadata)
     {
-        std::string absolutePath = std::filesystem::absolute(metadata.FilePath).string();
+        std::string absolutePath = Project::GetActive()->ResolveAbsolute(metadata.FilePath).string();
 
         Ref<Scene> scene = CreateRef<Scene>();
 

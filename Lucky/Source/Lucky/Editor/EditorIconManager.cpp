@@ -1,6 +1,8 @@
 #include "lcpch.h"
 #include "EditorIconManager.h"
 
+#include "Lucky/Core/FileSystem.h"
+
 namespace Lucky
 {
     /// <summary>
@@ -39,19 +41,27 @@ namespace Lucky
 
     static EditorIconData s_IconData;
 
-    static constexpr const char* s_IconRootPath = "Resources/Icons";
+    /// <summary>
+    /// 图标根目录：跟随 exe 分发（Resources/Icons 相对 exe）
+    /// </summary>
+    static const std::filesystem::path& GetIconRootPath()
+    {
+        static const std::filesystem::path s_IconRootPath = FileSystem::GetEditorExecutableDirectory() / "Resources" / "Icons";
+        return s_IconRootPath;
+    }
 
     /// <summary>
     /// 加载单个图标纹理
     /// </summary>
     static Ref<Texture2D> LoadIcon(const std::string& relativePath)
     {
-        std::string fullPath = std::string(s_IconRootPath) + "/" + relativePath;
+        std::filesystem::path fullPath = GetIconRootPath() / relativePath;
+        std::string fullPathStr = fullPath.string();
 
-        Ref<Texture2D> texture = Texture2D::Create(fullPath);
+        Ref<Texture2D> texture = Texture2D::Create(fullPathStr);
         if (!texture || texture->GetRendererID() == 0)
         {
-            LF_CORE_WARN("EditorIconManager: Failed to load icon '{0}'", fullPath);
+            LF_CORE_WARN("EditorIconManager: Failed to load icon '{0}'", fullPathStr);
             return nullptr;
         }
 

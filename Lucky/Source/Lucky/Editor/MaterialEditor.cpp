@@ -7,6 +7,8 @@
 #include "Lucky/Asset/AssetManager.h"
 #include "Lucky/Serialization/MaterialSerializer.h"
 
+#include "Lucky/Project/Project.h"
+
 #include "Lucky/UI/PropertyGrid.h"
 #include "Lucky/UI/Widgets.h"
 #include "Lucky/UI/DrawUtils.h"
@@ -150,7 +152,7 @@ namespace Lucky
                     const std::string& filepath = AssetManager::GetAssetFilePath(material->GetHandle());
                     if (!filepath.empty())
                     {
-                        std::string absolutePath = std::filesystem::absolute(filepath).string();
+                        std::string absolutePath = Project::GetActive()->ResolveAbsolute(filepath).string();
                         MaterialSerializer::SerializeToFile(material, absolutePath);
                         material->ClearDirty();
 

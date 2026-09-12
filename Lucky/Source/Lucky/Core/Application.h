@@ -6,6 +6,8 @@
 #include "Lucky/ImGui/ImGuiLayer.h"
 #include "Events/ApplicationEvent.h"
 
+#include <filesystem>
+
 namespace Lucky
 {
     /// <summary>
@@ -31,6 +33,7 @@ namespace Lucky
     {
         std::string Name = "Lucky Application";
         std::string WorkingDirectory;               // 项目工作目录
+        std::filesystem::path StartupProjectPath;   // 启动时加载的 .lcproj 绝对路径（为空则不加载）
 
         ApplicationCommandLineArgs CommandLineArgs; // 命令行参数
     };

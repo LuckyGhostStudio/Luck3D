@@ -1,0 +1,220 @@
+Assets:
+  - Handle: 14316094556886837701
+    Type: Shader
+    FilePath: Assets/Shaders/Sprite.frag
+  - Handle: 2399167916472129363
+    Type: Mesh
+    FilePath: Assets/Meshes/Builtin/Cube.lmesh
+  - Handle: 6655488017597742486
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/GizmoLine.vert
+  - Handle: 15234290432211982082
+    Type: Mesh
+    FilePath: Assets/Meshes/Builtin/Sphere.lmesh
+  - Handle: 17312037564591979438
+    Type: Mesh
+    FilePath: Assets/Meshes/Builtin/Plane.lmesh
+  - Handle: 1367921351893954327
+    Type: Material
+    FilePath: Assets/Internal/Materials/Default-Material.lmat
+  - Handle: 8942579323785748612
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/PostProcess/BrightExtract.vert
+  - Handle: 9152550665184611590
+    Type: Mesh
+    FilePath: Assets/Meshes/Builtin/Cylinder.lmesh
+  - Handle: 3168531426015946299
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/Outline/Silhouette.vert
+  - Handle: 4455977123936041385
+    Type: Material
+    FilePath: Assets/Internal/Materials/Default-Skybox.lmat
+  - Handle: 11439896302473934044
+    Type: Texture2D
+    FilePath: Assets/Textures/Palette256Gradient.png
+  - Handle: 12074619104075454074
+    Type: Mesh
+    FilePath: Assets/Meshes/Builtin/Capsule.lmesh
+  - Handle: 15596450566586240340
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/IBL/IrradianceConvolution.frag
+  - Handle: 9799267234869336321
+    Type: Material
+    FilePath: Assets/Internal/Materials/Sprite-Default.lmat
+  - Handle: 15371708753497768302
+    Type: Mesh
+    FilePath: Assets/Meshes/Hornet.lmesh
+  - Handle: 5441645204526516933
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/IBL/IrradianceConvolution.vert
+  - Handle: 12698453817255054734
+    Type: Texture2D
+    FilePath: Assets/Models/Hornet.png
+  - Handle: 1531198587102373447
+    Type: Texture2D
+    FilePath: Assets/Models/Hornet_Track.png
+  - Handle: 3315975482402015080
+    Type: Material
+    FilePath: Assets/Models/Materials/03 - Default.001.lmat
+  - Handle: 8250709426202551278
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/SpriteError.vert
+  - Handle: 3329665953495152515
+    Type: Material
+    FilePath: Assets/Models/Materials/06 - Default.lmat
+  - Handle: 15232144062445830505
+    Type: Material
+    FilePath: Assets/Models/Materials/Default.lmat
+  - Handle: 15987518023993330427
+    Type: Shader
+    FilePath: Assets/Shaders/Sprite.vert
+  - Handle: 17014347630162167645
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/EntityID.vert
+  - Handle: 11280466415807244023
+    Type: Texture2D
+    FilePath: Assets/Models/Railgun.png
+  - Handle: 18207887571965278333
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/Debug/DebugCSMVisualize.frag
+  - Handle: 1773582422509959079
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/InfiniteGrid.vert
+  - Handle: 10955190465507864681
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/Debug/DebugCSMVisualize.vert
+  - Handle: 6149568716922468288
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/EntityID.frag
+  - Handle: 168610017263145717
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/GizmoLine.frag
+  - Handle: 6359462616682614656
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/IBL/BRDFIntegration.frag
+  - Handle: 16372426137606873983
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/IBL/BRDFIntegration.vert
+  - Handle: 3440257600838034063
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/IBL/PrefilterConvolution.frag
+  - Handle: 15771248450190191591
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/Shadow/PointShadow.vert
+  - Handle: 464504272052310936
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/IBL/PrefilterConvolution.vert
+  - Handle: 13714579384069467627
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/PostProcess/Vignette.vert
+  - Handle: 180404849118161249
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/PostProcess/GaussianBlur.vert
+  - Handle: 13705296699263296701
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/InfiniteGrid.frag
+  - Handle: 10985904513569310195
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/Shadow/PointShadow.frag
+  - Handle: 12028803979449133373
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/InternalError.frag
+  - Handle: 1972284826321055660
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/InternalError.vert
+  - Handle: 3850330017456066590
+    Type: Shader
+    FilePath: Assets/Shaders/Skybox.frag
+  - Handle: 13889554933431521163
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/Outline/OutlineComposite.frag
+  - Handle: 10431053642915958225
+    Type: Shader
+    FilePath: Assets/Shaders/Standard.vert
+  - Handle: 12588649099469955510
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/Outline/OutlineComposite.vert
+  - Handle: 4467363894097463017
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/Outline/Silhouette.frag
+  - Handle: 7718811116435327311
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/PostProcess/BloomComposite.frag
+  - Handle: 8080273162530452004
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/PostProcess/BloomComposite.vert
+  - Handle: 6557653137443472253
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/PostProcess/BrightExtract.frag
+  - Handle: 15076499770392508432
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/PostProcess/Tonemapping.vert
+  - Handle: 6248968479469770679
+    Type: Texture2D
+    FilePath: Assets/Textures/Skybox/front.jpg
+  - Handle: 1437204232927605371
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/PostProcess/FXAA.frag
+  - Handle: 12072438599692010607
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/PostProcess/FXAA.vert
+  - Handle: 5143998246892189606
+    Type: Texture2D
+    FilePath: Assets/Textures/Skybox/back.jpg
+  - Handle: 619468195338306944
+    Type: Texture2D
+    FilePath: Assets/Textures/Lucky_Logo.png
+  - Handle: 17802193596664410347
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/PostProcess/GaussianBlur.frag
+  - Handle: 5477665635061983131
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/PostProcess/Tonemapping.frag
+  - Handle: 5100729605397746705
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/PostProcess/Vignette.frag
+  - Handle: 11412606314656343385
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/Shadow/Shadow.frag
+  - Handle: 17377957985545797397
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/Shadow/Shadow.vert
+  - Handle: 6885562141999423640
+    Type: Shader
+    FilePath: Assets/Shaders/Internal/SpriteError.frag
+  - Handle: 16692999243695853438
+    Type: Shader
+    FilePath: Assets/Shaders/Skybox.vert
+  - Handle: 16047082097511075704
+    Type: Shader
+    FilePath: Assets/Shaders/Standard.frag
+  - Handle: 18415810335139356765
+    Type: Texture2D
+    FilePath: Assets/Textures/NormalMap.jpg
+  - Handle: 4122827624895329357
+    Type: Texture2D
+    FilePath: Assets/Textures/PlaneColor.png
+  - Handle: 14967671377866436238
+    Type: Texture2D
+    FilePath: Assets/Textures/Skybox/down.jpg
+  - Handle: 7344781229017091105
+    Type: Texture2D
+    FilePath: Assets/Textures/Skybox/forest.hdr
+  - Handle: 7219274930768148186
+    Type: Texture2D
+    FilePath: Assets/Textures/Skybox/left.jpg
+  - Handle: 11632916828720990225
+    Type: Texture2D
+    FilePath: Assets/Textures/Skybox/right.jpg
+  - Handle: 3674058700600254159
+    Type: Texture2D
+    FilePath: Assets/Textures/Skybox/up.jpg
+  - Handle: 12303342574461291767
+    Type: Texture2D
+    FilePath: Assets/Textures/Texture_Gloss.png
+  - Handle: 15051957251215211046
+    Type: Scene
+    FilePath: Assets/Scenes/New Scene.luck3d
+  - Handle: 12097578753374292115
+    Type: Scene
+    FilePath: Assets/Scenes/ScriptTest.luck3d

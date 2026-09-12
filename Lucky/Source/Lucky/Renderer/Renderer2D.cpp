@@ -8,10 +8,12 @@
 #include "Renderer3D.h"
 
 #include "Lucky/Asset/AssetManager.h"
+#include "Lucky/Project/Project.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <array>
+#include <filesystem>
 
 namespace Lucky
 {
@@ -118,7 +120,8 @@ namespace Lucky
         delete[] quadIndices;
 
         // ---- ╪сть Sprite / SpriteError Shader ----
-        Renderer3D::GetShaderLibrary()->Load("Assets/Shaders/Internal/SpriteError");
+        const std::filesystem::path assetDir = Project::GetActive()->GetAssetDirectory();
+        Renderer3D::GetShaderLibrary()->Load((assetDir / "Shaders/Internal/SpriteError").string());
         s_Data.SpriteShader = Renderer3D::GetShaderLibrary()->Get("Sprite");
         s_Data.SpriteErrorShader = Renderer3D::GetShaderLibrary()->Get("SpriteError");
 

@@ -8,6 +8,8 @@
 #include "Lucky/Asset/AssetHandle.h"
 #include "Lucky/Asset/AssetManager.h"
 
+#include "Lucky/Project/Project.h"
+
 #include "YamlHelpers.h"
 
 #include <filesystem>
@@ -266,7 +268,7 @@ namespace Lucky
                     if (!texture && !texturePath.empty())
                     {
                         std::filesystem::path path(texturePath);
-                        std::string absolutePath = std::filesystem::absolute(path).string();
+                        std::string absolutePath = Project::GetActive()->ResolveAbsolute(path).string();
                         if (std::filesystem::exists(absolutePath))
                         {
                             texture = Texture2D::Create(absolutePath);
@@ -286,7 +288,7 @@ namespace Lucky
                     if (!texturePath.empty())
                     {
                         std::filesystem::path path(texturePath);
-                        std::string absolutePath = std::filesystem::absolute(path).string();
+                        std::string absolutePath = Project::GetActive()->ResolveAbsolute(path).string();
                         Ref<Texture2D> texture = Texture2D::Create(absolutePath);
                         material->SetTexture(propName, texture);
                     }
@@ -325,7 +327,7 @@ namespace Lucky
                 }
 
                 std::filesystem::path path(cubemapPath);
-                std::string absolutePath = std::filesystem::absolute(path).string();
+                std::string absolutePath = Project::GetActive()->ResolveAbsolute(path).string();
 
                 Ref<TextureCube> cubemap = nullptr;
                 if (isHDR)
@@ -337,15 +339,15 @@ namespace Lucky
                 {
                     // 6 面贴图来源：路径指向第一张图片，需要推导其余 5 面路径
                     // 约定：6 面文件名为 right/left/up/down/front/back + 相同扩展名
-                    std::filesystem::path dir = path.parent_path();
+                    std::filesystem::path dir = std::filesystem::path(absolutePath).parent_path();
                     std::string ext = path.extension().string();
                     std::array<std::string, 6> facePaths = {
-                        std::filesystem::absolute(dir / ("right" + ext)).string(),
-                        std::filesystem::absolute(dir / ("left" + ext)).string(),
-                        std::filesystem::absolute(dir / ("up" + ext)).string(),
-                        std::filesystem::absolute(dir / ("down" + ext)).string(),
-                        std::filesystem::absolute(dir / ("front" + ext)).string(),
-                        std::filesystem::absolute(dir / ("back" + ext)).string()
+                        (dir / ("right" + ext)).string(),
+                        (dir / ("left" + ext)).string(),
+                        (dir / ("up" + ext)).string(),
+                        (dir / ("down" + ext)).string(),
+                        (dir / ("front" + ext)).string(),
+                        (dir / ("back" + ext)).string()
                     };
                     cubemap = TextureCube::Create(facePaths);
                 }

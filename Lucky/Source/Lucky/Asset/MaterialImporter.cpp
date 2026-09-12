@@ -1,6 +1,7 @@
 #include "lcpch.h"
 #include "MaterialImporter.h"
 
+#include "Lucky/Project/Project.h"
 #include "Lucky/Serialization/MaterialSerializer.h"
 
 #include <filesystem>
@@ -9,7 +10,7 @@ namespace Lucky
 {
     Ref<void> MaterialImporter::Load(const AssetMetadata& metadata)
     {
-        std::string absolutePath = std::filesystem::absolute(metadata.FilePath).string();
+        std::string absolutePath = Project::GetActive()->ResolveAbsolute(metadata.FilePath).string();
 
         Ref<Material> material = MaterialSerializer::DeserializeFromFile(absolutePath);
 

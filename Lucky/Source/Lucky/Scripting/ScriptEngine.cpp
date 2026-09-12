@@ -2,6 +2,9 @@
 #include "ScriptEngine.h"
 #include "ScriptGlue.h"
 
+#include "Lucky/Core/FileSystem.h"
+#include "Lucky/Project/Project.h"
+
 #include <mono/jit/jit.h>
 #include <mono/metadata/assembly.h>
 #include <mono/metadata/object.h>
@@ -107,8 +110,15 @@ namespace Lucky
 
         InitMono();
 
-        LoadCoreAssembly("Resources/Scripts/Lucky-ScriptCore.dll");
-        LoadAppAssembly("Assets/Scripts/Binaries/App.dll");
+        const std::filesystem::path exeDir = FileSystem::GetEditorExecutableDirectory();
+        LoadCoreAssembly(exeDir / "Resources" / "Scripts" / "Lucky-ScriptCore.dll");
+
+        // 用户 C# 程序集：归属项目资产
+        if (const Ref<Project>& project = Project::GetActive())
+        {
+            LoadAppAssembly(project->GetScriptModulePath());
+        }
+
         LoadAssemblyClasses();
 
         s_Data->EntityBaseClass = CreateRef<ScriptClass>("Lucky", "Entity", true);
@@ -128,7 +138,9 @@ namespace Lucky
 
     void ScriptEngine::InitMono()
     {
-        mono_set_assemblies_path("mono/lib");
+        // Mono 库目录跟随 exe 分发
+        const std::filesystem::path monoLibDir = FileSystem::GetEditorExecutableDirectory() / "mono" / "lib";
+        mono_set_assemblies_path(monoLibDir.string().c_str());
 
         MonoDomain* rootDomain = mono_jit_init("LuckyJITRuntime");
         LF_CORE_ASSERT(rootDomain, "ScriptEngine: mono_jit_init failed");
