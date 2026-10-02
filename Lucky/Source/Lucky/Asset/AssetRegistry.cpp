@@ -136,12 +136,31 @@ namespace Lucky
         out << YAML::BeginMap;
         out << YAML::Key << "Assets" << YAML::Value << YAML::BeginSeq;
 
+        // m_Registry 是无序容器，直接遍历会让每次保存产生大量顺序抖动
+        // 按 FilePath 排序后输出，使条目顺序可复现、diff 可读
+        std::vector<std::pair<AssetHandle, const AssetMetadata*>> entries;
+        entries.reserve(m_Registry.size());
         for (const auto& [handle, metadata] : m_Registry)
+        {
+            entries.emplace_back(handle, &metadata);
+        }
+
+        std::sort(entries.begin(), entries.end(),
+            [](const auto& lhs, const auto& rhs)
+            {
+                if (lhs.second->FilePath != rhs.second->FilePath)
+                {
+                    return lhs.second->FilePath < rhs.second->FilePath;
+                }
+                return static_cast<uint64_t>(lhs.first) < static_cast<uint64_t>(rhs.first);
+            });
+
+        for (const auto& [handle, metadata] : entries)
         {
             out << YAML::BeginMap;
             out << YAML::Key << "Handle" << YAML::Value << static_cast<uint64_t>(handle);
-            out << YAML::Key << "Type" << YAML::Value << AssetTypeToString(metadata.Type);
-            out << YAML::Key << "FilePath" << YAML::Value << metadata.FilePath;
+            out << YAML::Key << "Type" << YAML::Value << AssetTypeToString(metadata->Type);
+            out << YAML::Key << "FilePath" << YAML::Value << metadata->FilePath;
             out << YAML::EndMap;
         }
 
