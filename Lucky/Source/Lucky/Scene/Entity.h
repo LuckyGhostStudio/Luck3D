@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Components/Components.h"
+
 #include "Components/IDComponent.h"
 #include "Components/NameComponent.h"
 #include "Components/RelationshipComponent.h"
@@ -101,6 +103,7 @@ namespace Lucky
             LF_CORE_ASSERT(HasComponent<T>(), "Entity dose not have component!");   // 该组件不存在
 
             m_Scene->m_Registry.remove<T>(m_EntityID);  // 移除 m_Scene 场景中 m_EntityID 的 T 类型组件
+            m_Scene->OnComponentRemoved(*this, ComponentTrait<T>::Type);    // 按组件类型通知，供脚本系统等清理
         }
 
         operator bool() const { return m_EntityID != entt::null; }

@@ -84,6 +84,14 @@ namespace Lucky
         static void OnUpdateEntityScript(Entity entity, DeltaTime dt);
 
         /// <summary>
+        /// 丢弃实体的脚本实例：先调用 OnDestroy，再从实例表中移除
+        /// 由 Scene::DestroyEntity 与 ScriptComponent 被移除时调用；无实例时静默跳过
+        /// 每个实例只会收到一次 OnDestroy
+        /// </summary>
+        /// <param name="entity">目标实体</param>
+        static void OnDestroyEntityScript(Entity entity);
+
+        /// <summary>
         /// 用户程序集中是否存在指定全名的 Entity 派生类
         /// </summary>
         /// <param name="fullClassName">"Namespace.ClassName" 形式的类全名</param>
@@ -186,5 +194,7 @@ namespace Lucky
         MonoMethod* m_AwakeMethod = nullptr;
         MonoMethod* m_UpdateMethod = nullptr;
         MonoMethod* m_DestroyMethod = nullptr;
+
+        bool m_DestroyCalled = false;
     };
 }

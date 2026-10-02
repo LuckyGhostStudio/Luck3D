@@ -309,6 +309,23 @@ namespace Lucky
         it->second->InvokeUpdate(static_cast<float>(dt));
     }
 
+    void ScriptEngine::OnDestroyEntityScript(Entity entity)
+    {
+        if (!entity)
+        {
+            return;
+        }
+
+        auto it = s_Data->EntityInstances.find(entity.GetUUID());
+        if (it == s_Data->EntityInstances.end())
+        {
+            return;
+        }
+
+        it->second->InvokeDestroy();
+        s_Data->EntityInstances.erase(it);
+    }
+
     Scene* ScriptEngine::GetSceneContext()
     {
         return s_Data->SceneContext;
@@ -450,6 +467,12 @@ namespace Lucky
 
     void ScriptInstance::InvokeDestroy()
     {
+        if (m_DestroyCalled)
+        {
+            return;
+        }
+        m_DestroyCalled = true;
+
         if (m_DestroyMethod)
         {
             m_ScriptClass->InvokeMethod(m_Instance, m_DestroyMethod);

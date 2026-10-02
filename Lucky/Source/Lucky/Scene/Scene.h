@@ -4,6 +4,7 @@
 
 #include "Lucky/Core/DeltaTime.h"
 #include "Lucky/Core/UUID.h"
+#include "Lucky/Scene/Components/ComponentType.h"
 #include "Lucky/Renderer/EditorCamera.h"
 #include "Lucky/Renderer/RenderContext.h"
 #include "Lucky/Asset/Asset.h"
@@ -238,6 +239,13 @@ namespace Lucky
         /// <param name="component">组件</param>
         template<typename TComponent>
         void OnComponentAdded(Entity entity, TComponent& component);
+
+        /// <summary>
+        /// entity 移除组件后调用，供需要清理的系统按组件类型处理
+        /// </summary>
+        /// <param name="entity">实体（仍然有效）</param>
+        /// <param name="componentType">被移除的组件类型</param>
+        void OnComponentRemoved(Entity entity, ComponentType componentType);
 
         /// <summary>
         /// 递归更新实体及其子树的世界变换矩阵

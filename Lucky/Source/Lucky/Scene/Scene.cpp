@@ -107,6 +107,9 @@ namespace Lucky
             parent.RemoveChild(entity);
         }
         
+        // 销毁前通知脚本：此刻实体仍然有效，脚本可正常访问自身数据
+        ScriptEngine::OnDestroyEntityScript(entity);
+
         UUID id = entity.GetUUID();
 
         // 如果是根节点，从根节点列表移除（非根节点为 no-op）
@@ -692,5 +695,13 @@ namespace Lucky
 
     }
     
+    void Scene::OnComponentRemoved(Entity entity, ComponentType componentType)
+    {
+        if (componentType == ComponentType::Script)
+        {
+            ScriptEngine::OnDestroyEntityScript(entity);
+        }
+    }
+
     // TODO 添加新组件
 }
