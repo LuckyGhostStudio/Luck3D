@@ -76,18 +76,78 @@ namespace Lucky
         }
         out << YAML::EndSeq;
 
-        out << YAML::Key << "Entities" << YAML::Value << YAML::BeginSeq;
+        // 实体按层次顺序写出：根节点按 RootEntityOrder，子节点紧跟父节点
+        // 这样输出顺序与容器迭代顺序无关，既可复现又与 Hierarchy 面板显示一致
+        std::vector<UUID> orderedEntities;
+        std::unordered_set<UUID> visitedEntities;
 
+        // 显式栈做深度优先，逆序压入以保证弹出顺序与 RootEntityOrder 一致
+        const std::vector<UUID>& rootOrder = scene->GetRootEntityOrder();
+        std::vector<UUID> pendingEntities(rootOrder.rbegin(), rootOrder.rend());
+
+        while (!pendingEntities.empty())
+        {
+            UUID currentID = pendingEntities.back();
+            pendingEntities.pop_back();
+
+            // 已写出过的实体直接跳过（父子关系成环时兜底）
+            if (!visitedEntities.insert(currentID).second)
+            {
+                continue;
+            }
+
+            Entity entity = scene->TryGetEntityWithUUID(currentID);
+            if (!entity)
+            {
+                continue;
+            }
+
+            orderedEntities.push_back(currentID);
+
+            if (!entity.HasComponent<RelationshipComponent>())
+            {
+                continue;
+            }
+
+            const RelationshipComponent& relationship = entity.GetComponent<RelationshipComponent>();
+            for (auto childIt = relationship.Children.rbegin(); childIt != relationship.Children.rend(); ++childIt)
+            {
+                pendingEntities.push_back(*childIt);
+            }
+        }
+
+        // 兜底：既不在根列表、也没被任何父节点引用的实体不能因此丢失
+        // 按 UUID 升序写出，保证顺序依然可复现
+        std::vector<UUID> orphanEntities;
         scene->m_Registry.each([&](auto entityID)
         {
             Entity entity = { entityID, scene.get() };
+            if (entity && visitedEntities.count(entity.GetUUID()) == 0)
+            {
+                orphanEntities.push_back(entity.GetUUID());
+            }
+        });
+
+        std::sort(orphanEntities.begin(), orphanEntities.end(),
+            [](const UUID& lhs, const UUID& rhs)
+            {
+                return static_cast<uint64_t>(lhs) < static_cast<uint64_t>(rhs);
+            });
+
+        orderedEntities.insert(orderedEntities.end(), orphanEntities.begin(), orphanEntities.end());
+
+        out << YAML::Key << "Entities" << YAML::Value << YAML::BeginSeq;
+
+        for (UUID entityID : orderedEntities)
+        {
+            Entity entity = scene->TryGetEntityWithUUID(entityID);
             if (!entity)
             {
-                return;
+                continue;
             }
 
             SerializeEntity(out, entity);
-        });
+        }
 
         out << YAML::EndSeq;
         

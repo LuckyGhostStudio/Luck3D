@@ -9,6 +9,23 @@ EnvironmentSettings:
   ReflectionResolution: 128
 RootEntityOrder: [6044912589498632098, 6702981233354711229]
 Entities:
+  - Entity: 6044912589498632098
+    NameComponent:
+      Name: Cube
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 1
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 1367921351893954327
   - Entity: 6702981233354711229
     NameComponent:
       Name: Camera
@@ -32,20 +49,3 @@ Entities:
       FixedAspectRatio: false
     ScriptComponent:
       ClassName: Sandbox.PlayerController
-  - Entity: 6044912589498632098
-    NameComponent:
-      Name: Cube
-    TransformComponent:
-      Position: [0, 0, 0]
-      Rotation: [0, 0, 0, 1]
-      Scale: [1, 1, 1]
-    RelationshipComponent:
-      Parent: 0
-      Children:
-        []
-    MeshFilterComponent:
-      PrimitiveType: 1
-      MeshAsset: 0
-    MeshRendererComponent:
-      Materials:
-        - AssetHandle: 1367921351893954327
