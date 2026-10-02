@@ -20,10 +20,4 @@ namespace Lucky
     {
 
     }
-
-    UUID::UUID(const UUID& id)
-        : m_UUID(id.m_UUID)
-    {
-
-    }
 }
