@@ -7,6 +7,7 @@
 
 #include <mono/jit/jit.h>
 #include <mono/metadata/assembly.h>
+#include <mono/metadata/class.h>
 #include <mono/metadata/object.h>
 #include <mono/metadata/tabledefs.h>
 
@@ -99,6 +100,82 @@ namespace Lucky
             delete[] fileData;
 
             return assembly;
+        }
+
+        /// <summary>
+        /// 取托管异常的字符串属性（Message / StackTrace），取不到返回空串
+        /// </summary>
+        std::string GetExceptionStringProperty(MonoObject* exception, const char* propertyName)
+        {
+            MonoClass* exceptionClass = mono_object_get_class(exception);
+            MonoProperty* property = mono_class_get_property_from_name(exceptionClass, propertyName);
+            if (!property)
+            {
+                return {};
+            }
+
+            MonoMethod* getter = mono_property_get_get_method(property);
+            if (!getter)
+            {
+                return {};
+            }
+
+            MonoObject* getterException = nullptr;
+            MonoString* value = (MonoString*)mono_runtime_invoke(getter, exception, nullptr, &getterException);
+            if (getterException || !value)
+            {
+                return {};
+            }
+
+            char* cstr = mono_string_to_utf8(value);
+            if (!cstr)
+            {
+                return {};
+            }
+
+            std::string result(cstr);
+            mono_free(cstr);
+            return result;
+        }
+
+        /// <summary>
+        /// 把托管异常打到日志：类型名 + Message + StackTrace，自身不抛异常
+        /// </summary>
+        void LogScriptException(MonoObject* exception)
+        {
+            MonoClass* exceptionClass = mono_object_get_class(exception);
+
+            const char* nameSpace = mono_class_get_namespace(exceptionClass);
+            const char* className = mono_class_get_name(exceptionClass);
+            std::string typeName = (nameSpace && strlen(nameSpace) > 0)
+                ? std::string(nameSpace) + "." + className
+                : std::string(className);
+
+            std::string message = GetExceptionStringProperty(exception, "Message");
+            std::string stackTrace = GetExceptionStringProperty(exception, "StackTrace");
+
+            // 反射取不到属性时退回 ToString，至少保留类型与消息
+            if (message.empty() && stackTrace.empty())
+            {
+                MonoObject* toStringException = nullptr;
+                MonoString* text = mono_object_to_string(exception, &toStringException);
+                if (!toStringException && text)
+                {
+                    char* cstr = mono_string_to_utf8(text);
+                    if (cstr)
+                    {
+                        message = cstr;
+                        mono_free(cstr);
+                    }
+                }
+            }
+
+            LF_CORE_ERROR("Script exception: {}: {}", typeName, message);
+
+            if (!stackTrace.empty())
+            {
+                LF_CORE_ERROR("{}", stackTrace);
+            }
         }
     }
 
@@ -326,7 +403,15 @@ namespace Lucky
 
     MonoObject* ScriptClass::InvokeMethod(MonoObject* instance, MonoMethod* method, void** params)
     {
-        return mono_runtime_invoke(method, instance, params, nullptr);
+        MonoObject* exception = nullptr;
+        MonoObject* result = mono_runtime_invoke(method, instance, params, &exception);
+
+        if (exception)
+        {
+            LogScriptException(exception);
+        }
+
+        return result;
     }
 
     // ======== ScriptInstance ========
