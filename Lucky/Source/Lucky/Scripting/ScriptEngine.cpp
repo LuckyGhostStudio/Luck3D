@@ -190,6 +190,12 @@ namespace Lucky
 
     void ScriptEngine::OnRuntimeStop()
     {
+        // OnDestroy 期间脚本仍可访问场景上下文，故先调用再清空
+        for (auto& [entityID, instance] : s_Data->EntityInstances)
+        {
+            instance->InvokeDestroy();
+        }
+
         s_Data->SceneContext = nullptr;
         s_Data->EntityInstances.clear();
     }
@@ -333,6 +339,7 @@ namespace Lucky
         m_Constructor = s_Data->EntityBaseClass->GetMethod(".ctor", 1);
         m_AwakeMethod = scriptClass->GetMethod("Awake", 0);
         m_UpdateMethod = scriptClass->GetMethod("Update", 1);
+        m_DestroyMethod = scriptClass->GetMethod("OnDestroy", 0);
 
         UUID id = entity.GetUUID();
         void* param = &id;
@@ -353,6 +360,14 @@ namespace Lucky
         {
             void* param = &dt;
             m_ScriptClass->InvokeMethod(m_Instance, m_UpdateMethod, &param);
+        }
+    }
+
+    void ScriptInstance::InvokeDestroy()
+    {
+        if (m_DestroyMethod)
+        {
+            m_ScriptClass->InvokeMethod(m_Instance, m_DestroyMethod);
         }
     }
 }

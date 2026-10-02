@@ -62,7 +62,7 @@ namespace Lucky
 
         /// <summary>
         /// 退出运行态：由 Scene::OnRuntimeStop 调用
-        /// 释放所有脚本实例的 Mono 引用，清空场景上下文
+        /// 先对所有脚本实例调用 OnDestroy，再释放实例、清空场景上下文
         /// </summary>
         static void OnRuntimeStop();
 
@@ -171,6 +171,11 @@ namespace Lucky
         /// <param name="dt">帧间隔</param>
         void InvokeUpdate(float dt);
 
+        /// <summary>
+        /// 调用 OnDestroy 方法（若脚本类未定义则跳过）
+        /// </summary>
+        void InvokeDestroy();
+
         Ref<ScriptClass> GetScriptClass() const { return m_ScriptClass; }
     private:
         Ref<ScriptClass> m_ScriptClass;
@@ -180,5 +185,6 @@ namespace Lucky
         MonoMethod* m_Constructor = nullptr;
         MonoMethod* m_AwakeMethod = nullptr;
         MonoMethod* m_UpdateMethod = nullptr;
+        MonoMethod* m_DestroyMethod = nullptr;
     };
 }

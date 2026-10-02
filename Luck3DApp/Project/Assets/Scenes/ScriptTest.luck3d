@@ -1,0 +1,51 @@
+Scene: ScriptTest
+Handle: 12097578753374292115
+EnvironmentSettings:
+  SkyboxMaterial: 4455977123936041385
+  AmbientSource: 0
+  AmbientColor: [0.211999997, 0.226999998, 0.259000003]
+  DiffuseIntensity: 1
+  SpecularIntensity: 1
+  ReflectionResolution: 128
+RootEntityOrder: [6044912589498632098, 6702981233354711229]
+Entities:
+  - Entity: 6702981233354711229
+    NameComponent:
+      Name: Camera
+    TransformComponent:
+      Position: [0.0500000007, 0.200000003, 6.86999989]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    CameraComponent:
+      Projection: 0
+      PerspectiveFOV: 45
+      PerspectiveNear: 0.00999999978
+      PerspectiveFar: 1000
+      OrthographicSize: 10
+      OrthographicNear: -1
+      OrthographicFar: 1000
+      Primary: true
+      FixedAspectRatio: false
+    ScriptComponent:
+      ClassName: Sandbox.PlayerController
+  - Entity: 6044912589498632098
+    NameComponent:
+      Name: Cube
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 1
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 1367921351893954327

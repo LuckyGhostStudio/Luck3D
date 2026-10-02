@@ -22,5 +22,11 @@ namespace Sandbox
             position.x += deltaTime;
             transform.Position = position;
         }
+        
+        void OnDestroy()
+        {
+            TransformComponent t = GetComponent<TransformComponent>();
+            Debug.Log("OnDestroy, x = " + t.Position.x);
+        }
     }
 }
