@@ -14,7 +14,8 @@ namespace Lucky
         Mesh,           // 网格（.lmesh）
         Texture2D,      // 2D 纹理（.png/.jpg/.tga/.bmp/.hdr）
         Scene,          // 场景（.luck3d）
-        Shader          // 着色器（预留）
+        Shader,         // 着色器（预留）
+        Script          // 脚本（.cs）
     };
 
     /// <summary>
@@ -29,6 +30,7 @@ namespace Lucky
             case AssetType::Texture2D:  return "Texture2D";
             case AssetType::Scene:      return "Scene";
             case AssetType::Shader:     return "Shader";
+            case AssetType::Script:     return "Script";
             default:                    return "None";
         }
     }
@@ -43,6 +45,7 @@ namespace Lucky
         if (str == "Texture2D") return AssetType::Texture2D;
         if (str == "Scene")     return AssetType::Scene;
         if (str == "Shader")    return AssetType::Shader;
+        if (str == "Script")    return AssetType::Script;
         return AssetType::None;
     }
 
@@ -83,6 +86,12 @@ namespace Lucky
         if (extension == ".vert" || extension == ".frag")
         {
             return AssetType::Shader;
+        }
+
+        // 脚本
+        if (extension == ".cs")
+        {
+            return AssetType::Script;
         }
 
         return AssetType::None;

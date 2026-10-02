@@ -94,6 +94,7 @@ namespace Lucky
         s_IconData.AssetTypeIcons[AssetType::Texture2D] = LoadIcon("Asset/Texture.png");
         s_IconData.AssetTypeIcons[AssetType::Scene]     = LoadIcon("Asset/Scene.png");
         s_IconData.AssetTypeIcons[AssetType::Shader]    = LoadIcon("Asset/Shader.png");
+        s_IconData.AssetTypeIcons[AssetType::Script]    = LoadIcon("Asset/Script.png");
 
         // ---- 加载组件图标 ----
         s_IconData.ComponentIcons[ComponentType::Transform]          = LoadIcon("Component/Transform.png");

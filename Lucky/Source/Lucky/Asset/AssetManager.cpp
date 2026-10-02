@@ -7,7 +7,9 @@
 #include "MeshImporter.h"
 #include "TextureImporter.h"
 #include "SceneImporter.h"
+#include "ScriptImporter.h"
 
+#include "Lucky/Asset/Script.h"
 #include "Lucky/Project/Project.h"
 #include "Lucky/Renderer/Material.h"
 #include "Lucky/Renderer/Mesh.h"
@@ -44,6 +46,7 @@ namespace Lucky
         template<> AssetType GetExpectedAssetType<Mesh>() { return AssetType::Mesh; }
         template<> AssetType GetExpectedAssetType<Texture2D>() { return AssetType::Texture2D; }
         template<> AssetType GetExpectedAssetType<Scene>() { return AssetType::Scene; }
+        template<> AssetType GetExpectedAssetType<Script>() { return AssetType::Script; }
     }
 
     // ---- 公有接口实现 ----
@@ -57,6 +60,7 @@ namespace Lucky
         s_Data.Importers[AssetType::Mesh] = CreateScope<MeshImporter>();
         s_Data.Importers[AssetType::Texture2D] = CreateScope<TextureImporter>();
         s_Data.Importers[AssetType::Scene] = CreateScope<SceneImporter>();
+        s_Data.Importers[AssetType::Script] = CreateScope<ScriptImporter>();
 
         // 加载 Registry（从 Project 派生绝对路径）
         s_Data.Registry.Load(Project::GetActive()->GetAssetRegistryPath().string());
