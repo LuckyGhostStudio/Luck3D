@@ -26,3 +26,6 @@ Luck3DApp/Resources/Scripts
 
 # Rider Files
 .idea
+
+# Agent Workspace
+.workbuddy/
