@@ -98,6 +98,15 @@ namespace Lucky
         static bool EntityScriptClassExists(const std::string& fullClassName);
 
         /// <summary>
+        /// 按简单类名在用户程序集里解析脚本类
+        /// 匹配规则：ScriptClass::GetName() 等于 className（文件名必须与类名一致）
+        /// 由脚本资产（.cs）解析到可实例化的类；找到多个同名类时视为失败
+        /// </summary>
+        /// <param name="className">简单类名（通常是 .cs 的文件名词干，如 "PlayerController"）</param>
+        /// <returns>脚本类；未找到或有多个同名类时返回 nullptr</returns>
+        static Ref<ScriptClass> ResolveScriptClass(const std::string& className);
+
+        /// <summary>
         /// 获取当前 Runtime 场景上下文（非 Runtime 期为 nullptr）
         /// </summary>
         static Scene* GetSceneContext();

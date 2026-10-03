@@ -282,6 +282,51 @@ namespace Lucky
         return s_Data->EntityClasses.find(fullClassName) != s_Data->EntityClasses.end();
     }
 
+    Ref<ScriptClass> ScriptEngine::ResolveScriptClass(const std::string& className)
+    {
+        if (className.empty())
+        {
+            return nullptr;
+        }
+
+        Ref<ScriptClass> matchedClass = nullptr;
+        bool hasMultipleMatches = false;
+        std::string matchedFullNames;
+
+        for (const auto& [fullName, scriptClass] : s_Data->EntityClasses)
+        {
+            if (scriptClass->GetName() != className)
+            {
+                continue;
+            }
+
+            if (matchedClass)
+            {
+                // 已经命中过一个：记为冲突，继续收集候选名用于日志
+                hasMultipleMatches = true;
+                matchedFullNames += ", " + fullName;
+                continue;
+            }
+
+            matchedClass = scriptClass;
+            matchedFullNames = fullName;
+        }
+
+        if (hasMultipleMatches)
+        {
+            LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - Class name '{0}' matches multiple script classes: {1}. Please rename the file or adjust its namespace to make it unique.", className, matchedFullNames);
+            return nullptr;
+        }
+
+        if (!matchedClass)
+        {
+            LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - Script class '{0}' not found. Please make sure the script has been compiled and its class name matches the file name.", className);
+            return nullptr;
+        }
+
+        return matchedClass;
+    }
+
     void ScriptEngine::OnCreateEntityScript(Entity entity, const std::string& fullClassName)
     {
         auto it = s_Data->EntityClasses.find(fullClassName);
