@@ -8,6 +8,9 @@
 
 #include "Lucky/Editor/EditorIconManager.h"
 
+#include "Lucky/Renderer/Material.h"
+#include "Lucky/Renderer/Mesh.h"
+
 #include "Lucky/UI/PropertyGrid.h"
 #include "Lucky/UI/Widgets.h"
 
@@ -26,6 +29,46 @@ namespace Lucky
         const Ref<Texture2D>& DefaultIcon(Entity /*entity*/)
         {
             return EditorIconManager::GetComponentIcon(ComponentTrait<TComponent>::Type);
+        }
+
+        // ======== 脚本字段控件的整数中转辅助 ========
+
+        /// <summary>
+        /// 整数字段载荷统一读成 int64（显示用；ULong 超 int64 上限时截断，不写回就不损坏）
+        /// </summary>
+        int64_t GetScriptFieldAsInt64(const ScriptFieldValue& value)
+        {
+            switch (value.Type)
+            {
+                case ScriptFieldType::SByte:  return std::get<int8_t>(value.Data);
+                case ScriptFieldType::Byte:   return std::get<uint8_t>(value.Data);
+                case ScriptFieldType::Short:  return std::get<int16_t>(value.Data);
+                case ScriptFieldType::UShort: return std::get<uint16_t>(value.Data);
+                case ScriptFieldType::Int:    return std::get<int32_t>(value.Data);
+                case ScriptFieldType::UInt:   return std::get<uint32_t>(value.Data);
+                case ScriptFieldType::Long:   return std::get<int64_t>(value.Data);
+                case ScriptFieldType::ULong:  return static_cast<int64_t>(std::get<uint64_t>(value.Data));
+                default:                      return 0;
+            }
+        }
+
+        /// <summary>
+        /// 把控件编辑结果按字段实际类型写回载荷
+        /// </summary>
+        void SetScriptFieldFromInt64(ScriptFieldValue& value, int64_t newValue)
+        {
+            switch (value.Type)
+            {
+                case ScriptFieldType::SByte:  value.Data = static_cast<int8_t>(newValue); break;
+                case ScriptFieldType::Byte:   value.Data = static_cast<uint8_t>(newValue); break;
+                case ScriptFieldType::Short:  value.Data = static_cast<int16_t>(newValue); break;
+                case ScriptFieldType::UShort: value.Data = static_cast<uint16_t>(newValue); break;
+                case ScriptFieldType::Int:    value.Data = static_cast<int32_t>(newValue); break;
+                case ScriptFieldType::UInt:   value.Data = static_cast<uint32_t>(newValue); break;
+                case ScriptFieldType::Long:   value.Data = newValue; break;
+                case ScriptFieldType::ULong:  value.Data = static_cast<uint64_t>(newValue); break;
+                default: break;
+            }
         }
 
         // ======== TransformComponent ========
@@ -302,9 +345,179 @@ namespace Lucky
                 ScriptEngine::SyncScriptFieldMap(sc.ScriptAsset, sc.Fields);
             }
 
-            if (sc.ScriptAsset && !ScriptEngine::ResolveScriptClass(sc.ScriptAsset->GetClassName()))
+            if (!sc.ScriptAsset)
+            {
+                return;
+            }
+
+            // 展示路径用静默解析：错误提示本身就是给用户的反馈，不需要再刷日志
+            Ref<ScriptClass> scriptClass = ScriptEngine::TryResolveScriptClass(sc.ScriptAsset->GetClassName());
+            if (!scriptClass)
             {
                 ImGui::TextColored({0.9f, 0.35f, 0.35f, 1.0f}, "Script class not found.\nMake sure the script is compiled and the class name matches the file name.");
+                return;
+            }
+
+            for (const ScriptField& field : scriptClass->GetFields())
+            {
+                auto it = sc.Fields.find(field.Name);
+                if (it == sc.Fields.end())
+                {
+                    continue;
+                }
+
+                // 必须用引用：控件是原地修改，取副本会导致"拖了没反应"
+                ScriptFieldValue& fieldValue = it->second;
+                const char* label = field.Name.c_str();
+
+                // 按控件种类分发：直接档传 std::get 的引用原地改；中转档临时变量、返回 true 才写回
+                switch (GetScriptFieldTypeInfo(fieldValue.Type).Widget)
+                {
+                    case ScriptFieldWidgetKind::Checkbox:
+                    {
+                        UI::PropertyCheckbox(label, std::get<bool>(fieldValue.Data));
+                        break;
+                    }
+                    case ScriptFieldWidgetKind::Int:
+                    {
+                        const bool isSmall = (fieldValue.Type != ScriptFieldType::UInt &&
+                                              fieldValue.Type != ScriptFieldType::Long &&
+                                              fieldValue.Type != ScriptFieldType::ULong);
+                        int64_t temp = GetScriptFieldAsInt64(fieldValue);
+                        bool modified = false;
+                        if (isSmall)
+                        {
+                            int temp32 = static_cast<int>(temp);
+                            modified = UI::PropertyInt(label, temp32);
+                            temp = temp32;
+                        }
+                        else
+                        {
+                            modified = UI::PropertyLong(label, temp);
+                        }
+                        if (modified)
+                        {
+                            SetScriptFieldFromInt64(fieldValue, temp);
+                        }
+                        break;
+                    }
+                    case ScriptFieldWidgetKind::Float:
+                    {
+                        if (fieldValue.Type == ScriptFieldType::Double)
+                        {
+                            float temp = static_cast<float>(std::get<double>(fieldValue.Data));
+                            if (UI::PropertyFloat(label, temp))
+                            {
+                                fieldValue.Data = static_cast<double>(temp);
+                            }
+                        }
+                        else
+                        {
+                            UI::PropertyFloat(label, std::get<float>(fieldValue.Data));
+                        }
+                        break;
+                    }
+                    case ScriptFieldWidgetKind::Float2:
+                    {
+                        UI::PropertyFloat2(label, std::get<glm::vec2>(fieldValue.Data));
+                        break;
+                    }
+                    case ScriptFieldWidgetKind::Float3:
+                    {
+                        UI::PropertyFloat3(label, std::get<glm::vec3>(fieldValue.Data));
+                        break;
+                    }
+                    case ScriptFieldWidgetKind::Float4:
+                    {
+                        if (fieldValue.Type == ScriptFieldType::Quaternion)
+                        {
+                            const glm::quat& quat = std::get<glm::quat>(fieldValue.Data);
+                            glm::vec4 temp(quat.w, quat.x, quat.y, quat.z);
+                            if (UI::PropertyFloat4(label, temp))
+                            {
+                                fieldValue.Data = glm::quat(temp.x, temp.y, temp.z, temp.w);
+                            }
+                        }
+                        else
+                        {
+                            UI::PropertyFloat4(label, std::get<glm::vec4>(fieldValue.Data));
+                        }
+                        break;
+                    }
+                    case ScriptFieldWidgetKind::Color:
+                    {
+                        UI::PropertyColor(label, std::get<glm::vec4>(fieldValue.Data));
+                        break;
+                    }
+                    case ScriptFieldWidgetKind::Text:
+                    {
+                        // PropertyString 是 char 缓冲：中转，改才写回
+                        const std::string& text = std::get<std::string>(fieldValue.Data);
+                        char buffer[256];
+                        strncpy_s(buffer, text.c_str(), sizeof(buffer) - 1);
+                        if (UI::PropertyString(label, buffer, sizeof(buffer)))
+                        {
+                            fieldValue.Data = std::string(buffer);
+                        }
+                        break;
+                    }
+                    case ScriptFieldWidgetKind::EntityRef:
+                    {
+                        UI::PropertyEntity(label, std::get<UUID>(fieldValue.Data), entity.GetScene());
+                        break;
+                    }
+                    case ScriptFieldWidgetKind::AssetRef:
+                    {
+                        // PropertyAsset<T> 需要 Ref<T>&：向下转换中转，改才写回；空 Ref 转换安全
+                        const Ref<Asset>& asset = std::get<Ref<Asset>>(fieldValue.Data);
+                        bool modified = false;
+                        Ref<Asset> newAsset;
+                        switch (fieldValue.Type)
+                        {
+                            case ScriptFieldType::Material:
+                            {
+                                Ref<Material> temp = std::static_pointer_cast<Material>(asset);
+                                modified = UI::PropertyAsset(label, temp);
+                                newAsset = temp;
+                                break;
+                            }
+                            case ScriptFieldType::Mesh:
+                            {
+                                Ref<Mesh> temp = std::static_pointer_cast<Mesh>(asset);
+                                modified = UI::PropertyAsset(label, temp);
+                                newAsset = temp;
+                                break;
+                            }
+                            case ScriptFieldType::Texture2D:
+                            {
+                                Ref<Texture2D> temp = std::static_pointer_cast<Texture2D>(asset);
+                                modified = UI::PropertyAsset(label, temp);
+                                newAsset = temp;
+                                break;
+                            }
+                            case ScriptFieldType::Script:
+                            {
+                                Ref<Script> temp = std::static_pointer_cast<Script>(asset);
+                                modified = UI::PropertyAsset(label, temp);
+                                newAsset = temp;
+                                break;
+                            }
+                            default:
+                            {
+                                break;
+                            }
+                        }
+                        if (modified)
+                        {
+                            fieldValue.Data = newAsset;
+                        }
+                        break;
+                    }
+                    default:
+                    {
+                        break;
+                    }
+                }
             }
         }
     }

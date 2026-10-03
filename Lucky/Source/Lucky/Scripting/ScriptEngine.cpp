@@ -415,6 +415,16 @@ namespace Lucky
 
     Ref<ScriptClass> ScriptEngine::ResolveScriptClass(const std::string& className)
     {
+        return ResolveScriptClassImpl(className, true);
+    }
+
+    Ref<ScriptClass> ScriptEngine::TryResolveScriptClass(const std::string& className)
+    {
+        return ResolveScriptClassImpl(className, false);
+    }
+
+    Ref<ScriptClass> ScriptEngine::ResolveScriptClassImpl(const std::string& className, bool logDiagnostics)
+    {
         if (className.empty())
         {
             return nullptr;
@@ -445,14 +455,16 @@ namespace Lucky
 
         if (hasMultipleMatches)
         {
-            LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - Class name '{0}' matches multiple script classes: {1}. Please rename the file or adjust its namespace to make it unique.", className, matchedFullNames);
+            if (logDiagnostics)
+            {
+                LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - Class name '{0}' matches multiple script classes: {1}. Please rename the file or adjust its namespace to make it unique.", className, matchedFullNames);
+            }
             return nullptr;
         }
 
-        if (!matchedClass)
+        if (!matchedClass && logDiagnostics)
         {
             LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - Script class '{0}' not found. Please make sure the script has been compiled and its class name matches the file name.", className);
-            return nullptr;
         }
 
         return matchedClass;
@@ -515,6 +527,13 @@ namespace Lucky
         LF_CORE_ASSERT(scriptClass, "ScriptEngine::OnCreateEntityScript - scriptClass must not be null");
 
         Ref<ScriptInstance> instance = CreateRef<ScriptInstance>(scriptClass, entity);
+
+        // 灌值必须在 Awake 之前：脚本的 Awake 通常会直接读取字段
+        if (entity.HasComponent<ScriptComponent>())
+        {
+            instance->SetFieldValues(entity.GetComponent<ScriptComponent>().Fields);
+        }
+
         s_Data->EntityInstances[entity.GetUUID()] = instance;
 
         instance->InvokeAwake();
@@ -949,6 +968,34 @@ namespace Lucky
         UUID id = entity.GetUUID();
         void* param = &id;
         m_ScriptClass->InvokeMethod(m_Instance, m_Constructor, &param);
+    }
+
+    void ScriptInstance::SetFieldValues(const ScriptFieldMap& fieldMap)
+    {
+        if (!m_Instance || !m_ScriptClass)
+        {
+            return;
+        }
+
+        const std::vector<ScriptField>& fields = m_ScriptClass->GetFields();
+        for (const ScriptField& field : fields)
+        {
+            auto it = fieldMap.find(field.Name);
+            if (it == fieldMap.end())
+            {
+                // 字段表里没有这一项：保留托管对象的脚本内初始值
+                continue;
+            }
+
+            if (it->second.Type != field.Type)
+            {
+                // 类型不匹配：写下去会按错误的位宽/位模式覆盖内存，必须拦下
+                LF_CORE_WARN("ScriptInstance::SetFieldValues - Value type of field '{0}.{1}' does not match the script type, skipped", m_ScriptClass->GetName(), field.Name);
+                continue;
+            }
+
+            m_ScriptClass->SetFieldValue(m_Instance, field, it->second);
+        }
     }
 
     void ScriptInstance::InvokeAwake()

@@ -15,6 +15,11 @@
 #include <glm/glm.hpp>
 #include <type_traits>
 
+namespace Lucky
+{
+    class Scene;
+}
+
 namespace Lucky::UI
 {
     /// <summary>
@@ -93,6 +98,17 @@ namespace Lucky::UI
     /// <param name="max">最大值</param>
     /// <returns>值是否被修改</returns>
     bool PropertyInt(const char* label, int& value, float delta = 1.0f, int min = 0, int max = 0);
+
+    /// <summary>
+    /// 64 位整数拖拽属性（给 UInt / Long / ULong 字段用）
+    /// </summary>
+    /// <param name="label">属性名</param>
+    /// <param name="value">64 位整数值引用</param>
+    /// <param name="delta">拖拽速度（默认 1.0）</param>
+    /// <param name="min">最小值（min == max 时不夹取）</param>
+    /// <param name="max">最大值</param>
+    /// <returns>值是否被修改</returns>
+    bool PropertyLong(const char* label, int64_t& value, float delta = 1.0f, int64_t min = 0, int64_t max = 0);
 
     // ---- Color 系列 ----
 
@@ -226,6 +242,18 @@ namespace Lucky::UI
         return clicked || modified;
     }
     
+    // ---- Entity 引用 ----
+
+    /// <summary>
+    /// 实体引用属性：显示目标实体名，支持从场景树拖入实体赋值，可一键清空
+    /// 不校验目标实体上挂的是什么脚本/组件
+    /// </summary>
+    /// <param name="label">属性名</param>
+    /// <param name="entityID">实体 UUID（0 表示空引用）</param>
+    /// <param name="scene">当前场景（用于把 UUID 解析成实体名）</param>
+    /// <returns>值是否被修改</returns>
+    bool PropertyEntity(const char* label, UUID& entityID, Scene* scene);
+
     // ---- Object TODO ----
     
     bool PropertyObject(const char* label, const char* valueName);

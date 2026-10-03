@@ -815,6 +815,13 @@ namespace Lucky
                     sc.Fields[fieldName] = fieldValue;
                 }
             }
+
+            // 与脚本当前的字段列表对齐：
+            // 场景可能是"脚本加过字段之后"才打开的，此时 Fields 里缺少新字段的初始值
+            if (sc.ScriptAsset)
+            {
+                ScriptEngine::SyncScriptFieldMap(sc.ScriptAsset, sc.Fields);
+            }
         }
     }
 

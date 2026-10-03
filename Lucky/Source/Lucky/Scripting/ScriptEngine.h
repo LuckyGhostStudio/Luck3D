@@ -112,6 +112,14 @@ namespace Lucky
         static Ref<ScriptClass> ResolveScriptClass(const std::string& className);
 
         /// <summary>
+        /// 按简单类名解析脚本类，与 ResolveScriptClass 行为相同但不写日志
+        /// 供每帧调用的展示路径使用（Inspector 的可用性提示），避免逐帧刷日志
+        /// </summary>
+        /// <param name="className">简单类名（通常是 .cs 的文件名词干）</param>
+        /// <returns>脚本类；未找到或有多个同名类时返回 nullptr</returns>
+        static Ref<ScriptClass> TryResolveScriptClass(const std::string& className);
+
+        /// <summary>
         /// 把脚本字段表与脚本类的当前字段列表对齐
         /// - 类里新增的字段：用 ScriptField::DefaultValue 补进 fieldMap
         /// - 已存在但类型与脚本不符的字段：用 DefaultValue 覆盖（脚本改了字段类型时的必然结果）
@@ -150,6 +158,13 @@ namespace Lucky
 
         static MonoObject* InstantiateClass(MonoClass* monoClass);
         static void LoadAssemblyClasses();
+
+        /// <summary>
+        /// 解析脚本类的统一实现
+        /// </summary>
+        /// <param name="className">简单类名</param>
+        /// <param name="logDiagnostics">是否输出诊断日志</param>
+        static Ref<ScriptClass> ResolveScriptClassImpl(const std::string& className, bool logDiagnostics);
     };
 
     /// <summary>
@@ -238,6 +253,14 @@ namespace Lucky
     {
     public:
         ScriptInstance(Ref<ScriptClass> scriptClass, Entity entity);
+
+        /// <summary>
+        /// 把字段表的值写入托管对象
+        /// 必须在 InvokeAwake 之前调用：脚本的 Awake 通常会直接读取字段
+        /// 字段表里没有的字段会被跳过，托管对象保留其脚本内初始值
+        /// </summary>
+        /// <param name="fieldMap">字段表（键为字段名）</param>
+        void SetFieldValues(const ScriptFieldMap& fieldMap);
 
         /// <summary>
         /// 调用 Awake 方法（若脚本类未定义则跳过）

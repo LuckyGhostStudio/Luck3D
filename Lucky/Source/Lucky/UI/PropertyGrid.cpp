@@ -7,6 +7,10 @@
 #include "Lucky/UI/Theme.h"
 #include "Lucky/UI/ScopedGuards.h"
 
+#include "Lucky/Scene/Scene.h"
+#include "Lucky/Scene/Entity.h"
+#include "Lucky/Scene/Components/NameComponent.h"
+
 #include <imgui/imgui.h>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -157,6 +161,23 @@ namespace Lucky::UI
         
         EndPropertyGrid();
         
+        return modified;
+    }
+
+    bool PropertyLong(const char* label, int64_t& value, float delta, int64_t min, int64_t max)
+    {
+        BeginPropertyGrid();
+
+        PropertyLabel(label);
+        PropertyValueBegin();
+
+        // min == max 时 ImGui 不夹取（与 DragInt 的既定语义一致）
+        bool modified = ImGui::DragScalar(GenerateID(), ImGuiDataType_S64, &value, delta, &min, &max);
+
+        PropertyValueEnd();
+
+        EndPropertyGrid();
+
         return modified;
     }
 
@@ -330,12 +351,82 @@ namespace Lucky::UI
         //     }
         //     ImGui::EndDragDropTarget();
         // }
-        
+
         EndPropertyGrid();
-        
+
         return modified;
     }
-    
+
+    // ---- Entity 引用 ----
+
+    bool PropertyEntity(const char* label, UUID& entityID, Scene* scene)
+    {
+        BeginPropertyGrid();
+
+        PropertyLabel(label);
+        PropertyValueBegin();
+
+        // 解析显示名：空引用显示 None；引用存在但实体已删显示 Missing
+        std::string displayName = "None (Entity)";
+        if (static_cast<uint64_t>(entityID) != 0 && scene)
+        {
+            Entity target = scene->TryGetEntityWithUUID(entityID);
+            if (target && target.HasComponent<NameComponent>())
+            {
+                displayName = target.GetComponent<NameComponent>().Name;
+            }
+            else if (target)
+            {
+                displayName = "Unnamed Entity";
+            }
+            else
+            {
+                displayName = "Missing Entity";
+            }
+        }
+
+        bool clicked = AssetField(GenerateID(), EditorIconManager::GetEntityIcon(), displayName.c_str());
+        bool modified = false;
+
+        // 拖放接收：场景树实体（payload 为 UUID）
+        if (ImGui::BeginDragDropTarget())
+        {
+            const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
+                DragDrop::EntityHierarchy,
+                ImGuiDragDropFlags_AcceptBeforeDelivery | ImGuiDragDropFlags_AcceptNoDrawDefaultRect);
+            if (payload && payload->DataSize == sizeof(UUID))
+            {
+                DragDropContext::NotifyTargetAccepts(DragDrop::EntityHierarchy);
+                DragDropVisuals::HighlightTargetRect();
+
+                if (payload->IsDelivery())
+                {
+                    entityID = *static_cast<UUID*>(payload->Data);
+                    modified = true;
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
+
+        // 清空按钮：引用没法靠拖拽解除，必须留一个入口
+        if (static_cast<uint64_t>(entityID) != 0)
+        {
+            ImGui::SameLine();
+            if (ImGui::SmallButton("X"))
+            {
+                entityID = UUID(0);
+                modified = true;
+            }
+        }
+
+        PropertyValueEnd();
+
+        EndPropertyGrid();
+
+        return clicked || modified;
+    }
+
+
     // ---- Asset 引用 ----
 
     bool PropertyObject(const char* label, const char* valueName)

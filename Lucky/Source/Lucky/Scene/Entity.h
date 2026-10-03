@@ -110,6 +110,11 @@ namespace Lucky
         operator entt::entity() const { return m_EntityID; }
         operator uint32_t() const { return static_cast<uint32_t>(m_EntityID); }
 
+        /// <summary>
+        /// 获取实体所属场景
+        /// </summary>
+        Scene* GetScene() const { return m_Scene; }
+
         UUID GetUUID() { return GetComponent<IDComponent>().ID; }
         const std::string& GetName() { return GetComponent<NameComponent>().Name; }
 
