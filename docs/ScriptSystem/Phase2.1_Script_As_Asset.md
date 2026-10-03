@@ -13,7 +13,9 @@
   2. `AssetTypeToString` 加分支 —— Registry 持久化时把类型写成字符串，漏了会写成 `"None"`
   3. `StringToAssetType` 加分支 —— 读回时漏了会解析成 `None`，重启后该资产类型丢失
   4. `GetAssetTypeFromExtension` 加 `.cs` —— `AssetManager::Refresh()` 的 `ScanDirectory` 会**跳过无法识别扩展名的文件**，漏了脚本根本不会进 Registry
-- **`AssetManager.cpp` 里必须补 `GetExpectedAssetType<Script>()` 特化**。不补的话 `AssetManager::GetAsset<Script>(handle)` 会命中 `static_assert(sizeof(T) == 0, "Unsupported asset type")` 直接编译失败。
+- **`AssetManager.cpp` 里必须补两处，缺一不可**：
+  1. **`GetExpectedAssetType<Script>()` 特化** —— 不补的话 `AssetManager::GetAsset<Script>(handle)` 会命中 `static_assert(sizeof(T) == 0, "Unsupported asset type")`，**编译期**就报错。
+  2. **文件末尾「显式实例化模板」清单里加一行**：`template Ref<Script> AssetManager::GetAsset<Script>(AssetHandle handle);`。原因是 `GetAsset<T>` 的**定义在 `.cpp` 内部**（不是头文件），别的编译单元要用就必须显式实例化。**漏了它编译期不报错，只在链接期炸**（`LNK2019: 无法解析的外部符号 ... GetAsset<class Lucky::Script>`），而且**不会立刻暴露** —— 只有真的有人调 `GetAsset<Script>` 时才出现。已知会触发它的有两处：P2.3 的 `Deserialize_Script`，以及 `UI::PropertyAsset<Script>`（`UI/PropertyGrid.h` 内部就调了 `AssetManager::GetAsset<T>`）。
 - **`Script` 不支持 Save**：脚本内容是用户写的，引擎不负责序列化它。但 `AssetManager::SaveAssetToFile` 会按类型找 Importer 并调用 `Save`，所以 `ScriptImporter::Save` 要**显式返回 `true`**（表示"无需保存，视为成功"），而不是用基类默认的 `false`（会被当成保存失败）。详见决策点 4.4。
 - **路径解析不依赖 cwd**：一律走 `Project::GetActive()->ResolveAbsolute(metadata.FilePath)`（编码规范 §13.10）。
 - 代码风格一律遵循 [Coding_Style_Guide.md](../Coding_Style_Guide.md)：4 空格缩进、Allman 花括号、控制语句强制花括号、公有接口写 `/// <summary>` 中文注释、智能指针只用 `Ref` / `Scope`。
@@ -667,6 +669,15 @@ namespace Lucky
 
 **要点**：注册顺序不影响行为（`Load` 时按 `metadata.Type` 查表）。
 
+**4) 文件末尾的「显式实例化模板」清单加一行**：
+
+```cpp
+    template Ref<Scene> AssetManager::GetAsset<Scene>(AssetHandle handle);
+    template Ref<Script> AssetManager::GetAsset<Script>(AssetHandle handle);
+```
+
+**要点**：这段在 `AssetManager.cpp` 的最末尾，上面有一句注释「显式实例化模板（避免链接错误）」。`GetAsset<T>` 的定义在 .cpp 内部，没列在这里的类型在链接时找不到实现 —— **这是本 Phase 唯一一个"编译能过、链接才失败"的坑**（见 1.1 关键约束第 2 条）。
+
 ---
 
 ### Step 5：注册类型图标
@@ -756,7 +767,7 @@ AssetType GetExpectedAssetType()
 
 ## 7. 验收标准
 
-1. **编译通过**：`Lucky` 与 `Luck3DApp` 的 Debug / Release / Dist 三个 configuration 全通过
+1. **编译通过**：`Lucky` 与 `Luck3DApp` 的 Debug / Release / Dist 三个 configuration 全通过。若报 `LNK2019: 无法解析的外部符号 ... GetAsset<class Lucky::Script>`，说明漏了显式实例化（见 1.1 关键约束第 2 条）
 2. **Project 面板可见**：启动编辑器，Project 面板里能看到 `Assets/Scripts/PlayerController.cs`，带脚本类型图标（复用 `Component/Script.png`）
 3. **Registry 正确**：`Luck3DApp/Project/AssetRegistry.lcr` 里出现 `Type: Script` 且 `FilePath: Assets/Scripts/PlayerController.cs` 的记录
 4. **重启不丢**：关掉编辑器再开，那条记录仍在，`Type` 仍是 `Script`（验证 `StringToAssetType` 分支没漏）
@@ -791,7 +802,7 @@ AssetType GetExpectedAssetType()
   - `Lucky/Source/Lucky/Asset/ScriptImporter.cpp`
 - **修改文件（3 个）**
   - `Lucky/Source/Lucky/Asset/AssetType.h`：枚举 + `AssetTypeToString` + `StringToAssetType` + `GetAssetTypeFromExtension`
-  - `Lucky/Source/Lucky/Asset/AssetManager.cpp`：include `Script.h` / `ScriptImporter.h`；`GetExpectedAssetType<Script>` 特化；`Init()` 注册 Importer
+  - `Lucky/Source/Lucky/Asset/AssetManager.cpp`：include `Script.h` / `ScriptImporter.h`；`GetExpectedAssetType<Script>` 特化；`Init()` 注册 Importer；末尾显式实例化 `GetAsset<Script>`
   - `Lucky/Source/Lucky/Editor/EditorIconManager.cpp`：注册 `AssetType::Script` 图标（复用 `Component/Script.png`）
 - **生成物（会变，注意提交时区分）**
   - `Luck3DApp/Project/AssetRegistry.lcr`：多出一条 `Type: Script` 记录
