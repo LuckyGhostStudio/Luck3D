@@ -22,7 +22,7 @@ Phase 2 的收口。两件事：
   > **纠正 P2.5 文档 §8 的一处设想**：那里写"P2.6 要在进 Play 前再同步一次作为兜底"。**本 Phase 分析后决定不做。** 理由：`ScriptInstance::SetFieldValues` 对"字段表里没有的字段"本来就是跳过（保留托管对象自己的初值），所以缺字段时运行态天然正确，不需要在 `OnRuntimeStart` 里补同步；而且 `OnRuntimeStart` 操作的是 `Scene::Copy` 出来的**运行态副本**，同步结果在 Stop 时就丢了。**真正需要同步的时机是"反序列化之后"**（见约束 4 与 Step 4）。
 - **控件优先复用 `UI::` 层现成的；缺的两类按现有形态补**。已核实（`UI/PropertyGrid.h`）：
   - 现成：`PropertyFloat`（`:67`）、`PropertyFloat2`（`:72`）、`PropertyFloat3`（`:77`）、`PropertyFloat4`（`:82`）、`PropertyInt`（`:95`）、`PropertyColor(vec4)`（`:107`）、`PropertyString(char*, size_t)`（`:118`）、`PropertyCheckbox`（`:147`）、`PropertyAsset<T>`（`:172`）
-  - **需新写两个**：`PropertyLong`（int64 拖拽，给 `UInt`/`Long`/`ULong`）与 `PropertyEntityRef`（实体引用槽，拖放源是场景树的 `DragDrop::EntityHierarchy`，payload 为 `UUID`，`SceneHierarchyPanel.cpp:518` 已有）
+  - **需新写两个**：`PropertyLong`（int64 拖拽，给 `UInt`/`Long`/`ULong`）与 `PropertyEntity`（实体引用槽，拖放源是场景树的 `DragDrop::EntityHierarchy`，payload 为 `UUID`，`SceneHierarchyPanel.cpp:518` 已有）
   - 默认参数 `min = 0, max = 0` 表示**不夹取范围**（ImGui `DragFloat` 的惯例），只传 label + value 即可
 - **控件映射按 `ScriptFieldWidgetKind` 分发，不按类型逐一映射**：22 种类型 → 10 种控件行（P2.4 类型表已登记每种类型的 Widget）。以后加类型时：P2.4 类型表加一行 + 序列化读/写各一个 case + 这里对应 Widget 的分支补载荷存取。
 - **载荷存取分两档**（P2.4 §8 的接线要求）：能精确装载荷的控件直接传 `std::get<T>(fieldValue.Data)` 的**引用**原地改（`bool` / `int32` / `float` / `vec2-4` / `UUID`）；装不下的（8/16 位整数、`UInt`/`Long`/`ULong`、`Double`、`Quaternion`、`string` 的 char 缓冲、`Ref<T>` 向下转换）用**临时变量中转、控件返回 true 才写回** —— 显示可截断，写回必须保值，用户没碰就一字节不动。
@@ -35,7 +35,7 @@ Phase 2 的收口。两件事：
 | P2.3 | `ScriptComponent::ScriptAsset` + `Draw_Script` 里的 `PropertyAsset<Script>` |
 | P2.4 | `ScriptField` / `ScriptFieldType` / `ScriptClass::GetFields()` / `SetFieldValue` |
 | P2.5 | `ScriptComponent::Fields`（`ScriptFieldMap`）、`SyncScriptFieldMap`、序列化 |
-| `UI::` 属性控件 | 9 个现成 + 本 Phase 新写 2 个（`PropertyLong` / `PropertyEntityRef`，见 1.1） |
+| `UI::` 属性控件 | 9 个现成 + 本 Phase 新写 2 个（`PropertyLong` / `PropertyEntity`，见 1.1） |
 | `ScriptEngine::OnCreateEntityScript` | 已就位（P2.3 改过签名） |
 
 ### 1.3 本 Phase **不做**的事
@@ -63,7 +63,7 @@ Phase 2 的收口。两件事：
 | `Lucky/Source/Lucky/Scripting/ScriptEngine.cpp` | 加两个实现；`OnCreateEntityScript` 里插入灌值调用 |
 | `Lucky/Source/Lucky/Editor/ComponentInspectors.cpp` | `Draw_Script` 改用静默解析 + 按 `ScriptFieldWidgetKind` 画字段控件 |
 | `Lucky/Source/Lucky/Serialization/ComponentSerializers.cpp` | `Deserialize_Script` 末尾同步一次字段表 |
-| `Lucky/Source/Lucky/UI/PropertyGrid.h` + 对应 `.cpp` | 新写 `PropertyLong`（int64 拖拽）与 `PropertyEntityRef`（实体引用槽） |
+| `Lucky/Source/Lucky/UI/PropertyGrid.h` + 对应 `.cpp` | 新写 `PropertyLong`（int64 拖拽）与 `PropertyEntity`（实体引用槽） |
 | `Lucky/Source/Lucky/Scene/Entity.h` | 加 `GetScene()` 访问器（一行） |
 
 ### 2.3 不修改
@@ -219,7 +219,7 @@ P2.5 落地后的结构（骨架，省略 `Fields` 段的 22 类型读取 switch
 | `Float4` | `Quaternion` | `PropertyFloat4`（现成） | `vec4(w,x,y,z)` 临时中转，改才写回 |
 | `Color` | `Color` | `PropertyColor(vec4)`（现成） | **直接**（颜色选择器，比 4 个 float 行好用） |
 | `Text` | `String` | `PropertyString(char*, size_t)`（现成） | char 缓冲中转，改才写回 |
-| `EntityRef` | `Entity` | **`PropertyEntityRef`（本 Phase 新写）** | **直接**：`std::get<UUID>(Data)` 的引用 |
+| `EntityRef` | `Entity` | **`PropertyEntity`（本 Phase 新写）** | **直接**：`std::get<UUID>(Data)` 的引用 |
 | `AssetRef` | `Material` `Mesh` `Texture2D` `Script` | `PropertyAsset<T>`（现成模板） | `Ref<T>` 临时中转（`static_pointer_cast`），改才写回 |
 
 所有控件都返回 `bool`（是否被修改），且内部自带 `BeginPropertyGrid` / `PropertyLabel` / `PropertyValueBegin` / `EndPropertyGrid`，**一行就是一个完整的属性行**。"直接"档把控件绑到 `std::get<T>` 返回的引用上原地改；"中转"档只有控件返回 `true` 才把临时变量写回 variant（决策点 4.5）。
@@ -680,7 +680,7 @@ case ScriptFieldWidgetKind::Float:      // Double 类型
 - **include 已就绪**：`ScriptEngine.h` 在 P2.5 已包含（见 3.5），不用补
 - **不要把同步放在函数开头的早退分支之后就算完** —— 有两个早退分支（`!node`、`!handleNode`），它们早退时没有脚本引用，本来就不需要同步，所以放在末尾是正确且安全的
 
-### Step 5：`UI/` 补两个控件（`PropertyLong` / `PropertyEntityRef`）
+### Step 5：`UI/` 补两个控件（`PropertyLong` / `PropertyEntity`）
 
 **文件**：`Lucky/Source/Lucky/UI/PropertyGrid.h`（声明）+ `Lucky/Source/Lucky/UI/PropertyGrid.cpp`（实现）
 
@@ -701,7 +701,7 @@ case ScriptFieldWidgetKind::Float:      // Double 类型
 
 实现**整段照抄 `PropertyInt`**（`PropertyGrid.cpp:147`），只把 `DragInt(...)` 换成对 `ImGui::DragScalar(GenerateID(), ImGuiDataType_S64, &value, delta, ...)` 的调用（若 UI 层已有 `DragScalar` 封装则优先用封装）；`min == max` 时不夹取的语义与 `PropertyInt` 保持一致。
 
-**2) `PropertyEntityRef`** —— 实体引用槽：
+**2) `PropertyEntity`** —— 实体引用槽：
 
 ```cpp
     /// <summary>
@@ -712,7 +712,7 @@ case ScriptFieldWidgetKind::Float:      // Double 类型
     /// <param name="entityID">实体 UUID（0 表示空引用）</param>
     /// <param name="scene">当前场景（用于把 UUID 解析成实体名）</param>
     /// <returns>值是否被修改</returns>
-    bool PropertyEntityRef(const char* label, UUID& entityID, Scene* scene);
+    bool PropertyEntity(const char* label, UUID& entityID, Scene* scene);
 ```
 
 实现要点：
@@ -723,7 +723,7 @@ case ScriptFieldWidgetKind::Float:      // Double 类型
 - **清空按钮**：值列右侧放一个 `ImGui::SmallButton("X")`，点击把 `entityID` 置 0 并返回 true —— **不能省**，否则引用没法解除
 - 形态（`BeginPropertyGrid` / `PropertyLabel` / `PropertyValueBegin` / `EndPropertyGrid`、悬停高亮）照 `PropertyAsset<T>`（`PropertyGrid.h:172`）的骨架
 
-**3) `Entity` 补一个场景访问器**（`PropertyEntityRef` 与 `Draw_Script` 需要把实体 UUID 解析成名字，而 `Entity::m_Scene` 是私有、没有公开 getter）：
+**3) `Entity` 补一个场景访问器**（`PropertyEntity` 与 `Draw_Script` 需要把实体 UUID 解析成名字，而 `Entity::m_Scene` 是私有、没有公开 getter）：
 
 `Lucky/Source/Lucky/Scene/Entity.h` 公开区加一行：
 
@@ -910,7 +910,7 @@ namespace
                     }
                     case ScriptFieldWidgetKind::EntityRef:
                     {
-                        UI::PropertyEntityRef(label, std::get<UUID>(fieldValue.Data), entity.GetScene());
+                        UI::PropertyEntity(label, std::get<UUID>(fieldValue.Data), entity.GetScene());
                         break;
                     }
                     case ScriptFieldWidgetKind::AssetRef:
@@ -1061,7 +1061,7 @@ namespace
 9. **不刷日志**：让脚本解析失败（把 `.cs` 改名不编译）→ 拖入 → 停在编辑器里**观察 10 秒** → 红色提示一直在，但**日志里只有一条 ERROR**（不是几十条）。**这一条专门验 Step 1 的静默解析**
 10. **类型不符被拦**：手改存档把 `Speed` 的 `Type` 写成 `Int`（值 `Value: 3`），脚本里仍是 `float` → 重开场景 → 同步会重置为脚本初值；若绕过同步直接 Play，日志出现 `does not match the script type, skipped` 且**不崩**
 13. **字符串编辑往返**：加 `public string Title = "player";` → Inspector 出现文本框 → 改成 `"boss"` → Play 后脚本读到 `"boss"` → 存盘重开仍是 `"boss"`（验 Text 中转与 `PropertyString`）
-14. **实体引用槽**：加 `public Entity Target;` → Inspector 出现实体槽 → 从场景树拖一个实体进去 → Play 后脚本能用它访问组件 → 点 `X` 清空后显示 `None (Entity)`（验 `PropertyEntityRef` 与 `DragDrop::EntityHierarchy` 链路）
+14. **实体引用槽**：加 `public Entity Target;` → Inspector 出现实体槽 → 从场景树拖一个实体进去 → Play 后脚本能用它访问组件 → 点 `X` 清空后显示 `None (Entity)`（验 `PropertyEntity` 与 `DragDrop::EntityHierarchy` 链路）
 15. **大整数不被静默磨损**：加 `public long BigNumber = 5000000000;`（超 int32）→ Inspector 显示正确 → **不碰它**、挂着 Inspector 若干秒后存盘 → 存档里仍是 `5000000000`（验"改才写回"——若是截断值说明中转档写回条件错了）
 16. **Double 精度**：加 `public double Pi = 3.141592653589793;` → 不编辑的情况下存盘重开，值不损失（同上，验中转档）；编辑成 `2.5` 后写回正确
 11. **`OnDestroy` 链路未退化**：Play 中移除 ScriptComponent → 仍有 `OnDestroy` 打印（P1 的成果没被破坏）
@@ -1082,7 +1082,7 @@ namespace
 | `Deserialize_Script` 里的同步调用 | 若将来脚本字段类型扩展 | 新增类型时这里不需要动（同步逻辑不区分类型） |
 | 控件映射（`Draw_Script` 的 Widget `switch`） | 类型扩展 | 加类型时：P2.4 类型表加一行 + 序列化读/写各一个 case + 这里对应 Widget 分支补载荷存取（Widget 种类不够用时才在 `ScriptFieldWidgetKind` 里加） |
 | `Draw_Script` 忽略直接档控件返回值 | **E-TODO-08 场景修改标记** | 需要"场景标脏"时，把 `Draw_Xxx` 的契约改成返回 `bool`，此处收集 `UI::PropertyXxx` 的返回值（中转档已在用返回值） |
-| `PropertyEntityRef` | 后续增强 | 校验"目标实体挂了对应脚本"（P2.4 决策点 4.10 的既定边界）；场景树以外的实体选择方式（弹窗搜索等） |
+| `PropertyEntity` | 后续增强 | 校验"目标实体挂了对应脚本"（P2.4 决策点 4.10 的既定边界）；场景树以外的实体选择方式（弹窗搜索等） |
 
 ---
 
@@ -1094,7 +1094,7 @@ namespace
   - `Lucky/Source/Lucky/Scripting/ScriptEngine.cpp`：`ResolveScriptClass` 拆成 `Impl` + 两个薄壳；加 `SetFieldValues` 实现；`OnCreateEntityScript` 插入灌值（无需补 include，`ScriptComponent` 经 `Entity.h → Components.h` 链可见）
   - `Lucky/Source/Lucky/Editor/ComponentInspectors.cpp`：`Draw_Script` 改用 `TryResolveScriptClass` + 按 `ScriptFieldWidgetKind` 画控件；匿名命名空间加两个整数中转辅助；补三种资产类型的 include
   - `Lucky/Source/Lucky/Serialization/ComponentSerializers.cpp`：`Deserialize_Script` 末尾加一次 `SyncScriptFieldMap`（补 `ScriptEngine.h` include）
-  - `Lucky/Source/Lucky/UI/PropertyGrid.h` / `PropertyGrid.cpp`：新写 `PropertyLong` 与 `PropertyEntityRef`
+  - `Lucky/Source/Lucky/UI/PropertyGrid.h` / `PropertyGrid.cpp`：新写 `PropertyLong` 与 `PropertyEntity`
   - `Lucky/Source/Lucky/Scene/Entity.h`：加 `GetScene()` 访问器（一行）
 - **删除**：无
 - **不改动**：`Scene/Scene.cpp`（**刻意不改**，见约束 3）、`Scene/Components/ScriptComponent.h`、`ScriptFieldValue.h`、托管 C# 代码、premake
