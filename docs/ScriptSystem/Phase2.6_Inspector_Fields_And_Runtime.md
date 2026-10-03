@@ -20,13 +20,12 @@ Phase 2 的收口。两件事：
 - **Inspector 里必须换用静默版解析。** `ResolveScriptClass`（P2.2）在失败时会打 `LF_CORE_ERROR`，而 Inspector **每帧**都要画那个红色提示 —— 直接调它会 60 次/秒刷日志。所以要加一个不写日志的 `TryResolveScriptClass`，**只在用户可见的 UI 上呈现错误，日志交给真正的动作路径打**。
 - **Inspector 不要每帧调用 `SyncScriptFieldMap`。** 正确做法是"**真正会改变字段表的事件**"触发同步，共三处：Inspector 拖入脚本（P2.5 已接）、**场景反序列化之后**（本 Phase 新增）、以及（可选）脚本资产被替换。每帧同步会让"解析失败"这种情况持续空转。
   > **纠正 P2.5 文档 §8 的一处设想**：那里写"P2.6 要在进 Play 前再同步一次作为兜底"。**本 Phase 分析后决定不做。** 理由：`ScriptInstance::SetFieldValues` 对"字段表里没有的字段"本来就是跳过（保留托管对象自己的初值），所以缺字段时运行态天然正确，不需要在 `OnRuntimeStart` 里补同步；而且 `OnRuntimeStart` 操作的是 `Scene::Copy` 出来的**运行态副本**，同步结果在 Stop 时就丢了。**真正需要同步的时机是"反序列化之后"**（见约束 4 与 Step 4）。
-- **控件全部用 `UI::` 层已有控件**，不要往 `UI/` 加新东西。已核实现成可用：
-  - `UI::PropertyFloat(label, float&, delta, min, max)`（`PropertyGrid.h:67`）
-  - `UI::PropertyInt(label, int&, delta, min, max)`（`:95`）
-  - `UI::PropertyCheckbox(label, bool&)`（`:147`）
-  - `UI::PropertyFloat3(label, glm::vec3&, ...)`（`:77`）
+- **控件优先复用 `UI::` 层现成的；缺的两类按现有形态补**。已核实（`UI/PropertyGrid.h`）：
+  - 现成：`PropertyFloat`（`:67`）、`PropertyFloat2`（`:72`）、`PropertyFloat3`（`:77`）、`PropertyFloat4`（`:82`）、`PropertyInt`（`:95`）、`PropertyColor(vec4)`（`:107`）、`PropertyString(char*, size_t)`（`:118`）、`PropertyCheckbox`（`:147`）、`PropertyAsset<T>`（`:172`）
+  - **需新写两个**：`PropertyLong`（int64 拖拽，给 `UInt`/`Long`/`ULong`）与 `PropertyEntityRef`（实体引用槽，拖放源是场景树的 `DragDrop::EntityHierarchy`，payload 为 `UUID`，`SceneHierarchyPanel.cpp:518` 已有）
   - 默认参数 `min = 0, max = 0` 表示**不夹取范围**（ImGui `DragFloat` 的惯例），只传 label + value 即可
-- **四种字段类型 ↔ 四个控件是一一对应的**，以后加类型时：枚举、`ResolveScriptFieldType`、序列化两个 switch、**以及这里的控件映射**，共五处要同步改。
+- **控件映射按 `ScriptFieldWidgetKind` 分发，不按类型逐一映射**：22 种类型 → 10 种控件行（P2.4 类型表已登记每种类型的 Widget）。以后加类型时：P2.4 类型表加一行 + 序列化读/写各一个 case + 这里对应 Widget 的分支补载荷存取。
+- **载荷存取分两档**（P2.4 §8 的接线要求）：能精确装载荷的控件直接传 `std::get<T>(fieldValue.Data)` 的**引用**原地改（`bool` / `int32` / `float` / `vec2-4` / `UUID`）；装不下的（8/16 位整数、`UInt`/`Long`/`ULong`、`Double`、`Quaternion`、`string` 的 char 缓冲、`Ref<T>` 向下转换）用**临时变量中转、控件返回 true 才写回** —— 显示可截断，写回必须保值，用户没碰就一字节不动。
 - 代码风格遵循 [Coding_Style_Guide.md](../Coding_Style_Guide.md)：控制语句强制花括号（§5.2）、`switch` 各 case 带花括号、范围 for 用 `auto`（§13.9）、智能指针引用显式声明类型（§13.9）。
 
 ### 1.2 前置条件
@@ -36,14 +35,15 @@ Phase 2 的收口。两件事：
 | P2.3 | `ScriptComponent::ScriptAsset` + `Draw_Script` 里的 `PropertyAsset<Script>` |
 | P2.4 | `ScriptField` / `ScriptFieldType` / `ScriptClass::GetFields()` / `SetFieldValue` |
 | P2.5 | `ScriptComponent::Fields`（`ScriptFieldMap`）、`SyncScriptFieldMap`、序列化 |
-| `UI::` 属性控件 | 四个控件已就绪（见 1.1） |
+| `UI::` 属性控件 | 9 个现成 + 本 Phase 新写 2 个（`PropertyLong` / `PropertyEntityRef`，见 1.1） |
 | `ScriptEngine::OnCreateEntityScript` | 已就位（P2.3 改过签名） |
 
 ### 1.3 本 Phase **不做**的事
 
 - 不做字段分组、折叠、排序、拖拽排序
 - 不做 `[HideInInspector]`
-- 不做 `string` / 枚举 / 数组 / 实体引用字段
+- 不做枚举 / 数组 / 嵌套类 / `Dictionary` 字段（与 P2.4 的不做清单一致；`string` / `Entity` / 资产引用 / 全部标量与向量类型本 Phase **都做**）
+- Entity 引用槽只做"拖入赋值 + 显示名字 + 清空"，**不校验目标实体上是否挂了对应脚本**（P2.4 决策点 4.10 的既定边界）
 - 不做"改脚本自动重编译"（P3）
 - 不做 Console 面板（独立项）
 
@@ -61,17 +61,18 @@ Phase 2 的收口。两件事：
 |------|------|
 | `Lucky/Source/Lucky/Scripting/ScriptEngine.h` | `ScriptEngine` 加 `TryResolveScriptClass`；`ScriptInstance` 加 `SetFieldValues` |
 | `Lucky/Source/Lucky/Scripting/ScriptEngine.cpp` | 加两个实现；`OnCreateEntityScript` 里插入灌值调用 |
-| `Lucky/Source/Lucky/Editor/ComponentInspectors.cpp` | `Draw_Script` 改用静默解析 + 按类型画字段控件 |
+| `Lucky/Source/Lucky/Editor/ComponentInspectors.cpp` | `Draw_Script` 改用静默解析 + 按 `ScriptFieldWidgetKind` 画字段控件 |
 | `Lucky/Source/Lucky/Serialization/ComponentSerializers.cpp` | `Deserialize_Script` 末尾同步一次字段表 |
+| `Lucky/Source/Lucky/UI/PropertyGrid.h` + 对应 `.cpp` | 新写 `PropertyLong`（int64 拖拽）与 `PropertyEntityRef`（实体引用槽） |
+| `Lucky/Source/Lucky/Scene/Entity.h` | 加 `GetScene()` 访问器（一行） |
 
 ### 2.3 不修改
 
 - `Scene/Scene.cpp`：**不改**（见约束 3 的说明：`OnRuntimeStart` 不需要补同步；灌值发生在 `OnCreateEntityScript` 内部）
 - `Scene/Components/ScriptComponent.h`：P2.5 已完成
 - `Scripting/ScriptFieldValue.h`：P2.4 / P2.5 已完成
-- `UI/*`：不新增控件
 - 托管 C# 代码：不涉及
-- premake：无新增文件
+- premake：无新增文件（`PropertyGrid` 是已有文件的修改）
 
 ---
 
@@ -134,7 +135,7 @@ Phase 2 的收口。两件事：
 
             if (sc.ScriptAsset && !ScriptEngine::ResolveScriptClass(sc.ScriptAsset->GetClassName()))
             {
-                ImGui::TextColored({0.9f, 0.35f, 0.35f, 1.0f}, "脚本类未找到：请确认该脚本已参与编译，且类名与文件名一致");
+                ImGui::TextColored({0.9f, 0.35f, 0.35f, 1.0f}, "Script class not found.\nMake sure the script is compiled and the class name matches the file name.");
             }
         }
 ```
@@ -194,16 +195,25 @@ Phase 2 的收口。两件事：
         }
 ```
 
-### 3.6 `UI::` 可用的字段控件
+### 3.6 `ScriptFieldWidgetKind` → 控件映射（22 种类型 → 10 种控件行）
 
-| 字段类型 | 控件 |
-|---------|------|
-| `ScriptFieldType::Float` | `UI::PropertyFloat(const char* label, float& value, float delta = 0.1f, float min = 0.0f, float max = 0.0f)` |
-| `ScriptFieldType::Int` | `UI::PropertyInt(const char* label, int& value, float delta = 1.0f, int min = 0, int max = 0)` |
-| `ScriptFieldType::Bool` | `UI::PropertyCheckbox(const char* label, bool& value)` |
-| `ScriptFieldType::Vector3` | `UI::PropertyFloat3(const char* label, glm::vec3& value, float delta = 0.1f, float min = 0.0f, float max = 0.0f)` |
+| WidgetKind | 覆盖的类型 | 控件（`UI/PropertyGrid.h`） | 载荷存取 |
+|-----------|-----------|------------------------------|---------|
+| `Checkbox` | `Bool` | `PropertyCheckbox`（现成） | **直接**：`std::get<bool>(Data)` 的引用 |
+| `Int` | `SByte` `Byte` `Short` `UShort` `Int` | `PropertyInt`（现成） | int32 临时中转，改才写回 |
+| `Int` | `UInt` `Long` `ULong` | **`PropertyLong`（本 Phase 新写）** | int64 临时中转，改才写回（`ULong` 超 `int64` 上限的值显示截断，不写回就不损坏） |
+| `Float` | `Float` | `PropertyFloat`（现成） | **直接** |
+| `Float` | `Double` | `PropertyFloat`（现成） | float 临时中转，改才写回（精度损失只发生在用户主动编辑时） |
+| `Float2` | `Vector2` | `PropertyFloat2`（现成） | **直接** |
+| `Float3` | `Vector3` | `PropertyFloat3`（现成） | **直接** |
+| `Float4` | `Vector4` | `PropertyFloat4`（现成） | **直接** |
+| `Float4` | `Quaternion` | `PropertyFloat4`（现成） | `vec4(w,x,y,z)` 临时中转，改才写回 |
+| `Color` | `Color` | `PropertyColor(vec4)`（现成） | **直接**（颜色选择器，比 4 个 float 行好用） |
+| `Text` | `String` | `PropertyString(char*, size_t)`（现成） | char 缓冲中转，改才写回 |
+| `EntityRef` | `Entity` | **`PropertyEntityRef`（本 Phase 新写）** | **直接**：`std::get<UUID>(Data)` 的引用 |
+| `AssetRef` | `Material` `Mesh` `Texture2D` `Script` | `PropertyAsset<T>`（现成模板） | `Ref<T>` 临时中转（`static_pointer_cast`），改才写回 |
 
-四个函数都返回 `bool`（是否被修改），且内部自带 `BeginPropertyGrid` / `PropertyLabel` / `PropertyValueBegin` / `EndPropertyGrid`，**一行就是一个完整的属性行**，不需要自己拆。
+所有控件都返回 `bool`（是否被修改），且内部自带 `BeginPropertyGrid` / `PropertyLabel` / `PropertyValueBegin` / `EndPropertyGrid`，**一行就是一个完整的属性行**。"直接"档把控件绑到 `std::get<T>` 返回的引用上原地改；"中转"档只有控件返回 `true` 才把临时变量写回 variant（决策点 4.5）。
 
 ### 3.7 打开场景的时序（支撑约束 4）
 
@@ -316,7 +326,7 @@ static Ref<ScriptClass> ResolveScriptClass(const std::string& className);      /
 #### 方案 A：直接用字段名（**推荐 ✅**）
 
 ```cpp
-UI::PropertyFloat(field.Name.c_str(), value.FloatValue);
+UI::PropertyFloat(field.Name.c_str(), std::get<float>(fieldValue.Data));
 ```
 
 - **优点**：
@@ -402,39 +412,47 @@ UI::PropertyFloat(field.Name.c_str(), value.FloatValue);
 
 ---
 
-### 4.5 决策点 5：字段值写回 `Fields` 的策略
+### 4.5 决策点 5：字段值写回 `Fields` 的策略（直接档 vs 中转档）
 
-控件会返回 `bool`（是否被改动）。两种写法：
+`ScriptFieldValue` 是 variant（P2.4 决策点 4.2），控件能绑定什么类型是固定的 —— 所以写回策略分**两档**：
 
-#### 方案 A：只在实际被改时写回（**推荐 ✅**）
+#### 直接档：控件类型与载荷类型一致，传引用原地改（**首选**）
 
 ```cpp
-case ScriptFieldType::Float:
+case ScriptFieldWidgetKind::Float:      // Float 类型
 {
-    UI::PropertyFloat(field.Name.c_str(), fieldValue.FloatValue);
+    // std::get 返回载荷的引用，控件原地改 -> 一行收工，返回值可以忽略
+    UI::PropertyFloat(field.Name.c_str(), std::get<float>(fieldValue.Data));
     break;
 }
 ```
 
-因为 `fieldValue` 是 `ScriptComponent::Fields` 里那个元素的 `ScriptFieldValue&`（结构化绑定的引用），**控件直接原地修改了它** —— 不需要额外判断"改没改"，也不需要把返回值写回。
+适用：`Bool`、`Int`（int32）、`Float`、`Vector2` / `Vector3` / `Vector4`、`Color`、`Entity`（`UUID`）。
 
-- **优点**：
-  1. 代码最短（一行）
-  2. 天然只在用户真的拖动时才改变内存里的值
-  3. 返回值可以忽略（不需要"脏标记"机制）
-- **缺点**：**无法感知"这一帧有没有变化"**，所以如果将来要做"改动即标脏场景"（E01 Undo/Scene dirty），需要改成收集返回值。**那是将来的事，本 Phase 不需要。**
-
-#### 方案 B：收集返回值，判断是否有任何字段被改
+#### 中转档：控件装不下载荷，临时变量 + 返回 true 才写回（**必须**）
 
 ```cpp
-bool anyChanged = false;
-anyChanged |= UI::PropertyFloat(...);
+case ScriptFieldWidgetKind::Float:      // Double 类型
+{
+    // PropertyFloat 是 float&，装不下 double：临时中转，只有用户真的改了才写回
+    float temp = static_cast<float>(std::get<double>(fieldValue.Data));
+    if (UI::PropertyFloat(field.Name.c_str(), temp))
+    {
+        fieldValue.Data = static_cast<double>(temp);
+    }
+    break;
+}
 ```
 
-- **优点**：可以做"场景标脏"
-- **缺点**：`Draw_Script` 的返回类型是 `void`（组件 Inspector 的既定契约），收集了也传不出去；将来要改就得改整条 Inspector 的接口。**本 Phase 不做。**
+适用：8/16 位整数（int32 中转）、`UInt` / `Long` / `ULong`（int64 中转）、`Double`（float 中转）、`Quaternion`（`vec4(w,x,y,z)` 中转）、`String`（char 缓冲中转）、资产引用（`Ref<T>` 向下转换中转）。
 
-**结论：方案 A。** 并在注释里点明"字段值由控件原地修改，返回值本 Phase 用不上"。
+- **为什么"改才写回"是必须的而不是可选的**：中转本身是有损的（`double → float`、`uint64 → int64`、`Ref<Asset> → Ref<Material>`）。**用户没碰控件时把截断值写回去 = 每帧静默磨损数据**（`double` 的精度、`ulong` 的高位会在 Inspector 挂着的几十帧里被悄悄吃掉）。只有控件返回 `true`（用户真的编辑了）才允许有损写回 —— 这时损失是用户动作的一部分，可接受。
+- **直接档为什么可以忽略返回值**：载荷与控件同型，改不改都是精确读写，没有磨损问题。
+
+#### 被否决的写法
+
+- **全部走中转档**：直接档也先拷出来再判断写回 —— 多一层拷贝、多一个忘写回的可能，没有任何收益。
+- **收集返回值做"场景标脏"**：`Draw_Script` 的返回类型是 `void`（组件 Inspector 的既定契约），收集了也传不出去；将来要做（E-TODO-08）得改整条 Inspector 接口。**本 Phase 不做。**
 
 > ⚠️ **实现要点**：循环里必须用**引用**取出 map 元素：
 > ```cpp
@@ -653,9 +671,106 @@ anyChanged |= UI::PropertyFloat(...);
 - 该文件需要 `#include "Lucky/Scripting/ScriptEngine.h"`（若尚未包含）。**注意 include 顺序**（规范 §3.3）
 - **不要把同步放在函数开头的早退分支之后就算完** —— 有两个早退分支（`!node`、`!handleNode`），它们早退时没有脚本引用，本来就不需要同步，所以放在末尾是正确且安全的
 
-### Step 5：Inspector 画字段控件
+### Step 5：`UI/` 补两个控件（`PropertyLong` / `PropertyEntityRef`）
+
+**文件**：`Lucky/Source/Lucky/UI/PropertyGrid.h`（声明）+ `Lucky/Source/Lucky/UI/PropertyGrid.cpp`（实现）
+
+**1) `PropertyLong`** —— 64 位整数拖拽，给 `UInt` / `Long` / `ULong` 字段用：
+
+```cpp
+    /// <summary>
+    /// 64 位整数拖拽属性（给 UInt / Long / ULong 字段用）
+    /// </summary>
+    /// <param name="label">属性名</param>
+    /// <param name="value">64 位整数值引用</param>
+    /// <param name="delta">拖拽速度（默认 1.0）</param>
+    /// <param name="min">最小值（min == max 时不夹取）</param>
+    /// <param name="max">最大值</param>
+    /// <returns>值是否被修改</returns>
+    bool PropertyLong(const char* label, int64_t& value, float delta = 1.0f, int64_t min = 0, int64_t max = 0);
+```
+
+实现**整段照抄 `PropertyInt`**（`PropertyGrid.cpp:147`），只把 `DragInt(...)` 换成对 `ImGui::DragScalar(GenerateID(), ImGuiDataType_S64, &value, delta, ...)` 的调用（若 UI 层已有 `DragScalar` 封装则优先用封装）；`min == max` 时不夹取的语义与 `PropertyInt` 保持一致。
+
+**2) `PropertyEntityRef`** —— 实体引用槽：
+
+```cpp
+    /// <summary>
+    /// 实体引用属性：显示目标实体名，支持从场景树拖入实体赋值，可一键清空
+    /// 不校验目标实体上挂的是什么脚本（见 P2.4 决策点 4.10 的既定边界）
+    /// </summary>
+    /// <param name="label">属性名</param>
+    /// <param name="entityID">实体 UUID（0 表示空引用）</param>
+    /// <param name="scene">当前场景（用于把 UUID 解析成实体名）</param>
+    /// <returns>值是否被修改</returns>
+    bool PropertyEntityRef(const char* label, UUID& entityID, Scene* scene);
+```
+
+实现要点：
+
+- **声明在 `PropertyGrid.h`，`Scene` 前向声明即可**（`class Scene;`，指针参数不需要完整类型）；`PropertyGrid.cpp` 里 include `Lucky/Scene/Scene.h` 与 `Lucky/Scene/Components/NameComponent.h`
+- **显示名**：`entityID != 0 && scene` 时用 `scene->TryGetEntityWithUUID(entityID)` 取 `NameComponent` 的名字；取不到（空引用 / 实体已删）显示 `"None (Entity)"`
+- **拖放目标**：`ImGui::AcceptDragDropPayload(DragDrop::EntityHierarchy)`（payload 是 `UUID`，场景树节点已是拖放源，`SceneHierarchyPanel.cpp:518`），`IsDelivery()` 时写入 `entityID`；`DragDrop::EntityHierarchy` 常量在 `Lucky/Editor/DragDropPayloads.h`
+- **清空按钮**：值列右侧放一个 `ImGui::SmallButton("X")`，点击把 `entityID` 置 0 并返回 true —— **不能省**，否则引用没法解除
+- 形态（`BeginPropertyGrid` / `PropertyLabel` / `PropertyValueBegin` / `EndPropertyGrid`、悬停高亮）照 `PropertyAsset<T>`（`PropertyGrid.h:172`）的骨架
+
+**3) `Entity` 补一个场景访问器**（`PropertyEntityRef` 与 `Draw_Script` 需要把实体 UUID 解析成名字，而 `Entity::m_Scene` 是私有、没有公开 getter）：
+
+`Lucky/Source/Lucky/Scene/Entity.h` 公开区加一行：
+
+```cpp
+        /// <summary>
+        /// 获取实体所属场景
+        /// </summary>
+        Scene* GetScene() const { return m_Scene; }
+```
+
+### Step 6：Inspector 画字段控件
 
 **文件**：`Lucky/Source/Lucky/Editor/ComponentInspectors.cpp`
+
+**1) 文件顶部匿名命名空间加两个整数中转辅助**（把 8 种整数宽度的存取收在一处，避免 `Draw_Script` 里嵌套 switch）：
+
+```cpp
+namespace
+{
+    // 整数字段载荷统一读成 int64（显示用；ULong 超 int64 上限时截断，不写回就不损坏）
+    int64_t GetFieldValueAsInt64(const Lucky::ScriptFieldValue& value)
+    {
+        switch (value.Type)
+        {
+            case Lucky::ScriptFieldType::SByte:  return std::get<int8_t>(value.Data);
+            case Lucky::ScriptFieldType::Byte:   return std::get<uint8_t>(value.Data);
+            case Lucky::ScriptFieldType::Short:  return std::get<int16_t>(value.Data);
+            case Lucky::ScriptFieldType::UShort: return std::get<uint16_t>(value.Data);
+            case Lucky::ScriptFieldType::Int:    return std::get<int32_t>(value.Data);
+            case Lucky::ScriptFieldType::UInt:   return std::get<uint32_t>(value.Data);
+            case Lucky::ScriptFieldType::Long:   return std::get<int64_t>(value.Data);
+            case Lucky::ScriptFieldType::ULong:  return static_cast<int64_t>(std::get<uint64_t>(value.Data));
+            default:                             return 0;
+        }
+    }
+
+    // 把控件编辑结果按字段实际类型写回载荷
+    void SetFieldValueFromInt64(Lucky::ScriptFieldValue& value, int64_t newValue)
+    {
+        switch (value.Type)
+        {
+            case Lucky::ScriptFieldType::SByte:  value.Data = static_cast<int8_t>(newValue); break;
+            case Lucky::ScriptFieldType::Byte:   value.Data = static_cast<uint8_t>(newValue); break;
+            case Lucky::ScriptFieldType::Short:  value.Data = static_cast<int16_t>(newValue); break;
+            case Lucky::ScriptFieldType::UShort: value.Data = static_cast<uint16_t>(newValue); break;
+            case Lucky::ScriptFieldType::Int:    value.Data = static_cast<int32_t>(newValue); break;
+            case Lucky::ScriptFieldType::UInt:   value.Data = static_cast<uint32_t>(newValue); break;
+            case Lucky::ScriptFieldType::Long:   value.Data = newValue; break;
+            case Lucky::ScriptFieldType::ULong:  value.Data = static_cast<uint64_t>(newValue); break;
+            default: break;
+        }
+    }
+}
+```
+
+**2) `Draw_Script` 重写为按 `ScriptFieldWidgetKind` 分发**：
 
 ```cpp
         void Draw_Script(Entity entity)
@@ -677,7 +792,7 @@ anyChanged |= UI::PropertyFloat(...);
             Ref<ScriptClass> scriptClass = ScriptEngine::TryResolveScriptClass(sc.ScriptAsset->GetClassName());
             if (!scriptClass)
             {
-                ImGui::TextColored({0.9f, 0.35f, 0.35f, 1.0f}, "脚本类未找到：请确认该脚本已参与编译，且类名与文件名一致");
+                ImGui::TextColored({0.9f, 0.35f, 0.35f, 1.0f}, "Script class not found.\nMake sure the script is compiled and the class name matches the file name.");
                 return;
             }
 
@@ -691,27 +806,149 @@ anyChanged |= UI::PropertyFloat(...);
 
                 // 必须用引用：控件是原地修改，取副本会导致"拖了没反应"
                 ScriptFieldValue& fieldValue = it->second;
+                const char* label = field.Name.c_str();
 
-                switch (field.Type)
+                // 按控件种类分发：直接档传 std::get 的引用原地改；中转档临时变量、返回 true 才写回（决策点 4.5）
+                switch (GetScriptFieldTypeInfo(fieldValue.Type).Widget)
                 {
-                    case ScriptFieldType::Float:
+                    case ScriptFieldWidgetKind::Checkbox:
                     {
-                        UI::PropertyFloat(field.Name.c_str(), fieldValue.FloatValue);
+                        UI::PropertyCheckbox(label, std::get<bool>(fieldValue.Data));
                         break;
                     }
-                    case ScriptFieldType::Int:
+                    case ScriptFieldWidgetKind::Int:
                     {
-                        UI::PropertyInt(field.Name.c_str(), fieldValue.IntValue);
+                        const bool isSmall = (fieldValue.Type != ScriptFieldType::UInt &&
+                                              fieldValue.Type != ScriptFieldType::Long &&
+                                              fieldValue.Type != ScriptFieldType::ULong);
+                        int64_t temp = GetFieldValueAsInt64(fieldValue);
+                        bool modified = false;
+                        if (isSmall)
+                        {
+                            int temp32 = static_cast<int>(temp);
+                            modified = UI::PropertyInt(label, temp32);
+                            temp = temp32;
+                        }
+                        else
+                        {
+                            modified = UI::PropertyLong(label, temp);
+                        }
+                        if (modified)
+                        {
+                            SetFieldValueFromInt64(fieldValue, temp);
+                        }
                         break;
                     }
-                    case ScriptFieldType::Bool:
+                    case ScriptFieldWidgetKind::Float:
                     {
-                        UI::PropertyCheckbox(field.Name.c_str(), fieldValue.BoolValue);
+                        if (fieldValue.Type == ScriptFieldType::Double)
+                        {
+                            float temp = static_cast<float>(std::get<double>(fieldValue.Data));
+                            if (UI::PropertyFloat(label, temp))
+                            {
+                                fieldValue.Data = static_cast<double>(temp);
+                            }
+                        }
+                        else
+                        {
+                            UI::PropertyFloat(label, std::get<float>(fieldValue.Data));
+                        }
                         break;
                     }
-                    case ScriptFieldType::Vector3:
+                    case ScriptFieldWidgetKind::Float2:
                     {
-                        UI::PropertyFloat3(field.Name.c_str(), fieldValue.Vector3Value);
+                        UI::PropertyFloat2(label, std::get<glm::vec2>(fieldValue.Data));
+                        break;
+                    }
+                    case ScriptFieldWidgetKind::Float3:
+                    {
+                        UI::PropertyFloat3(label, std::get<glm::vec3>(fieldValue.Data));
+                        break;
+                    }
+                    case ScriptFieldWidgetKind::Float4:
+                    {
+                        if (fieldValue.Type == ScriptFieldType::Quaternion)
+                        {
+                            const glm::quat& quat = std::get<glm::quat>(fieldValue.Data);
+                            glm::vec4 temp(quat.w, quat.x, quat.y, quat.z);
+                            if (UI::PropertyFloat4(label, temp))
+                            {
+                                fieldValue.Data = glm::quat(temp.x, temp.y, temp.z, temp.w);
+                            }
+                        }
+                        else
+                        {
+                            UI::PropertyFloat4(label, std::get<glm::vec4>(fieldValue.Data));
+                        }
+                        break;
+                    }
+                    case ScriptFieldWidgetKind::Color:
+                    {
+                        UI::PropertyColor(label, std::get<glm::vec4>(fieldValue.Data));
+                        break;
+                    }
+                    case ScriptFieldWidgetKind::Text:
+                    {
+                        // PropertyString 是 char 缓冲：中转，改才写回
+                        const std::string& text = std::get<std::string>(fieldValue.Data);
+                        char buffer[256];
+                        strncpy_s(buffer, text.c_str(), sizeof(buffer) - 1);
+                        if (UI::PropertyString(label, buffer, sizeof(buffer)))
+                        {
+                            fieldValue.Data = std::string(buffer);
+                        }
+                        break;
+                    }
+                    case ScriptFieldWidgetKind::EntityRef:
+                    {
+                        UI::PropertyEntityRef(label, std::get<UUID>(fieldValue.Data), entity.GetScene());
+                        break;
+                    }
+                    case ScriptFieldWidgetKind::AssetRef:
+                    {
+                        // PropertyAsset<T> 需要 Ref<T>&：向下转换中转，改才写回；空 Ref 转换安全
+                        const Ref<Asset>& asset = std::get<Ref<Asset>>(fieldValue.Data);
+                        bool modified = false;
+                        Ref<Asset> newAsset;
+                        switch (fieldValue.Type)
+                        {
+                            case ScriptFieldType::Material:
+                            {
+                                Ref<Material> temp = std::static_pointer_cast<Material>(asset);
+                                modified = UI::PropertyAsset(label, temp);
+                                newAsset = temp;
+                                break;
+                            }
+                            case ScriptFieldType::Mesh:
+                            {
+                                Ref<Mesh> temp = std::static_pointer_cast<Mesh>(asset);
+                                modified = UI::PropertyAsset(label, temp);
+                                newAsset = temp;
+                                break;
+                            }
+                            case ScriptFieldType::Texture2D:
+                            {
+                                Ref<Texture2D> temp = std::static_pointer_cast<Texture2D>(asset);
+                                modified = UI::PropertyAsset(label, temp);
+                                newAsset = temp;
+                                break;
+                            }
+                            case ScriptFieldType::Script:
+                            {
+                                Ref<Script> temp = std::static_pointer_cast<Script>(asset);
+                                modified = UI::PropertyAsset(label, temp);
+                                newAsset = temp;
+                                break;
+                            }
+                            default:
+                            {
+                                break;
+                            }
+                        }
+                        if (modified)
+                        {
+                            fieldValue.Data = newAsset;
+                        }
                         break;
                     }
                     default:
@@ -723,17 +960,20 @@ anyChanged |= UI::PropertyFloat(...);
         }
 ```
 
+**3) 补 include**：`static_pointer_cast` 需要四种资产类型的完整定义 —— 确认/补 `Lucky/Renderer/Material.h`、`Lucky/Renderer/Mesh.h`、`Lucky/Renderer/Texture.h`（`Lucky/Asset/Script.h` 在 P2.3 已加）。
+
 **要点**：
 
-- **`if (!sc.ScriptAsset) return;` 提前返回**：没有脚本就没有字段可画，早退比把整段包在 `if` 里更扁平。**注意**：这个早退发生在 `PropertyAsset` 之后 —— 用户把脚本拖成 `None` 时，同步已经在上一段执行过（清空了 `Fields`），所以早退不会漏掉清理
+- **`if (!sc.ScriptAsset) return;` 提前返回**：没有脚本就没有字段可画。注意这个早退发生在 `PropertyAsset` 之后 —— 用户把脚本拖成 `None` 时，同步已经在上一段执行过（清空了 `Fields`），所以早退不会漏掉清理
 - **`TryResolveScriptClass` 替换掉原来的 `ResolveScriptClass`**（决策点 4.2）
 - **`fieldValue` 显式写成 `ScriptFieldValue&`，不要用 `auto`**（决策点 4.5 的警示；规范 §13.9）
 - **控件用 `field.Name.c_str()`** 当 label（决策点 4.3）
-- **`switch` 的 `default` 分支留空**：`GetFields()` 已经过滤掉 `None`，理论上不会走到。留 `default` 是为了让编译器不告警，同时表达"其余类型不画"
-- **`it->second` 的类型是 `ScriptFieldValue`**（`ScriptFieldMap` 的 value），所以 `fieldValue.Type` 与 `field.Type` 在正常情况下一致；**不在这里做类型校验**（P2.5 的同步和 Step 2 的灌值各有一道），这里校验只会重复
-- `ImGui::TextColored` 需要 `<imgui.h>`（P2.3 已处理过 include 问题，此处复用）
+- **`switch` 判的是 Widget 而不是 Type**：22 种类型塌缩成 10 个分支；类型相关的差异（整数宽度 / `Double` / `Quaternion` / 四种资产）在分支内部用 `fieldValue.Type` 二次分发 —— 这是 P2.4 把 `Widget` 放进类型表的收益
+- **`fieldValue.Type` 与 `field.Type` 正常情况一致**（同步保证），**不在这里做类型校验**（P2.5 的同步和 Step 2 的灌值各有一道）
+- `String` 缓冲定长 256：超长的字符串会被截断显示，**不写回不损坏**；需要更长时再调
+- `strncpy_s` 是 MSVC 安全函数，本工程只支持 MSVC ✓
 
-### Step 6：编译验证
+### Step 7：编译验证
 
 - Debug 编译 `Lucky` → 通过
 - Debug 编译 `Luck3DApp` → 通过
@@ -741,6 +981,7 @@ anyChanged |= UI::PropertyFloat(...);
 - **若报 `ScriptComponent` 未定义**：`ScriptEngine.cpp` 补 `#include "Lucky/Scene/Components/ScriptComponent.h"`
 - **若报 `SyncScriptFieldMap` 未定义**：`ComponentSerializers.cpp` 补 `#include "Lucky/Scripting/ScriptEngine.h"`
 - **若报 `ScriptFieldMap` 未定义**：`ScriptEngine.h` 确认 include 了 `Lucky/Scripting/ScriptFieldValue.h`（P2.4 已加）
+- **若报 `DragDrop::EntityHierarchy` 未定义**：`PropertyGrid.cpp` 补 `#include "Lucky/Editor/DragDropPayloads.h"`
 
 ---
 
@@ -803,14 +1044,18 @@ anyChanged |= UI::PropertyFloat(...);
 
 1. **编译通过**：`Lucky` 与 `Luck3DApp` 的 Debug / Release / Dist 三个 configuration 全通过
 2. **控件出现**：给 `PlayerController` 加 `public float Speed = 3.0f;` / `public int Level = 1;` / `public bool LogPosition = false;` / `public Vector3 Offset = new Vector3(1, 2, 3);` → 重新编译 → 重启 → 打开场景 → Inspector 里出现 4 个控件，**且显示的是脚本里写的初值**（`3.0` / `1` / 未勾选 / `(1,2,3)`）
-3. **拖动生效并持久化**：把 `Speed` 拖到 `7.5` → 保存场景 → 重启 → 打开 → 仍是 `7.5`；存档 YAML 里 `FloatValue: 7.5`
+3. **拖动生效并持久化**：把 `Speed` 拖到 `7.5` → 保存场景 → 重启 → 打开 → 仍是 `7.5`；存档 YAML 里 `Value: 7.5`
 4. **★ 脚本真的读到调过的值**：`Update` 里 `Debug.Log("speed = " + Speed);` → 在 Inspector 把 `Speed` 调成 `7.5` → Play → 日志**是 `speed = 7.5`**（**这是整个 Phase 2 的最终验证点**）
 5. **灌值早于 Awake**：`Awake` 里 `Debug.Log("awake speed = " + Speed);` → Inspector 调成 `7.5` → Play → 日志是 `awake speed = 7.5`（**证明灌值在 Awake 之前**；若是 `3`，说明顺序反了）
 6. **字段表没有的字段回落到脚本初值**：手动从存档里删掉 `Speed` 项 → 重开场景 → 同步会补回来（决策点 4.4-A）；若手工绕过同步直接 Play，脚本读到的是脚本初值 `3.0`，**不报错**
 7. **新字段自动出现**：脚本加一个新字段 → 重新编译 → 重启 → 打开场景 → Inspector 立刻出现该控件（**这一条专门验 Step 4 的反序列化同步**）
-8. **删字段自动消失**：脚本删掉一个字段 → 重新编译 → 重启 → 打开场景 → 该控件消失，日志有 `在脚本中已不存在`
+8. **删字段自动消失**：脚本删掉一个字段 → 重新编译 → 重启 → 打开场景 → 该控件消失，日志有 `no longer exists in the script`
 9. **不刷日志**：让脚本解析失败（把 `.cs` 改名不编译）→ 拖入 → 停在编辑器里**观察 10 秒** → 红色提示一直在，但**日志里只有一条 ERROR**（不是几十条）。**这一条专门验 Step 1 的静默解析**
-10. **类型不符被拦**：手改存档把 `Speed` 的 `Type` 写成 `Int`（值 `IntValue: 3`），脚本里仍是 `float` → 重开场景 → 同步会重置为脚本初值；若绕过同步直接 Play，日志出现 `值类型与脚本类型不符，已跳过` 且**不崩**
+10. **类型不符被拦**：手改存档把 `Speed` 的 `Type` 写成 `Int`（值 `Value: 3`），脚本里仍是 `float` → 重开场景 → 同步会重置为脚本初值；若绕过同步直接 Play，日志出现 `does not match the script type, skipped` 且**不崩**
+13. **字符串编辑往返**：加 `public string Title = "player";` → Inspector 出现文本框 → 改成 `"boss"` → Play 后脚本读到 `"boss"` → 存盘重开仍是 `"boss"`（验 Text 中转与 `PropertyString`）
+14. **实体引用槽**：加 `public Entity Target;` → Inspector 出现实体槽 → 从场景树拖一个实体进去 → Play 后脚本能用它访问组件 → 点 `X` 清空后显示 `None (Entity)`（验 `PropertyEntityRef` 与 `DragDrop::EntityHierarchy` 链路）
+15. **大整数不被静默磨损**：加 `public long BigNumber = 5000000000;`（超 int32）→ Inspector 显示正确 → **不碰它**、挂着 Inspector 若干秒后存盘 → 存档里仍是 `5000000000`（验"改才写回"——若是截断值说明中转档写回条件错了）
+16. **Double 精度**：加 `public double Pi = 3.141592653589793;` → 不编辑的情况下存盘重开，值不损失（同上，验中转档）；编辑成 `2.5` 后写回正确
 11. **`OnDestroy` 链路未退化**：Play 中移除 ScriptComponent → 仍有 `OnDestroy` 打印（P1 的成果没被破坏）
 12. **代码规范**：通过人工 checklist —— 控制语句全带花括号（§5.2）；`switch` 各 case 带花括号；范围 for 用 `auto`，但**字段值的引用显式写成 `ScriptFieldValue&`**（§13.9）；公有接口有 `/// <summary>` 中文注释（§4.1）；无"为对齐而对齐"的空格（§5.4）；无引用外部文档的注释、无"P3 会补齐"这类阶段性注释
 
@@ -827,22 +1072,25 @@ anyChanged |= UI::PropertyFloat(...);
 | `ScriptInstance::SetFieldValues` | **P3 热重载** | 程序集重新加载后重建脚本实例时，直接复用这个函数把 `Fields` 灌进新对象 |
 | `TryResolveScriptClass` | 任何每帧调用的展示路径 | 复用"有日志 / 静默"这对接口的范式 |
 | `Deserialize_Script` 里的同步调用 | 若将来脚本字段类型扩展 | 新增类型时这里不需要动（同步逻辑不区分类型） |
-| `ScriptFieldType` 到控件的映射 | 类型扩展 | 加类型时：枚举、`ResolveScriptFieldType`、序列化两处 switch、**Step 5 的 switch**，共五处 |
-| `Draw_Script` 忽略控件返回值 | **E-TODO-08 场景修改标记** | 需要"场景标脏"时，把 `Draw_Xxx` 的契约改成返回 `bool`，此处收集 `UI::PropertyXxx` 的返回值 |
+| 控件映射（`Draw_Script` 的 Widget `switch`） | 类型扩展 | 加类型时：P2.4 类型表加一行 + 序列化读/写各一个 case + 这里对应 Widget 分支补载荷存取（Widget 种类不够用时才在 `ScriptFieldWidgetKind` 里加） |
+| `Draw_Script` 忽略直接档控件返回值 | **E-TODO-08 场景修改标记** | 需要"场景标脏"时，把 `Draw_Xxx` 的契约改成返回 `bool`，此处收集 `UI::PropertyXxx` 的返回值（中转档已在用返回值） |
+| `PropertyEntityRef` | 后续增强 | 校验"目标实体挂了对应脚本"（P2.4 决策点 4.10 的既定边界）；场景树以外的实体选择方式（弹窗搜索等） |
 
 ---
 
 ## 9. 变更清单速览
 
 - **新增文件**：无
-- **修改文件（4 个）**
+- **修改文件（6 个）**
   - `Lucky/Source/Lucky/Scripting/ScriptEngine.h`：加 `TryResolveScriptClass`（公开）、`ResolveScriptClassImpl`（私有）、`ScriptInstance::SetFieldValues`
   - `Lucky/Source/Lucky/Scripting/ScriptEngine.cpp`：`ResolveScriptClass` 拆成 `Impl` + 两个薄壳；加 `SetFieldValues` 实现；`OnCreateEntityScript` 插入灌值（可能补 `ScriptComponent.h` include）
-  - `Lucky/Source/Lucky/Editor/ComponentInspectors.cpp`：`Draw_Script` 改用 `TryResolveScriptClass` + 按类型画四个控件（可能补 `<imgui.h>`）
+  - `Lucky/Source/Lucky/Editor/ComponentInspectors.cpp`：`Draw_Script` 改用 `TryResolveScriptClass` + 按 `ScriptFieldWidgetKind` 画控件；匿名命名空间加两个整数中转辅助；补三种资产类型的 include
   - `Lucky/Source/Lucky/Serialization/ComponentSerializers.cpp`：`Deserialize_Script` 末尾加一次 `SyncScriptFieldMap`（补 `ScriptEngine.h` include）
+  - `Lucky/Source/Lucky/UI/PropertyGrid.h` / `PropertyGrid.cpp`：新写 `PropertyLong` 与 `PropertyEntityRef`
+  - `Lucky/Source/Lucky/Scene/Entity.h`：加 `GetScene()` 访问器（一行）
 - **删除**：无
-- **不改动**：`Scene/Scene.cpp`（**刻意不改**，见约束 3）、`Scene/Components/ScriptComponent.h`、`ScriptFieldValue.h`、`UI/*`、托管 C# 代码、premake
-- **测试样本**：`Luck3DApp/Project/Assets/Scripts/PlayerController.cs` 建议保留 `Speed` 等字段（供验收第 2～5 条使用）
+- **不改动**：`Scene/Scene.cpp`（**刻意不改**，见约束 3）、`Scene/Components/ScriptComponent.h`、`ScriptFieldValue.h`、托管 C# 代码、premake
+- **测试样本**：`Luck3DApp/Project/Assets/Scripts/PlayerController.cs` 建议保留 `Speed` 等字段（供验收第 2～5 条使用）；验收第 13～16 条的 `Title` / `Target` / `BigNumber` / `Pi` 测完可删
 
 ---
 
@@ -852,6 +1100,6 @@ anyChanged |= UI::PropertyFloat(...);
 - 前置详设 [Phase2.3_ScriptComponent_AssetRef.md](Phase2.3_ScriptComponent_AssetRef.md)（`Draw_Script` 的上一形态、`OnCreateEntityScript` 的签名改造）
 - 前置详设 [Phase2.4_ScriptField_Metadata.md](Phase2.4_ScriptField_Metadata.md)（`ScriptField` / `GetFields` / `SetFieldValue`）
 - 前置详设 [Phase2.5_ScriptField_Serialization.md](Phase2.5_ScriptField_Serialization.md)（`Fields` / `SyncScriptFieldMap` / 序列化；其 §8 关于"进 Play 前同步"的设想已被本 Phase 4.4-D 否决）
-- UI 控件 `UI/PropertyGrid.h` 的 `PropertyFloat` / `PropertyInt` / `PropertyCheckbox` / `PropertyFloat3`
+- UI 控件 `UI/PropertyGrid.h`：`PropertyFloat` / `PropertyFloat2-4` / `PropertyInt` / `PropertyCheckbox` / `PropertyColor` / `PropertyString` / `PropertyAsset<T>`；拖放常量 `Lucky/Editor/DragDropPayloads.h`（`EntityHierarchy`）
 - 路径与时序 `Lucky/Source/Lucky/Core/Application.cpp`（`ScriptEngine::Init` 与打开场景的先后）
 - 脚本系统路线图 [ScriptSystem_Roadmap.md](ScriptSystem_Roadmap.md) 第 4 节 Phase 2 出口标准「在 `.cs` 里写 `public float Speed = 3.0f;`，Inspector 出现 Speed 拖动条，保存场景后重新打开仍保留」

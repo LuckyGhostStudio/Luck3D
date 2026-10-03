@@ -4,7 +4,7 @@
 
 把 P2.4 产出的 `ScriptFieldValue` 装进 `ScriptComponent`，并且：
 
-1. **脚本首次挂上时，从托管类读出字段的初始值填进 `FieldMap`** —— 这样 Inspector 里看到的就是脚本里写的 `= 3.0f`，而不是 0
+1. **脚本首次挂上时，把字段的初始值填进 `FieldMap`** —— 初始值直接取 P2.4 已读好的 `ScriptField::DefaultValue`，Inspector 里看到的就是脚本里写的 `= 3.0f`，而不是 0
 2. **脚本字段列表变化时自动同步**（新增字段补默认值、删掉的字段丢弃）
 3. **随场景序列化** —— 存盘重开值还在
 
@@ -12,18 +12,9 @@
 
 ### 1.1 关键约束
 
-- **字段的初始值只能从"真实实例"读，不能用 `mono_class_get_field_default_value`。** 原因很关键：C# 里
-  ```csharp
-  public float Speed = 3.0f;
-  ```
-  这个 `= 3.0f` 被编译进**构造函数体**（IL 里的 `stfld`），**不是**字段元数据里的默认值。所以 `mono_class_get_field_default_value` 只会给你 `0`。**必须造一个实例去读。**
-- **造临时实例的副作用必须被约定住**：读默认值需要 `ScriptClass::Instantiate()`（它会跑一遍 C# 构造函数），所以：
-  - 临时实例**不注册**进 `EntityInstances`
-  - 临时实例**不调用** `Awake`
-  - 读完立刻让它 `Ref` 析构
-  - 这一点必须写在代码注释里 —— 否则以后有人会"顺手"把它注册进去
+- **字段的初始值直接取 `ScriptField::DefaultValue`，本 Phase 不造任何实例。** P2.4（决策点 4.6）已经在 `GetFields()` 里从真实实例把默认值读好存进 `ScriptField`（C# 字段初始化器编译进构造函数体，元数据里只有 0 —— 所以必须在实例上读，这一步 P2.4 已经做了）。`SyncScriptFieldMap` 只是把它抄进 `FieldMap`，是纯数据操作。
 - **`FieldMap` 的键是字段名（`std::string`），不是索引。** 脚本里插入/删除/重排字段后，旧存档仍能按名字对上；代价是**字段改名会丢值**（Unity 同样如此）。
-- **`ScriptFieldType` 必须同时提供 `ToString` 和 `FromString`**，和 P2.1 给 `AssetType` 加两处映射是同一个教训 —— 只写一侧会导致存盘能读、重开丢类型。
+- **类型名与类型的互查全部走 P2.4 的类型表**：写盘用 `GetScriptFieldTypeInfo(type).Name`，读盘用本 Phase 在 `ScriptFieldType.h` 补的 `TryGetScriptFieldTypeByName` —— 不在别处再写一份字符串清单（P2.1 `AssetType` 漏 `StringToAssetType` 分支的教训）。
 - **反序列化时不依赖 `ScriptEngine` 已加载程序集**：读出来只是"一串有类型的值"，不需要解析脚本类。补默认值/清理多余字段交给 `SyncScriptFieldMap`（它才需要程序集，且可能在 Inspector 拖入时或进 Play 前才被调用）。
 - **存档里的字段类型与脚本当前类型不符时，以脚本为准**（用默认值覆盖 + 打 WARN）—— 脚本从 `float` 改成 `int` 属于用户改了签名，旧值已经语义无效。
 - 代码风格遵循 [Coding_Style_Guide.md](../Coding_Style_Guide.md)：组件是 `struct`（§13.3）、`enum class`（§8.1）、控制语句强制花括号（§5.2）、范围 for 元素用 `auto`（§13.9）。
@@ -33,7 +24,7 @@
 | 依赖 | 说明 |
 |------|------|
 | P2.3 | `ScriptComponent::ScriptAsset`（`Ref<Script>`）已就位 |
-| P2.4 | `ScriptFieldValue.h`、`ScriptClass::GetFields()` / `GetFieldValue` / `SetFieldValue`、`ScriptClass::Instantiate()` 已就位 |
+| P2.4 | `ScriptFieldType.h`（类型表）、`ScriptFieldValue.h`（variant 容器）、`ScriptClass::GetFields()`（含 `ScriptField::DefaultValue`，默认值已读好）已就位 |
 | P2.2 | `ScriptEngine::ResolveScriptClass` 已就位 |
 | 序列化 | `ComponentSerializers.cpp` 里 `ScriptComponent` 已有 `Serialize_Script` / `Deserialize_Script`（P2.3 改成 `AssetHandle`） |
 | YAML | `YamlHelpers.h` 提供 vec3 等类型的 YAML 转换 |
@@ -42,7 +33,7 @@
 
 - 不做 Inspector 的字段控件（P2.6）—— 本 Phase 只在拖入脚本时触发一次同步
 - 不做"进 Play 时把值灌进托管对象"（P2.6）
-- 不做字段类型扩展（仍是 float / int / bool / Vector3）
+- 不新增字段类型（类型集合以 P2.4 登记的 22 种为准；本 Phase 做的是让它们**全部**可序列化）
 - 不做 `[HideInInspector]`
 
 ---
@@ -57,11 +48,12 @@
 
 | 文件 | 改动 |
 |------|------|
-| `Lucky/Source/Lucky/Scripting/ScriptFieldValue.h` | 加 `ScriptFieldMap` 别名；加 `ScriptFieldTypeToString` / `StringToScriptFieldType` |
+| `Lucky/Source/Lucky/Scripting/ScriptFieldType.h` | 加 `TryGetScriptFieldTypeByName`（序列化反查） |
+| `Lucky/Source/Lucky/Scripting/ScriptFieldValue.h` | 加 `ScriptFieldMap` 别名；补 `<unordered_map>` |
 | `Lucky/Source/Lucky/Scene/Components/ScriptComponent.h` | 加 `ScriptFieldMap Fields` 成员 |
-| `Lucky/Source/Lucky/Scripting/ScriptEngine.h` | 加 `SyncScriptFieldMap` 声明 |
-| `Lucky/Source/Lucky/Scripting/ScriptEngine.cpp` | 加 `SyncScriptFieldMap` 实现 |
-| `Lucky/Source/Lucky/Serialization/ComponentSerializers.cpp` | `Serialize_Script` / `Deserialize_Script` 加 `Fields` 段 |
+| `Lucky/Source/Lucky/Scripting/ScriptEngine.h` | 加 `SyncScriptFieldMap` 声明；`ResolveAssetByFieldType` 提升为公开静态 |
+| `Lucky/Source/Lucky/Scripting/ScriptEngine.cpp` | 加 `SyncScriptFieldMap` 实现；`ResolveAssetByFieldType` 定义挪出匿名命名空间 |
+| `Lucky/Source/Lucky/Serialization/ComponentSerializers.cpp` | `Serialize_Script` / `Deserialize_Script` 加 `Fields` 段；补 `ScriptEngine.h` include |
 | `Lucky/Source/Lucky/Editor/ComponentInspectors.cpp` | `Draw_Script` 里在脚本被赋值后调用一次同步 |
 
 ### 2.3 不修改
@@ -92,53 +84,34 @@
 
 ### 3.2 `ScriptFieldValue` 与相关 API（P2.4 产出）
 
-```cpp
-    enum class ScriptFieldType : uint8_t
-    {
-        None = 0,
-        Float,
-        Int,
-        Bool,
-        Vector3
-    };
+`ScriptFieldValue` 是 variant 容器（22 种类型，详见 P2.4 决策点 4.1 / 4.2）：
 
+```cpp
     struct ScriptFieldValue
     {
-        ScriptFieldType Type = ScriptFieldType::None;
-        float FloatValue = 0.0f;
-        int IntValue = 0;
-        bool BoolValue = false;
-        glm::vec3 Vector3Value = glm::vec3(0.0f);
+        ScriptFieldType  Type = ScriptFieldType::None;   // 权威：先看 Type，再 std::get 取载荷
+        ScriptFieldScalar Data;                          // variant：bool / 8 种整数 / float / double / string
+                                                         // / vec2-4 / quat / UUID(Entity) / Ref<Asset>(资产)
     };
 ```
 
-```cpp
-        const std::vector<ScriptField>& GetFields();
-
-        bool GetFieldValue(MonoObject* instance, const ScriptField& field, ScriptFieldValue& outValue) const;
-
-        bool SetFieldValue(MonoObject* instance, const ScriptField& field, const ScriptFieldValue& value) const;
-```
-
-### 3.3 `Instantiate()` 会跑到哪个构造函数
+与本 Phase 直接相关的另两件 P2.4 产出：
 
 ```cpp
-    MonoObject* ScriptClass::Instantiate()
+    struct ScriptField
     {
-        return ScriptEngine::InstantiateClass(m_MonoClass);
-    }
+        std::string       Name;
+        ScriptFieldType   Type;
+        ScriptFieldValue  DefaultValue;   // ★ P2.4 已从真实实例读好，本 Phase 直接用
+        MonoClassField*   Field;
+    };
 
-    MonoObject* ScriptEngine::InstantiateClass(MonoClass* monoClass)
-    {
-        MonoObject* instance = mono_object_new(s_Data->AppDomain, monoClass);
-        mono_runtime_object_init(instance);
-        return instance;
-    }
+    const std::vector<ScriptField>& ScriptClass::GetFields();   // 含继承链上的字段（P2.4 决策点 4.9）
 ```
 
-`mono_runtime_object_init` 调的是**无参构造**。对 `PlayerController : Entity`，链上会调到 `Lucky.Entity()`（`protected Entity() { ID = 0; }`）—— **不需要实体 UUID**，所以"造临时实例读默认值"这条路是通的。
+### 3.3 默认值已在 P2.4 读好，本 Phase 不再实例化
 
-`ScriptInstance` 的构造里额外做的事（调 `Entity(ulong)` 把 UUID 写进 `ID`、注册实例、调 `Awake`）**都不在本 Phase 的临时实例路径上**。
+P2.4 的 `ScriptClass::GetFields()` 首次调用时会造一个临时实例读默认值（`Instantiate()` 只跑无参构造，不需要实体 UUID），存进每条 `ScriptField::DefaultValue`。因此本 Phase 的 `SyncScriptFieldMap` **完全不需要碰 mono 实例** —— 它操作的是纯数据（`ScriptField` 元信息 + `FieldMap`）。这让本 Phase 比最初设想少了一整节"临时实例副作用约定"。
 
 ### 3.4 `ScriptComponent` 的序列化现状（P2.3 产出）
 
@@ -165,26 +138,14 @@
         }
 ```
 
-### 3.5 `AssetType` 的 `ToString` / `FromString` 范式（本 Phase 要照抄给 `ScriptFieldType`）
+### 3.5 类型名互查走 P2.4 的类型表（不照抄 `AssetType` 的手写清单）
 
-```cpp
-    inline const char* AssetTypeToString(AssetType type)
-    {
-        switch (type)
-        {
-            case AssetType::Material:   return "Material";
-            // ...
-            default:                    return "None";
-        }
-    }
+P2.1 给 `AssetType` 手写了 `AssetTypeToString` / `StringToAssetType` 两份清单，结果漏了 `StringToAssetType` 的一个分支。P2.4 的类型表（`s_ScriptFieldTypeInfos[]`）自带序列化名 `Name`，所以：
 
-    inline AssetType StringToAssetType(const std::string& str)
-    {
-        if (str == "Material")  return AssetType::Material;
-        // ...
-        return AssetType::None;
-    }
-```
+- 写盘：`GetScriptFieldTypeInfo(type).Name`（P2.4 已就位）
+- 读盘：本 Phase 在 `ScriptFieldType.h` 补一个 `TryGetScriptFieldTypeByName`（遍历表按 `Name` 匹配，见 Step 1）
+
+**不手写任何字符串清单** —— 加类型时表里加一行，两个方向同时生效。
 
 ### 3.6 场景里 `ScriptComponent` 段落的目标形态（本 Phase 之后）
 
@@ -194,60 +155,66 @@
       Fields:
         Speed:
           Type: Float
-          FloatValue: 3.0
+          Value: 3.0
         LogPosition:
           Type: Bool
-          BoolValue: false
+          Value: false
+        Title:
+          Type: String
+          Value: player
+        Offset:
+          Type: Vector3
+          Value: [0, 0, 0]
+        Target:
+          Type: Entity
+          Value: 9876543210987654321
+        Mat:
+          Type: Material
+          Value: 12345678901234567891
 ```
 
-**刻意做成"可读的键值对"**，方便你直接手改存档调试（也符合项目"YAML 存档 Git 友好"的既定取向）。
+**刻意做成"可读的键值对"**，方便你直接手改存档调试（也符合项目"YAML 存档 Git 友好"的既定取向）。值统一用 `Value` 键 —— 类型已由 `Type` 显式给出，读法按 `Type` 分发（决策点 4.5），不需要 `FloatValue` / `BoolValue` 这类"22 种类型 22 个键名"。
 
 ---
 
 ## 4. 关键设计决策（多方案对比）
 
-### 4.1 决策点 1：字段初始值怎么取得
+### 4.1 决策点 1：字段初始值从哪拿
 
-#### 方案 A：脚本被赋值的瞬间，造一个临时实例读全部字段（**推荐 ✅**）
+> 背景：这个问题在 P2.4 已经解决了一半 —— `GetFields()` 枚举时会从真实实例把每个字段的默认值读进 `ScriptField::DefaultValue`（P2.4 决策点 4.6）。本 Phase 要决定的是 `SyncScriptFieldMap` 怎么用这些默认值。
+
+#### 方案 A：直接用 `ScriptField::DefaultValue`（**推荐 ✅**）
 
 ```cpp
-MonoObject* tempInstance = scriptClass->Instantiate();
-// 对每个字段调 GetFieldValue(tempInstance, field, outValue)
-// tempInstance 随 Ref 析构被回收
+// 缺失字段 / 类型不符字段：直接抄 P2.4 读好的默认值
+fieldMap[field.Name] = field.DefaultValue;
 ```
 
 - **优点**：
-  1. **Inspector 里立刻显示脚本里写的初值**（`Speed = 3.0`），和 Unity 的行为一致
-  2. 一次遍历把所有字段读完，代价可控（只在"拖入脚本"和"脚本字段变了"时发生）
-  3. 不需要在运行时另开一条"回填"路径
+  1. **本 Phase 完全不碰 mono 实例** —— `SyncScriptFieldMap` 是纯数据操作，没有"临时实例注册/不注册、调不调 Awake"的副作用问题
+  2. 默认值只读一次（P2.4 缓存），这里只是拷贝
+  3. "同步"的触发时机（拖入脚本、进 Play 前兜底）随便调，没有任何构造副作用
+- **缺点**：若脚本字段变了但程序集没重编，`GetFields()` 的缓存不会更新 —— 这与"脚本必须重编才能生效"的既定工作流一致，不算新增约束
+
+#### 方案 B：同步时再造临时实例现读
+
+- **优点**：读到的是"当下"的实例值
 - **缺点**：
-  1. **会执行脚本的 C# 构造函数** —— 如果用户在构造函数里写了副作用（罕见且不推荐），会被执行一次。**必须用注释把"临时实例不注册、不 Awake、读完即弃"的约定写死**
-  2. 依赖 mono 已初始化（`ResolveScriptClass` 已经依赖这一条，无额外新增）
-
-#### 方案 B：用 `mono_class_get_field_default_value` 读元数据默认值
-
-- **优点**：不造实例，零副作用
-- **缺点**：**根本读不到 C# 字段初始化器的值**。`public float Speed = 3.0f;` 编译进构造函数，元数据默认值是 `0`。用户会看到 Inspector 里显示 `0` 而脚本里明明写着 `3.0f` —— 典型的"看起来对了其实全错"。**否决。**
+  1. **重复劳动**：P2.4 已经读过一遍，这里再造实例读一遍，同一件事做两次
+  2. 重新引入 P2.4 已经吸收掉的副作用问题（C# 构造函数会在编辑期再跑一遍）
+  3. "按需实例化"的分支让同步逻辑复杂一倍
+- **否决**（P2.4 决策点 4.6 的目的就是把这件事提前做掉）
 
 #### 方案 C：`FieldMap` 只存"用户改过的值"，缺省时 Inspector 显示类型零值
 
-- **优点**：零副作用，实现最简
+- **优点**：实现最简
 - **缺点**：
   1. 编辑态看到的是 `0`，而不是脚本里的初值 —— 用户无法判断"到底生效了没有"
   2. 存档里没有"脚本初值"这个基准，一旦字段被改过就无法回到初值
-  3. 与 Unity 的体验背离，违背"对齐 Unity 语义"的既定方向
-- **次优**：如果实测发现"临时实例副作用"是真实痛点，可以退到这里，但要接受上面三条代价
+  3. 与 Unity 的体验背离
+- **次优**：如果实测发现默认值机制有真实痛点，可以退到这里，但要接受上面三条代价
 
-#### 方案 D：首次进 Play 时读真实实例的初值再回填到 `FieldMap`
-
-- **优点**：用的是真实例，无"临时"概念
-- **缺点**：
-  1. **编辑态永远看不到值**（只有进过一次 Play 才有），而编辑态恰恰是最需要看到默认值的时候
-  2. 进 Play 时 `Scene::Copy` 已经发生，回填要写到哪一份场景上？（运行态副本丢弃后回填就没了）
-  3. 引入了"编辑态/运行态数据不一致"的时序陷阱
-- **否决。**
-
-**结论：方案 A。** 把副作用约定写进注释和验收标准。
+**结论：方案 A。**
 
 ---
 
@@ -308,19 +275,19 @@ using ScriptFieldMap = std::unordered_map<std::string, ScriptFieldValue>;
 
 "同步"要做三件事：① 缺失字段补默认值 ② 类型不符的字段用默认值覆盖 ③ 多余的键删掉。
 
-#### 方案 A：一个入口 `SyncScriptFieldMap`，内部按需实例化（**推荐 ✅**）
+#### 方案 A：一个入口 `SyncScriptFieldMap`（**推荐 ✅**）
 
 ```cpp
 static void SyncScriptFieldMap(const Ref<Script>& scriptAsset, ScriptFieldMap& fieldMap);
 ```
 
-内部逻辑：先解析类拿字段列表 → 检查是否真的缺字段 → **只有需要读默认值时才造临时实例** → 补齐/覆盖/清理。
+内部逻辑：解析类拿字段列表（`GetFields()`，含 `DefaultValue`）→ 缺失字段补 `DefaultValue`、类型不符的用 `DefaultValue` 覆盖 → 清掉脚本里已不存在的键。纯数据操作，不碰 mono 实例。
 
 - **优点**：
-  1. 调用方只有一句 `SyncScriptFieldMap(sc.ScriptAsset, sc.Fields);`，不需要知道内部要不要实例化
-  2. "按需实例化"这个优化藏在里面，调用方无需关心
-  3. 一个入口 = 一处维护，避免"两个接口调用顺序错了"的问题
-- **缺点**：函数内部有分支（"要不要造实例"），比"直接造"稍复杂 —— 但换来"字段没变时不跑构造函数"，值得
+  1. 调用方只有一句 `SyncScriptFieldMap(sc.ScriptAsset, sc.Fields);`
+  2. 一个入口 = 一处维护，避免"两个接口调用顺序错了"的问题
+  3. 无实例化 → 无触发时机顾虑（拖入时调、进 Play 前兜底调都安全）
+- **缺点**：函数内部仍是"补齐/覆盖 + 清理"两段逻辑 —— 但都是直白的 map 操作
 
 #### 方案 B：拆成 `FillFieldMapDefaults` + `PruneFieldMap` 两个接口
 
@@ -330,7 +297,7 @@ static void SyncScriptFieldMap(const Ref<Script>& scriptAsset, ScriptFieldMap& f
 #### 方案 C：同步逻辑放到 `ScriptComponent` 自己的方法里
 
 - **优点**：`sc.Sync();` 读起来最顺
-- **缺点**：`ScriptComponent` 就得 include `ScriptEngine.h`（要用 `ResolveScriptClass` / `GetFields` / `Instantiate`），把脚本运行时整条链拖进组件头 —— **直接破坏 P2.4 决策点 4.3 的努力**。**否决。**
+- **缺点**：`ScriptComponent` 就得 include `ScriptEngine.h`（要用 `ResolveScriptClass` / `GetFields`），把脚本运行时整条链拖进组件头 —— **直接破坏 P2.4 决策点 4.4 的努力**。**否决。**
 
 **结论：方案 A。**
 
@@ -338,22 +305,23 @@ static void SyncScriptFieldMap(const Ref<Script>& scriptAsset, ScriptFieldMap& f
 
 ### 4.5 决策点 5：`Fields` 段在 YAML 里怎么写
 
-#### 方案 A：可读的键值对（**推荐 ✅**）
+#### 方案 A：可读的键值对 + 统一 `Value` 键（**推荐 ✅**）
 
 ```yaml
       Fields:
         Speed:
           Type: Float
-          FloatValue: 3.0
+          Value: 3.0
         LogPosition:
           Type: Bool
-          BoolValue: false
+          Value: false
 ```
 
 - **优点**：
   1. 直接手改存档就能试数值，不用开编辑器
   2. `Type` 显式写出来 —— 反序列化时**不依赖程序集**也能正确构造 `ScriptFieldValue`
   3. Git diff 可读（改一个值只动一行）
+  4. **`Value` 一个键通吃 22 种类型** —— 读法由 `Type` 分发；若按"每类型一个键名"（`FloatValue` / `BoolValue` / …）需要 22 个键名，且与 variant 容器（P2.4 决策点 4.2）的形态不符
 - **缺点**：比紧凑格式啰嗦（每个字段 3 行）
 
 #### 方案 B：紧凑的序列形式
@@ -362,7 +330,7 @@ static void SyncScriptFieldMap(const Ref<Script>& scriptAsset, ScriptFieldMap& f
       Fields:
         - Name: Speed
           Type: Float
-          FloatValue: 3.0
+          Value: 3.0
 ```
 
 - **优点**：顺序稳定（按写入顺序）
@@ -384,14 +352,14 @@ static void SyncScriptFieldMap(const Ref<Script>& scriptAsset, ScriptFieldMap& f
 
 ### 4.6 决策点 6：存档里的类型与脚本当前类型不符时怎么办
 
-场景：脚本里 `public float Speed = 3.0f;` 改成了 `public int Speed = 3;`，存档里还是 `Type: Float, FloatValue: 3.0`。
+场景：脚本里 `public float Speed = 3.0f;` 改成了 `public int Speed = 3;`，存档里还是 `Type: Float, Value: 3.0`。
 
 #### 方案 A：以脚本为准，用字段的当前默认值覆盖 + 打 WARN（**推荐 ✅**）
 
 - **优点**：
   1. 结果确定：Inspector 显示的就是脚本当前的真实初值
   2. 一条 WARN 交代清楚"这个字段的值因为类型变了被重置了"
-  3. 不会把 `FloatValue=3.0` 硬塞进 `int` 字段（那是未定义行为级别的错配）
+  3. 不会把 `Type: Float, Value=3.0` 硬塞进 `int` 字段（那是未定义行为级别的错配）
 - **缺点**：用户丢了一次手调的值。但**类型都改了，旧值本来就没有意义了**
 
 #### 方案 B：以存档为准，尝试做类型转换
@@ -433,7 +401,7 @@ if (UI::PropertyAsset("Script", sc.ScriptAsset))
 #### 方案 C：每帧在 `Draw_Script` 里都同步
 
 - **优点**：永远最新
-- **缺点**：每帧都要解析类 + 遍历字段，**且一旦有字段缺失就会每帧造一个临时实例**（跑一遍 C# 构造函数）—— 这是不可接受的浪费。**否决。**
+- **缺点**：每帧都要解析类 + 遍历字段 + 两轮 map 扫描 —— 纯浪费（字段表又不是每帧变）。而且 `UI::PropertyAsset` 的返回值已经提供了精确的触发时机，没有必要每帧轮询。**否决。**
 
 **结论：方案 A。** 并在 §8 接线点注明 P2.6 要在"进 Play 前"再同步一次作为兜底。
 
@@ -443,20 +411,47 @@ if (UI::PropertyAsset("Script", sc.ScriptAsset))
 
 每步完成后 `Lucky` 与 `Luck3DApp` 都应能编译通过。
 
-### Step 1：`ScriptFieldValue.h` 加别名与类型转换
+### Step 1：类型表加反查函数 + `ScriptFieldValue.h` 加别名
 
-**文件**：`Lucky/Source/Lucky/Scripting/ScriptFieldValue.h`
+**文件 A**：`Lucky/Source/Lucky/Scripting/ScriptFieldType.h`
+
+在 `TryGetScriptFieldTypeByManagedName` **之后**加（反序列化按 `Name` 反查，与写盘的 `GetScriptFieldTypeInfo(type).Name` 配对）：
+
+```cpp
+    /// <summary>
+    /// 按序列化名查类型（反序列化用）；查不到返回 false
+    /// </summary>
+    /// <param name="name">存档里的 Type 字符串，如 "Float" / "Vector3"</param>
+    /// <param name="outType">输出：匹配到的字段类型</param>
+    inline bool TryGetScriptFieldTypeByName(const char* name, ScriptFieldType& outType)
+    {
+        if (!name)
+        {
+            return false;
+        }
+
+        for (const ScriptFieldTypeInfo& info : s_ScriptFieldTypeInfos)
+        {
+            if (std::strcmp(info.Name, name) == 0)
+            {
+                outType = info.Type;
+                return true;
+            }
+        }
+
+        return false;
+    }
+```
+
+**文件 B**：`Lucky/Source/Lucky/Scripting/ScriptFieldValue.h`
 
 **1) 补 include**：
 
 ```cpp
-#include <glm/glm.hpp>
-
-#include <string>
 #include <unordered_map>
 ```
 
-**2) 文件末尾（`namespace Lucky` 内、结构体之后）加设备别名与两个转换函数**：
+**2) 文件末尾（`namespace Lucky` 内、结构体之后）加别名**：
 
 ```cpp
     /// <summary>
@@ -464,39 +459,12 @@ if (UI::PropertyAsset("Script", sc.ScriptAsset))
     /// 用名字而不是索引，脚本里插入/删除/重排字段后旧数据仍能对上；代价是字段改名会丢值
     /// </summary>
     using ScriptFieldMap = std::unordered_map<std::string, ScriptFieldValue>;
-
-    /// <summary>
-    /// ScriptFieldType 转字符串（序列化用）
-    /// </summary>
-    inline const char* ScriptFieldTypeToString(ScriptFieldType type)
-    {
-        switch (type)
-        {
-            case ScriptFieldType::Float:    return "Float";
-            case ScriptFieldType::Int:      return "Int";
-            case ScriptFieldType::Bool:     return "Bool";
-            case ScriptFieldType::Vector3:  return "Vector3";
-            default:                        return "None";
-        }
-    }
-
-    /// <summary>
-    /// 字符串转 ScriptFieldType（反序列化用）
-    /// </summary>
-    inline ScriptFieldType StringToScriptFieldType(const std::string& str)
-    {
-        if (str == "Float")     return ScriptFieldType::Float;
-        if (str == "Int")       return ScriptFieldType::Int;
-        if (str == "Bool")      return ScriptFieldType::Bool;
-        if (str == "Vector3")   return ScriptFieldType::Vector3;
-        return ScriptFieldType::None;
-    }
 ```
 
 **要点**：
 
-- 完全照抄 `AssetType.h` 里 `AssetTypeToString` / `StringToAssetType` 的形态（§3.5）—— `inline` 自由函数、`switch` 带 `default`、字符串精确匹配
-- **两个函数必须同时存在**。只写 `ToString` 的话，存盘正常、重开时类型全变 `None` —— 这个坑 P2.1 已经踩过一次（`AssetType`）
+- 写盘不需要新函数：`GetScriptFieldTypeInfo(type).Name`（P2.4 已有）；读盘用 `TryGetScriptFieldTypeByName`。**两个方向都从同一张表取**（§3.5），不存在"只写一侧"的可能
+- **不要**手写 `ScriptFieldTypeToString` / `StringToScriptFieldType` 的字符串清单 —— 那正是 P2.1 `AssetType` 漏分支的同款结构
 - 别名 `ScriptFieldMap` 与结构体放在同一个头，让 `ScriptComponent.h` 和 `ScriptEngine.h` 都能只依赖这个轻头（决策点 4.3）
 
 ### Step 2：`ScriptComponent.h` 加 `Fields`
@@ -546,10 +514,10 @@ namespace Lucky
 ```cpp
         /// <summary>
         /// 把脚本字段表与脚本类的当前字段列表对齐
-        /// - 类里新增的字段：读取其初始值补进 fieldMap
-        /// - 已存在但类型与脚本不符的字段：用初始值覆盖（脚本改了字段类型时的必然结果）
+        /// - 类里新增的字段：用 ScriptField::DefaultValue 补进 fieldMap
+        /// - 已存在但类型与脚本不符的字段：用 DefaultValue 覆盖（脚本改了字段类型时的必然结果）
         /// - fieldMap 里多出来的字段（脚本已删）：移除
-        /// 只有在真的需要读初始值时才创建临时托管对象；该对象不注册、不调用 Awake
+        /// 默认值取 GetFields() 已读好的 ScriptField::DefaultValue，纯数据操作，不创建托管对象
         /// </summary>
         /// <param name="scriptAsset">脚本资产（为空时清空 fieldMap）</param>
         /// <param name="fieldMap">待对齐的字段表（原地修改）</param>
@@ -578,43 +546,20 @@ namespace Lucky
 
         const std::vector<ScriptField>& fields = scriptClass->GetFields();
 
-        // ---- 第一遍：判断是否需要读初始值 ----
-        bool needsDefaults = false;
+        // ---- 第一遍：缺失字段补默认值，类型不符的用默认值覆盖 ----
         for (const ScriptField& field : fields)
         {
             auto it = fieldMap.find(field.Name);
-            if (it == fieldMap.end() || it->second.Type != field.Type)
+            if (it == fieldMap.end())
             {
-                needsDefaults = true;
-                break;
+                fieldMap[field.Name] = field.DefaultValue;
+                continue;
             }
-        }
 
-        if (needsDefaults)
-        {
-            // 临时实例：仅用于读取字段初始值，不注册进 EntityInstances、不调用 Awake、读完即弃
-            MonoObject* tempInstance = scriptClass->Instantiate();
-            if (tempInstance)
+            if (it->second.Type != field.Type)
             {
-                for (const ScriptField& field : fields)
-                {
-                    auto it = fieldMap.find(field.Name);
-                    const bool typeMismatch = (it != fieldMap.end() && it->second.Type != field.Type);
-
-                    if (typeMismatch)
-                    {
-                        LF_CORE_WARN("ScriptEngine::SyncScriptFieldMap - Type of field '{0}.{1}' changed from the saved type to the script type, value reset to the script default", scriptClass->GetName(), field.Name);
-                    }
-
-                    if (it == fieldMap.end() || typeMismatch)
-                    {
-                        ScriptFieldValue value;
-                        if (scriptClass->GetFieldValue(tempInstance, field, value))
-                        {
-                            fieldMap[field.Name] = value;
-                        }
-                    }
-                }
+                LF_CORE_WARN("ScriptEngine::SyncScriptFieldMap - Type of field '{0}.{1}' changed from the saved type to the script type, value reset to the script default", scriptClass->GetName(), field.Name);
+                it->second = field.DefaultValue;
             }
         }
 
@@ -639,66 +584,137 @@ namespace Lucky
 
 **要点**：
 
-- **两遍扫描**：第一遍只判断"要不要读初始值"（不实例化），第二遍清理多余字段。**这样"字段没变"这个常见情况下完全不造实例**（决策点 4.4-A 的核心收益）
+- **纯数据操作**：默认值全部来自 `ScriptField::DefaultValue`（P2.4 决策点 4.6 已读好），本函数不实例化、不调 `GetFieldValue` —— 在 Inspector 拖入时调、进 Play 前兜底调都没有副作用
 - **`ResolveScriptClass` 失败时保留 `fieldMap` 不动**：用户在脚本没编译/改名期间，之前手调过的值不该被抹掉。这是刻意与"scriptAsset 为空就 clear"区别对待的 —— 前者是"脚本没了"，后者是"暂时解析不出来"
-- **临时实例没有用 `Ref` 管起来**：`Instantiate()` 返回的是裸 `MonoObject*`，它的生命周期由 mono 的 GC 管；我们只是不再引用它。**不要**为了"看起来干净"去包一个智能指针 —— mono 对象不是 C++ `new` 出来的，析构语义完全不同
-- **`needsDefaults` 时 `tempInstance` 可能为 nullptr**（mono 侧分配失败）：已经是"读不到默认值就跳过"，不会崩
+- `GetFields()` 返回的字段**含继承链上的字段**（P2.4 决策点 4.9），所以基类字段的默认值同步是自动覆盖的，不需要额外处理
 - `std::any_of` 需要 `<algorithm>`（PCH 里通常已有）；若报未定义就补
 - **清理阶段打 WARN 而不是静默**：用户把字段改了名，值丢了这件事要有痕迹
 
 ### Step 4：序列化 `Fields`
 
-**文件**：`Lucky/Source/Lucky/Serialization/ComponentSerializers.cpp`
+**文件 A**：`Lucky/Source/Lucky/Serialization/ComponentSerializers.cpp`
+
+**0) 前置：`ResolveAssetByFieldType` 从 P2.4 的匿名命名空间提升为 `ScriptEngine` 的公开静态方法**
+
+反序列化资产引用字段时需要"按字段类型把 handle 解析成 `Ref<Asset>`"，而这个分发函数在 P2.4 里放在 `ScriptEngine.cpp` 的匿名命名空间，外部用不了。把它提升：
+
+- `ScriptEngine.h` 公开区加声明：
+```cpp
+        /// <summary>
+        /// 按字段类型从资产句柄解析资产对象；类型不匹配或句柄无效时返回空引用
+        /// </summary>
+        static Ref<Asset> ResolveAssetByFieldType(ScriptFieldType type, AssetHandle handle);
+```
+- `ScriptEngine.cpp`：定义原样挪出匿名命名空间，改成 `Ref<Asset> ScriptEngine::ResolveAssetByFieldType(...)`。`GetFieldValue` 里的调用点不用改（同类成员直接调）
+- `Asset` 在 `ScriptEngine.h` 里前向声明即可（返回类型是 `Ref<Asset>`）
 
 **1) `Serialize_Script` 在 `AssetHandle` 之后加 `Fields` 段**：
 
 ```cpp
-        void Serialize_Script(YAML::Emitter& out, Entity entity)
-        {
-            if (!entity.HasComponent<ScriptComponent>())
-            {
-                return;
-            }
-            const ScriptComponent& sc = entity.GetComponent<ScriptComponent>();
-
-            out << YAML::Key << "ScriptComponent";
-            out << YAML::BeginMap;
-            if (sc.ScriptAsset)
-            {
-                out << YAML::Key << "AssetHandle" << YAML::Value << sc.ScriptAsset->GetHandle();
-            }
-            else
-            {
-                out << YAML::Key << "AssetHandle" << YAML::Value << static_cast<uint64_t>(0);
-            }
-
             out << YAML::Key << "Fields" << YAML::Value << YAML::BeginMap;
             for (const auto& [fieldName, fieldValue] : sc.Fields)
             {
                 out << YAML::Key << fieldName;
                 out << YAML::BeginMap;
-                out << YAML::Key << "Type" << YAML::Value << ScriptFieldTypeToString(fieldValue.Type);
+                out << YAML::Key << "Type" << YAML::Value << GetScriptFieldTypeInfo(fieldValue.Type).Name;
 
                 switch (fieldValue.Type)
                 {
-                    case ScriptFieldType::Float:
+                    case ScriptFieldType::Bool:
                     {
-                        out << YAML::Key << "FloatValue" << YAML::Value << fieldValue.FloatValue;
+                        out << YAML::Key << "Value" << YAML::Value << std::get<bool>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::SByte:
+                    {
+                        // yaml-cpp 会把 int8_t 当字符输出，先提升为 int32
+                        out << YAML::Key << "Value" << YAML::Value << static_cast<int32_t>(std::get<int8_t>(fieldValue.Data));
+                        break;
+                    }
+                    case ScriptFieldType::Byte:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << static_cast<uint32_t>(std::get<uint8_t>(fieldValue.Data));
+                        break;
+                    }
+                    case ScriptFieldType::Short:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<int16_t>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::UShort:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<uint16_t>(fieldValue.Data);
                         break;
                     }
                     case ScriptFieldType::Int:
                     {
-                        out << YAML::Key << "IntValue" << YAML::Value << fieldValue.IntValue;
+                        out << YAML::Key << "Value" << YAML::Value << std::get<int32_t>(fieldValue.Data);
                         break;
                     }
-                    case ScriptFieldType::Bool:
+                    case ScriptFieldType::UInt:
                     {
-                        out << YAML::Key << "BoolValue" << YAML::Value << fieldValue.BoolValue;
+                        out << YAML::Key << "Value" << YAML::Value << std::get<uint32_t>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::Long:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<int64_t>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::ULong:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<uint64_t>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::Float:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<float>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::Double:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<double>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::String:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<std::string>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::Vector2:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<glm::vec2>(fieldValue.Data);
                         break;
                     }
                     case ScriptFieldType::Vector3:
                     {
-                        out << YAML::Key << "Vector3Value" << YAML::Value << fieldValue.Vector3Value;
+                        out << YAML::Key << "Value" << YAML::Value << std::get<glm::vec3>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::Vector4:
+                    case ScriptFieldType::Color:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<glm::vec4>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::Quaternion:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<glm::quat>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::Entity:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << static_cast<uint64_t>(std::get<UUID>(fieldValue.Data));
+                        break;
+                    }
+                    case ScriptFieldType::Material:
+                    case ScriptFieldType::Mesh:
+                    case ScriptFieldType::Texture2D:
+                    case ScriptFieldType::Script:
+                    {
+                        // 运行时创建的资产没有有效 handle，写出 0（读回是空引用，与 Unity 一致，见 P2.4 §6.9）
+                        const Ref<Asset>& asset = std::get<Ref<Asset>>(fieldValue.Data);
+                        out << YAML::Key << "Value" << YAML::Value << static_cast<uint64_t>(asset ? asset->GetHandle() : AssetHandle{});
                         break;
                     }
                     default:
@@ -710,9 +726,6 @@ namespace Lucky
                 out << YAML::EndMap;
             }
             out << YAML::EndMap;
-
-            out << YAML::EndMap;
-        }
 ```
 
 **2) `Deserialize_Script` 在读完 `AssetHandle` 之后加 `Fields` 段**：
@@ -731,33 +744,43 @@ namespace Lucky
                     }
 
                     ScriptFieldValue fieldValue;
-                    fieldValue.Type = StringToScriptFieldType(valueNode["Type"].as<std::string>(""));
+                    if (!TryGetScriptFieldTypeByName(valueNode["Type"].as<std::string>("").c_str(), fieldValue.Type))
+                    {
+                        continue;   // 未知类型：跳过，由 SyncScriptFieldMap 用脚本默认值补齐
+                    }
 
+                    YAML::Node scalarNode = valueNode["Value"];
                     switch (fieldValue.Type)
                     {
-                        case ScriptFieldType::Float:
+                        case ScriptFieldType::Bool:   { fieldValue.Data = scalarNode.as<bool>(false); break; }
+                        case ScriptFieldType::SByte:  { fieldValue.Data = static_cast<int8_t>(scalarNode.as<int32_t>(0)); break; }
+                        case ScriptFieldType::Byte:   { fieldValue.Data = static_cast<uint8_t>(scalarNode.as<uint32_t>(0)); break; }
+                        case ScriptFieldType::Short:  { fieldValue.Data = scalarNode.as<int16_t>(0); break; }
+                        case ScriptFieldType::UShort: { fieldValue.Data = scalarNode.as<uint16_t>(0); break; }
+                        case ScriptFieldType::Int:    { fieldValue.Data = scalarNode.as<int32_t>(0); break; }
+                        case ScriptFieldType::UInt:   { fieldValue.Data = scalarNode.as<uint32_t>(0); break; }
+                        case ScriptFieldType::Long:   { fieldValue.Data = scalarNode.as<int64_t>(0); break; }
+                        case ScriptFieldType::ULong:  { fieldValue.Data = scalarNode.as<uint64_t>(0); break; }
+                        case ScriptFieldType::Float:  { fieldValue.Data = scalarNode.as<float>(0.0f); break; }
+                        case ScriptFieldType::Double: { fieldValue.Data = scalarNode.as<double>(0.0); break; }
+                        case ScriptFieldType::String: { fieldValue.Data = scalarNode.as<std::string>(""); break; }
+                        case ScriptFieldType::Vector2: { fieldValue.Data = scalarNode.as<glm::vec2>(glm::vec2(0.0f)); break; }
+                        case ScriptFieldType::Vector3: { fieldValue.Data = scalarNode.as<glm::vec3>(glm::vec3(0.0f)); break; }
+                        case ScriptFieldType::Vector4:
+                        case ScriptFieldType::Color:   { fieldValue.Data = scalarNode.as<glm::vec4>(glm::vec4(0.0f)); break; }
+                        case ScriptFieldType::Quaternion: { fieldValue.Data = scalarNode.as<glm::quat>(glm::quat(1.0f, 0.0f, 0.0f, 0.0f)); break; }
+                        case ScriptFieldType::Entity: { fieldValue.Data = UUID(scalarNode.as<uint64_t>(0)); break; }
+                        case ScriptFieldType::Material:
+                        case ScriptFieldType::Mesh:
+                        case ScriptFieldType::Texture2D:
+                        case ScriptFieldType::Script:
                         {
-                            fieldValue.FloatValue = valueNode["FloatValue"].as<float>(0.0f);
-                            break;
-                        }
-                        case ScriptFieldType::Int:
-                        {
-                            fieldValue.IntValue = valueNode["IntValue"].as<int>(0);
-                            break;
-                        }
-                        case ScriptFieldType::Bool:
-                        {
-                            fieldValue.BoolValue = valueNode["BoolValue"].as<bool>(false);
-                            break;
-                        }
-                        case ScriptFieldType::Vector3:
-                        {
-                            fieldValue.Vector3Value = valueNode["Vector3Value"].as<glm::vec3>(glm::vec3(0.0f));
+                            const AssetHandle handle(scalarNode.as<uint64_t>(0));
+                            fieldValue.Data = ScriptEngine::ResolveAssetByFieldType(fieldValue.Type, handle);
                             break;
                         }
                         default:
                         {
-                            // 未知类型：跳过该项，保留 Type 为 None 的占位
                             continue;
                         }
                     }
@@ -767,12 +790,15 @@ namespace Lucky
             }
 ```
 
+**3) 补 include**：`ComponentSerializers.cpp` 目前没有 include `ScriptEngine.h`（调 `ResolveAssetByFieldType` 需要），按规范 §3.3 补进工程内头分组。`YamlHelpers.h`（glm 的 YAML 转换）与 `AssetManager.h` 已经在。
+
 **要点**：
 
-- **两个 `switch` 必须覆盖同一组类型**。以后加类型时，`ScriptFieldValue.h` 的枚举、`Serialize_Script`、`Deserialize_Script`、P2.6 的控件**四处都要加** —— 这是这套扁平结构（P2.4 决策点 4.1-A）的固定代价，**值得在文档里点明**
-- `valueNode["..."].as<T>(默认值)` **一律给默认值**：存档可能被手改坏、可能是旧版本写的，缺失键不该崩
-- `glm::vec3` 的 YAML 转换来自 `Serialization/YamlHelpers.h`（材质/Transform 已在用）。若该头没被 `ComponentSerializers.cpp` 包含，需要补 include
-- `fieldNode.first.as<std::string>()` 是 yaml-cpp 遍历 map 的标准写法
+- **两个 `switch` 必须覆盖同一组类型（22 种）**。加类型时：P2.4 的类型表加一行 + 这里的读/写各加一个 case + P2.6 的控件加分支 —— 表之外的这三处是 P2.4 决策点 4.1 写明"表覆盖不了"的固定代价
+- **`SByte` / `Byte` 必须提升后写盘**：yaml-cpp 把 8 位整型当字符处理，直接 `out << int8_t` 会写出不可读的字符而不是数字；读回时对应地用 `as<int32_t>` 再 `static_cast` 收窄
+- `as<T>(默认值)` **一律给默认值**：存档可能被手改坏、可能是旧版本写的，缺失键（包括缺 `Value`）不该崩 —— yaml-cpp 对 undefined node 调 `as<T>(fallback)` 会返回 fallback
+- `glm::vec2/3/4/quat` 的 YAML 转换来自 `Serialization/YamlHelpers.h`（四种都有 `convert` 特化，Transform/材质已在用）
+- **运行时创建的资产写出来是 0**：`GetHandle()` 无效 → 读回空引用。这与 Unity"编辑器里 new 出来的 material 存不进场景"一致（P2.4 §6.9），不是 bug
 - **反序列化不解析脚本类**（约束 1.1）：这里只是把"一串有类型的值"读出来。字段是否还在、类型是否还对，交给 `SyncScriptFieldMap`
 
 ### Step 5：Inspector 里在脚本被赋值后同步
@@ -810,17 +836,19 @@ namespace Lucky
 - Debug 编译 `Luck3DApp` → 通过
 - 不需要重跑 premake（无新增文件）
 - **若报 `ScriptFieldMap` 未定义**：`ScriptComponent.h` / `ScriptEngine.h` 没有 include `Lucky/Scripting/ScriptFieldValue.h`
+- **若报 `TryGetScriptFieldTypeByName` 未定义**：Step 1 的函数没加进 `ScriptFieldType.h`（注意不是 `ScriptFieldValue.h`）
+- **若报 `ResolveAssetByFieldType` 未定义或不可访问**：Step 4-0 的提升没做（它必须从匿名命名空间挪成 `ScriptEngine` 公开静态方法）
 - **若报 `std::any_of` 未定义**：`ScriptEngine.cpp` 补 `#include <algorithm>`
 
 ---
 
 ## 6. 疑点问答
 
-### 6.1 为什么"临时实例"不用智能指针管起来？
+### 6.1 为什么 `SyncScriptFieldMap` 不需要造临时实例读默认值？
 
-因为 mono 对象不是 `new` 出来的，是 `mono_object_new` 在 GC 堆上分配的。它的生命周期由 mono 的 GC 决定 —— 我们在 native 侧不再持有引用之后，GC 会在合适时机回收。用一个 C++ 智能指针去"析构"它会直接崩。
+因为 P2.4 已经读好了。`ScriptClass::GetFields()` 首次调用时会造一个临时实例、把每个字段的默认值读进 `ScriptField::DefaultValue` 并缓存（P2.4 决策点 4.6）——"C# 字段初始化器编译进构造函数体、必须在实例上读"这个问题在那里解决。本 Phase 只是抄这份缓存，同一件事不做两遍。
 
-所以 `SyncScriptFieldMap` 里 `tempInstance` 就是一个裸指针，函数返回后自然失效。**不要**为了"看起来 RAII"去包装它。
+这也回答了"临时实例怎么管"的问题：**本 Phase 没有临时实例**。P2.4 那边的临时实例是裸 `MonoObject*`（GC 管生命周期），同样不包装、不注册、不调 Awake。
 
 ### 6.2 为什么 `ResolveScriptClass` 失败时保留 `fieldMap`，而 `scriptAsset` 为空时清空？
 
@@ -835,10 +863,10 @@ namespace Lucky
 
 ### 6.3 脚本改字段类型后，我在 Inspector 调过的值去哪了？
 
-被脚本的初始值覆盖了（决策点 4.6-A），并且日志里有：
+被脚本的初始值覆盖了（决策点 4.6-A），并且日志里有（日志全英文，规范 §9.2）：
 
 ```
-ScriptEngine::SyncScriptFieldMap - 字段 'PlayerController.Speed' 的类型已从存档类型变为脚本类型，值被重置为脚本初始值
+ScriptEngine::SyncScriptFieldMap - Type of field 'PlayerController.Speed' changed from the saved type to the script type, value reset to the script default
 ```
 
 这是**有意的**：类型都改了，旧值不可能还有意义（`float 3.0` 变成 `int` 该是多少？）。而且不覆盖的话就只能"按存档类型硬写"，那会把 `3.0f` 的位模式塞进 `int` 字段，得到 `1077936128` —— 静默的数据损坏，比丢值糟得多。
@@ -870,20 +898,21 @@ ScriptEngine::SyncScriptFieldMap - 字段 'PlayerController.Speed' 的类型已�
 
 ### 6.7 反序列化时 `fieldsNode` 里的类型是未知字符串（比如手改存档写错了）会怎样？
 
-`StringToScriptFieldType` 返回 `ScriptFieldType::None` → `switch` 落到 `default` → `continue` 跳过该项。**不会崩**，该字段会保持"不存在"状态，随后 `SyncScriptFieldMap` 会用脚本初始值把它补上。**这正是"反序列化不依赖程序集、同步负责兜底"这套分工的好处。**
+`TryGetScriptFieldTypeByName` 返回 `false` → `continue` 跳过该项。**不会崩**，该字段会保持"不存在"状态，随后 `SyncScriptFieldMap` 会用脚本初始值把它补上。**这正是"反序列化不依赖程序集、同步负责兜底"这套分工的好处。**
 
 ---
 
 ## 7. 验收标准
 
 1. **编译通过**：`Lucky` 与 `Luck3DApp` 的 Debug / Release / Dist 三个 configuration 全通过
-2. **初始值正确填充**：`PlayerController.cs` 里 `public float Speed = 3.0f;`，拖入 Script 字段后，存档里出现 `Speed: { Type: Float, FloatValue: 3.0 }` —— **不是 0**（这是决策点 4.1-A 的验证点）
-3. **不入实例表**：拖入脚本后立刻 Play/Stop，行为与 P2.4 之前一致；`EntityInstances` 里**没有**因为"临时实例"而多出条目（可在 `OnCreateEntityScript` 断点核对数量）
+2. **初始值正确填充**：`PlayerController.cs` 里 `public float Speed = 3.0f;`，拖入 Script 字段后，存档里出现 `Speed: { Type: Float, Value: 3.0 }` —— **不是 0**（验的是默认值真的从 `ScriptField::DefaultValue` 抄过来了）
+3. **字符串字段序列化往返**：`public string Title = "player";` → 存档里出现 `Title: { Type: String, Value: player }` → 存盘重开后值正确（验 22 种类型读写分发里的引用类型分支）
 4. **存盘重开保留**：保存场景 → 关闭编辑器 → 重开 → 打开场景 → `Speed` 仍是 `3.0`
-5. **手改存档生效**：直接编辑 `.luck3d` 把 `FloatValue: 3.0` 改成 `7.5` → 重开场景 → 拖一次脚本或（P2.6 之后）进 Play，脚本读到的应是新值
+5. **手改存档生效**：直接编辑 `.luck3d` 把 `Value: 3.0` 改成 `7.5` → 重开场景 → 拖一次脚本或（P2.6 之后）进 Play，脚本读到的应是新值
 6. **新字段自动补齐**：给脚本加 `public bool LogPosition = false;` → 重新编译 → 重开编辑器 → 打开场景 → 存档里出现 `LogPosition`
-7. **删字段自动清理**：把 `LogPosition` 从脚本删掉 → 重新编译 → 重开 → 打开场景 → 存档里 `LogPosition` 消失，且日志有 `在脚本中已不存在` 的 WARN
-8. **类型变更被重置**：把 `Speed` 改成 `public int Speed = 3;` → 重新编译 → 重开 → 打开场景 → 该字段变成 `Type: Int, IntValue: 3`，日志有 `类型已从存档类型变为脚本类型`
+7. **删字段自动清理**：把 `LogPosition` 从脚本删掉 → 重新编译 → 重开 → 打开场景 → 存档里 `LogPosition` 消失，且日志有 `no longer exists in the script` 的 WARN
+8. **类型变更被重置**：把 `Speed` 改成 `public int Speed = 3;` → 重新编译 → 重开 → 打开场景 → 该字段变成 `Type: Int, Value: 3`，日志有 `changed from the saved type to the script type` 的 WARN
+13. **8 位整数写盘是数字不是字符**：给脚本加 `public sbyte Small = -5;` → 存档里是 `Value: -5`（**不是乱码字符**，验 Step 4 的 int8 提升）
 9. **不编译时不丢值**：把 `PlayerController.cs` 改名（不编译）→ 重开编辑器 → 打开场景 → `Fields` 里的值**仍然保留**（验证 6.2 的分支），Inspector 显示红色提示
 10. **摘掉脚本即清空**：把 Script 字段拖成 `None (Script)` → 存档里 `AssetHandle: 0` 且 `Fields` 为空
 11. **无崩溃无 ERROR**：全流程日志里没有 ERROR，没有崩溃
@@ -901,10 +930,10 @@ ScriptEngine::SyncScriptFieldMap - 字段 'PlayerController.Speed' 的类型已�
 
 | 位置 | 后续 Phase | 打开方式 |
 |------|-----------|---------|
-| `ScriptComponent::Fields` | **P2.6** | 在旁边画字段控件（每个字段一个控件，写回 `Fields`） |
+| `ScriptComponent::Fields` | **P2.6** | 在旁边画字段控件（每个字段一个控件，写回 `Fields`）。**读写 `Data` 必须按 `Type` 的实际载荷类型 `std::get`**（P2.4 §8：8 种整数宽度不同、`Double` 是 `double`，显示可截断、写回必须保值） |
 | `ScriptEngine::SyncScriptFieldMap` | **P2.6** | 进 Play 前（`Scene::OnRuntimeStart` 里）再同步一次作为兜底：脚本字段在外部改过、但用户没重新拖入的情况 |
 | `ScriptClass::SetFieldValue` | **P2.6** | 在 `ScriptInstance` 构造完成后、`InvokeAwake()` **之前**，遍历 `Fields` 逐个灌入 |
-| `ScriptFieldTypeToString` / `StringToScriptFieldType` | 类型扩展 | 加新字段类型时，这两处 + 枚举 + 序列化 switch + P2.6 控件，共五处 |
+| 序列化读/写两个 `switch` | 类型扩展 | 加新字段类型时：P2.4 类型表加一行 + 这里读/写各加一个 case + P2.6 控件加分支（类型名互查不用动，走表） |
 | `Fields` 为空时写出 `{}` 的行为 | 存档格式演进 | 若将来要兼容"没有 Fields 段的旧存档"，只需在 `Deserialize_Script` 里 `if (!fieldsNode) return;` 之前不要报错即可（现在的写法天然兼容） |
 
 ---
@@ -912,16 +941,17 @@ ScriptEngine::SyncScriptFieldMap - 字段 'PlayerController.Speed' 的类型已�
 ## 9. 变更清单速览
 
 - **新增文件**：无
-- **修改文件（6 个）**
-  - `Lucky/Source/Lucky/Scripting/ScriptFieldValue.h`：加 `ScriptFieldMap` 别名、`ScriptFieldTypeToString`、`StringToScriptFieldType`；补 `<string>` / `<unordered_map>`
+- **修改文件（7 个）**
+  - `Lucky/Source/Lucky/Scripting/ScriptFieldType.h`：加 `TryGetScriptFieldTypeByName`（序列化反查，与 `GetScriptFieldTypeInfo(type).Name` 配对）
+  - `Lucky/Source/Lucky/Scripting/ScriptFieldValue.h`：加 `ScriptFieldMap` 别名；补 `<unordered_map>`
   - `Lucky/Source/Lucky/Scene/Components/ScriptComponent.h`：加 `ScriptFieldMap Fields` 成员
-  - `Lucky/Source/Lucky/Scripting/ScriptEngine.h`：加 `SyncScriptFieldMap` 声明
-  - `Lucky/Source/Lucky/Scripting/ScriptEngine.cpp`：加 `SyncScriptFieldMap` 实现（可能补 `<algorithm>`）
-  - `Lucky/Source/Lucky/Serialization/ComponentSerializers.cpp`：`Serialize_Script` / `Deserialize_Script` 加 `Fields` 段（可能补 `YamlHelpers.h` 的 include）
+  - `Lucky/Source/Lucky/Scripting/ScriptEngine.h`：加 `SyncScriptFieldMap` 声明；`ResolveAssetByFieldType` 提升为公开静态方法的声明（Step 4-0）
+  - `Lucky/Source/Lucky/Scripting/ScriptEngine.cpp`：加 `SyncScriptFieldMap` 实现；`ResolveAssetByFieldType` 定义挪出匿名命名空间（可能补 `<algorithm>`）
+  - `Lucky/Source/Lucky/Serialization/ComponentSerializers.cpp`：`Serialize_Script` / `Deserialize_Script` 加 `Fields` 段；补 `ScriptEngine.h` 的 include
   - `Lucky/Source/Lucky/Editor/ComponentInspectors.cpp`：`Draw_Script` 里用上 `PropertyAsset` 的返回值，触发一次同步
 - **删除**：无
 - **不改动**：`Asset/*`、`ScriptGlue.cpp`、`Scene/Scene.cpp`（运行态灌值属 P2.6）、托管 C# 代码、premake
-- **存档格式变更**：`ScriptComponent` 段新增 `Fields` 映射；**没有 `Fields` 段的旧存档会得到空字段表**，随后被 `SyncScriptFieldMap` 补上默认值
+- **存档格式变更**：`ScriptComponent` 段新增 `Fields` 映射（`Type` + 统一 `Value` 键）；**没有 `Fields` 段的旧存档会得到空字段表**，随后被 `SyncScriptFieldMap` 补上默认值
 
 ---
 
@@ -929,7 +959,7 @@ ScriptEngine::SyncScriptFieldMap - 字段 'PlayerController.Speed' 的类型已�
 
 - 编码规范 [Coding_Style_Guide.md](../Coding_Style_Guide.md)：§3.3 include 顺序、§4.1 XML 注释、§5.2 强制花括号、§5.4 对齐规则、§6.1 class/struct、§8.1 enum class、§13.3 ECS 组件、§13.9 auto 使用规范
 - 前置详设 [Phase2.3_ScriptComponent_AssetRef.md](Phase2.3_ScriptComponent_AssetRef.md)（`ScriptAsset` 与 `AssetHandle` 序列化范式）
-- 前置详设 [Phase2.4_ScriptField_Metadata.md](Phase2.4_ScriptField_Metadata.md)（`ScriptFieldValue` / `GetFields` / `GetFieldValue` / `Instantiate`）
-- 类型转换范式 [Phase2.1_Script_As_Asset.md](Phase2.1_Script_As_Asset.md) 决策点 4.1（`AssetType` 的 `ToString` / `FromString` 必须成对）
+- 前置详设 [Phase2.4_ScriptField_Metadata.md](Phase2.4_ScriptField_Metadata.md)（决策点 4.1 类型表 / 4.2 variant 容器 / 4.6 默认值在枚举时读好 / 4.9 继承链枚举）
+- 类型转换范式 [Phase2.1_Script_As_Asset.md](Phase2.1_Script_As_Asset.md) 决策点 4.1（`AssetType` 漏 `StringToAssetType` 的教训 —— 本 Phase 用"两个方向都查同一张表"规避）
 - 序列化范式 [SceneSerialization_Enhancement.md](../Serialization/SceneSerialization_Enhancement.md)、`Serialization/YamlHelpers.h`
 - 脚本系统路线图 [ScriptSystem_Roadmap.md](ScriptSystem_Roadmap.md) 第 4 节 Phase 2「`ScriptComponent` 增加 `FieldMap`」「`SceneSerializer` 写入/读取 `FieldMap`」
