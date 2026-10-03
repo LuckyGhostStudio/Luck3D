@@ -5,15 +5,20 @@
 #include "Lucky/Core/UUID.h"
 #include "Lucky/Scene/Scene.h"
 #include "Lucky/Scene/Entity.h"
+#include "Lucky/Asset/AssetHandle.h"
+#include "Lucky/Scripting/ScriptFieldType.h"
+#include "Lucky/Scripting/ScriptFieldValue.h"
 
 #include <filesystem>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 extern "C"
 {
     typedef struct _MonoAssembly MonoAssembly;
     typedef struct _MonoClass MonoClass;
+    typedef struct _MonoClassField MonoClassField;
     typedef struct _MonoMethod MonoMethod;
     typedef struct _MonoObject MonoObject;
     typedef struct _MonoImage MonoImage;
@@ -22,6 +27,7 @@ extern "C"
 
 namespace Lucky
 {
+    class Asset;
     class ScriptClass;
     class ScriptInstance;
 
@@ -119,6 +125,11 @@ namespace Lucky
         /// 获取当前用户程序集中所有 Entity 派生类列表
         /// </summary>
         static const std::unordered_map<std::string, Ref<ScriptClass>>& GetEntityClasses();
+
+        /// <summary>
+        /// 按字段类型从资产句柄解析资产对象；类型不匹配或句柄无效时返回空引用
+        /// </summary>
+        static Ref<Asset> ResolveAssetByFieldType(ScriptFieldType type, AssetHandle handle);
     private:
         friend class ScriptClass;
         friend class ScriptInstance;
@@ -128,6 +139,18 @@ namespace Lucky
 
         static MonoObject* InstantiateClass(MonoClass* monoClass);
         static void LoadAssemblyClasses();
+    };
+
+    /// <summary>
+    /// 脚本字段元信息：字段名、受支持的类型、默认值、以及 mono 侧字段句柄
+    /// 仅供 Scripting 层内部使用；组件层只需要 ScriptFieldValue
+    /// </summary>
+    struct ScriptField
+    {
+        std::string       Name;
+        ScriptFieldType   Type = ScriptFieldType::None;
+        ScriptFieldValue  DefaultValue;
+        MonoClassField*   Field = nullptr;
     };
 
     /// <summary>
@@ -159,6 +182,32 @@ namespace Lucky
         /// <param name="params">参数指针数组</param>
         MonoObject* InvokeMethod(MonoObject* instance, MonoMethod* method, void** params = nullptr);
 
+        /// <summary>
+        /// 获取该类的可编辑字段列表（public 实例字段、类型受支持，含继承链上的字段）
+        /// 首次调用时枚举并缓存，同时读取每个字段的默认值（会临时实例化一个对象）
+        /// 程序集重新加载时随 EntityClasses 一起重建
+        /// </summary>
+        /// <returns>字段列表的常量引用</returns>
+        const std::vector<ScriptField>& GetFields();
+
+        /// <summary>
+        /// 读取指定实例上某个字段的值
+        /// </summary>
+        /// <param name="instance">托管对象实例</param>
+        /// <param name="field">字段元信息（必须来自本类的 GetFields()）</param>
+        /// <param name="outValue">输出：字段值</param>
+        /// <returns>是否读取成功</returns>
+        bool GetFieldValue(MonoObject* instance, const ScriptField& field, ScriptFieldValue& outValue) const;
+
+        /// <summary>
+        /// 写入指定实例上某个字段的值
+        /// </summary>
+        /// <param name="instance">托管对象实例</param>
+        /// <param name="field">字段元信息（必须来自本类的 GetFields()）</param>
+        /// <param name="value">要写入的值（按 value.Type 决定写入哪个载荷）</param>
+        /// <returns>是否写入成功</returns>
+        bool SetFieldValue(MonoObject* instance, const ScriptField& field, const ScriptFieldValue& value) const;
+
         const std::string& GetNamespace() const { return m_ClassNamespace; }
         const std::string& GetName() const { return m_ClassName; }
     private:
@@ -166,6 +215,9 @@ namespace Lucky
         std::string m_ClassName;
 
         MonoClass* m_MonoClass = nullptr;
+
+        std::vector<ScriptField> m_Fields;
+        bool m_FieldsInitialized = false;
     };
 
     /// <summary>

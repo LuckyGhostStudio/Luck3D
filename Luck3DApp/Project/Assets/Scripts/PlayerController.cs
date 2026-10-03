@@ -7,6 +7,13 @@ namespace Sandbox
     /// </summary>
     public class PlayerController : Entity
     {
+        // 脚本字段测试样本（P2.5 / P2.6 验收需要）
+        public float Speed = 3.0f;
+        public bool LogPosition = false;
+        public string Title = "player";
+        public Vector3 Offset = new Vector3(0.0f, 0.0f, 0.0f);
+        public int Score = 42;
+
         void Awake()
         {
             Debug.Log("Hello Luck3D");

@@ -5,12 +5,20 @@
 #include "Lucky/Core/FileSystem.h"
 #include "Lucky/Project/Project.h"
 
+#include "Lucky/Asset/AssetManager.h"
+#include "Lucky/Asset/Script.h"
+#include "Lucky/Renderer/Material.h"
+#include "Lucky/Renderer/Mesh.h"
+#include "Lucky/Renderer/Texture.h"
+
 #include <mono/jit/jit.h>
 #include <mono/metadata/assembly.h>
+#include <mono/metadata/attrdefs.h>
 #include <mono/metadata/class.h>
 #include <mono/metadata/object.h>
 #include <mono/metadata/tabledefs.h>
 
+#include <cstring>
 #include <fstream>
 
 namespace Lucky
@@ -176,6 +184,129 @@ namespace Lucky
             {
                 LF_CORE_ERROR("{}", stackTrace);
             }
+        }
+
+        /// <summary>
+        /// 把 mono 字段类型解析为本引擎支持的 ScriptFieldType；不支持时返回 None
+        /// 数组的托管全名带 "[]" 后缀，匹配不上即自动跳过，无需特判
+        /// </summary>
+        ScriptFieldType ResolveScriptFieldType(MonoType* fieldType)
+        {
+            if (!fieldType)
+            {
+                return ScriptFieldType::None;
+            }
+
+            // mono_type_get_name 返回堆上新分配的字符串，调用方必须 mono_free
+            char* managedName = mono_type_get_name(fieldType);
+
+            ScriptFieldType fieldTypeResult = ScriptFieldType::None;
+            const bool found = TryGetScriptFieldTypeByManagedName(managedName, fieldTypeResult);
+            mono_free(managedName);
+
+            return found ? fieldTypeResult : ScriptFieldType::None;
+        }
+
+        /// <summary>
+        /// 字段类型是否为 Lucky.Entity 的派生类（脚本互引，如 public PlayerController Other;）
+        /// 这类字段按 ScriptFieldType::Entity 处理
+        /// </summary>
+        bool IsEntityDerivedFieldType(MonoType* fieldType)
+        {
+            if (!fieldType || mono_type_get_type(fieldType) != MONO_TYPE_CLASS)
+            {
+                return false;
+            }
+
+            MonoClass* fieldClass = mono_class_from_mono_type(fieldType);
+            MonoClass* entityClass = mono_class_from_name(s_Data->CoreAssemblyImage, "Lucky", "Entity");
+            if (!fieldClass || !entityClass || fieldClass == entityClass)
+            {
+                return false;
+            }
+
+            return mono_class_is_subclass_of(fieldClass, entityClass, false);
+        }
+
+        /// <summary>
+        /// 读取托管引用对象里的 ulong 句柄字段（Entity 用 "ID"，资产包装类型用 "Handle"）
+        /// </summary>
+        /// <returns>是否读取成功</returns>
+        bool TryGetReferenceHandle(MonoObject* referenceObject, const char* handleFieldName, uint64_t& outHandle)
+        {
+            outHandle = 0;
+            if (!referenceObject)
+            {
+                return false;
+            }
+
+            // mono_class_get_field_from_name 会沿继承链搜索，Entity 派生类实例也能找到基类的 ID
+            MonoClass* referenceClass = mono_object_get_class(referenceObject);
+            MonoClassField* handleField = mono_class_get_field_from_name(referenceClass, handleFieldName);
+            if (!handleField)
+            {
+                return false;
+            }
+
+            mono_field_get_value(referenceObject, handleField, &outHandle);
+            return true;
+        }
+
+        /// <summary>
+        /// 把 ulong 句柄写进托管引用对象（对象不存在时按字段声明类型新建一个）
+        /// </summary>
+        /// <returns>是否写入成功</returns>
+        bool SetReferenceHandle(MonoObject* ownerInstance, MonoClassField* ownerField, const char* handleFieldName, uint64_t handle)
+        {
+            if (!ownerInstance || !ownerField)
+            {
+                return false;
+            }
+
+            MonoClass* referenceClass = mono_class_from_mono_type(mono_field_get_type(ownerField));
+            MonoClassField* handleField = mono_class_get_field_from_name(referenceClass, handleFieldName);
+            if (!handleField)
+            {
+                return false;
+            }
+
+            MonoObject* referenceObject = nullptr;
+            mono_field_get_value(ownerInstance, ownerField, &referenceObject);
+            if (!referenceObject)
+            {
+                referenceObject = mono_object_new(mono_domain_get(), referenceClass);
+            }
+
+            // handleField 是 ulong（值类型）：传值的地址
+            mono_field_set_value(referenceObject, handleField, &handle);
+
+            // ownerField 是引用类型：mono_field_set_value 直接收对象指针（语义不对称，值类型才传 &值）
+            // 传 &referenceObject 会把栈地址写进字段 -> 野指针
+            mono_field_set_value(ownerInstance, ownerField, referenceObject);
+            return true;
+        }
+
+        /// <summary>
+        /// 读取值类型字段：按字节块直接拷贝到 T 再装进 outValue（布局契约见 Phase1.5 决策点 9）
+        /// </summary>
+        template <typename T>
+        bool GetScalarField(MonoObject* instance, MonoClassField* field, ScriptFieldValue& outValue)
+        {
+            T rawValue{};
+            mono_field_get_value(instance, field, &rawValue);
+            outValue.Data = rawValue;
+            return true;
+        }
+
+        /// <summary>
+        /// 写入值类型字段：取 variant 载荷后按地址交给 mono_field_set_value
+        /// </summary>
+        template <typename T>
+        bool SetScalarField(MonoObject* instance, MonoClassField* field, const ScriptFieldValue& value)
+        {
+            T rawValue = std::get<T>(value.Data);
+            mono_field_set_value(instance, field, &rawValue);
+            return true;
         }
     }
 
@@ -381,6 +512,38 @@ namespace Lucky
         return s_Data->EntityClasses;
     }
 
+    Ref<Asset> ScriptEngine::ResolveAssetByFieldType(ScriptFieldType type, AssetHandle handle)
+    {
+        if (!handle.IsValid())
+        {
+            return nullptr;
+        }
+
+        switch (type)
+        {
+            case ScriptFieldType::Material:
+            {
+                return AssetManager::GetAsset<Material>(handle);
+            }
+            case ScriptFieldType::Mesh:
+            {
+                return AssetManager::GetAsset<Mesh>(handle);
+            }
+            case ScriptFieldType::Texture2D:
+            {
+                return AssetManager::GetAsset<Texture2D>(handle);
+            }
+            case ScriptFieldType::Script:
+            {
+                return AssetManager::GetAsset<Script>(handle);
+            }
+            default:
+            {
+                return nullptr;
+            }
+        }
+    }
+
     void ScriptEngine::LoadAssemblyClasses()
     {
         s_Data->EntityClasses.clear();
@@ -469,6 +632,254 @@ namespace Lucky
         }
 
         return result;
+    }
+
+    const std::vector<ScriptField>& ScriptClass::GetFields()
+    {
+        if (m_FieldsInitialized)
+        {
+            return m_Fields;
+        }
+        m_FieldsInitialized = true;
+        m_Fields.clear();
+
+        if (!m_MonoClass)
+        {
+            return m_Fields;
+        }
+
+        // 默认值不是元数据（它被编译进构造函数体），必须在一个实例上读
+        // 这里造一个临时实例，读完即丢弃；Awake 不会被调用，只有构造函数会跑
+        MonoObject* defaultInstance = Instantiate();
+
+        // mono_class_get_fields 只枚举本类声明的字段、不含父类 -> 沿继承链逐级枚举
+        // 到 System.Object 自然结束；Lucky.Entity 的 ID 会被 INIT_ONLY 过滤自然挡掉，无需特判
+        for (MonoClass* currentClass = m_MonoClass; currentClass != nullptr; currentClass = mono_class_get_parent(currentClass))
+        {
+            void* iterator = nullptr;
+            MonoClassField* field = nullptr;
+            while ((field = mono_class_get_fields(currentClass, &iterator)) != nullptr)
+            {
+                const uint32_t flags = mono_field_get_flags(field);
+
+                if ((flags & MONO_FIELD_ATTR_FIELD_ACCESS_MASK) != MONO_FIELD_ATTR_PUBLIC)
+                {
+                    continue;
+                }
+                if ((flags & MONO_FIELD_ATTR_STATIC) != 0)
+                {
+                    continue;
+                }
+                if ((flags & MONO_FIELD_ATTR_INIT_ONLY) != 0)
+                {
+                    continue;
+                }
+
+                const char* fieldName = mono_field_get_name(field);
+                if (fieldName && std::strchr(fieldName, '<') != nullptr)
+                {
+                    continue;
+                }
+
+                // 同名去重：子类先枚举，子类用 new 隐藏基类字段时子类优先；被过滤掉的字段不参与遮挡
+                bool isShadowed = false;
+                for (const ScriptField& existing : m_Fields)
+                {
+                    if (existing.Name == fieldName)
+                    {
+                        isShadowed = true;
+                        break;
+                    }
+                }
+                if (isShadowed)
+                {
+                    continue;
+                }
+
+                MonoType* fieldMonoType = mono_field_get_type(field);
+                ScriptFieldType fieldType = ResolveScriptFieldType(fieldMonoType);
+                if (fieldType == ScriptFieldType::None && IsEntityDerivedFieldType(fieldMonoType))
+                {
+                    fieldType = ScriptFieldType::Entity;    // 脚本互引：Entity 派生类按实体引用处理
+                }
+                if (fieldType == ScriptFieldType::None)
+                {
+                    LF_CORE_WARN("ScriptClass::GetFields - Unsupported type for field '{0}.{1}', ignored", m_ClassName, fieldName);
+                    continue;
+                }
+
+                ScriptField scriptField;
+                scriptField.Name = fieldName;
+                scriptField.Type = fieldType;
+                scriptField.Field = field;
+
+                if (defaultInstance)
+                {
+                    GetFieldValue(defaultInstance, scriptField, scriptField.DefaultValue);
+                }
+
+                m_Fields.push_back(scriptField);
+            }
+        }
+
+        return m_Fields;
+    }
+
+    bool ScriptClass::GetFieldValue(MonoObject* instance, const ScriptField& field, ScriptFieldValue& outValue) const
+    {
+        if (!instance || !field.Field)
+        {
+            return false;
+        }
+
+        outValue.Type = field.Type;
+
+        switch (field.Type)
+        {
+            case ScriptFieldType::Bool:
+            {
+                // C# bool 在托管侧是 1 字节，用 uint8_t 中转，避免依赖 sizeof(bool) == 1
+                uint8_t rawValue = 0;
+                mono_field_get_value(instance, field.Field, &rawValue);
+                outValue.Data = (rawValue != 0);
+                return true;
+            }
+            case ScriptFieldType::SByte:  { return GetScalarField<int8_t>(instance, field.Field, outValue); }
+            case ScriptFieldType::Byte:   { return GetScalarField<uint8_t>(instance, field.Field, outValue); }
+            case ScriptFieldType::Short:  { return GetScalarField<int16_t>(instance, field.Field, outValue); }
+            case ScriptFieldType::UShort: { return GetScalarField<uint16_t>(instance, field.Field, outValue); }
+            case ScriptFieldType::Int:    { return GetScalarField<int32_t>(instance, field.Field, outValue); }
+            case ScriptFieldType::UInt:   { return GetScalarField<uint32_t>(instance, field.Field, outValue); }
+            case ScriptFieldType::Long:   { return GetScalarField<int64_t>(instance, field.Field, outValue); }
+            case ScriptFieldType::ULong:  { return GetScalarField<uint64_t>(instance, field.Field, outValue); }
+            case ScriptFieldType::Float:  { return GetScalarField<float>(instance, field.Field, outValue); }
+            case ScriptFieldType::Double: { return GetScalarField<double>(instance, field.Field, outValue); }
+            case ScriptFieldType::Vector2:    { return GetScalarField<glm::vec2>(instance, field.Field, outValue); }
+            case ScriptFieldType::Vector3:    { return GetScalarField<glm::vec3>(instance, field.Field, outValue); }
+            case ScriptFieldType::Vector4:
+            case ScriptFieldType::Color:      { return GetScalarField<glm::vec4>(instance, field.Field, outValue); }
+            case ScriptFieldType::Quaternion: { return GetScalarField<glm::quat>(instance, field.Field, outValue); }
+            case ScriptFieldType::String:
+            {
+                // System.String 是引用类型：mono_field_get_value 写出的是 MonoString*
+                MonoString* rawValue = nullptr;
+                mono_field_get_value(instance, field.Field, &rawValue);
+                if (!rawValue)
+                {
+                    outValue.Data = std::string();
+                    return true;
+                }
+
+                char* utf8 = mono_string_to_utf8(rawValue);
+                outValue.Data = utf8 ? std::string(utf8) : std::string();
+                if (utf8)
+                {
+                    mono_free(utf8);
+                }
+                return true;
+            }
+            case ScriptFieldType::Entity:
+            {
+                MonoObject* rawObject = nullptr;
+                mono_field_get_value(instance, field.Field, &rawObject);
+
+                uint64_t handle = 0;
+                TryGetReferenceHandle(rawObject, "ID", handle);
+                outValue.Data = UUID(handle);
+                return true;
+            }
+            case ScriptFieldType::Material:
+            case ScriptFieldType::Mesh:
+            case ScriptFieldType::Texture2D:
+            case ScriptFieldType::Script:
+            {
+                MonoObject* rawObject = nullptr;
+                mono_field_get_value(instance, field.Field, &rawObject);
+
+                uint64_t handle = 0;
+                if (!TryGetReferenceHandle(rawObject, "Handle", handle))
+                {
+                    outValue.Data = Ref<Asset>(nullptr);
+                    return true;
+                }
+
+                outValue.Data = ScriptEngine::ResolveAssetByFieldType(field.Type, AssetHandle(handle));
+                return true;
+            }
+            default:
+            {
+                return false;
+            }
+        }
+    }
+
+    bool ScriptClass::SetFieldValue(MonoObject* instance, const ScriptField& field, const ScriptFieldValue& value) const
+    {
+        if (!instance || !field.Field)
+        {
+            return false;
+        }
+
+        if (field.Type != value.Type)
+        {
+            LF_CORE_ERROR("ScriptClass::SetFieldValue - Type mismatch for field '{0}': field is {1}, value is {2}",
+                field.Name, GetScriptFieldTypeInfo(field.Type).Name, GetScriptFieldTypeInfo(value.Type).Name);
+            return false;
+        }
+
+        switch (value.Type)
+        {
+            case ScriptFieldType::Bool:
+            {
+                uint8_t rawValue = std::get<bool>(value.Data) ? 1 : 0;
+                mono_field_set_value(instance, field.Field, &rawValue);
+                return true;
+            }
+            case ScriptFieldType::SByte:  { return SetScalarField<int8_t>(instance, field.Field, value); }
+            case ScriptFieldType::Byte:   { return SetScalarField<uint8_t>(instance, field.Field, value); }
+            case ScriptFieldType::Short:  { return SetScalarField<int16_t>(instance, field.Field, value); }
+            case ScriptFieldType::UShort: { return SetScalarField<uint16_t>(instance, field.Field, value); }
+            case ScriptFieldType::Int:    { return SetScalarField<int32_t>(instance, field.Field, value); }
+            case ScriptFieldType::UInt:   { return SetScalarField<uint32_t>(instance, field.Field, value); }
+            case ScriptFieldType::Long:   { return SetScalarField<int64_t>(instance, field.Field, value); }
+            case ScriptFieldType::ULong:  { return SetScalarField<uint64_t>(instance, field.Field, value); }
+            case ScriptFieldType::Float:  { return SetScalarField<float>(instance, field.Field, value); }
+            case ScriptFieldType::Double: { return SetScalarField<double>(instance, field.Field, value); }
+            case ScriptFieldType::Vector2:    { return SetScalarField<glm::vec2>(instance, field.Field, value); }
+            case ScriptFieldType::Vector3:    { return SetScalarField<glm::vec3>(instance, field.Field, value); }
+            case ScriptFieldType::Vector4:
+            case ScriptFieldType::Color:      { return SetScalarField<glm::vec4>(instance, field.Field, value); }
+            case ScriptFieldType::Quaternion: { return SetScalarField<glm::quat>(instance, field.Field, value); }
+            case ScriptFieldType::String:
+            {
+                const std::string& text = std::get<std::string>(value.Data);
+                MonoString* rawValue = mono_string_new(mono_domain_get(), text.c_str());
+                // mono_field_set_value 对引用类型字段直接传对象指针（语义不对称：值类型才传 &值）
+                // 传 &rawValue 会把栈地址写进字段 -> 读回时解引用栈内存崩溃
+                mono_field_set_value(instance, field.Field, rawValue);
+                return true;
+            }
+            case ScriptFieldType::Entity:
+            {
+                const UUID id = std::get<UUID>(value.Data);
+                SetReferenceHandle(instance, field.Field, "ID", static_cast<uint64_t>(id));
+                return true;
+            }
+            case ScriptFieldType::Material:
+            case ScriptFieldType::Mesh:
+            case ScriptFieldType::Texture2D:
+            case ScriptFieldType::Script:
+            {
+                const Ref<Asset> asset = std::get<Ref<Asset>>(value.Data);
+                const AssetHandle handle = asset ? asset->GetHandle() : AssetHandle{};
+                SetReferenceHandle(instance, field.Field, "Handle", static_cast<uint64_t>(handle));
+                return true;
+            }
+            default:
+            {
+                return false;
+            }
+        }
     }
 
     // ======== ScriptInstance ========
