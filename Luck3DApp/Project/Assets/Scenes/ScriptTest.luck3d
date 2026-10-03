@@ -48,4 +48,4 @@ Entities:
       Primary: true
       FixedAspectRatio: false
     ScriptComponent:
-      ClassName: Sandbox.PlayerController
+      AssetHandle: 7441266882824687928
