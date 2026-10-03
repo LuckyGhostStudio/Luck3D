@@ -358,6 +358,8 @@ namespace Lucky
                 return;
             }
 
+            bool fieldsModified = false;
+
             for (const ScriptField& field : scriptClass->GetFields())
             {
                 auto it = sc.Fields.find(field.Name);
@@ -375,7 +377,7 @@ namespace Lucky
                 {
                     case ScriptFieldWidgetKind::Checkbox:
                     {
-                        UI::PropertyCheckbox(label, std::get<bool>(fieldValue.Data));
+                        fieldsModified |= UI::PropertyCheckbox(label, std::get<bool>(fieldValue.Data));
                         break;
                     }
                     case ScriptFieldWidgetKind::Int:
@@ -398,6 +400,7 @@ namespace Lucky
                         if (modified)
                         {
                             SetScriptFieldFromInt64(fieldValue, temp);
+                            fieldsModified = true;
                         }
                         break;
                     }
@@ -409,22 +412,23 @@ namespace Lucky
                             if (UI::PropertyFloat(label, temp))
                             {
                                 fieldValue.Data = static_cast<double>(temp);
+                                fieldsModified = true;
                             }
                         }
                         else
                         {
-                            UI::PropertyFloat(label, std::get<float>(fieldValue.Data));
+                            fieldsModified |= UI::PropertyFloat(label, std::get<float>(fieldValue.Data));
                         }
                         break;
                     }
                     case ScriptFieldWidgetKind::Float2:
                     {
-                        UI::PropertyFloat2(label, std::get<glm::vec2>(fieldValue.Data));
+                        fieldsModified |= UI::PropertyFloat2(label, std::get<glm::vec2>(fieldValue.Data));
                         break;
                     }
                     case ScriptFieldWidgetKind::Float3:
                     {
-                        UI::PropertyFloat3(label, std::get<glm::vec3>(fieldValue.Data));
+                        fieldsModified |= UI::PropertyFloat3(label, std::get<glm::vec3>(fieldValue.Data));
                         break;
                     }
                     case ScriptFieldWidgetKind::Float4:
@@ -436,17 +440,18 @@ namespace Lucky
                             if (UI::PropertyFloat4(label, temp))
                             {
                                 fieldValue.Data = glm::quat(temp.x, temp.y, temp.z, temp.w);
+                                fieldsModified = true;
                             }
                         }
                         else
                         {
-                            UI::PropertyFloat4(label, std::get<glm::vec4>(fieldValue.Data));
+                            fieldsModified |= UI::PropertyFloat4(label, std::get<glm::vec4>(fieldValue.Data));
                         }
                         break;
                     }
                     case ScriptFieldWidgetKind::Color:
                     {
-                        UI::PropertyColor(label, std::get<glm::vec4>(fieldValue.Data));
+                        fieldsModified |= UI::PropertyColor(label, std::get<glm::vec4>(fieldValue.Data));
                         break;
                     }
                     case ScriptFieldWidgetKind::Text:
@@ -458,12 +463,13 @@ namespace Lucky
                         if (UI::PropertyString(label, buffer, sizeof(buffer)))
                         {
                             fieldValue.Data = std::string(buffer);
+                            fieldsModified = true;
                         }
                         break;
                     }
                     case ScriptFieldWidgetKind::EntityRef:
                     {
-                        UI::PropertyEntity(label, std::get<UUID>(fieldValue.Data), entity.GetScene());
+                        fieldsModified |= UI::PropertyEntity(label, std::get<UUID>(fieldValue.Data), entity.GetScene());
                         break;
                     }
                     case ScriptFieldWidgetKind::AssetRef:
@@ -510,6 +516,7 @@ namespace Lucky
                         if (modified)
                         {
                             fieldValue.Data = newAsset;
+                            fieldsModified = true;
                         }
                         break;
                     }
@@ -518,6 +525,12 @@ namespace Lucky
                         break;
                     }
                 }
+            }
+
+            // Play 状态下把修改同步到运行中的脚本实例（编辑态实例表为空，静默跳过）
+            if (fieldsModified)
+            {
+                ScriptEngine::SetEntityScriptFieldValues(entity, sc.Fields);
             }
         }
     }

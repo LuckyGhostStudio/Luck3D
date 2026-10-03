@@ -408,17 +408,6 @@ namespace Lucky::UI
             ImGui::EndDragDropTarget();
         }
 
-        // 清空按钮：引用没法靠拖拽解除，必须留一个入口
-        if (static_cast<uint64_t>(entityID) != 0)
-        {
-            ImGui::SameLine();
-            if (ImGui::SmallButton("X"))
-            {
-                entityID = UUID(0);
-                modified = true;
-            }
-        }
-
         PropertyValueEnd();
 
         EndPropertyGrid();

@@ -89,6 +89,14 @@ namespace Lucky
         static void OnUpdateEntityScript(Entity entity, DeltaTime dt);
 
         /// <summary>
+        /// 把字段表的值写入指定实体已实例化的脚本对象
+        /// 用于 Play 状态下 Inspector 修改字段后同步到运行中的脚本；无实例（编辑态）时静默跳过
+        /// </summary>
+        /// <param name="entity">目标实体</param>
+        /// <param name="fieldMap">字段表（键为字段名）</param>
+        static void SetEntityScriptFieldValues(Entity entity, const ScriptFieldMap& fieldMap);
+
+        /// <summary>
         /// 丢弃实体的脚本实例：先调用 OnDestroy，再从实例表中移除
         /// 由 Scene::DestroyEntity 与 ScriptComponent 被移除时调用；无实例时静默跳过
         /// 每个实例只会收到一次 OnDestroy

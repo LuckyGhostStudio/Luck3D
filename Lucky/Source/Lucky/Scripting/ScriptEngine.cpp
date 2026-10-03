@@ -551,6 +551,18 @@ namespace Lucky
         it->second->InvokeUpdate(static_cast<float>(dt));
     }
 
+    void ScriptEngine::SetEntityScriptFieldValues(Entity entity, const ScriptFieldMap& fieldMap)
+    {
+        auto it = s_Data->EntityInstances.find(entity.GetUUID());
+        if (it == s_Data->EntityInstances.end())
+        {
+            // 编辑态没有实例：静默跳过，值只留在组件里，进 Play 时再灌
+            return;
+        }
+
+        it->second->SetFieldValues(fieldMap);
+    }
+
     void ScriptEngine::OnDestroyEntityScript(Entity entity)
     {
         if (!entity)

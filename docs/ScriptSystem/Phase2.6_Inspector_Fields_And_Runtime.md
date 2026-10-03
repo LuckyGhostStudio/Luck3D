@@ -720,8 +720,8 @@ case ScriptFieldWidgetKind::Float:      // Double 类型
 - **声明在 `PropertyGrid.h`，`Scene` 前向声明即可**（`class Scene;`，指针参数不需要完整类型）；`PropertyGrid.cpp` 里 include `Lucky/Scene/Scene.h` 与 `Lucky/Scene/Components/NameComponent.h`
 - **显示名**：`entityID != 0 && scene` 时用 `scene->TryGetEntityWithUUID(entityID)` 取 `NameComponent` 的名字；取不到（空引用 / 实体已删）显示 `"None (Entity)"`
 - **拖放目标**：`ImGui::AcceptDragDropPayload(DragDrop::EntityHierarchy)`（payload 是 `UUID`，场景树节点已是拖放源，`SceneHierarchyPanel.cpp:518`），`IsDelivery()` 时写入 `entityID`；`DragDrop::EntityHierarchy` 常量在 `Lucky/Editor/DragDropPayloads.h`
-- **清空按钮**：值列右侧放一个 `ImGui::SmallButton("X")`，点击把 `entityID` 置 0 并返回 true —— **不能省**，否则引用没法解除
 - 形态（`BeginPropertyGrid` / `PropertyLabel` / `PropertyValueBegin` / `EndPropertyGrid`、悬停高亮）照 `PropertyAsset<T>`（`PropertyGrid.h:172`）的骨架
+- **暂不做清空按钮**（线线 2026-10-04 指示）：解除引用暂时靠拖入另一个实体覆盖；将来需要时再加（`ImGui::SmallButton("X")` 置 0 即可）
 
 **3) `Entity` 补一个场景访问器**（`PropertyEntity` 与 `Draw_Script` 需要把实体 UUID 解析成名字，而 `Entity::m_Scene` 是私有、没有公开 getter）：
 
@@ -978,6 +978,7 @@ namespace
 - **`fieldValue` 显式写成 `ScriptFieldValue&`，不要用 `auto`**（决策点 4.5 的警示；规范 §13.9）
 - **控件用 `field.Name.c_str()`** 当 label（决策点 4.3）
 - **`switch` 判的是 Widget 而不是 Type**：22 种类型塌缩成 10 个分支；类型相关的差异（整数宽度 / `Double` / `Quaternion` / 四种资产）在分支内部用 `fieldValue.Type` 二次分发 —— 这是 P2.4 把 `Widget` 放进类型表的收益
+- **控件返回值全部收集到 `fieldsModified`，循环末尾调一次 `ScriptEngine::SetEntityScriptFieldValues(entity, sc.Fields)`**：Play 状态下把修改**实时写进运行中的托管对象**（下一帧 Update 读到新值，对齐 Unity）；编辑态实例表为空，接口静默跳过、无副作用（线线 2026-10-04 提出的缺口，见 §6.9）
 - **`fieldValue.Type` 与 `field.Type` 正常情况一致**（同步保证），**不在这里做类型校验**（P2.5 的同步和 Step 2 的灌值各有一道）
 - `String` 缓冲定长 256：超长的字符串会被截断显示，**不写回不损坏**；需要更长时再调
 - `strncpy_s` 是 MSVC 安全函数，本工程只支持 MSVC ✓
@@ -1046,6 +1047,14 @@ namespace
 
 同一个判断，在不同动机下对日志的需求相反 —— 这正是要拆成两个接口的原因。
 
+### 6.9 Play 状态下在 Inspector 改字段值，脚本能立刻读到吗？
+
+**能（2026-10-04 补齐）。** 最初的实现只在脚本实例创建时（Awake 前）灌一次值，Play 中改 Inspector 只改了运行态副本的 `Fields`，运行中的托管对象拿到的还是旧值 —— 与 Unity"改 Inspector 立即生效"的行为不一致。
+
+修复：`Draw_Script` 把控件返回值收集成 `fieldsModified`，任何字段被改时调 `ScriptEngine::SetEntityScriptFieldValues(entity, sc.Fields)` —— 按实体 UUID 查实例表，把整张字段表重新灌进运行中的托管对象，**下一帧 Update 读到新值**。编辑态实例表为空，静默跳过；Stop 后运行态副本丢弃，编辑态原值不受影响（与 Unity 的回滚语义一致）。
+
+注意区分方向：这条是"Inspector → 脚本"；§6.2 说的"脚本 → Inspector 不回写"是另一个方向，两者互不冲突，都与 Unity 一致。
+
 ---
 
 ## 7. 验收标准
@@ -1061,7 +1070,7 @@ namespace
 9. **不刷日志**：让脚本解析失败（把 `.cs` 改名不编译）→ 拖入 → 停在编辑器里**观察 10 秒** → 红色提示一直在，但**日志里只有一条 ERROR**（不是几十条）。**这一条专门验 Step 1 的静默解析**
 10. **类型不符被拦**：手改存档把 `Speed` 的 `Type` 写成 `Int`（值 `Value: 3`），脚本里仍是 `float` → 重开场景 → 同步会重置为脚本初值；若绕过同步直接 Play，日志出现 `does not match the script type, skipped` 且**不崩**
 13. **字符串编辑往返**：加 `public string Title = "player";` → Inspector 出现文本框 → 改成 `"boss"` → Play 后脚本读到 `"boss"` → 存盘重开仍是 `"boss"`（验 Text 中转与 `PropertyString`）
-14. **实体引用槽**：加 `public Entity Target;` → Inspector 出现实体槽 → 从场景树拖一个实体进去 → Play 后脚本能用它访问组件 → 点 `X` 清空后显示 `None (Entity)`（验 `PropertyEntity` 与 `DragDrop::EntityHierarchy` 链路）
+14. **实体引用槽**：加 `public Entity Target;` → Inspector 出现实体槽 → 从场景树拖一个实体进去 → 显示目标实体名 → Play 后脚本能用它访问组件（验 `PropertyEntity` 与 `DragDrop::EntityHierarchy` 链路）
 15. **大整数不被静默磨损**：加 `public long BigNumber = 5000000000;`（超 int32）→ Inspector 显示正确 → **不碰它**、挂着 Inspector 若干秒后存盘 → 存档里仍是 `5000000000`（验"改才写回"——若是截断值说明中转档写回条件错了）
 16. **Double 精度**：加 `public double Pi = 3.141592653589793;` → 不编辑的情况下存盘重开，值不损失（同上，验中转档）；编辑成 `2.5` 后写回正确
 11. **`OnDestroy` 链路未退化**：Play 中移除 ScriptComponent → 仍有 `OnDestroy` 打印（P1 的成果没被破坏）
