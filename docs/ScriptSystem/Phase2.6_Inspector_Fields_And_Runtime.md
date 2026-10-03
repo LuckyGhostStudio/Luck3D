@@ -158,7 +158,9 @@ Phase 2 的收口。两件事：
         }
 ```
 
-### 3.5 `Deserialize_Script` 当前实现（P2.5 之后，要加同步的地方）
+### 3.5 `Deserialize_Script` 当前实现（P2.5 已落地，要加同步的地方）
+
+P2.5 落地后的结构（骨架，省略 `Fields` 段的 22 类型读取 switch）：
 
 ```cpp
         void Deserialize_Script(Entity entity, const YAML::Node& entityNode)
@@ -173,9 +175,7 @@ Phase 2 的收口。两件事：
             YAML::Node handleNode = node["AssetHandle"];
             if (!handleNode)
             {
-                // 旧格式（ClassName）：不做迁移，脚本引用留空
-                LF_CORE_WARN("SceneSerializer: ScriptComponent uses legacy 'ClassName' format, script reference is dropped. Reassign the script asset in the Inspector.");
-                return;
+                return;     // 缺字段：脚本引用保持为空
             }
 
             uint64_t handleValue = handleNode.as<uint64_t>();
@@ -190,10 +190,19 @@ Phase 2 的收口。两件事：
                 LF_CORE_ERROR("SceneSerializer: Failed to load script asset [{0}]", handleValue);
             }
 
-            // ← Fields 段的读取（P2.5 加的）在这里
+            // Fields 段读取（P2.5 已实现）：逐字段读 Type + Value，22 种类型全覆盖，
+            // 资产引用经 ScriptEngine::ResolveAssetByFieldType 解析
+            YAML::Node fieldsNode = node["Fields"];
+            if (fieldsNode && fieldsNode.IsMap())
+            {
+                // ... 读进 sc.Fields ...
+            }
+
             // ← 本 Phase 要在函数末尾加一次同步
         }
 ```
+
+**include 已就绪**：`ComponentSerializers.cpp` 在 P2.5 已包含 `Lucky/Scripting/ScriptEngine.h`（`ResolveAssetByFieldType` 在用），本 Phase 的同步调用**不需要再补**。
 
 ### 3.6 `ScriptFieldWidgetKind` → 控件映射（22 种类型 → 10 种控件行）
 
@@ -647,7 +656,7 @@ case ScriptFieldWidgetKind::Float:      // Double 类型
 
 - **`HasComponent<ScriptComponent>()` 要判**：理论上调用方（`Scene::OnRuntimeStart`）就是从 `ScriptComponent` 遍历过来的，一定存在。但 `OnCreateEntityScript` 是公开接口，判一下属于廉价防御，**并且**避免 `GetComponent` 在组件缺失时触发断言
 - **注册进 `EntityInstances` 的时机保持在灌值之后**：`SetFieldValues` 不需要实例表；把注册放在紧挨 `InvokeAwake` 之前，保持"注册完成即可被 Awake 里的逻辑观察到"这个既有语义
-- **`ScriptEngine.cpp` 可能需要补 `#include "Lucky/Scene/Components/ScriptComponent.h"`**：目前它通过 `ScriptEngine.h → Scene/Entity.h` 能拿到 `Entity`，但 `ScriptComponent` 的完整定义不一定可见。**编译报"未定义类型 ScriptComponent"时补这个 include**（按规范 §3.3 放工程内头分组）
+- **`ScriptComponent` 的完整类型已经可见，不需要补 include**：`ScriptEngine.cpp` 经 `ScriptEngine.h → Scene/Entity.h → Components/Components.h` 链传递（`Components.h:19` 包含 `ScriptComponent.h`）
 
 ### Step 4：反序列化后同步字段表
 
@@ -668,7 +677,7 @@ case ScriptFieldWidgetKind::Float:      // Double 类型
 
 - **放在 `Fields` 段读取之后**：先读存档，再对齐（对齐会补齐缺失项、清理多余项、修正类型不符项）
 - **必须判 `sc.ScriptAsset`**：脚本引用为空时不需要同步（`SyncScriptFieldMap` 内部也判了，但这里判一下能省一次函数调用，且语义更清楚）
-- 该文件需要 `#include "Lucky/Scripting/ScriptEngine.h"`（若尚未包含）。**注意 include 顺序**（规范 §3.3）
+- **include 已就绪**：`ScriptEngine.h` 在 P2.5 已包含（见 3.5），不用补
 - **不要把同步放在函数开头的早退分支之后就算完** —— 有两个早退分支（`!node`、`!handleNode`），它们早退时没有脚本引用，本来就不需要同步，所以放在末尾是正确且安全的
 
 ### Step 5：`UI/` 补两个控件（`PropertyLong` / `PropertyEntityRef`）
@@ -978,8 +987,7 @@ namespace
 - Debug 编译 `Lucky` → 通过
 - Debug 编译 `Luck3DApp` → 通过
 - 不需要重跑 premake（无新增文件）
-- **若报 `ScriptComponent` 未定义**：`ScriptEngine.cpp` 补 `#include "Lucky/Scene/Components/ScriptComponent.h"`
-- **若报 `SyncScriptFieldMap` 未定义**：`ComponentSerializers.cpp` 补 `#include "Lucky/Scripting/ScriptEngine.h"`
+- **若报 `ScriptComponent` 未定义**：不应该发生（`Entity.h → Components.h` 链已包含）；真报了就查 `Components.h:19` 是否还在
 - **若报 `ScriptFieldMap` 未定义**：`ScriptEngine.h` 确认 include 了 `Lucky/Scripting/ScriptFieldValue.h`（P2.4 已加）
 - **若报 `DragDrop::EntityHierarchy` 未定义**：`PropertyGrid.cpp` 补 `#include "Lucky/Editor/DragDropPayloads.h"`
 
@@ -1005,7 +1013,7 @@ namespace
 
 - Inspector：`switch` 落到 `default`，**不画任何控件**，该字段静默不可见
 - 运行态：`SetFieldValues` 里 `it->second.Type != field.Type`（`None` vs `Float`）→ 打 WARN 并跳过 → 托管对象保留脚本初值
-- **不会崩**。而且 P2.5 的 `SyncScriptFieldMap` 在打开场景时就会把这个 `None` 项按"类型不符"修掉（用脚本初值覆盖），所以正常情况下根本走不到这里
+- **不会崩**。而且本 Phase（Step 4）在打开场景时就会把这个 `None` 项按"类型不符"修掉（用脚本初值覆盖），所以正常情况下根本走不到这里
 
 ### 6.4 为什么不在 Inspector 里对"未同步的字段"显示个提示？
 
@@ -1043,7 +1051,7 @@ namespace
 ## 7. 验收标准
 
 1. **编译通过**：`Lucky` 与 `Luck3DApp` 的 Debug / Release / Dist 三个 configuration 全通过
-2. **控件出现**：给 `PlayerController` 加 `public float Speed = 3.0f;` / `public int Level = 1;` / `public bool LogPosition = false;` / `public Vector3 Offset = new Vector3(1, 2, 3);` → 重新编译 → 重启 → 打开场景 → Inspector 里出现 4 个控件，**且显示的是脚本里写的初值**（`3.0` / `1` / 未勾选 / `(1,2,3)`）
+2. **控件出现**：`PlayerController` 已有 `Speed`(float) / `LogPosition`(bool) / `Title`(string) / `Offset`(Vector3) / `Score`(int) 五个字段（2.4/2.5 留的样本）→ 打开场景 → Inspector 里出现全部 5 个控件，**且显示的是脚本里写的初值**（`3.0` / 未勾选 / `player` / `(0,0,0)` / `42`）
 3. **拖动生效并持久化**：把 `Speed` 拖到 `7.5` → 保存场景 → 重启 → 打开 → 仍是 `7.5`；存档 YAML 里 `Value: 7.5`
 4. **★ 脚本真的读到调过的值**：`Update` 里 `Debug.Log("speed = " + Speed);` → 在 Inspector 把 `Speed` 调成 `7.5` → Play → 日志**是 `speed = 7.5`**（**这是整个 Phase 2 的最终验证点**）
 5. **灌值早于 Awake**：`Awake` 里 `Debug.Log("awake speed = " + Speed);` → Inspector 调成 `7.5` → Play → 日志是 `awake speed = 7.5`（**证明灌值在 Awake 之前**；若是 `3`，说明顺序反了）
@@ -1083,7 +1091,7 @@ namespace
 - **新增文件**：无
 - **修改文件（6 个）**
   - `Lucky/Source/Lucky/Scripting/ScriptEngine.h`：加 `TryResolveScriptClass`（公开）、`ResolveScriptClassImpl`（私有）、`ScriptInstance::SetFieldValues`
-  - `Lucky/Source/Lucky/Scripting/ScriptEngine.cpp`：`ResolveScriptClass` 拆成 `Impl` + 两个薄壳；加 `SetFieldValues` 实现；`OnCreateEntityScript` 插入灌值（可能补 `ScriptComponent.h` include）
+  - `Lucky/Source/Lucky/Scripting/ScriptEngine.cpp`：`ResolveScriptClass` 拆成 `Impl` + 两个薄壳；加 `SetFieldValues` 实现；`OnCreateEntityScript` 插入灌值（无需补 include，`ScriptComponent` 经 `Entity.h → Components.h` 链可见）
   - `Lucky/Source/Lucky/Editor/ComponentInspectors.cpp`：`Draw_Script` 改用 `TryResolveScriptClass` + 按 `ScriptFieldWidgetKind` 画控件；匿名命名空间加两个整数中转辅助；补三种资产类型的 include
   - `Lucky/Source/Lucky/Serialization/ComponentSerializers.cpp`：`Deserialize_Script` 末尾加一次 `SyncScriptFieldMap`（补 `ScriptEngine.h` include）
   - `Lucky/Source/Lucky/UI/PropertyGrid.h` / `PropertyGrid.cpp`：新写 `PropertyLong` 与 `PropertyEntityRef`
