@@ -503,9 +503,19 @@ namespace Lucky
             return;
         }
 
-        // ---- 处理选中（点击行为的 Select 分支）----
-        // NotifyClicked 已在 BeginRenamableTreeNode 内部调用，此处只按结果分发
-        if (clickOutcome == UI::RenameClickOutcome::ShouldSelect)
+        // ---- 处理选中：鼠标"抬起"时（且期间未发生拖拽）----
+        // 按下即选中会抢占拖拽源（与 ProjectAssetsPanel 同款问题，解法也照它）：
+        // 语义参考 Unity：按下不切换 Selection；若发生拖拽则不选中；仅在正常点击（按下+抬起，未拖）时提交选中
+        //
+        // 与内联重命名的协作：
+        // - clickOutcome == RegisteredAsRenameCandidate：按下瞬间已被 RenameController 登记为编辑候选，
+        //   本次抬起不再做 Select（抬起后由 RenameController 决定进入编辑态还是取消）
+        // - 其余情况（ShouldSelect，以及点在名称区以外的 None）：走抬起选中
+        bool itemHovered = ImGui::IsItemHovered();
+        bool leftReleased = ImGui::IsMouseReleased(ImGuiMouseButton_Left);
+        bool wasDragging = ImGui::IsMouseDragging(ImGuiMouseButton_Left);
+        if (clickOutcome != UI::RenameClickOutcome::RegisteredAsRenameCandidate
+            && itemHovered && leftReleased && !wasDragging && !ImGui::IsItemToggledOpen())
         {
             SelectionManager::Select(id);   // 选中物体
             LF_TRACE("Selected Entity: [ENTT = {0}, UUID {1}, Name {2}]", static_cast<uint32_t>(entity), id, entity.GetName());
