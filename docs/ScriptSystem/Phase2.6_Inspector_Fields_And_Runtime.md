@@ -146,13 +146,13 @@ Phase 2 的收口。两件事：
 ```cpp
         if (hasMultipleMatches)
         {
-            LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - 类名 '{0}' 匹配到多个脚本类：{1}。请重命名文件或调整命名空间使其唯一。", className, matchedFullNames);
+            LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - Class name '{0}' matches multiple script classes: {1}. Please rename the file or adjust its namespace to make it unique.", className, matchedFullNames);
             return nullptr;
         }
 
         if (!matchedClass)
         {
-            LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - 未找到脚本类 '{0}'。请确认该脚本已参与编译，且类名与文件名一致。", className);
+            LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - Script class '{0}' not found. Please make sure the script has been compiled and its class name matches the file name.", className);
             return nullptr;
         }
 ```
@@ -525,14 +525,14 @@ anyChanged |= UI::PropertyFloat(...);
         {
             if (logDiagnostics)
             {
-                LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - 类名 '{0}' 匹配到多个脚本类：{1}。请重命名文件或调整命名空间使其唯一。", className, matchedFullNames);
+                LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - Class name '{0}' matches multiple script classes: {1}. Please rename the file or adjust its namespace to make it unique.", className, matchedFullNames);
             }
             return nullptr;
         }
 
         if (!matchedClass && logDiagnostics)
         {
-            LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - 未找到脚本类 '{0}'。请确认该脚本已参与编译，且类名与文件名一致。", className);
+            LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - Script class '{0}' not found. Please make sure the script has been compiled and its class name matches the file name.", className);
         }
 
         return matchedClass;
@@ -587,7 +587,7 @@ anyChanged |= UI::PropertyFloat(...);
             if (it->second.Type != field.Type)
             {
                 // 类型不匹配：写下去会按错误的位宽/位模式覆盖内存，必须拦下
-                LF_CORE_WARN("ScriptInstance::SetFieldValues - 字段 '{0}.{1}' 的值类型与脚本类型不符，已跳过", m_ScriptClass->GetName(), field.Name);
+                LF_CORE_WARN("ScriptInstance::SetFieldValues - Value type of field '{0}.{1}' does not match the script type, skipped", m_ScriptClass->GetName(), field.Name);
                 continue;
             }
 

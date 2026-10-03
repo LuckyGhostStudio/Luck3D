@@ -682,7 +682,7 @@ extern "C"
             const ScriptFieldType fieldType = ResolveScriptFieldType(mono_field_get_type(field));
             if (fieldType == ScriptFieldType::None)
             {
-                LF_CORE_WARN("ScriptClass::GetFields - 字段 '{0}.{1}' 的类型暂不支持，已忽略", m_ClassName, fieldName);
+                LF_CORE_WARN("ScriptClass::GetFields - Unsupported type for field '{0}.{1}', ignored", m_ClassName, fieldName);
                 continue;
             }
 

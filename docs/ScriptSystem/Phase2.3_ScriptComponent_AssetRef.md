@@ -253,7 +253,7 @@ namespace Lucky
       ClassName: Sandbox.PlayerController
 ```
 
-本 Phase 之后这个键不再被读取。见决策点 4.2。
+本 Phase 之后这个键不再被读取（不做迁移，见 1.3 节）。
 
 ### 3.8 编辑器里直接写 `ImGui::` 的先例
 
@@ -320,9 +320,9 @@ static void OnCreateEntityScript(Entity entity, const std::string& fullClassName
 
 ---
 
-### 4.2 决策点 2：读到旧的 `ClassName:` 键怎么办
+### 4.2 决策点 2：`AssetHandle` 键缺失时怎么办
 
-#### 方案 A：`Deserialize_Script` 里"读不到 `AssetHandle` 键就直接返回"，组件留一个空 `ScriptAsset`（**推荐 ✅**）
+#### 方案 A：静默保留空引用（**推荐 ✅**）
 
 ```cpp
             ScriptComponent& sc = entity.AddComponent<ScriptComponent>();
@@ -330,27 +330,27 @@ static void OnCreateEntityScript(Entity entity, const std::string& fullClassName
             YAML::Node handleNode = node["AssetHandle"];
             if (!handleNode)
             {
-                // 旧格式（ClassName）：不做迁移，脚本引用留空
-                LF_CORE_WARN("SceneSerializer: ScriptComponent uses legacy 'ClassName' format, script reference is dropped. Reassign the script asset in the Inspector.");
-                return;
+                return;     // 缺字段：脚本引用保持为空，等价于 Inspector 里的 None
             }
 ```
 
 - **优点**：
-  1. 组件**仍然存在**（`AddComponent` 已经执行），实体的组件构成不发生意外变化 —— 用户打开老场景看到的是"ScriptComponent 在，但脚本是 None"，一眼就知道要重新拖一个
-  2. 一条 WARN 交代清楚发生了什么、该怎么办
-  3. 零迁移逻辑
-- **缺点**：老场景的脚本信息确实丢了 —— 但这是**你已明确接受**的取舍
+  1. **与同文件里材质的既有范式一致** —— `MeshRendererComponent` 那边也是"`AssetHandle` 取不到就跳过"，不打日志、不兜底（§3.5）。缺字段不是用户错误，不需要制造告警
+  2. 组件**仍然存在**（`AddComponent` 已经执行），实体的组件构成不发生意外变化；引用为空本身就是合法状态，Inspector 里显示 `None (Script)`
+  3. 零额外分支，没有需要长期维护的提示文案
+- **缺点**：字段缺失不留下日志痕迹 —— 但它会让 Inspector 里的字段显示为 `None (Script)`，用户直接看得见，不需要日志再念一遍
 
-#### 方案 B：读到 `ClassName` 就按名字反查资产，自动补上
+> **守卫本身不能省**：`node["AssetHandle"].as<uint64_t>()` 作用在 `undefined` node 上会取到非法值甚至抛异常，所以"键不存在"必须提前拦下。
 
-- **优点**：老场景无痛打开
-- **缺点**：需要在反序列化时**遍历所有 Script 资产比对类名**（Registry 遍历 + 每个都 `GetAsset`），在"打开场景"这条热路径上加一次全量扫描；而且反查到的资产**不一定是用户当初拖的那个**（两个同名 `.cs`）。**你已明确说不需要，否决。**
+#### 方案 B：给缺失字段加一条日志
 
-#### 方案 C：什么都不做，`AddComponent` 后直接不管
+- **优点**：文件确实损坏时日志里能留下痕迹
+- **缺点**：与材质那段的既有处理不一致（同一份文件里两套风格）；而且正常流程下这个分支**不会触发** —— 空的 `ScriptComponent` 写出的是 `AssetHandle: 0`，键是存在的，走的是后面 `IsValid()` 那条分支。为一条永不触发的分支维护一句提示文案不划算。**否决。**
 
-- **优点**：代码最少
-- **缺点**：用户打开老场景，脚本静默消失，**没有任何提示** —— 属于最难查的一类问题。**A 只多两行日志，没理由不做。**
+#### 方案 C：不写守卫，直接读
+
+- **优点**：少三行
+- **缺点**：`undefined` node 上做 `.as<uint64_t>()` 的后果不由我们控制。**否决。**
 
 **结论：方案 A。**
 
@@ -363,9 +363,13 @@ static void OnCreateEntityScript(Entity entity, const std::string& fullClassName
 ```cpp
 if (sc.ScriptAsset && !ScriptEngine::ResolveScriptClass(sc.ScriptAsset->GetClassName()))
 {
-    ImGui::TextColored({0.9f, 0.35f, 0.35f, 1.0f}, "脚本类未找到：请确认该脚本已参与编译");
+    ImGui::TextColored({0.9f, 0.35f, 0.35f, 1.0f}, "Script class not found.\nMake sure the script is compiled and the class name matches the file name.");
 }
 ```
+
+> **措辞为什么是这两句**：Unity 加脚本失败时报的是 `Can't add script component 'X' because the script class cannot be found. Make sure that there are no compile errors and that the file name and class name match.` —— 把两个原因并列。我们照同样的顺序来：先"有没有编译"，再"类名与文件名一致不一致"（与 P2.2 `ResolveScriptClass` 的失败日志同一套说法）。这两条覆盖了实际可能的原因，用户看到就能自己往下走。
+>
+> 用 `\n` 断成两行是**必须**的：`ImGui::TextColored` 不会自动折行（自动折行是 `TextWrapped` 的行为），而这句英文的长度约是原中文版的两倍，单行会超出 Inspector 面板宽度。
 
 - **优点**：
   1. **零新增 API**，改动面最小
@@ -509,9 +513,7 @@ namespace Lucky
             YAML::Node handleNode = node["AssetHandle"];
             if (!handleNode)
             {
-                // 旧格式（ClassName）：不做迁移，脚本引用留空
-                LF_CORE_WARN("SceneSerializer: ScriptComponent uses legacy 'ClassName' format, script reference is dropped. Reassign the script asset in the Inspector.");
-                return;
+                return;     // 缺字段：脚本引用保持为空，等价于 Inspector 里的 None
             }
 
             uint64_t handleValue = handleNode.as<uint64_t>();
@@ -532,7 +534,7 @@ namespace Lucky
 
 - **完全照抄 3.5 里材质的写法**：`GetHandle()` 直写、`.as<uint64_t>()` + `AssetHandle(value)` 读、`IsValid()` 判有效性。不要自己发明 YAML 转换
 - **注意 `handleNode.as<uint64_t>()` 不要写成 `.as<AssetHandle>()`** —— 项目里现有代码统一用 `uint64_t` 中转，保持一致（有没有 `AssetHandle` 的 YAML `convert` 特化不确定，走 `uint64_t` 是已被验证能编译的路径）
-- **`LF_CORE_WARN` 而不是 `ERROR`**：读旧场景是用户的正常行为，不是错误。措辞要交代清楚"发生了什么、怎么办"
+- **缺字段不打日志**：`AssetHandle` 键缺失时静默返回，与同文件里材质那段的既有处理一致；这个分支在正常流程下不会触发（见决策点 4.2）
 - **没有 `Renderer3D::GetInternalErrorMaterial()` 那样的兜底**：材质丢了有个"内部错误材质"能顶上，脚本没有等价物 —— 脚本引用为空就是"这个实体没有脚本"，这是**合法状态**（对应 Inspector 里的 `None (Script)`），不该报 ERROR 也不该造一个假的 `Script` 对象
 - 第二条 `LF_CORE_ERROR` 的判据是 `!sc.ScriptAsset && handle.IsValid()`：handle 有效但取不到资产，才是真的加载失败（比如 `.cs` 被删了但 Registry 还没同步）
 
@@ -593,7 +595,7 @@ namespace Lucky
             Ref<ScriptClass> scriptClass = ScriptEngine::ResolveScriptClass(sc.ScriptAsset->GetClassName());
             if (!scriptClass)
             {
-                LF_CORE_ERROR("Scene::OnRuntimeStart - 实体 '{0}' 的脚本 '{1}' 解析失败，已跳过", entity.GetName(), sc.ScriptAsset->GetClassName());
+                LF_CORE_ERROR("Scene::OnRuntimeStart - Failed to resolve script '{0}' for entity '{1}', skipped", sc.ScriptAsset->GetClassName(), entity.GetName());
                 continue;
             }
 
@@ -625,7 +627,7 @@ namespace Lucky
 
             if (sc.ScriptAsset && !ScriptEngine::ResolveScriptClass(sc.ScriptAsset->GetClassName()))
             {
-                ImGui::TextColored({0.9f, 0.35f, 0.35f, 1.0f}, "脚本类未找到：请确认该脚本已参与编译，且类名与文件名一致");
+                ImGui::TextColored({0.9f, 0.35f, 0.35f, 1.0f}, "Script class not found.\nMake sure the script is compiled and the class name matches the file name.");
             }
         }
 ```
@@ -690,13 +692,15 @@ namespace Lucky
 
 两个 lambda 都不碰 `ClassName`，`AddComponent` 默认构造出 `ScriptAsset == nullptr` 的组件，正是我们想要的"已添加但未赋值"状态。**P1 做的 `OnComponentRemoved` 通知链路也不受影响**（它只看 `ComponentType::Script`，不看组件内容）。
 
-### 6.7 老场景打开后 `ScriptComponent` 是空的，会不会影响 P1 的 `OnDestroy`？
+### 6.7 `ScriptComponent` 的 `ScriptAsset` 为空时，会不会影响 P1 的 `OnDestroy`？
 
 不会。`Scene::OnRuntimeStart` 里 `if (!sc.ScriptAsset) continue;` 直接跳过 → 不会创建 `ScriptInstance` → `EntityInstances` 里没有它 → `OnDestroy` 自然不会被调用（没有实例就没有回调，符合语义）。
 
-### 6.8 为什么 `Draw_Script` 里的错误提示用"脚本类未找到"而不是复用 `ResolveScriptClass` 的日志措辞？
+### 6.8 为什么 `Draw_Script` 里的错误提示不复用 `ResolveScriptClass` 的日志原文？
 
 因为两者受众不同：`ResolveScriptClass` 的日志是给**看日志的人**（追根因），Inspector 的提示是给**盯着 Inspector 的人**（立刻知道要做什么）。措辞可以各有侧重，但**必须都指向同一个动作**：去检查脚本有没有编译、类名和文件名一致不一致。
+
+两者都用英文（规范 §9.2）。区别在于日志能带上类名、文件名等定位信息，而 Inspector 只有一行，所以更短。
 
 ---
 
@@ -708,15 +712,15 @@ namespace Lucky
 4. **存盘持久化**：保存场景 → 重新打开 → Script 字段仍是那个脚本（验证序列化 handle 的读写）
 5. **场景文本格式正确**：`.luck3d` 里 `ScriptComponent` 段是 `AssetHandle: <数字>` 而不是 `ClassName: ...`
 6. **运行态可用**：Play → `PlayerController.Awake` 打出 `Hello Luck3D`，Cube 按脚本逻辑移动（验证 `Ref<Script>` 穿过 `Scene::Copy` 仍然有效）
-7. **老场景行为符合预期**：打开旧的 `ScriptTest.luck3d` → 有 ScriptComponent、脚本字段为 `None (Script)`、日志有那条 `legacy 'ClassName' format` 的 WARN、**不崩**
-8. **错误态可见**：把 `PlayerController.cs` 改名（不重新编译）→ 拖进去 → Inspector **立刻**显示红色提示；日志有 `未找到脚本类`
+7. **空脚本组件不崩**：给实体挂一个未赋值的 `ScriptComponent` → 存盘 → 重开 → 组件在、字段显示 `None (Script)`、**不崩**；再 Play/Stop 一圈也不报错
+8. **错误态可见**：把 `PlayerController.cs` 改名（不重新编译）→ 拖进去 → Inspector **立刻**显示红色提示（`Script class not found. ...`）；日志有 `Script class '...' not found`
 9. **无多余报错**：正常流程（拖入 + 存盘 + 重启 + Play + Stop）日志里没有 ERROR
 10. **`OnDestroy` 链路未退化**：Play 中 Inspector 移除 ScriptComponent → 仍有 `OnDestroy` 打印一次（P1 的成果没被破坏）
-11. **代码规范**：通过人工 checklist —— 组件是 `struct` 且带 `= default` 与带参构造（§13.3）；控制语句全带花括号（§5.2）；`UI::PropertyAsset` 这种智能指针引用**没有**用 `auto`（§13.9）；公有接口有 `/// <summary>` 中文注释（§4.1）；无"为对齐而对齐"的空格（§5.4）；无引用外部文档的注释、无"P2.5 会补齐"这类阶段性注释
+11. **代码规范**：通过人工 checklist —— 组件是 `struct` 且带 `= default` 与带参构造（§13.3）；控制语句全带花括号（§5.2）；`UI::PropertyAsset` 这种智能指针引用**没有**用 `auto`（§13.9）；公有接口有 `/// <summary>` 中文注释（§4.1）；**日志与 Inspector 提示全英文、不含中文字符**（§9.2）；无"为对齐而对齐"的空格（§5.4）；无引用外部文档的注释、无"P2.5 会补齐"这类阶段性注释
 
-> ⚠️ **第 8 条要重点实测两件事**：① 提示是否**每帧刷屏**（见 Step 5 要点里的说明）；② 红色文字在**浅色主题**下是否看得清（`{0.9, 0.35, 0.35}` 是深红，浅色背景上应该没问题，但要眼见为实）。
+> ⚠️ **第 8 条要重点实测三件事**：① 提示是否**每帧刷屏**（见 Step 5 要点里的说明）；② 红色文字在**浅色主题**下是否看得清（`{0.9, 0.35, 0.35}` 是深红，浅色背景上应该没问题，但要眼见为实）；③ 换成英文后**有没有超出 Inspector 面板宽度**（英文比原中文长约一倍，已用 `\n` 断成两行，若仍被裁切就再缩短措辞，或改用 `ImGui::TextWrapped` + `ImGui::PushStyleColor`）。
 
-> ⚠️ **第 7 条不要跳过**：它是唯一验证"不做迁移"这个决定没有引发崩溃的用例。
+> ⚠️ **第 7 条不要跳过**：它验证"脚本引用为空"这个合法状态走完全流程不崩 —— 序列化写出 `AssetHandle: 0`、反序列化读回、运行态跳过实例化，三段都要走到。
 
 ---
 
@@ -728,7 +732,6 @@ namespace Lucky
 | `ScriptEngine::OnCreateEntityScript(entity, scriptClass)` | **P2.6** | 已经有 `scriptClass` 在手，紧接着就能反射字段列表、把 `FieldMap` 的值写进托管对象（**必须在 `InvokeAwake()` 之前**） |
 | `Draw_Script` 里的 `ResolveScriptClass` 调用 | **P2.6** | 解析成功后拿到 `ScriptClass`，直接用它反射出字段列表来画控件 —— 同一个调用点，天然复用 |
 | `EntityScriptClassExists`（保留但暂无调用点） | **P3 热重载** | 重新加载程序集后校验脚本类是否还在 |
-| 那条 `legacy 'ClassName' format` 的 WARN | 未来的格式迁移 | 如果哪天又需要兼容，钩子已经留好了 |
 
 ---
 

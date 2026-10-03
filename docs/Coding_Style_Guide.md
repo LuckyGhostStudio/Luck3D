@@ -655,6 +655,21 @@ LF_ERROR(...)
 LF_FATAL(...)
 ```
 
+**日志内容必须使用英文，不允许出现中文字符。**
+
+- **原因**：本仓库的源码文件同时存在 GBK 与 UTF-8 两种编码（历史遗留），而日志要流经 `stdout`、日志文件、编辑器输出面板等多个环节，中文一旦在某一环被按错误编码解读就是乱码，而且在别人的机器上无法预测。ASCII 的英文没有这个问题。
+- **范围**：所有 `LF_CORE_*` / `LF_*` 宏的格式串，以及作为参数传进去的字符串字面量。
+- **中文只进注释**：行内注释、XML 文档注释照旧写中文（§4.2），不要因为这条规则把注释也改成英文。
+- **同样适用于编辑器里直接展示给用户的文字**（如 Inspector 中的错误提示）—— 它们和日志一样会离开程序到输出端，理由完全相同。
+
+```cpp
+// 正确
+LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - Script class '{0}' not found.", className);
+
+// 错误：日志内容含中文
+LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - 未找到脚本类 '{0}'。", className);
+```
+
 ### 9.3 断言宏
 
 ```cpp

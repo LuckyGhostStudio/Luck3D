@@ -387,13 +387,13 @@ ScriptEngine::ResolveScriptClass - 未找到脚本类 'PlayerController'（来�
 
         if (hasMultipleMatches)
         {
-            LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - 类名 '{0}' 匹配到多个脚本类：{1}。请重命名文件或调整命名空间使其唯一。", className, matchedFullNames);
+            LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - Class name '{0}' matches multiple script classes: {1}. Please rename the file or adjust its namespace to make it unique.", className, matchedFullNames);
             return nullptr;
         }
 
         if (!matchedClass)
         {
-            LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - 未找到脚本类 '{0}'。请确认该脚本已参与编译，且类名与文件名一致。", className);
+            LF_CORE_ERROR("ScriptEngine::ResolveScriptClass - Script class '{0}' not found. Please make sure the script has been compiled and its class name matches the file name.", className);
             return nullptr;
         }
 
@@ -407,7 +407,7 @@ ScriptEngine::ResolveScriptClass - 未找到脚本类 'PlayerController'（来�
 - `scriptClass` 是 `const Ref<ScriptClass>&`（map 的 value），但**返回类型是 `Ref<ScriptClass>`**，返回时拷一份引用计数 —— 这是安全的，调用方拿到后不会被 map 变更影响
 - **不要**用 `auto& scriptClass = it->second;` 之类的显式迭代器写法 —— 范围 for 更短且不需要 `it` 管理
 - **冲突检测写在循环内而不是先 `count` 再 `find`**：只需要遍历一次，且能顺带把候选全名收集齐
-- 错误日志**用 `LF_CORE_ERROR`**，措辞包含"请确认该脚本已参与编译"（决策点 4.5）
+- 错误日志**用 `LF_CORE_ERROR`**，措辞包含"脚本有没有编译"和"类名与文件名是否一致"两层（决策点 4.5）；且日志内容必须为英文（规范 §9.2）
 - 两条日志都带 `ScriptEngine::ResolveScriptClass -` 前缀，和项目里其它日志的命名风格一致，便于 grep
 
 ### Step 3：编译验证

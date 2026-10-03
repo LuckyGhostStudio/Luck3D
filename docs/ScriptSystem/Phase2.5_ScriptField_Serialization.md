@@ -603,7 +603,7 @@ namespace Lucky
 
                     if (typeMismatch)
                     {
-                        LF_CORE_WARN("ScriptEngine::SyncScriptFieldMap - 字段 '{0}.{1}' 的类型已从存档类型变为脚本类型，值被重置为脚本初始值", scriptClass->GetName(), field.Name);
+                        LF_CORE_WARN("ScriptEngine::SyncScriptFieldMap - Type of field '{0}.{1}' changed from the saved type to the script type, value reset to the script default", scriptClass->GetName(), field.Name);
                     }
 
                     if (it == fieldMap.end() || typeMismatch)
@@ -630,7 +630,7 @@ namespace Lucky
             }
             else
             {
-                LF_CORE_WARN("ScriptEngine::SyncScriptFieldMap - 字段 '{0}' 在脚本中已不存在，项目值被移除", it->first);
+                LF_CORE_WARN("ScriptEngine::SyncScriptFieldMap - Field '{0}' no longer exists in the script, stored value removed", it->first);
                 it = fieldMap.erase(it);
             }
         }
