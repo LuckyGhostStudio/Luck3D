@@ -48,8 +48,11 @@ Entities:
       Primary: true
       FixedAspectRatio: false
     ScriptComponent:
-      AssetHandle: 7441266882824687928
+      AssetHandle: 4360536123742608038
       Fields:
+        BigNumber:
+          Type: Long
+          Value: 5000000000
         LogPosition:
           Type: Bool
           Value: false
@@ -61,7 +64,10 @@ Entities:
           Value: 42
         Speed:
           Type: Float
-          Value: 3
+          Value: 7.5
+        Target:
+          Type: Entity
+          Value: 6044912589498632098
         Title:
           Type: String
           Value: player

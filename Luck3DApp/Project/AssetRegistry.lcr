@@ -50,7 +50,7 @@ Assets:
   - Handle: 12097578753374292115
     Type: Scene
     FilePath: Assets/Scenes/ScriptTest.luck3d
-  - Handle: 7441266882824687928
+  - Handle: 4360536123742608038
     Type: Script
     FilePath: Assets/Scripts/PlayerController.cs
   - Handle: 18207887571965278333
