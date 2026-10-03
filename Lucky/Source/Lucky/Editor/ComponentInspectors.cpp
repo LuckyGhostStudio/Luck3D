@@ -4,6 +4,8 @@
 #include "Lucky/Scene/Entity.h"
 #include "Lucky/Scene/Components/Components.h"
 
+#include "Lucky/Scripting/ScriptEngine.h"
+
 #include "Lucky/Editor/EditorIconManager.h"
 
 #include "Lucky/UI/PropertyGrid.h"
@@ -294,12 +296,11 @@ namespace Lucky
         {
             ScriptComponent& sc = entity.GetComponent<ScriptComponent>();
 
-            char buf[256] = {};
-            std::strncpy(buf, sc.ClassName.c_str(), sizeof(buf) - 1);
-            
-            if (UI::PropertyString("Class", buf, sizeof(buf)))
+            UI::PropertyAsset("Script", sc.ScriptAsset);
+
+            if (sc.ScriptAsset && !ScriptEngine::ResolveScriptClass(sc.ScriptAsset->GetClassName()))
             {
-                sc.ClassName = buf;
+                ImGui::TextColored({0.9f, 0.35f, 0.35f, 1.0f}, "Script class not found.\nMake sure the script is compiled and the class name matches the file name.");
             }
         }
     }

@@ -592,7 +592,14 @@ namespace Lucky
 
             out << YAML::Key << "ScriptComponent";
             out << YAML::BeginMap;
-            out << YAML::Key << "ClassName" << YAML::Value << sc.ClassName;
+            if (sc.ScriptAsset)
+            {
+                out << YAML::Key << "AssetHandle" << YAML::Value << sc.ScriptAsset->GetHandle();
+            }
+            else
+            {
+                out << YAML::Key << "AssetHandle" << YAML::Value << static_cast<uint64_t>(0);
+            }
             out << YAML::EndMap;
         }
 
@@ -604,7 +611,24 @@ namespace Lucky
                 return;
             }
             ScriptComponent& sc = entity.AddComponent<ScriptComponent>();
-            sc.ClassName = node["ClassName"].as<std::string>("");
+
+            YAML::Node handleNode = node["AssetHandle"];
+            if (!handleNode)
+            {
+                return;     // 缺字段：脚本引用保持为空，等价于 Inspector 里的 None
+            }
+
+            uint64_t handleValue = handleNode.as<uint64_t>();
+            AssetHandle handle(handleValue);
+            if (handle.IsValid())
+            {
+                sc.ScriptAsset = AssetManager::GetAsset<Script>(handle);
+            }
+
+            if (!sc.ScriptAsset && handle.IsValid())
+            {
+                LF_CORE_ERROR("SceneSerializer: Failed to load script asset [{0}]", handleValue);
+            }
         }
     }
 

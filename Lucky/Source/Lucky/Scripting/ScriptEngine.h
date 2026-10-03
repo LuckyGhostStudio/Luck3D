@@ -68,12 +68,11 @@ namespace Lucky
 
         /// <summary>
         /// 为一个实体实例化托管对象并调用 Awake
-        /// 由 Scene::OnRuntimeStart 在遍历 ScriptComponent 时调用；ClassName 由调用方从组件读取
-        /// 若 fullClassName 未在用户程序集中登记，则跳过（打印警告）
+        /// 由 Scene::OnRuntimeStart 在遍历 ScriptComponent 时调用；脚本类由调用方解析后传入
         /// </summary>
         /// <param name="entity">目标实体</param>
-        /// <param name="fullClassName">脚本类全名（"Namespace.ClassName"）</param>
-        static void OnCreateEntityScript(Entity entity, const std::string& fullClassName);
+        /// <param name="scriptClass">已解析出的脚本类（不为空）</param>
+        static void OnCreateEntityScript(Entity entity, const Ref<ScriptClass>& scriptClass);
 
         /// <summary>
         /// 对指定实体上已实例化的脚本对象调用 Update(dt)

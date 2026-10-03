@@ -517,6 +517,7 @@ namespace Lucky
     template Ref<Mesh> AssetManager::GetAsset<Mesh>(AssetHandle handle);
     template Ref<Texture2D> AssetManager::GetAsset<Texture2D>(AssetHandle handle);
     template Ref<Scene> AssetManager::GetAsset<Scene>(AssetHandle handle);
+    template Ref<Script> AssetManager::GetAsset<Script>(AssetHandle handle);
 
     bool AssetManager::IsAssetLoaded(AssetHandle handle)
     {

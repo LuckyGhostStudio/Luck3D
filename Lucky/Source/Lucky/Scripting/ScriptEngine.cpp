@@ -327,16 +327,11 @@ namespace Lucky
         return matchedClass;
     }
 
-    void ScriptEngine::OnCreateEntityScript(Entity entity, const std::string& fullClassName)
+    void ScriptEngine::OnCreateEntityScript(Entity entity, const Ref<ScriptClass>& scriptClass)
     {
-        auto it = s_Data->EntityClasses.find(fullClassName);
-        if (it == s_Data->EntityClasses.end())
-        {
-            LF_CORE_WARN("ScriptEngine: entity script class '{}' not found", fullClassName);
-            return;
-        }
+        LF_CORE_ASSERT(scriptClass, "ScriptEngine::OnCreateEntityScript - scriptClass must not be null");
 
-        Ref<ScriptInstance> instance = CreateRef<ScriptInstance>(it->second, entity);
+        Ref<ScriptInstance> instance = CreateRef<ScriptInstance>(scriptClass, entity);
         s_Data->EntityInstances[entity.GetUUID()] = instance;
 
         instance->InvokeAwake();

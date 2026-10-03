@@ -268,17 +268,19 @@ namespace Lucky
             Entity entity{ entityHandle, this };
             const ScriptComponent& sc = entity.GetComponent<ScriptComponent>();
 
-            if (sc.ClassName.empty())
+            if (!sc.ScriptAsset)
             {
-                continue;
-            }
-            if (!ScriptEngine::EntityScriptClassExists(sc.ClassName))
-            {
-                LF_CORE_WARN("Scene::OnRuntimeStart - script class '{0}' not found for entity '{1}'", sc.ClassName, entity.GetName());
                 continue;
             }
 
-            ScriptEngine::OnCreateEntityScript(entity, sc.ClassName);
+            Ref<ScriptClass> scriptClass = ScriptEngine::ResolveScriptClass(sc.ScriptAsset->GetClassName());
+            if (!scriptClass)
+            {
+                LF_CORE_ERROR("Scene::OnRuntimeStart - Failed to resolve script '{0}' for entity '{1}', skipped", sc.ScriptAsset->GetClassName(), entity.GetName());
+                continue;
+            }
+
+            ScriptEngine::OnCreateEntityScript(entity, scriptClass);
         }
 
         m_State = SceneState::Play;
