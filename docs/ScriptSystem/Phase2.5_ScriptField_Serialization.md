@@ -611,9 +611,19 @@ namespace Lucky
 **1) `Serialize_Script` 在 `AssetHandle` 之后加 `Fields` 段**：
 
 ```cpp
-            out << YAML::Key << "Fields" << YAML::Value << YAML::BeginMap;
+            // 按字段名排序输出：unordered_map 迭代顺序不稳定，直写会让每次保存的存档 diff 抖动
+            std::vector<std::string> sortedFieldNames;
+            sortedFieldNames.reserve(sc.Fields.size());
             for (const auto& [fieldName, fieldValue] : sc.Fields)
             {
+                sortedFieldNames.push_back(fieldName);
+            }
+            std::sort(sortedFieldNames.begin(), sortedFieldNames.end());
+
+            out << YAML::Key << "Fields" << YAML::Value << YAML::BeginMap;
+            for (const std::string& fieldName : sortedFieldNames)
+            {
+                const ScriptFieldValue& fieldValue = sc.Fields.at(fieldName);
                 out << YAML::Key << fieldName;
                 out << YAML::BeginMap;
                 out << YAML::Key << "Type" << YAML::Value << GetScriptFieldTypeInfo(fieldValue.Type).Name;
@@ -794,6 +804,7 @@ namespace Lucky
 
 **要点**：
 
+- **写出前必须按字段名排序**：`ScriptFieldMap` 是 `unordered_map`，迭代顺序不稳定 —— 直写会让每次保存的 `Fields` 段顺序随机抖动，存档 diff 全是噪音（与 `.lcr` 注册表、场景实体顺序是同款问题，那两次的处置原则同样适用于此：序列化输出必须确定）。反序列化不受影响（map 按键读）
 - **两个 `switch` 必须覆盖同一组类型（22 种）**。加类型时：P2.4 的类型表加一行 + 这里的读/写各加一个 case + P2.6 的控件加分支 —— 表之外的这三处是 P2.4 决策点 4.1 写明"表覆盖不了"的固定代价
 - **`SByte` / `Byte` 必须提升后写盘**：yaml-cpp 把 8 位整型当字符处理，直接 `out << int8_t` 会写出不可读的字符而不是数字；读回时对应地用 `as<int32_t>` 再 `static_cast` 收窄
 - `as<T>(默认值)` **一律给默认值**：存档可能被手改坏、可能是旧版本写的，缺失键（包括缺 `Value`）不该崩 —— yaml-cpp 对 undefined node 调 `as<T>(fallback)` 会返回 fallback
