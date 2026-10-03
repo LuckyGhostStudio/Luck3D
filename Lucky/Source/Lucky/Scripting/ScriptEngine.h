@@ -112,6 +112,17 @@ namespace Lucky
         static Ref<ScriptClass> ResolveScriptClass(const std::string& className);
 
         /// <summary>
+        /// 把脚本字段表与脚本类的当前字段列表对齐
+        /// - 类里新增的字段：用 ScriptField::DefaultValue 补进 fieldMap
+        /// - 已存在但类型与脚本不符的字段：用 DefaultValue 覆盖（脚本改了字段类型时的必然结果）
+        /// - fieldMap 里多出来的字段（脚本已删）：移除
+        /// 默认值取 GetFields() 已读好的 ScriptField::DefaultValue，纯数据操作，不创建托管对象
+        /// </summary>
+        /// <param name="scriptAsset">脚本资产（为空时清空 fieldMap）</param>
+        /// <param name="fieldMap">待对齐的字段表（原地修改）</param>
+        static void SyncScriptFieldMap(const Ref<Script>& scriptAsset, ScriptFieldMap& fieldMap);
+
+        /// <summary>
         /// 获取当前 Runtime 场景上下文（非 Runtime 期为 nullptr）
         /// </summary>
         static Scene* GetSceneContext();

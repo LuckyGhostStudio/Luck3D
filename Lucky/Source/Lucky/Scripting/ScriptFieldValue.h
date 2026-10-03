@@ -9,6 +9,7 @@
 #include <glm/gtc/quaternion.hpp>       // glm::quat 不在 glm/glm.hpp 里，必须显式加（YamlHelpers.h / TransformComponent.h 都是这么做的）
 #include <variant>
 #include <string>
+#include <unordered_map>
 
 namespace Lucky
 {
@@ -39,4 +40,10 @@ namespace Lucky
         ScriptFieldType  Type = ScriptFieldType::None;
         ScriptFieldScalar Data;
     };
+
+    /// <summary>
+    /// 脚本字段值表：键为字段名
+    /// 用名字而不是索引，脚本里插入/删除/重排字段后旧数据仍能对上；代价是字段改名会丢值
+    /// </summary>
+    using ScriptFieldMap = std::unordered_map<std::string, ScriptFieldValue>;
 }

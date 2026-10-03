@@ -458,6 +458,58 @@ namespace Lucky
         return matchedClass;
     }
 
+    void ScriptEngine::SyncScriptFieldMap(const Ref<Script>& scriptAsset, ScriptFieldMap& fieldMap)
+    {
+        if (!scriptAsset)
+        {
+            fieldMap.clear();
+            return;
+        }
+
+        Ref<ScriptClass> scriptClass = ResolveScriptClass(scriptAsset->GetClassName());
+        if (!scriptClass)
+        {
+            // ResolveScriptClass 已经报过错；保留 fieldMap 现有内容，避免用户在脚本没编译时丢掉已调的值
+            return;
+        }
+
+        const std::vector<ScriptField>& fields = scriptClass->GetFields();
+
+        // ---- 第一遍：缺失字段补默认值，类型不符的用默认值覆盖 ----
+        for (const ScriptField& field : fields)
+        {
+            auto it = fieldMap.find(field.Name);
+            if (it == fieldMap.end())
+            {
+                fieldMap[field.Name] = field.DefaultValue;
+                continue;
+            }
+
+            if (it->second.Type != field.Type)
+            {
+                LF_CORE_WARN("ScriptEngine::SyncScriptFieldMap - Type of field '{0}.{1}' changed from the saved type to the script type, value reset to the script default", scriptClass->GetName(), field.Name);
+                it->second = field.DefaultValue;
+            }
+        }
+
+        // ---- 第二遍：清掉脚本里已经不存在的字段 ----
+        for (auto it = fieldMap.begin(); it != fieldMap.end();)
+        {
+            const bool stillExists = std::any_of(fields.begin(), fields.end(),
+                [&it](const ScriptField& field) { return field.Name == it->first; });
+
+            if (stillExists)
+            {
+                ++it;
+            }
+            else
+            {
+                LF_CORE_WARN("ScriptEngine::SyncScriptFieldMap - Field '{0}' no longer exists in the script, stored value removed", it->first);
+                it = fieldMap.erase(it);
+            }
+        }
+    }
+
     void ScriptEngine::OnCreateEntityScript(Entity entity, const Ref<ScriptClass>& scriptClass)
     {
         LF_CORE_ASSERT(scriptClass, "ScriptEngine::OnCreateEntityScript - scriptClass must not be null");

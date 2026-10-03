@@ -296,7 +296,11 @@ namespace Lucky
         {
             ScriptComponent& sc = entity.GetComponent<ScriptComponent>();
 
-            UI::PropertyAsset("Script", sc.ScriptAsset);
+            if (UI::PropertyAsset("Script", sc.ScriptAsset))
+            {
+                // 脚本被赋值/更换：按脚本当前的字段列表重建字段表（含初始值）
+                ScriptEngine::SyncScriptFieldMap(sc.ScriptAsset, sc.Fields);
+            }
 
             if (sc.ScriptAsset && !ScriptEngine::ResolveScriptClass(sc.ScriptAsset->GetClassName()))
             {

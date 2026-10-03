@@ -122,4 +122,28 @@ namespace Lucky
 
         return false;
     }
+
+    /// <summary>
+    /// 按序列化名查类型（反序列化用）；查不到返回 false
+    /// </summary>
+    /// <param name="name">存档里的 Type 字符串，如 "Float" / "Vector3"</param>
+    /// <param name="outType">输出：匹配到的字段类型</param>
+    inline bool TryGetScriptFieldTypeByName(const char* name, ScriptFieldType& outType)
+    {
+        if (!name)
+        {
+            return false;
+        }
+
+        for (const ScriptFieldTypeInfo& info : s_ScriptFieldTypeInfos)
+        {
+            if (std::strcmp(info.Name, name) == 0)
+            {
+                outType = info.Type;
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

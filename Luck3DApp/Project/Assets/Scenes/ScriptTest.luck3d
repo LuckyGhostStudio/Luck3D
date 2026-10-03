@@ -49,3 +49,19 @@ Entities:
       FixedAspectRatio: false
     ScriptComponent:
       AssetHandle: 7441266882824687928
+      Fields:
+        LogPosition:
+          Type: Bool
+          Value: false
+        Offset:
+          Type: Vector3
+          Value: [0, 0, 0]
+        Score:
+          Type: Int
+          Value: 42
+        Speed:
+          Type: Float
+          Value: 3
+        Title:
+          Type: String
+          Value: player

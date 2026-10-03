@@ -10,6 +10,7 @@
 #include "Lucky/Renderer/Renderer3D.h"
 
 #include "Lucky/Asset/AssetManager.h"
+#include "Lucky/Scripting/ScriptEngine.h"
 
 #include <yaml-cpp/yaml.h>
 
@@ -600,6 +601,133 @@ namespace Lucky
             {
                 out << YAML::Key << "AssetHandle" << YAML::Value << static_cast<uint64_t>(0);
             }
+
+            // 按字段名排序输出：unordered_map 迭代顺序不稳定，直写会让每次保存的存档 diff 抖动
+            std::vector<std::string> sortedFieldNames;
+            sortedFieldNames.reserve(sc.Fields.size());
+            for (const auto& [fieldName, fieldValue] : sc.Fields)
+            {
+                sortedFieldNames.push_back(fieldName);
+            }
+            std::sort(sortedFieldNames.begin(), sortedFieldNames.end());
+
+            out << YAML::Key << "Fields" << YAML::Value << YAML::BeginMap;
+            for (const std::string& fieldName : sortedFieldNames)
+            {
+                const ScriptFieldValue& fieldValue = sc.Fields.at(fieldName);
+                out << YAML::Key << fieldName;
+                out << YAML::BeginMap;
+                out << YAML::Key << "Type" << YAML::Value << GetScriptFieldTypeInfo(fieldValue.Type).Name;
+
+                switch (fieldValue.Type)
+                {
+                    case ScriptFieldType::Bool:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<bool>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::SByte:
+                    {
+                        // yaml-cpp 会把 int8_t 当字符输出，先提升为 int32
+                        out << YAML::Key << "Value" << YAML::Value << static_cast<int32_t>(std::get<int8_t>(fieldValue.Data));
+                        break;
+                    }
+                    case ScriptFieldType::Byte:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << static_cast<uint32_t>(std::get<uint8_t>(fieldValue.Data));
+                        break;
+                    }
+                    case ScriptFieldType::Short:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<int16_t>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::UShort:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<uint16_t>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::Int:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<int32_t>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::UInt:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<uint32_t>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::Long:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<int64_t>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::ULong:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<uint64_t>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::Float:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<float>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::Double:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<double>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::String:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<std::string>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::Vector2:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<glm::vec2>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::Vector3:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<glm::vec3>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::Vector4:
+                    case ScriptFieldType::Color:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<glm::vec4>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::Quaternion:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << std::get<glm::quat>(fieldValue.Data);
+                        break;
+                    }
+                    case ScriptFieldType::Entity:
+                    {
+                        out << YAML::Key << "Value" << YAML::Value << static_cast<uint64_t>(std::get<UUID>(fieldValue.Data));
+                        break;
+                    }
+                    case ScriptFieldType::Material:
+                    case ScriptFieldType::Mesh:
+                    case ScriptFieldType::Texture2D:
+                    case ScriptFieldType::Script:
+                    {
+                        // 运行时创建的资产没有有效 handle，写出 0（读回是空引用，与 Unity 一致）
+                        const Ref<Asset>& asset = std::get<Ref<Asset>>(fieldValue.Data);
+                        out << YAML::Key << "Value" << YAML::Value << static_cast<uint64_t>(asset ? asset->GetHandle() : AssetHandle{});
+                        break;
+                    }
+                    default:
+                    {
+                        break;
+                    }
+                }
+
+                out << YAML::EndMap;
+            }
+            out << YAML::EndMap;
+
             out << YAML::EndMap;
         }
 
@@ -628,6 +756,64 @@ namespace Lucky
             if (!sc.ScriptAsset && handle.IsValid())
             {
                 LF_CORE_ERROR("SceneSerializer: Failed to load script asset [{0}]", handleValue);
+            }
+
+            YAML::Node fieldsNode = node["Fields"];
+            if (fieldsNode && fieldsNode.IsMap())
+            {
+                for (auto fieldNode : fieldsNode)
+                {
+                    const std::string fieldName = fieldNode.first.as<std::string>();
+                    YAML::Node valueNode = fieldNode.second;
+                    if (!valueNode || !valueNode["Type"])
+                    {
+                        continue;
+                    }
+
+                    ScriptFieldValue fieldValue;
+                    if (!TryGetScriptFieldTypeByName(valueNode["Type"].as<std::string>("").c_str(), fieldValue.Type))
+                    {
+                        continue;   // 未知类型：跳过，由 SyncScriptFieldMap 用脚本默认值补齐
+                    }
+
+                    YAML::Node scalarNode = valueNode["Value"];
+                    switch (fieldValue.Type)
+                    {
+                        case ScriptFieldType::Bool:   { fieldValue.Data = scalarNode.as<bool>(false); break; }
+                        case ScriptFieldType::SByte:  { fieldValue.Data = static_cast<int8_t>(scalarNode.as<int32_t>(0)); break; }
+                        case ScriptFieldType::Byte:   { fieldValue.Data = static_cast<uint8_t>(scalarNode.as<uint32_t>(0)); break; }
+                        case ScriptFieldType::Short:  { fieldValue.Data = scalarNode.as<int16_t>(0); break; }
+                        case ScriptFieldType::UShort: { fieldValue.Data = scalarNode.as<uint16_t>(0); break; }
+                        case ScriptFieldType::Int:    { fieldValue.Data = scalarNode.as<int32_t>(0); break; }
+                        case ScriptFieldType::UInt:   { fieldValue.Data = scalarNode.as<uint32_t>(0); break; }
+                        case ScriptFieldType::Long:   { fieldValue.Data = scalarNode.as<int64_t>(0); break; }
+                        case ScriptFieldType::ULong:  { fieldValue.Data = scalarNode.as<uint64_t>(0); break; }
+                        case ScriptFieldType::Float:  { fieldValue.Data = scalarNode.as<float>(0.0f); break; }
+                        case ScriptFieldType::Double: { fieldValue.Data = scalarNode.as<double>(0.0); break; }
+                        case ScriptFieldType::String: { fieldValue.Data = scalarNode.as<std::string>(""); break; }
+                        case ScriptFieldType::Vector2: { fieldValue.Data = scalarNode.as<glm::vec2>(glm::vec2(0.0f)); break; }
+                        case ScriptFieldType::Vector3: { fieldValue.Data = scalarNode.as<glm::vec3>(glm::vec3(0.0f)); break; }
+                        case ScriptFieldType::Vector4:
+                        case ScriptFieldType::Color:   { fieldValue.Data = scalarNode.as<glm::vec4>(glm::vec4(0.0f)); break; }
+                        case ScriptFieldType::Quaternion: { fieldValue.Data = scalarNode.as<glm::quat>(glm::quat(1.0f, 0.0f, 0.0f, 0.0f)); break; }
+                        case ScriptFieldType::Entity: { fieldValue.Data = UUID(scalarNode.as<uint64_t>(0)); break; }
+                        case ScriptFieldType::Material:
+                        case ScriptFieldType::Mesh:
+                        case ScriptFieldType::Texture2D:
+                        case ScriptFieldType::Script:
+                        {
+                            const AssetHandle handle(scalarNode.as<uint64_t>(0));
+                            fieldValue.Data = ScriptEngine::ResolveAssetByFieldType(fieldValue.Type, handle);
+                            break;
+                        }
+                        default:
+                        {
+                            continue;
+                        }
+                    }
+
+                    sc.Fields[fieldName] = fieldValue;
+                }
             }
         }
     }
