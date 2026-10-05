@@ -129,7 +129,7 @@ namespace Lucky
 
     bool EditorCamera::OnMouseScroll(MouseScrolledEvent& e)
     {
-        // 灵敏度：0.25 对应 Unity 默认手感（2026-10-06 调高，原值 0.1 偏迟钝）
+        // 灵敏度系数：0.25 对应 Unity 默认手感
         float delta = e.GetYOffset() * 0.25f;   // 滚轮Y偏移量
         ViewZoom(delta);                        // 视图缩放
         UpdateView();                           // 更新视图

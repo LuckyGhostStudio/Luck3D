@@ -1,6 +1,7 @@
 #include "lcpch.h"
 #include "EditorPanel.h"
 
+#include "Lucky/UI/UICore.h"
 #include "Lucky/UI/Widgets.h"
 
 #include <imgui/imgui.h>
@@ -18,6 +19,11 @@ namespace Lucky
         }
 
         OnBegin(name);
+
+        // 每个面板起始时把 UI::GenerateID 的计数器清零 —— 让同一面板跨帧生成的 ID 稳定。
+        // 否则 UI::DropdownList 等用 GenerateID() 做 label 的控件 ID 每帧漂移，
+        // ImGui 的 ComboBox Popup / 焦点等跨帧状态会丢失，下拉框点了打不开。
+        UI::ResetIDCounter();
         
         if (UI::BeginPopupContextItem())
         {
