@@ -66,6 +66,15 @@ namespace Lucky
 
         void SetViewportSize(float width, float height);
 
+        /// <summary>
+        /// 由视口面板每帧告知：鼠标当前是否悬在 Scene 视口里。
+        /// 用于"按下瞬间"的拦截：只有悬在视口内按下 Alt+左键 / 中键，才会进入拖动态；
+        /// 一旦进入拖动态，鼠标可以移出视口继续拖动直到松开（Unity 一致行为）。
+        /// 必要性：OnUpdate 用 Input 轮询鼠标键，不走事件分发，面板的 Hovered 守卫拦不住，
+        /// 否则鼠标在 Hierarchy / Inspector 按 Alt+左键 / 中键也会让场景相机旋转或平移。
+        /// </summary>
+        void SetViewportHovered(bool hovered) { m_ViewportHovered = hovered; }
+
         float GetDistance() const { return m_Distance; }
         void SetDistance(float distance) { m_Distance = distance; }
 
@@ -102,5 +111,11 @@ namespace Lucky
 
         float m_ViewportWidth = 1280.0f;    // 视口宽
         float m_ViewportHeight = 720;       // 视口高
+
+        // ---- 操作状态（Unity 风格：中键 Pan / Alt+左键 Rotate）----
+        // 由面板每帧 SetViewportHovered 注入；仅在按下瞬间作为进入拖动态的门控
+        bool m_ViewportHovered = false;
+        bool m_IsPanning = false;       // 中键拖动态
+        bool m_IsRotating = false;      // Alt+左键拖动态
     };
 }

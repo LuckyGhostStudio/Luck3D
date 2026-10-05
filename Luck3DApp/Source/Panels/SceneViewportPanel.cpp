@@ -94,6 +94,11 @@ namespace Lucky
             m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
         }
 
+        // 通知相机当前鼠标是否悬在视口里（由基类 EditorPanel 维护，上一帧 UI 结束时记下）。
+        // OnUpdate 内的中键 Pan / Alt+左键 Rotate 走 Input 轮询（不走事件），
+        // 这里是它们的唯一拦截点，防止在 Hierarchy / Inspector 按同样组合键误转相机。
+        m_EditorCamera.SetViewportHovered(IsHovered());
+
         m_EditorCamera.OnUpdate(dt);    // 更新编辑器相机
 
         const ColorSettings& colors = EditorPreferences::Get().GetColors();

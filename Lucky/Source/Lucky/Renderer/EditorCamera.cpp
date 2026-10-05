@@ -72,19 +72,50 @@ namespace Lucky
         glm::vec2 delta = (mouse - m_InitialMousePosition) * 0.003f;        // 鼠标移动增量 = 当前位置 - 初始位置
         m_InitialMousePosition = mouse;                                     // 初始鼠标位置
 
-        // 按下 Shift 键
-        if (Input::IsKeyPressed(Key::LeftShift))
+        // ---- Unity 风格操作：中键拖动 Pan / Alt+左键拖动 Rotate ----
+        // 进入拖动态的前提：鼠标必须按下瞬间悬在 Scene 视口内（m_ViewportHovered）；
+        // 进入态后忽略 Hovered，一直响应到松开按键（允许拖出视口外继续操作，Unity 一致）。
+        bool middleDown = Input::IsMouseButtonPressed(Mouse::ButtonMiddle);
+        bool leftDown   = Input::IsMouseButtonPressed(Mouse::ButtonLeft);
+        bool altDown    = Input::IsKeyPressed(Key::LeftAlt) || Input::IsKeyPressed(Key::RightAlt);
+
+        // Pan：中键
+        if (!m_IsPanning)
         {
-            // 按下鼠标中键
-            if (Input::IsMouseButtonPressed(Mouse::ButtonMiddle))
+            // 进入态：中键按下 且 当前悬在视口里（避免在 Hierarchy / Inspector 按中键误触）
+            if (middleDown && m_ViewportHovered)
             {
-                ViewPan(delta); // 视图移动
+                m_IsPanning = true;
             }
         }
-        // 不按 Shift 按下鼠标中键
-        else if (Input::IsMouseButtonPressed(Mouse::ButtonMiddle))
+        else if (!middleDown)
         {
-            ViewRotate(delta);  // 视图旋转
+            // 退出态：松开中键
+            m_IsPanning = false;
+        }
+
+        // Rotate：Alt + 左键
+        if (!m_IsRotating)
+        {
+            // 进入态：Alt 和 左键 同时按下 且 悬在视口里
+            if (altDown && leftDown && m_ViewportHovered)
+            {
+                m_IsRotating = true;
+            }
+        }
+        else if (!leftDown || !altDown)
+        {
+            // 退出态：松开左键 或 松开 Alt 任一
+            m_IsRotating = false;
+        }
+
+        if (m_IsPanning)
+        {
+            ViewPan(delta);     // 平移
+        }
+        else if (m_IsRotating)
+        {
+            ViewRotate(delta);  // 旋转
         }
 
         UpdateView();   // 更新视图矩阵
@@ -98,7 +129,8 @@ namespace Lucky
 
     bool EditorCamera::OnMouseScroll(MouseScrolledEvent& e)
     {
-        float delta = e.GetYOffset() * 0.1f;    // 滚轮Y偏移量
+        // 灵敏度：0.25 对应 Unity 默认手感（2026-10-06 调高，原值 0.1 偏迟钝）
+        float delta = e.GetYOffset() * 0.25f;   // 滚轮Y偏移量
         ViewZoom(delta);                        // 视图缩放
         UpdateView();                           // 更新视图
 
