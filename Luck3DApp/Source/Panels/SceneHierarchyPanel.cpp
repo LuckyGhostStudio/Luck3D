@@ -275,8 +275,7 @@ namespace Lucky
 
     void SceneHierarchyPanel::OnGUI()
     {
-        // 更新窗口聚焦状态（供 OnEvent 中 F2 判定作用域）
-        m_IsFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+        // 聚焦状态由基类 EditorPanel::OnImGuiRender 统一捕获，这里直接用 IsFocused() 查询即可。
 
         // 帧首清空 Pending Insert 线：本帧遍历时若有 Before/After 目标命中，会重新写入
         m_PendingInsertLine.Valid = false;
@@ -984,7 +983,7 @@ namespace Lucky
 
     void SceneHierarchyPanel::OnEvent(Event& event)
     {
-        if (!m_IsFocused)
+        if (!IsFocused())
         {
             return;
         }

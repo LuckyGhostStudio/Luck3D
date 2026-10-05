@@ -43,8 +43,7 @@ namespace Lucky
 
     void ProjectAssetsPanel::OnGUI()
     {
-        // 更新窗口聚焦状态（供 OnEvent 中 Ctrl+R 判定作用域）
-        m_IsFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+        // 聚焦状态由基类 EditorPanel::OnImGuiRender 统一捕获，这里直接用 IsFocused() 查询即可。
 
         // 顶部工具栏（刷新按钮）
         DrawToolbar();
@@ -118,7 +117,7 @@ namespace Lucky
 
     void ProjectAssetsPanel::OnEvent(Event& event)
     {
-        if (!m_IsFocused)
+        if (!IsFocused())
         {
             return;
         }

@@ -11,6 +11,9 @@ namespace Lucky
     {
         if (!isOpen)
         {
+            // 面板关闭时清零状态，避免陈旧的 Hovered/Focused 被 OnEvent 误用
+            m_IsHovered = false;
+            m_IsFocused = false;
             return;
         }
 
@@ -27,6 +30,13 @@ namespace Lucky
         }
         
         OnGUI();
+
+        // 统一捕获面板的鼠标悬停 / 聚焦状态。
+        // 时机：OnGUI 之后、OnEnd 之前 —— 此时子类内部的 BeginChild 已全部 EndChild，
+        // 上下文回到最外层 ImGui::Begin 窗口，判定结果覆盖整个面板矩形。
+        // Flag：ChildWindows / RootAndChildWindows 让嵌套子窗口的命中向上冒泡。
+        m_IsHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
+        m_IsFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 
         OnEnd();
     }

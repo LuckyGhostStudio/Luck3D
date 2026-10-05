@@ -102,7 +102,7 @@ namespace Lucky
         ViewZoom(delta);                        // 视图缩放
         UpdateView();                           // 更新视图
 
-        return false;
+        return true;    // 消费事件：避免其他面板（如 ProjectAssets 的缩略图缩放）同帧重复响应
     }
 
     void EditorCamera::ViewPan(const glm::vec2& delta)

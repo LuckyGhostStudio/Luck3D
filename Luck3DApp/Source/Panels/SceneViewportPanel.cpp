@@ -333,11 +333,27 @@ namespace Lucky
 
     void SceneViewportPanel::OnEvent(Event& event)
     {
-        m_EditorCamera.OnEvent(event);
-        
+        // 鼠标类事件（滚轮缩放 / Picking 点击）仅在视口被鼠标悬停时响应。
+        // 否则鼠标无论在 Hierarchy / Inspector / Project 哪里滚轮，
+        // 都会被 EditorCamera 吞掉并缩放场景相机。
+        if (IsHovered())
+        {
+            m_EditorCamera.OnEvent(event);
+        }
+
         EventDispatcher dispatcher(event);
-        dispatcher.Dispatch<KeyPressedEvent>(LF_BIND_EVENT_FUNC(SceneViewportPanel::OnKeyPressed)); // 按键按下事件
-        dispatcher.Dispatch<MouseButtonPressedEvent>(LF_BIND_EVENT_FUNC(SceneViewportPanel::OnMouseButtonPressed)); // 鼠标按键按下事件
+
+        // 鼠标点击 Picking：要求鼠标悬停在视口内
+        if (IsHovered())
+        {
+            dispatcher.Dispatch<MouseButtonPressedEvent>(LF_BIND_EVENT_FUNC(SceneViewportPanel::OnMouseButtonPressed));
+        }
+
+        // Gizmo 切换快捷键 G/R/S：要求视口聚焦，防止在 Hierarchy 里敲 R 重命名时意外切 Gizmo
+        if (IsFocused())
+        {
+            dispatcher.Dispatch<KeyPressedEvent>(LF_BIND_EVENT_FUNC(SceneViewportPanel::OnKeyPressed));
+        }
     }
 
     void SceneViewportPanel::UI_DrawViewOrientationGizmo()

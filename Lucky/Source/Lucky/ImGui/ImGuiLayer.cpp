@@ -79,13 +79,10 @@ namespace Lucky
 
     void ImGuiLayer::OnEvent(Event& event)
     {
-        // 阻止接收事件
         if (m_BlockEvents)
         {
             ImGuiIO& io = ImGui::GetIO();
-
-            //event.m_Handled |= event.IsInCategory(EventCategoryMouse) & io.WantCaptureMouse;        // 捕获鼠标事件
-            //event.m_Handled |= event.IsInCategory(EventCategoryKeyboard) & io.WantCaptureKeyboard;  // 捕获键盘事件
+            (void)io;
         }
     }
 

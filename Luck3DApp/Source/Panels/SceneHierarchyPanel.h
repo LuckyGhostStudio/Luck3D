@@ -163,7 +163,5 @@ namespace Lucky
         // SceneManager 订阅句柄：ctor 中 Subscribe，dtor 中 Unsubscribe
         // 实现自动跟随 SceneManager::ActiveScene 切换，无需 EditorLayer 手动 SetScene
         SceneManager::SubscriptionHandle m_SceneChangedSub = 0;
-
-        bool m_IsFocused = false;   // 当前帧面板是否处于聚焦（由 OnGUI 更新，供 OnEvent 判定快捷键作用域）
     };
 }

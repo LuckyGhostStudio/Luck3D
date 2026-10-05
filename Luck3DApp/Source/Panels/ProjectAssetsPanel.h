@@ -186,8 +186,6 @@ namespace Lucky
         
         float m_TreePanelWidth = 200.0f;            // 目录树宽度
 
-        bool m_IsFocused = false;                   // 当前帧面板是否处于聚焦（由 OnGUI 更新，供 OnEvent 判定快捷键作用域）
-
         std::vector<std::function<void()>> m_PendingActions;    // 延迟到帧末执行的写操作（避免 UI 遍历中重建目录树导致悬空）
 
         /// <summary>
