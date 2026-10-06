@@ -38,6 +38,10 @@ namespace Lucky
         glm::vec4 ButtonHovered          = { 0.4039f, 0.4039f, 0.4039f, 1.0f }; // 按钮（悬停）
         glm::vec4 ButtonActive           = { 0.275f, 0.376f, 0.486f, 1.0f };    // 按钮（激活）
 
+        // ---- Tooltip 颜色（UI::SetItemTooltip 用）----
+        glm::vec4 TooltipBgColor         = { 0.216f, 0.216f, 0.216f, 1.0f };    // Tooltip 背景 #373737
+        glm::vec4 TooltipBorderColor     = { 0.0f, 0.0f, 0.0f, 1.0f };          // Tooltip 边框纯黑
+
         // ---- 选中态颜色（全局抽象）----
         // 所有需要表达"选中"语义的 UI 元素（Hierarchy 节点、Toggle 按钮、将来其他地方）统一引用。
         // 未来若增加其他选中语义（如警告选中橙），在此处并列添加新字段。

@@ -21,6 +21,7 @@
 
 #include "Lucky/UI/ScopedGuards.h"
 #include "Lucky/UI/Toggles.h"
+#include "Lucky/UI/Tooltip.h"
 #include "Lucky/UI/UICore.h"
 #include "Lucky/UI/Widgets.h"
 
@@ -239,10 +240,14 @@ namespace Lucky
                 UI::BeginSegmentedGroup("##GizmoOpsSeg", 4, 2.0f);
                 UI::BeginRadioGroup("##GizmoOps", m_GizmoType, &radioStyle);
                 {
-                    UI::RadioIconItem(-1, EditorIconManager::GetSelectionIcon(), iconBtnSize, "Selection (W)");
-                    UI::RadioIconItem(ImGuizmo::OPERATION::TRANSLATE, EditorIconManager::GetTranslationIcon(), iconBtnSize, "Translate (G)");
-                    UI::RadioIconItem(ImGuizmo::OPERATION::ROTATE, EditorIconManager::GetRotationIcon(), iconBtnSize, "Rotate (R)");
-                    UI::RadioIconItem(ImGuizmo::OPERATION::SCALE, EditorIconManager::GetScaleIcon(), iconBtnSize, "Scale (S)");
+                    UI::RadioIconItem(-1, EditorIconManager::GetSelectionIcon(), iconBtnSize);
+                    UI::SetItemTooltip("Selection (W)");
+                    UI::RadioIconItem(ImGuizmo::OPERATION::TRANSLATE, EditorIconManager::GetTranslationIcon(), iconBtnSize);
+                    UI::SetItemTooltip("Translate (G)");
+                    UI::RadioIconItem(ImGuizmo::OPERATION::ROTATE, EditorIconManager::GetRotationIcon(), iconBtnSize);
+                    UI::SetItemTooltip("Rotate (R)");
+                    UI::RadioIconItem(ImGuizmo::OPERATION::SCALE, EditorIconManager::GetScaleIcon(), iconBtnSize);
+                    UI::SetItemTooltip("Scale (S)");
                 }
                 UI::EndRadioGroup();
                 UI::EndSegmentedGroup();
@@ -251,7 +256,7 @@ namespace Lucky
                 UI::ShiftCursorX(8.0f);
 
                 // ---- Grid ¿ª¹Ø ----
-                UI::ToggleTextButton("Grid", m_ShowGrid, { 0.0f, buttonSize }, nullptr, &toolbarStyle);
+                UI::ToggleTextButton("Grid", m_ShowGrid, { 0.0f, buttonSize }, &toolbarStyle);
 
                 ImGui::SameLine();
                 UI::ShiftCursorX(2.0f);
@@ -260,13 +265,14 @@ namespace Lucky
                 auto debugPass = m_SceneRenderer->GetPipeline().GetPass<DebugVisualizePass>();
                 bool csmChecked = debugPass && debugPass->GetMode() == DebugVisualizeMode::CSMCascades;
                 bool csmBefore = csmChecked;
-                if (UI::ToggleTextButton("CSM", csmChecked, { 0.0f, buttonSize }, "Toggle CSM Cascade Visualization\nRed=C0  Green=C1  Blue=C2  Yellow=C3", &toolbarStyle))
+                if (UI::ToggleTextButton("CSM", csmChecked, { 0.0f, buttonSize }, &toolbarStyle))
                 {
                     if (debugPass)
                     {
                         debugPass->SetMode(csmBefore ? DebugVisualizeMode::None : DebugVisualizeMode::CSMCascades);
                     }
                 }
+                UI::SetItemTooltip("Toggle CSM Cascade Visualization\nRed=C0  Green=C1  Blue=C2  Yellow=C3");
             }
             ImGui::EndChild();
         }

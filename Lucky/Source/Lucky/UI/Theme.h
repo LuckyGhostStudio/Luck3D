@@ -40,6 +40,13 @@ namespace Lucky::UI::Theme
         constexpr float AssetFieldIconPaddingX = 6.0f;          // AssetField 图标左侧内边距
         constexpr float AssetFieldIconToTextSpacing = 6.0f;     // AssetField 图标与文本的间距
 
+        // ---- Tooltip ----
+        constexpr float TooltipPaddingX = 6.0f;                 // Tooltip 内边距 X
+        constexpr float TooltipPaddingY = 4.0f;                 // Tooltip 内边距 Y
+        constexpr float TooltipBorderSize = 1.5f;               // Tooltip 边框粗细
+        constexpr float TooltipItemGap = 2.0f;                  // Tooltip 与 Hovered Item 之间的垂直间距
+        constexpr float TooltipDelaySeconds = 0.4f;             // Hover 多少秒后 Tooltip 才出现
+
         // ---- 拖拽预览 ----
         constexpr float DragDropIconSize = 24.0f;               // 拖拽 tooltip 图标尺寸
 

@@ -162,7 +162,7 @@ namespace Lucky::UI
     // 第 1 层：Toggle 原语
     // ========================================================================
 
-    bool ToggleIconButton(const char* strID, const Ref<Texture2D>& icon, bool& value, const ImVec2& size, const char* tooltip, const ToggleStyle* style)
+    bool ToggleIconButton(const char* strID, const Ref<Texture2D>& icon, bool& value, const ImVec2& size, const ToggleStyle* style)
     {
         ToggleStyle s = style ? *style : GetDefaultToggleStyle();
         ApplySegmentedContext(s);
@@ -190,11 +190,6 @@ namespace Lucky::UI
             drawList->AddImage(texID, cursorStart, rectMax, ImVec2(0, 1), ImVec2(1, 0), IM_COL32_WHITE);
         }
 
-        if (tooltip && hovered)
-        {
-            ImGui::SetTooltip("%s", tooltip);
-        }
-
         ImGui::PopID();
 
         if (clicked)
@@ -204,7 +199,7 @@ namespace Lucky::UI
         return clicked;
     }
 
-    bool ToggleTextButton(const char* label, bool& value, const ImVec2& size, const char* tooltip, const ToggleStyle* style)
+    bool ToggleTextButton(const char* label, bool& value, const ImVec2& size, const ToggleStyle* style)
     {
         ToggleStyle s = style ? *style : GetDefaultToggleStyle();
         ApplySegmentedContext(s);
@@ -246,11 +241,6 @@ namespace Lucky::UI
         float textY = cursorStart.y + (realSize.y - textSize.y) * 0.5f;
         drawList->AddText(ImVec2(textX, textY), ImGui::GetColorU32(ImGuiCol_Text), label, visibleEnd);
 
-        if (tooltip && hovered)
-        {
-            ImGui::SetTooltip("%s", tooltip);
-        }
-
         ImGui::PopID();
 
         if (clicked)
@@ -260,7 +250,7 @@ namespace Lucky::UI
         return clicked;
     }
 
-    bool ToggleIconTextButton(const char* strID, const Ref<Texture2D>& icon, const char* label, bool& value, const ImVec2& size, const char* tooltip, const ToggleStyle* style)
+    bool ToggleIconTextButton(const char* strID, const Ref<Texture2D>& icon, const char* label, bool& value, const ImVec2& size, const ToggleStyle* style)
     {
         ToggleStyle s = style ? *style : GetDefaultToggleStyle();
         ApplySegmentedContext(s);
@@ -312,11 +302,6 @@ namespace Lucky::UI
         float textY = cursorStart.y + (realSize.y - textLineHeight) * 0.5f;
         ImVec2 textPos = ImVec2(cursorStart.x + horizontalPadding + iconSize + iconToTextGap, textY);
         drawList->AddText(textPos, ImGui::GetColorU32(ImGuiCol_Text), label);
-
-        if (tooltip && hovered)
-        {
-            ImGui::SetTooltip("%s", tooltip);
-        }
 
         ImGui::PopID();
 
@@ -379,7 +364,7 @@ namespace Lucky::UI
         s_RadioGroupStack.pop_back();
     }
 
-    void RadioIconItem(int itemValue, const Ref<Texture2D>& icon, const ImVec2& size, const char* tooltip)
+    void RadioIconItem(int itemValue, const Ref<Texture2D>& icon, const ImVec2& size)
     {
         RadioGroupContext& ctx = PrepareRadioItem();
         bool isSelected = (*ctx.SelectedIndex == itemValue);
@@ -391,7 +376,7 @@ namespace Lucky::UI
         // Toggle 内部会把临时 displayValue 翻转，但下一帧又会从 isSelected 重新算，无副作用。
         // 组这里接管"写入 selectedIndex"的权力。
         bool displayValue = isSelected;
-        bool clicked = ToggleIconButton(itemID, icon, displayValue, size, tooltip, &ctx.Style.Items);
+        bool clicked = ToggleIconButton(itemID, icon, displayValue, size, &ctx.Style.Items);
 
         if (clicked && !isSelected)
         {
@@ -400,7 +385,7 @@ namespace Lucky::UI
         ++ctx.ItemCount;
     }
 
-    void RadioTextItem(int itemValue, const char* label, const ImVec2& size, const char* tooltip)
+    void RadioTextItem(int itemValue, const char* label, const ImVec2& size)
     {
         RadioGroupContext& ctx = PrepareRadioItem();
         bool isSelected = (*ctx.SelectedIndex == itemValue);
@@ -410,7 +395,7 @@ namespace Lucky::UI
         snprintf(fullLabel, sizeof(fullLabel), "%s##radio_%d", label, itemValue);
 
         bool displayValue = isSelected;
-        bool clicked = ToggleTextButton(fullLabel, displayValue, size, tooltip, &ctx.Style.Items);
+        bool clicked = ToggleTextButton(fullLabel, displayValue, size, &ctx.Style.Items);
 
         if (clicked && !isSelected)
         {
@@ -419,7 +404,7 @@ namespace Lucky::UI
         ++ctx.ItemCount;
     }
 
-    void RadioIconTextItem(int itemValue, const Ref<Texture2D>& icon, const char* label, const ImVec2& size, const char* tooltip)
+    void RadioIconTextItem(int itemValue, const Ref<Texture2D>& icon, const char* label, const ImVec2& size)
     {
         RadioGroupContext& ctx = PrepareRadioItem();
         bool isSelected = (*ctx.SelectedIndex == itemValue);
@@ -428,7 +413,7 @@ namespace Lucky::UI
         snprintf(itemID, sizeof(itemID), "##item_%d", itemValue);
 
         bool displayValue = isSelected;
-        bool clicked = ToggleIconTextButton(itemID, icon, label, displayValue, size, tooltip, &ctx.Style.Items);
+        bool clicked = ToggleIconTextButton(itemID, icon, label, displayValue, size, &ctx.Style.Items);
 
         if (clicked && !isSelected)
         {
@@ -443,7 +428,7 @@ namespace Lucky::UI
         for (int i = 0; i < count; ++i)
         {
             const RadioIconItemDesc& desc = items[i];
-            RadioIconItem(desc.Value, desc.Icon ? *desc.Icon : Ref<Texture2D>(), itemSize, desc.Tooltip);
+            RadioIconItem(desc.Value, desc.Icon ? *desc.Icon : Ref<Texture2D>(), itemSize);
         }
         EndRadioGroup();
     }

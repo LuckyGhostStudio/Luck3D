@@ -37,23 +37,22 @@ namespace Lucky::UI
 
     /// <summary>
     /// 纯图标 Toggle 按钮。点击时内部翻转 value 并返回 true。
+    /// 需要 Tooltip 请在调用之后紧跟 UI::SetItemTooltip(...)（Tooltip 对任何上一个 Item 都生效）。
     /// </summary>
     /// <param name="strID">ImGui ID 字符串（如 "##Play"），避免同帧多个按钮 ID 冲突</param>
     /// <param name="icon">图标纹理（内部用 ImageButtonFlipped 处理 OpenGL Y 翻转）</param>
     /// <param name="value">双向绑定的选中状态；点击时内部翻转</param>
     /// <param name="size">按钮总尺寸（图标撑满该尺寸，内边距为 0）</param>
-    /// <param name="tooltip">鼠标悬停时显示的提示；nullptr 则不显示</param>
     /// <param name="style">样式覆盖；nullptr 使用主题默认</param>
     /// <returns>本次是否被点击</returns>
     bool ToggleIconButton(const char* strID, const Ref<Texture2D>& icon, bool& value,
-                          const ImVec2& size, const char* tooltip = nullptr,
-                          const ToggleStyle* style = nullptr);
+                          const ImVec2& size, const ToggleStyle* style = nullptr);
 
     /// <summary>
     /// 纯文本 Toggle 按钮。label 同时承担 ImGui ID（如需隐藏 ID 可用 "Grid##GridToggle"）。
     /// </summary>
     bool ToggleTextButton(const char* label, bool& value,
-                          const ImVec2& size = { 0.0f, 0.0f }, const char* tooltip = nullptr,
+                          const ImVec2& size = { 0.0f, 0.0f },
                           const ToggleStyle* style = nullptr);
 
     /// <summary>
@@ -61,7 +60,7 @@ namespace Lucky::UI
     /// </summary>
     bool ToggleIconTextButton(const char* strID, const Ref<Texture2D>& icon, const char* label,
                               bool& value, const ImVec2& size = { 0.0f, 0.0f },
-                              const char* tooltip = nullptr, const ToggleStyle* style = nullptr);
+                              const ToggleStyle* style = nullptr);
 
     /// <summary>
     /// 开始一个 Radio 组（互斥、必选一个）。必须与 EndRadioGroup() 配对使用。
@@ -73,22 +72,20 @@ namespace Lucky::UI
                          const RadioGroupStyle* style = nullptr);
 
     /// <summary>
-    /// 向当前 Radio 组追加一个纯图标 Item
+    /// 向当前 Radio 组追加一个纯图标 Item。Tooltip 由调用方在之后调 UI::SetItemTooltip。
     /// </summary>
-    void RadioIconItem(int itemValue, const Ref<Texture2D>& icon, const ImVec2& size,
-                       const char* tooltip = nullptr);
+    void RadioIconItem(int itemValue, const Ref<Texture2D>& icon, const ImVec2& size);
 
     /// <summary>
     /// 向当前 Radio 组追加一个纯文本 Item
     /// </summary>
-    void RadioTextItem(int itemValue, const char* label, const ImVec2& size = { 0.0f, 0.0f },
-                       const char* tooltip = nullptr);
+    void RadioTextItem(int itemValue, const char* label, const ImVec2& size = { 0.0f, 0.0f });
 
     /// <summary>
     /// 向当前 Radio 组追加一个图标 + 文本 Item
     /// </summary>
     void RadioIconTextItem(int itemValue, const Ref<Texture2D>& icon, const char* label,
-                           const ImVec2& size = { 0.0f, 0.0f }, const char* tooltip = nullptr);
+                           const ImVec2& size = { 0.0f, 0.0f });
 
     /// <summary>
     /// 结束 Radio 组
@@ -131,12 +128,13 @@ namespace Lucky::UI
 
     /// <summary>
     /// 便捷接口：一次性调用描述整个纯图标 Radio 组。内部走 Begin/End。
+    /// 该接口不支持 per-item Tooltip（因为是一次性调用，无法在 Item 之后再调 SetItemTooltip）；
+    /// 需要 Tooltip 请改用 Begin/End 风格手动展开。
     /// </summary>
     struct RadioIconItemDesc
     {
         int Value;                          // 该 Item 对应的 selectedIndex 值
         const Ref<Texture2D>* Icon;         // 图标（用指针避免拷贝 Ref）
-        const char* Tooltip;                // 悬停提示；可为 nullptr
     };
 
     void RadioIconGroup(const char* strID, int& selectedIndex, const RadioIconItemDesc* items,

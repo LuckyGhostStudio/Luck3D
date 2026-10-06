@@ -1,12 +1,12 @@
 #include "EditorToolbar.h"
 
 #include "Lucky/Editor/EditorIconManager.h"
-#include "Lucky/Renderer/Texture.h"
 #include "Lucky/Scene/Scene.h"
 #include "Lucky/Scene/SceneManager.h"
 
 #include "Lucky/UI/Toggles.h"
 #include "Lucky/UI/Widgets.h"
+#include "Lucky/UI/Tooltip.h"
 #include <imgui/imgui.h>
 
 #include <algorithm>
@@ -93,6 +93,8 @@ namespace Lucky
                 m_PauseArmed = false;   // Stop 时清零预暂停位（对齐 Unity）
             }
         }
+        
+        UI::SetItemTooltip("Play");
 
         // Pause：ToggleIconButton 内部已自动翻转 m_PauseArmed，不要再手动翻转一次。
         if (UI::ToggleIconButton("##Pause", EditorIconManager::GetPauseIcon(), m_PauseArmed, pauseSize))
@@ -102,6 +104,8 @@ namespace Lucky
                 SceneManager::SetScenePaused(m_PauseArmed);
             }
         }
+        
+        UI::SetItemTooltip("Pause");
 
         UI::EndSegmentedGroup();
 

@@ -146,6 +146,8 @@ namespace Lucky
             out << YAML::Key << "ButtonColor" << YAML::Value << m_Colors.ButtonColor;
             out << YAML::Key << "ButtonHovered" << YAML::Value << m_Colors.ButtonHovered;
             out << YAML::Key << "ButtonActive" << YAML::Value << m_Colors.ButtonActive;
+            out << YAML::Key << "TooltipBgColor" << YAML::Value << m_Colors.TooltipBgColor;
+            out << YAML::Key << "TooltipBorderColor" << YAML::Value << m_Colors.TooltipBorderColor;
             out << YAML::Key << "SelectionBlueColor" << YAML::Value << m_Colors.SelectionBlueColor;
             out << YAML::Key << "ToggleBgNormal" << YAML::Value << m_Colors.ToggleBgNormal;
             out << YAML::Key << "ToggleBgHovered" << YAML::Value << m_Colors.ToggleBgHovered;
@@ -254,6 +256,8 @@ namespace Lucky
             ReadVec4(ui, "ButtonColor", m_Colors.ButtonColor);
             ReadVec4(ui, "ButtonHovered", m_Colors.ButtonHovered);
             ReadVec4(ui, "ButtonActive", m_Colors.ButtonActive);
+            ReadVec4(ui, "TooltipBgColor", m_Colors.TooltipBgColor);
+            ReadVec4(ui, "TooltipBorderColor", m_Colors.TooltipBorderColor);
             ReadVec4(ui, "SelectionBlueColor", m_Colors.SelectionBlueColor);
             ReadVec4(ui, "ToggleBgNormal", m_Colors.ToggleBgNormal);
             ReadVec4(ui, "ToggleBgHovered", m_Colors.ToggleBgHovered);
