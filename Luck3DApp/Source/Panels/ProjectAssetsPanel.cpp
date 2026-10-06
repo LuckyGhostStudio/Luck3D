@@ -218,8 +218,18 @@ namespace Lucky
 
     void ProjectAssetsPanel::DrawBottomToolbar()
     {
-        // 内部左上内边距（对齐 Scene 面板 Toolbar 的 ShiftCursor(4,4) 做法）
-        UI::ShiftCursor(4.0f, 4.0f);
+        // Slider 高度减半：FramePadding.y = 0 → FrameHeight = FontSize（≈ 16px，原约 22px 的 70%）
+        // 手柄"长宽相等"：GrabMinSize = FrameHeight 让手柄变成正方形
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ImGui::GetStyle().FramePadding.x, 0.0f));
+        const float sliderFrameH = ImGui::GetFrameHeight();
+        ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, sliderFrameH);
+
+        // 工具栏内垂直居中：BeginChild 内容区高度 = s_BottomToolbarHeight - WindowPadding*2；
+        // 垂直偏移 = (内容区高度 - Slider 高度) / 2
+        const float toolbarInnerH = s_BottomToolbarHeight - ImGui::GetStyle().WindowPadding.y * 2.0f;
+        float verticalOffset = (toolbarInnerH - sliderFrameH) * 0.5f;
+        if (verticalOffset < 0.0f) { verticalOffset = 0.0f; }
+        UI::ShiftCursor(4.0f, verticalOffset);
 
         // 右端对齐 Slider：固定宽度，距右边界留一段 margin
         constexpr float sliderWidth = 140.0f;
@@ -233,6 +243,8 @@ namespace Lucky
         }
         ImGui::SetNextItemWidth(sliderWidth);
         ImGui::SliderFloat("##ProjectZoom", &m_IconSize, s_IconSizeMin, s_IconSizeMax, "");
+
+        ImGui::PopStyleVar(2);
     }
 
     void ProjectAssetsPanel::DrawDirectoryTreeNode(DirectoryNode& node)
@@ -344,10 +356,12 @@ namespace Lucky
 
     void ProjectAssetsPanel::DrawContentArea_Grid(float iconSize)
     {
-        // 单元格尺寸 = 图标尺寸 + 内边距 + 名字区（固定行数）
+        // 单元格尺寸 = 图标尺寸 + 内边距 + 图标到名字的 gap + 名字区（固定行数）
         float textRowH = ImGui::GetTextLineHeight();
         float cellW = iconSize + UI::Theme::Layout::GridItemPaddingX * 2.0f;
-        float cellH = iconSize + UI::Theme::Layout::GridItemPaddingY * 2.0f + textRowH * static_cast<float>(UI::Theme::Layout::GridItemNameRows);
+        float cellH = iconSize + UI::Theme::Layout::GridItemPaddingY * 2.0f
+                      + UI::Theme::Layout::GridItemIconToNameGap
+                      + textRowH * static_cast<float>(UI::Theme::Layout::GridItemNameRows);
 
         if (!UI::BeginGrid("##ProjectsGrid", cellW, cellH))
         {

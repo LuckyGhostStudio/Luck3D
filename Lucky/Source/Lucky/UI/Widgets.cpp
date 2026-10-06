@@ -736,9 +736,11 @@ namespace Lucky::UI
 
         const float padX = Theme::Layout::GridItemPaddingX;
         const float padY = Theme::Layout::GridItemPaddingY;
+        const float gap  = Theme::Layout::GridItemIconToNameGap;
         const float textRowH = ImGui::GetTextLineHeight();
         const float nameAreaH = textRowH * Theme::Layout::GridItemNameRows;
-        const float iconAreaH = ctx.CellHeight - padY * 2.0f - nameAreaH;
+        // iconAreaH 要扣掉 gap，否则 nameMin.y 下移后 nameMax 会压扁
+        const float iconAreaH = ctx.CellHeight - padY * 2.0f - nameAreaH - gap;
         const float iconAreaW = ctx.CellWidth - padX * 2.0f;
         const float iconSize = (iconAreaH < iconAreaW ? iconAreaH : iconAreaW);
         ImVec2 iconMin(
@@ -746,7 +748,8 @@ namespace Lucky::UI
             cellMin.y + padY + (iconAreaH - iconSize) * 0.5f);
         ImVec2 iconMax(iconMin.x + iconSize, iconMin.y + iconSize);
 
-        ImVec2 nameMin(cellMin.x + padX, cellMin.y + padY + iconAreaH);
+        // 名字区在图标下方留出 gap 的空隙后开始
+        ImVec2 nameMin(cellMin.x + padX, cellMin.y + padY + iconAreaH + gap);
         ImVec2 nameMax(cellMax.x - padX, cellMax.y - padY);
 
         // 3) Rename 态下屏蔽 InvisibleButton 的鼠标交互，避免其抢占 g.HoveredId 使 InputText 失焦
@@ -757,7 +760,6 @@ namespace Lucky::UI
         }
 
         ImGui::InvisibleButton("##cell", cellSize);
-        bool isHovered = ImGui::IsItemHovered();
         bool clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
 
         if (isRenaming)
@@ -785,13 +787,14 @@ namespace Lucky::UI
             ImTextureID texID = GetImTextureID(icon);
             if (texID)
             {
-                ImU32 tintCol = IM_COL32_WHITE;     // 默认不改色
+                // Hover 态不单独染色 —— 维持 selected / unselected 的本来颜色（选中则偏蓝、未选中则原样）
+                ImU32 tintCol = IM_COL32_WHITE;
                 if (selected && !isRenaming)
                 {
-                    // 选中态：图标 RGB 偏浅蓝，alpha 保持 full，不盖透明区
+                    // 选中态：图标 RGB 轻微偏浅蓝，alpha 保持 full
                     const glm::vec4& selBlue = EditorPreferences::Get().GetColors().SelectionBlueColor;
-                    // 混合系数：原色 60% + 选中蓝 40%，让图标仍可辨识同时偏蓝
-                    constexpr float mix = 0.4f;
+                    // 原色 80% + 选中蓝 20%，比之前更淡
+                    constexpr float mix = 0.2f;
                     float r = 1.0f * (1.0f - mix) + selBlue.r * mix;
                     float g = 1.0f * (1.0f - mix) + selBlue.g * mix;
                     float b = 1.0f * (1.0f - mix) + selBlue.b * mix;
@@ -800,11 +803,6 @@ namespace Lucky::UI
                         static_cast<int>(g * 255.0f),
                         static_cast<int>(b * 255.0f),
                         255);
-                }
-                else if (isHovered)
-                {
-                    // Hover 态：图标 RGB 稍微提亮一点，alpha 保持
-                    tintCol = IM_COL32(220, 220, 220, 255);
                 }
 
                 // 和 TreeNode 的 Image 用法保持一致：OpenGL FBO 纹理 Y 向下，这里翻转 UV
@@ -828,8 +826,12 @@ namespace Lucky::UI
         GridItemFrame frame;
         frame.CellMin = cellMin;
         frame.CellMax = cellMax;
-        frame.NameMin = nameMin;
-        frame.NameMax = nameMax;
+        // NameMin / NameMax 返回给 Rename hitrect 使用；InlineRenameInput 内部会把 InputText 向左偏 FramePadding.x
+        // 使文字对齐 rectMin。Grid 的名字是居中绘制的，若直接传视觉 nameMin，InputText 框会左偏 FramePadding.x。
+        // 这里右移 FramePadding.x 做补偿 → InputText 框左边正好落在视觉名字区的左边，视觉居中正确
+        const float framePadX = ImGui::GetStyle().FramePadding.x;
+        frame.NameMin = ImVec2(nameMin.x + framePadX, nameMin.y);
+        frame.NameMax = ImVec2(nameMax.x + framePadX, nameMax.y);
         frame.Clicked = clicked;
 
         // 快照 ImGui 布局状态：InvisibleButton 已走完 ItemSize，此时 cursor 处于"cell 结束位置"
