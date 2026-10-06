@@ -56,7 +56,7 @@ namespace Lucky::UI::Theme
         // ---- Grid 单元格（BeginGrid / BeginRenamableGridItem 使用）----
         constexpr float GridItemPaddingX = 8.0f;    // 单元格水平内边距（图标两侧 + 文本两侧）
         constexpr float GridItemPaddingY = 6.0f;    // 单元格垂直内边距（图标顶部 + 文本底部）
-        constexpr int   GridItemNameRows = 2;       // 文本最多几行
+        constexpr int   GridItemNameRows = 1;       // 文本行数：Unity 风格单行省略号，和 TreeNode 行高一致
         constexpr float GridItemSpacing  = 8.0f;    // 单元格之间间距
 
         // ---- 通用 ----

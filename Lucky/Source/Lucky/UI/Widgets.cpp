@@ -765,53 +765,50 @@ namespace Lucky::UI
             Detail::PopRenameEditingItemFlagAndAllowOverlap();
         }
 
-        // 4) 画背景：Unity 风格
-        //    - 选中：图标区浅蓝 tint 覆盖 + 名字区蓝色矩形背景
-        //    - Hover：图标区外描一个浅灰边框（不填充），不画名字高亮
-        //    - 普通：不画任何背景（父窗口的深色底直接透出）
+        // 4) 画名字区背景：只有选中态画实色选中蓝（Hover 和普通态都不画，父窗口深色底直接透出）
         ImDrawList* dl = ImGui::GetWindowDrawList();
         if (selected)
         {
             const glm::vec4& selBlue = EditorPreferences::Get().GetColors().SelectionBlueColor;
-            // 名字区：全不透明选中蓝
             ImU32 nameBg = IM_COL32(
                 static_cast<int>(selBlue.r * 255.0f),
                 static_cast<int>(selBlue.g * 255.0f),
                 static_cast<int>(selBlue.b * 255.0f),
                 static_cast<int>(selBlue.a * 255.0f));
             dl->AddRectFilled(nameMin, nameMax, nameBg, Theme::Layout::ChildRounding);
-
-            // 图标区：浅蓝 tint（半透明覆盖在图标上）
-            if (!isRenaming)
-            {
-                ImU32 iconTint = IM_COL32(
-                    static_cast<int>(selBlue.r * 255.0f),
-                    static_cast<int>(selBlue.g * 255.0f),
-                    static_cast<int>(selBlue.b * 255.0f),
-                    static_cast<int>(selBlue.a * 70.0f));
-                // 图标区外扩一点点内边距，视觉上形成"图标被蓝色框住"的感觉
-                ImVec2 tintMin(iconMin.x - 2.0f, iconMin.y - 2.0f);
-                ImVec2 tintMax(iconMax.x + 2.0f, iconMax.y + 2.0f);
-                dl->AddRectFilled(tintMin, tintMax, iconTint, Theme::Layout::ChildRounding);
-            }
-        }
-        else if (isHovered)
-        {
-            // 图标区边框 Hover 反馈，不填充，保持 Unity 的轻盈感
-            ImU32 col = ImGui::GetColorU32(ImGuiCol_HeaderHovered, 0.8f);
-            ImVec2 outlineMin(iconMin.x - 2.0f, iconMin.y - 2.0f);
-            ImVec2 outlineMax(iconMax.x + 2.0f, iconMax.y + 2.0f);
-            dl->AddRect(outlineMin, outlineMax, col, Theme::Layout::ChildRounding, 0, 1.0f);
         }
 
-        // 5) 画图标（居中上部）
+        // 5) 画图标（居中上部）：选中 / Hover 态通过 Image 的 tint_col 参数对图标本身染色
+        //    tint_col 和图标 alpha 相乘，透明像素依然透明 —— 这是 Unity 风格"只染图标本身，不填背景"的正确做法
         if (iconSize > 0.0f && icon)
         {
             ImTextureID texID = GetImTextureID(icon);
             if (texID)
             {
+                ImU32 tintCol = IM_COL32_WHITE;     // 默认不改色
+                if (selected && !isRenaming)
+                {
+                    // 选中态：图标 RGB 偏浅蓝，alpha 保持 full，不盖透明区
+                    const glm::vec4& selBlue = EditorPreferences::Get().GetColors().SelectionBlueColor;
+                    // 混合系数：原色 60% + 选中蓝 40%，让图标仍可辨识同时偏蓝
+                    constexpr float mix = 0.4f;
+                    float r = 1.0f * (1.0f - mix) + selBlue.r * mix;
+                    float g = 1.0f * (1.0f - mix) + selBlue.g * mix;
+                    float b = 1.0f * (1.0f - mix) + selBlue.b * mix;
+                    tintCol = IM_COL32(
+                        static_cast<int>(r * 255.0f),
+                        static_cast<int>(g * 255.0f),
+                        static_cast<int>(b * 255.0f),
+                        255);
+                }
+                else if (isHovered)
+                {
+                    // Hover 态：图标 RGB 稍微提亮一点，alpha 保持
+                    tintCol = IM_COL32(220, 220, 220, 255);
+                }
+
                 // 和 TreeNode 的 Image 用法保持一致：OpenGL FBO 纹理 Y 向下，这里翻转 UV
-                dl->AddImage(texID, iconMin, iconMax, ImVec2(0, 1), ImVec2(1, 0));
+                dl->AddImage(texID, iconMin, iconMax, ImVec2(0, 1), ImVec2(1, 0), tintCol);
             }
         }
 

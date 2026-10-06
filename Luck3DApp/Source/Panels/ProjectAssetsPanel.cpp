@@ -51,6 +51,10 @@ namespace Lucky
         // 顶部工具栏（刷新按钮）
         DrawToolbar();
 
+        // 消除 Toolbar BeginChild 之后 ImGui 自动留的 ItemSpacing.y，让 Table 紧贴工具栏，
+        // 避免 Toolbar 下方漏出 Project 窗口 WindowBg 的几像素缝隙
+        UI::ShiftCursorY(-ImGui::GetStyle().ItemSpacing.y);
+
         // Table 必须给固定 outer_size.y：否则表格按内容自然撑开，内部 BeginChild {0,-24} 的"距底部"
         // 语义会退化为 0，导致下方工具栏被挤出面板下边界
         float availHeight = ImGui::GetContentRegionAvail().y;
