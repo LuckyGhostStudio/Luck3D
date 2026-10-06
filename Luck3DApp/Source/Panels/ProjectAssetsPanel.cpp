@@ -28,6 +28,57 @@
 
 namespace Lucky
 {
+    namespace
+    {
+        /// <summary>
+        /// 自定义迷你滑动条：绕过 ImGui::SliderFloat 的 "高度最小 = FontSize" 限制，支持任意小于 FontSize 的高度
+        /// 用 InvisibleButton + DrawList 手工画，track 走 ImGuiCol_FrameBg，grab 为正方形走 ImGuiCol_SliderGrab/Active
+        /// </summary>
+        /// <param name="id">ImGui ID 字符串</param>
+        /// <param name="v">目标值</param>
+        /// <param name="vmin">最小值</param>
+        /// <param name="vmax">最大值</param>
+        /// <param name="size">整体尺寸（宽, 高）；grab 宽度 = height 使其呈正方形</param>
+        /// <returns>本帧是否被修改</returns>
+        bool MiniSliderFloat(const char* id, float* v, float vmin, float vmax, const ImVec2& size)
+        {
+            ImVec2 cursor = ImGui::GetCursorScreenPos();
+            ImGui::InvisibleButton(id, size);
+            bool held = ImGui::IsItemActive();
+            bool hovered = ImGui::IsItemHovered();
+
+            const float grabW = size.y;             // 正方形手柄：宽度 = 高度
+            const float trackLen = size.x - grabW;  // 手柄中心可移动范围
+
+            bool changed = false;
+            if (held && trackLen > 0.0f && vmax > vmin)
+            {
+                float relX = ImGui::GetMousePos().x - cursor.x - grabW * 0.5f;
+                float t = std::clamp(relX / trackLen, 0.0f, 1.0f);
+                float newV = vmin + t * (vmax - vmin);
+                if (newV != *v)
+                {
+                    *v = newV;
+                    changed = true;
+                }
+            }
+
+            // 画 track（深色背景矩形）
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+            ImVec2 bbMax(cursor.x + size.x, cursor.y + size.y);
+            ImU32 trackCol = ImGui::GetColorU32(ImGuiCol_FrameBg);
+            dl->AddRectFilled(cursor, bbMax, trackCol, 2.0f);
+
+            // 画 grab（正方形手柄）
+            float t = (vmax > vmin) ? std::clamp((*v - vmin) / (vmax - vmin), 0.0f, 1.0f) : 0.0f;
+            float grabX = cursor.x + t * trackLen;
+            ImU32 grabCol = ImGui::GetColorU32((held || hovered) ? ImGuiCol_SliderGrabActive : ImGuiCol_SliderGrab);
+            dl->AddRectFilled(ImVec2(grabX, cursor.y), ImVec2(grabX + grabW, bbMax.y), grabCol, 2.0f);
+
+            return changed;
+        }
+    }
+
     ProjectAssetsPanel::ProjectAssetsPanel()
     {
         SetFlags(ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);    // 禁用滚动条
@@ -116,8 +167,7 @@ namespace Lucky
             // 底部工具栏（深色 #404040，固定高度，右端对齐 SliderFloat 控制缩略图尺寸）
             // NoScrollbar + NoScrollWithMouse：工具栏不滚动，避免 Slider 被挤出可视区
             ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0x40, 0x40, 0x40, 0xFF));
-            ImGui::BeginChild("##BottomToolbar", { 0, s_BottomToolbarHeight }, false,
-                              ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+            ImGui::BeginChild("##BottomToolbar", { 0, s_BottomToolbarHeight }, false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
             {
                 DrawBottomToolbar();
             }
@@ -218,33 +268,31 @@ namespace Lucky
 
     void ProjectAssetsPanel::DrawBottomToolbar()
     {
-        // Slider 高度减半：FramePadding.y = 0 → FrameHeight = FontSize（≈ 16px，原约 22px 的 70%）
-        // 手柄"长宽相等"：GrabMinSize = FrameHeight 让手柄变成正方形
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ImGui::GetStyle().FramePadding.x, 0.0f));
-        const float sliderFrameH = ImGui::GetFrameHeight();
-        ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, sliderFrameH);
+        // ImGui 原生 SliderFloat 的高度最低 = FontSize（因 FramePadding.y 不能为负），
+        // 本项目没加载过小字体，所以真正做"减半"必须自定义 Slider：走匿名 ns 内的 MiniSliderFloat
+        constexpr float sliderWidth  = 140.0f;
+        constexpr float sliderHeight = 11.0f;       // 原生 Slider 约 22 px，这里减半
+        constexpr float rightMargin  = 8.0f;
 
-        // 工具栏内垂直居中：BeginChild 内容区高度 = s_BottomToolbarHeight - WindowPadding*2；
-        // 垂直偏移 = (内容区高度 - Slider 高度) / 2
+        // 工具栏内垂直居中：BeginChild 内容区高度 = s_BottomToolbarHeight - WindowPadding*2
         const float toolbarInnerH = s_BottomToolbarHeight - ImGui::GetStyle().WindowPadding.y * 2.0f;
-        float verticalOffset = (toolbarInnerH - sliderFrameH) * 0.5f;
-        if (verticalOffset < 0.0f) { verticalOffset = 0.0f; }
+        float verticalOffset = (toolbarInnerH - sliderHeight) * 0.5f;
+        if (verticalOffset < 0.0f)
+        {
+            verticalOffset = 0.0f;
+        }
         UI::ShiftCursor(4.0f, verticalOffset);
 
-        // 右端对齐 Slider：固定宽度，距右边界留一段 margin
-        constexpr float sliderWidth = 140.0f;
-        constexpr float rightMargin = 8.0f;
-
+        // 右端对齐
         float availW = ImGui::GetContentRegionAvail().x;
         float offsetX = availW - sliderWidth - rightMargin;
         if (offsetX > 0.0f)
         {
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
         }
-        ImGui::SetNextItemWidth(sliderWidth);
-        ImGui::SliderFloat("##ProjectZoom", &m_IconSize, s_IconSizeMin, s_IconSizeMax, "");
 
-        ImGui::PopStyleVar(2);
+        MiniSliderFloat("##ProjectZoom", &m_IconSize, s_IconSizeMin, s_IconSizeMax,
+                        ImVec2(sliderWidth, sliderHeight));
     }
 
     void ProjectAssetsPanel::DrawDirectoryTreeNode(DirectoryNode& node)

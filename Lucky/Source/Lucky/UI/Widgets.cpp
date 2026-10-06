@@ -826,12 +826,19 @@ namespace Lucky::UI
         GridItemFrame frame;
         frame.CellMin = cellMin;
         frame.CellMax = cellMax;
-        // NameMin / NameMax 返回给 Rename hitrect 使用；InlineRenameInput 内部会把 InputText 向左偏 FramePadding.x
-        // 使文字对齐 rectMin。Grid 的名字是居中绘制的，若直接传视觉 nameMin，InputText 框会左偏 FramePadding.x。
-        // 这里右移 FramePadding.x 做补偿 → InputText 框左边正好落在视觉名字区的左边，视觉居中正确
+        // NameMin / NameMax 返回给 Rename hitrect 用。推导如下，使 InputText 框整体居中到视觉名字区：
+        //   InlineRenameInput 内部：
+        //     inputPos.x = rectMin.x - FramePadding.x   （把文字对齐 rectMin.x）
+        //     width = rectMax.x - rectMin.x + FramePadding.x
+        //   InputText 框左 = rectMin.x - FramePadding.x
+        //   InputText 框右 = rectMin.x - FramePadding.x + (nameAreaW + FramePadding.x) = rectMax.x
+        //   InputText 中心 = (框左 + 框右)/2 = rectMin.x - FramePadding.x/2 + nameAreaW/2
+        //   要让中心 = (视觉 nameMin.x + 视觉 nameMax.x)/2 = 视觉 nameMin.x + nameAreaW/2
+        //   → rectMin.x = 视觉 nameMin.x + FramePadding.x/2
         const float framePadX = ImGui::GetStyle().FramePadding.x;
-        frame.NameMin = ImVec2(nameMin.x + framePadX, nameMin.y);
-        frame.NameMax = ImVec2(nameMax.x + framePadX, nameMax.y);
+        const float halfPadX = framePadX * 0.5f;
+        frame.NameMin = ImVec2(nameMin.x + halfPadX, nameMin.y);
+        frame.NameMax = ImVec2(nameMax.x + halfPadX, nameMax.y);
         frame.Clicked = clicked;
 
         // 快照 ImGui 布局状态：InvisibleButton 已走完 ItemSize，此时 cursor 处于"cell 结束位置"
