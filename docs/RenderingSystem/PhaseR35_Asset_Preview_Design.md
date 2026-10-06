@@ -158,7 +158,7 @@ Panel 绘制资产格子：
 **问题**：`AssetPreviewRenderer::RenderXxx` 返回什么？Cache Entry 存什么？
 
 **先排除掉"PreviewTexture 代理"路线**。查了 `Lucky/Source/Lucky/Renderer/Texture.h`：`Texture2D` **不是接口而是具体类**，构造函数 `Texture2D(w, h)` / `Texture2D(path)` 都会**真实创建一张 OpenGL 纹理**；私有字段 `m_RendererID / m_Width / m_Height` 子类不可见。所以如果写一个 `PreviewTexture : public Texture2D` 代理：
-- 要么**重复定义**自己的 `m_RendererID / m_Width / m_Height`（线线 Q1 质疑的正是这一点，字段冗余、容易脱节）
+- 要么**重复定义**自己的 `m_RendererID / m_Width / m_Height`（字段冗余、容易脱节）
 - 要么走基类构造 → **白白创建一张永远不用的真实 OpenGL 纹理**（显存浪费 + 析构时还要 glDeleteTextures）
 - 要么把 Texture2D 的字段改成 protected（污染基类，影响面大）
 
@@ -739,7 +739,7 @@ else
 
 > **为什么本阶段只做 Serialize 挂钩**：
 > - `AssetManager` 在 **Lucky/Asset/** 层，`AssetPreviewCache` 在 **Lucky/Editor/Preview/** 层 —— 引擎资产层不应该反向 include 编辑器层。要挂需要先铺 "AssetManager 变更事件总线"（见 §10），不属于本阶段。
-> - MaterialEditor 的实时同步属于"编辑中体验"，不保存就不渲染缩略图在当前 Inspector 不显示缩略图（线线 Q2 的决策）场景下几乎看不出差别，推 P4。
+> - MaterialEditor 的实时同步属于"编辑中体验"，不保存就不渲染缩略图在当前 Inspector 不显示缩略图的场景下几乎看不出差别，推 P4。
 > - DeleteAsset / MoveAsset 的残留 Entry 只是内存占用（每张 128×128 RGBA8 ≈ 64 KB），项目几千资产下也只有 MB 级，MVP 可接受。
 
 ---
@@ -855,6 +855,6 @@ Vendor\Binaries\Premake\Windows\premake5.exe --file=Build.lua vs2022
 3. **R35.3**：
    - `ProjectAssetsPanel::GetThumbnail` 按类型分派：Texture 返回自身 / Material / Mesh 走 Cache / 其他 nullptr
    - `DrawAssetItem` 的 `icon` 改按值 `Ref<Texture2D>`，先 `GetThumbnail` 后 fallback 到 `GetAssetTypeIcon`
-   - **本阶段不改 `UI::PropertyAsset`**（线线 Q2 决策）
+   - **本阶段不改 `UI::PropertyAsset`**（保持固定类型图标）
    - 根目录执行 `Vendor\Binaries\Premake\Windows\premake5.exe --file=Build.lua vs2022` 重跑
    - 验收 §8.3 的勾选项

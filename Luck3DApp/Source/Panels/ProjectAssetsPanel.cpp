@@ -78,18 +78,30 @@ namespace Lucky
 
             ImGui::TableSetColumnIndex(1);
 
-            // 右侧：内容区
+            // 右侧：内容区（上部）+ 底部工具栏 两段子窗口
             ImGui::BeginChild("##ContentArea", { 0, 0 });
             {
-                DrawContentArea();
-
-                // 点击鼠标 && 鼠标悬停在该窗口（点击空白位置）
-                if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered())
+                // 内容区：留出底部工具栏高度
+                ImGui::BeginChild("##Content", { 0, -s_BottomToolbarHeight });
                 {
-                    SelectionManager::Deselect();
-                    m_Rename.CancelAll();
-                    CancelPendingCreate();
+                    DrawContentArea();
+
+                    // 点击鼠标 && 鼠标悬停在该窗口（点击空白位置）
+                    if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered())
+                    {
+                        SelectionManager::Deselect();
+                        m_Rename.CancelAll();
+                        CancelPendingCreate();
+                    }
                 }
+                ImGui::EndChild();
+
+                // 底部工具栏：固定高度，右端对齐 SliderFloat 控制缩略图尺寸
+                ImGui::BeginChild("##BottomToolbar", { 0, s_BottomToolbarHeight });
+                {
+                    DrawBottomToolbar();
+                }
+                ImGui::EndChild();
             }
             ImGui::EndChild();
 
@@ -176,6 +188,22 @@ namespace Lucky
         UI::Draw::HorizontalLine();
     }
 
+    void ProjectAssetsPanel::DrawBottomToolbar()
+    {
+        // 右端对齐 Slider：固定宽度，距右边界留一段 margin
+        constexpr float sliderWidth = 140.0f;
+        constexpr float rightMargin = 8.0f;
+
+        float availW = ImGui::GetContentRegionAvail().x;
+        float offsetX = availW - sliderWidth - rightMargin;
+        if (offsetX > 0.0f)
+        {
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
+        }
+        ImGui::SetNextItemWidth(sliderWidth);
+        ImGui::SliderFloat("##ProjectZoom", &m_IconSize, s_IconSizeMin, s_IconSizeMax, "");
+    }
+
     void ProjectAssetsPanel::DrawDirectoryTreeNode(DirectoryNode& node)
     {
         const std::string& strID = node.Name;
@@ -252,81 +280,166 @@ namespace Lucky
         {
             return;
         }
-        
-        for (auto& entry : std::filesystem::directory_iterator(m_CurrentDirectory))
+
+        // 按 Slider 值分派：最小值 = 列表布局；大于最小值 = Grid 布局，图标尺寸 = m_IconSize
+        if (IsListLayout())
         {
-            DrawAssetItem(entry);
+            DrawContentArea_List();
         }
-
-        // ---- Pending Create 占位节点（对齐 Unity："右键 Create 后立即显示占位编辑框"）----
-        // 条件：
-        // - 当前存在 pending create
-        // - 作用域归属 Content
-        // - 父目录 == 当前浏览目录（切换目录会取消 pending，因此这里通常一定命中）
-        if (m_PendingCreate.Kind != PendingCreateKind::None
-            && m_PendingCreate.ScopeTag == kScopeContent
-            && m_PendingCreate.ParentDir == m_CurrentDirectory)
+        else
         {
-            // 图标按 Kind 分派
-            AssetType pendingAssetType = AssetType::None;
-            switch (m_PendingCreate.Kind)
-            {
-                case PendingCreateKind::Material: pendingAssetType = AssetType::Material; break;
-                case PendingCreateKind::Scene:    pendingAssetType = AssetType::Scene;    break;
-                default:                                                                  break;
-            }
-            const Ref<Texture2D>& pendingIcon = (m_PendingCreate.Kind == PendingCreateKind::Folder)
-                ? EditorIconManager::GetFolderIcon(false)
-                : EditorIconManager::GetAssetTypeIcon(pendingAssetType);
-
-            // TreeNode ID：InitialName + "##pending"（保证与真实资产项 ID 隔离，不冲突）
-            std::string pendingStrID = m_PendingCreate.InitialName + "##pending_create";
-
-            // scope 值提前捕获，避免 lambda 引用捕获后被 CancelPendingCreate 重置为 0 导致失效
-            PendingCreateKind        capturedKind      = m_PendingCreate.Kind;
-            std::filesystem::path    capturedParentDir = m_PendingCreate.ParentDir;
-
-            // 通过 BeginRenamableTreeNode 进入编辑态：
-            // - onCommit：按 Kind 分派到 CommitCreateXxx；stem 为空 → 用 InitialName（在 Commit* 内部处理）
-            // - onCancel：仅丢弃 PendingCreate 状态，不落盘（Esc / 未编辑失焦触发）
-            UI::RenameClickOutcome pendingClick = UI::RenameClickOutcome::None;
-            if (UI::BeginRenamableTreeNode(
-                    pendingIcon, pendingStrID.c_str(), m_PendingCreate.InitialName, m_PendingCreate.VirtualPath,
-                    /*selected*/ true, /*isLeaf*/ true, /*defaultOpen*/ false,
-                    m_Rename,
-                    [this, capturedKind, capturedParentDir](const std::string& newName)
-                    {
-                        // 立即清 PendingCreate 状态，避免"落盘在帧末 EnqueueAction 才执行"期间下一帧短暂闪现占位
-                        // 落盘走 EnqueueAction 保证不会在 UI 遍历中重建目录树导致悬空迭代器
-                        m_PendingCreate = PendingCreateState{};
-                        EnqueueAction([this, capturedKind, capturedParentDir, newName]()
-                        {
-                            switch (capturedKind)
-                            {
-                                case PendingCreateKind::Folder:   CommitCreateFolder(capturedParentDir, newName);   break;
-                                case PendingCreateKind::Material: CommitCreateMaterial(capturedParentDir, newName); break;
-                                case PendingCreateKind::Scene:    CommitCreateScene(capturedParentDir, newName);    break;
-                                default:                                                                            break;
-                            }
-                        });
-                    },
-                    /*drawRightSide*/ nullptr,
-                    "##ContentPendingCreateRename",
-                    &pendingClick,
-                    /*scopeTag*/ kScopeContent,
-                    /*onCancel*/ [this]() { m_PendingCreate = PendingCreateState{}; }))
-            {
-                UI::EndTreeNode();
-            }
+            DrawContentArea_Grid(m_IconSize);
         }
 
         // ---- 空白区右键：NoOpenOverItems 保证不与 item 菜单打架 ----
+        // 列表 / Grid 两种布局共用同一套空白右键逻辑
         if (UI::BeginPopupContextWindow("##ContentAreaEmptyPopup", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
         {
             SelectionManager::Deselect();   // 空白右键：清空选中，与"空白左键"语义一致
             AssetContext ctx = MakeContext(AssetContextKind::EmptySpace, std::filesystem::path{}, AssetHandle{});
             DrawAssetContextMenu(ctx);
             UI::EndPopup();
+        }
+    }
+
+    void ProjectAssetsPanel::DrawContentArea_List()
+    {
+        for (auto& entry : std::filesystem::directory_iterator(m_CurrentDirectory))
+        {
+            DrawAssetItem(entry);
+        }
+        DrawPendingCreatePlaceholder_List();
+    }
+
+    void ProjectAssetsPanel::DrawContentArea_Grid(float iconSize)
+    {
+        // 单元格尺寸 = 图标尺寸 + 内边距 + 名字区（固定行数）
+        float textRowH = ImGui::GetTextLineHeight();
+        float cellW = iconSize + Theme::Layout::GridItemPaddingX * 2.0f;
+        float cellH = iconSize + Theme::Layout::GridItemPaddingY * 2.0f
+                      + textRowH * static_cast<float>(Theme::Layout::GridItemNameRows);
+
+        if (!UI::BeginGrid("##ProjectsGrid", cellW, cellH))
+        {
+            return;
+        }
+
+        for (auto& entry : std::filesystem::directory_iterator(m_CurrentDirectory))
+        {
+            DrawAssetItem_Grid(entry);
+        }
+        DrawPendingCreatePlaceholder_Grid();
+
+        UI::EndGrid();
+    }
+
+    void ProjectAssetsPanel::DrawPendingCreatePlaceholder_List()
+    {
+        // ---- Pending Create 占位节点（对齐 Unity："右键 Create 后立即显示占位编辑框"）----
+        // 条件：当前存在 pending create；作用域归属 Content；父目录 == 当前浏览目录
+        if (m_PendingCreate.Kind == PendingCreateKind::None
+            || m_PendingCreate.ScopeTag != kScopeContent
+            || m_PendingCreate.ParentDir != m_CurrentDirectory)
+        {
+            return;
+        }
+
+        AssetType pendingAssetType = AssetType::None;
+        switch (m_PendingCreate.Kind)
+        {
+            case PendingCreateKind::Material: pendingAssetType = AssetType::Material; break;
+            case PendingCreateKind::Scene:    pendingAssetType = AssetType::Scene;    break;
+            default:                                                                  break;
+        }
+        const Ref<Texture2D>& pendingIcon = (m_PendingCreate.Kind == PendingCreateKind::Folder)
+            ? EditorIconManager::GetFolderIcon(false)
+            : EditorIconManager::GetAssetTypeIcon(pendingAssetType);
+
+        // TreeNode ID：InitialName + "##pending"（保证与真实资产项 ID 隔离，不冲突）
+        std::string pendingStrID = m_PendingCreate.InitialName + "##pending_create";
+
+        // 捕获快照，避免 lambda 内被 CancelPendingCreate 重置
+        PendingCreateKind     capturedKind      = m_PendingCreate.Kind;
+        std::filesystem::path capturedParentDir = m_PendingCreate.ParentDir;
+
+        UI::RenameClickOutcome pendingClick = UI::RenameClickOutcome::None;
+        if (UI::BeginRenamableTreeNode(
+                pendingIcon, pendingStrID.c_str(), m_PendingCreate.InitialName, m_PendingCreate.VirtualPath,
+                /*selected*/ true, /*isLeaf*/ true, /*defaultOpen*/ false,
+                m_Rename,
+                [this, capturedKind, capturedParentDir](const std::string& newName)
+                {
+                    // 立即清 PendingCreate 状态，避免"落盘在帧末 EnqueueAction 才执行"期间下一帧短暂闪现占位
+                    m_PendingCreate = PendingCreateState{};
+                    EnqueueAction([this, capturedKind, capturedParentDir, newName]()
+                    {
+                        switch (capturedKind)
+                        {
+                            case PendingCreateKind::Folder:   CommitCreateFolder(capturedParentDir, newName);   break;
+                            case PendingCreateKind::Material: CommitCreateMaterial(capturedParentDir, newName); break;
+                            case PendingCreateKind::Scene:    CommitCreateScene(capturedParentDir, newName);    break;
+                            default:                                                                            break;
+                        }
+                    });
+                },
+                /*drawRightSide*/ nullptr,
+                "##ContentPendingCreateRename",
+                &pendingClick,
+                /*scopeTag*/ kScopeContent,
+                /*onCancel*/ [this]() { m_PendingCreate = PendingCreateState{}; }))
+        {
+            UI::EndTreeNode();
+        }
+    }
+
+    void ProjectAssetsPanel::DrawPendingCreatePlaceholder_Grid()
+    {
+        if (m_PendingCreate.Kind == PendingCreateKind::None
+            || m_PendingCreate.ScopeTag != kScopeContent
+            || m_PendingCreate.ParentDir != m_CurrentDirectory)
+        {
+            return;
+        }
+
+        AssetType pendingAssetType = AssetType::None;
+        switch (m_PendingCreate.Kind)
+        {
+            case PendingCreateKind::Material: pendingAssetType = AssetType::Material; break;
+            case PendingCreateKind::Scene:    pendingAssetType = AssetType::Scene;    break;
+            default:                                                                  break;
+        }
+        const Ref<Texture2D>& pendingIcon = (m_PendingCreate.Kind == PendingCreateKind::Folder)
+            ? EditorIconManager::GetFolderIcon(false)
+            : EditorIconManager::GetAssetTypeIcon(pendingAssetType);
+
+        std::string pendingStrID = m_PendingCreate.InitialName + "##pending_create_grid";
+
+        PendingCreateKind     capturedKind      = m_PendingCreate.Kind;
+        std::filesystem::path capturedParentDir = m_PendingCreate.ParentDir;
+
+        UI::RenameClickOutcome pendingClick = UI::RenameClickOutcome::None;
+        if (UI::BeginRenamableGridItem(
+                pendingIcon, pendingStrID.c_str(), m_PendingCreate.InitialName, m_PendingCreate.VirtualPath,
+                /*selected*/ true, m_Rename,
+                [this, capturedKind, capturedParentDir](const std::string& newName)
+                {
+                    m_PendingCreate = PendingCreateState{};
+                    EnqueueAction([this, capturedKind, capturedParentDir, newName]()
+                    {
+                        switch (capturedKind)
+                        {
+                            case PendingCreateKind::Folder:   CommitCreateFolder(capturedParentDir, newName);   break;
+                            case PendingCreateKind::Material: CommitCreateMaterial(capturedParentDir, newName); break;
+                            case PendingCreateKind::Scene:    CommitCreateScene(capturedParentDir, newName);    break;
+                            default:                                                                            break;
+                        }
+                    });
+                },
+                /*scopeTag*/ kScopeContent,
+                &pendingClick,
+                /*onCancel*/ [this]() { m_PendingCreate = PendingCreateState{}; }))
+        {
+            UI::EndRenamableGridItem();
         }
     }
 
@@ -403,6 +516,85 @@ namespace Lucky
             UI::EndTreeNode();
         }
 
+        // 剩余交互（编辑态拦截 / 拖拽源 / 右键菜单 / 抬起选中）走共享 helper
+        ApplyAssetItemInteractions(path, assetHandle, isDirectory, clickOutcome);
+    }
+
+    void ProjectAssetsPanel::DrawAssetItem_Grid(const std::filesystem::directory_entry& entry)
+    {
+        const std::filesystem::path& path = entry.path();
+        std::string displayName = path.stem().string();
+
+        bool isDirectory = entry.is_directory();
+
+        // 图标：目录 → 文件夹图标；非目录 → 缩略图优先，fallback 到静态类型图标
+        Ref<Texture2D> icon;
+        if (isDirectory)
+        {
+            icon = EditorIconManager::GetFolderIcon(false);
+        }
+        else
+        {
+            icon = GetThumbnail(path);
+            if (!icon)
+            {
+                icon = EditorIconManager::GetAssetTypeIcon(GetAssetTypeFromPath(path));
+            }
+        }
+
+        // 资产 Handle + 选中态（和 List 版同一套判定）
+        AssetHandle assetHandle;
+        std::string strID = displayName;
+        if (!isDirectory)
+        {
+            assetHandle = AssetManager::GetAssetHandle(Project::GetActive()->MakeRelative(path));
+            strID = std::format("{}##grid##{}", displayName, static_cast<uint32_t>(assetHandle));
+        }
+        else
+        {
+            strID = std::format("{}##grid##dir", displayName);
+        }
+
+        bool isSelected = isDirectory
+            ? SelectionManager::IsFolderSelected(path)
+            : (assetHandle.IsValid() && SelectionManager::IsAssetSelected(assetHandle));
+
+        // 捕获快照，避免 lambda 内引用悬空
+        std::filesystem::path pathCopy = path;
+        AssetHandle handleCopy = assetHandle;
+        bool isDirCopy = isDirectory;
+
+        UI::RenameClickOutcome clickOutcome = UI::RenameClickOutcome::None;
+        if (UI::BeginRenamableGridItem(
+                icon, strID.c_str(), displayName, path,
+                isSelected, m_Rename,
+                [this, isDirCopy, pathCopy, handleCopy](const std::string& newName)
+                {
+                    if (isDirCopy)
+                    {
+                        EnqueueAction([this, pathCopy, newName]() { RenameFolderTo(pathCopy, newName); });
+                    }
+                    else if (handleCopy.IsValid())
+                    {
+                        EnqueueAction([this, handleCopy, newName]() { RenameAssetTo(handleCopy, newName); });
+                    }
+                },
+                /*scopeTag*/ kScopeContent,
+                &clickOutcome))
+        {
+            // 共用交互 helper 必须在 Grid Item 关闭前执行，这样 BeginDragDropSource / BeginPopupContextItem
+            // 关联的 LastItemData 还是 Grid 的 InvisibleButton
+            ApplyAssetItemInteractions(path, assetHandle, isDirectory, clickOutcome);
+            UI::EndRenamableGridItem();
+        }
+    }
+
+    void ProjectAssetsPanel::ApplyAssetItemInteractions(
+        const std::filesystem::path& path,
+        AssetHandle handle,
+        bool isDirectory,
+        UI::RenameClickOutcome clickOutcome)
+    {
         // 编辑态下：跳过后续所有交互（拖拽 / 右键菜单 / 抬起选中）
         if (m_Rename.IsEditing(path, kScopeContent))
         {
@@ -410,12 +602,12 @@ namespace Lucky
         }
 
         // 拖拽源：非目录且资产已注册（handle 有效）时才作为拖拽源
-        if (!isDirectory && assetHandle.IsValid() && UI::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
+        if (!isDirectory && handle.IsValid() && UI::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
         {
-            ImGui::SetDragDropPayload(DragDrop::AssetHandle, &assetHandle, sizeof(AssetHandle));
-            
+            ImGui::SetDragDropPayload(DragDrop::AssetHandle, &handle, sizeof(AssetHandle));
+
             UI::DragDropPreview(UI::DragDropContext::IsRejected(DragDrop::AssetHandle));
-            
+
             UI::EndDragDropSource();
         }
 
@@ -430,17 +622,17 @@ namespace Lucky
                 UI::EndPopup();
             }
         }
-        else if (assetHandle.IsValid())
+        else if (handle.IsValid())
         {
             if (UI::BeginPopupContextItem(nullptr, ImGuiPopupFlags_MouseButtonRight))
             {
-                SelectionManager::SelectAsset(assetHandle);
-                AssetContext ctx = MakeContext(AssetContextKind::Asset, path, assetHandle);
+                SelectionManager::SelectAsset(handle);
+                AssetContext ctx = MakeContext(AssetContextKind::Asset, path, handle);
                 DrawAssetContextMenu(ctx);
                 UI::EndPopup();
             }
         }
-        
+
         // 选中触发时机：鼠标"抬起"时（且期间未发生拖拽），避免 MouseDown 抢占拖拽源
         // 语义参考 Unity：按下不切换 Selection；若发生拖拽则不选中；仅在正常点击（按下+抬起，未拖）时提交选中
         //
@@ -454,16 +646,13 @@ namespace Lucky
         if (clickOutcome != UI::RenameClickOutcome::RegisteredAsRenameCandidate
             && itemHovered && leftReleased && !wasDragging && !ImGui::IsItemToggledOpen())
         {
-            // 目录：内容区内单击选中（写入 SelectionManager::Folder）
-            //       不切换浏览目录，已与左侧目录树的 NavigateTo 行为分离
-            // 资产：写入全局 SelectionManager，Inspector 面板会据此显示对应资产信息
             if (isDirectory)
             {
                 SelectionManager::SelectFolder(path);
             }
-            else if (assetHandle.IsValid())
+            else if (handle.IsValid())
             {
-                SelectionManager::SelectAsset(assetHandle);
+                SelectionManager::SelectAsset(handle);
             }
         }
     }

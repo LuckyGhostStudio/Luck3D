@@ -64,8 +64,22 @@ namespace Lucky
         void DrawToolbar();
         void DrawDirectoryTreeNode(DirectoryNode& node);
         void DrawContentArea();
-        void DrawAssetItem(const std::filesystem::directory_entry& entry);
+        void DrawContentArea_List();            // 列表布局：遍历 directory_iterator 走 DrawAssetItem
+        void DrawContentArea_Grid(float iconSize);  // Grid 布局：UI::BeginGrid + UI::BeginRenamableGridItem
+        void DrawAssetItem(const std::filesystem::directory_entry& entry);           // 列表版单项
+        void DrawAssetItem_Grid(const std::filesystem::directory_entry& entry);      // Grid 版单项（薄壳）
         void DrawAssetContextMenu(const AssetContext& ctx);
+
+        // ---- 列表 / Grid 共用的交互逻辑（拖拽源 / 右键菜单 / 抬起选中）----
+        void ApplyAssetItemInteractions(
+            const std::filesystem::path& path,
+            AssetHandle                  handle,
+            bool                         isDirectory,
+            UI::RenameClickOutcome       clickOutcome);
+
+        // ---- Pending Create 占位（列表 / Grid 两版，内部复用同一份 PendingCreateState）----
+        void DrawPendingCreatePlaceholder_List();
+        void DrawPendingCreatePlaceholder_Grid();
 
         // ---- 上下文构造 ----
         AssetContext MakeContext(AssetContextKind kind, const std::filesystem::path& path, AssetHandle handle) const;
@@ -178,6 +192,26 @@ namespace Lucky
         // ---- 缩略图 / 类型识别 ----
         Ref<Texture2D> GetThumbnail(const std::filesystem::path& filepath);
         AssetType GetAssetTypeFromPath(const std::filesystem::path& filepath) const;
+
+        // ---- 底部工具栏（Zoom 滑动条）----
+
+        /// <summary>
+        /// 绘制面板底部工具栏：右端对齐一个 SliderFloat 控制 m_IconSize
+        /// 当前只放缩放滑动条；左侧 / 中部为后续面包屑 / 搜索框预留
+        /// </summary>
+        void DrawBottomToolbar();
+
+        /// <summary>
+        /// 判定当前是否处于列表布局：Slider 值紧贴最小值（含浮点容差）
+        /// 其他情况一律视作 Grid 布局，图标尺寸就是 m_IconSize
+        /// </summary>
+        bool IsListLayout() const { return m_IconSize <= s_IconSizeMin + s_ListThresholdEps; }
+
+        // ---- 缩放 / 布局相关常量 ----
+        constexpr static float s_IconSizeMin        = 16.0f;    // Slider 最小值 = 列表布局锚点
+        constexpr static float s_IconSizeMax        = 128.0f;   // Grid 最大图标尺寸
+        constexpr static float s_ListThresholdEps   = 0.5f;     // 浮点容差：m_IconSize <= kMin + eps 判定列表
+        constexpr static float s_BottomToolbarHeight = 24.0f;   // 底部工具栏固定高度
     private:
         std::filesystem::path m_AssetsDirectory;    // Assets 根目录
         std::filesystem::path m_CurrentDirectory;   // 当前浏览目录
@@ -185,6 +219,8 @@ namespace Lucky
         DirectoryNode m_RootNode;                   // 目录树缓存
         
         float m_TreePanelWidth = 200.0f;            // 目录树宽度
+
+        float m_IconSize = s_IconSizeMin;           // 资产格子图标尺寸：等于最小值即列表布局；大于则 Grid 布局且图标尺寸就是本值
 
         std::vector<std::function<void()>> m_PendingActions;    // 延迟到帧末执行的写操作（避免 UI 遍历中重建目录树导致悬空）
 

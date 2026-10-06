@@ -665,4 +665,120 @@ namespace Lucky::UI
 
         return opened;
     }
+
+    // ======== Grid 布局原语 ========
+
+    /// <summary>
+    /// Grid 单元格的内部帧数据（供 BeginGridItemFrame 返回 / BeginRenamableGridItem 使用）
+    /// 封装一个格子的屏幕区域、名字区位置、以及点击 / Rename 态
+    /// </summary>
+    struct GridItemFrame
+    {
+        ImVec2 CellMin{};       // 单元格左上屏幕坐标
+        ImVec2 CellMax{};       // 单元格右下屏幕坐标
+        ImVec2 NameMin{};       // 名字区左上屏幕坐标（InputText 覆盖用）
+        ImVec2 NameMax{};       // 名字区右下屏幕坐标
+        bool   Clicked = false; // 本帧是否被左键点击
+    };
+
+    /// <summary>
+    /// 开始一个 Grid 布局：维护列数、换行时机、单元格尺寸
+    /// 用法：
+    ///   if (UI::BeginGrid("##Projects", cellW, cellH)) {
+    ///       for (auto& e : entries) { UI::BeginRenamableGridItem(...); ... UI::EndRenamableGridItem(); }
+    ///       UI::EndGrid();
+    ///   }
+    /// 当前实现要求 Grid 栈深度 ≤ 1，不支持嵌套（后续有需要再放宽）
+    /// </summary>
+    /// <param name="id">ImGui ID（和同窗口其他控件隔离）</param>
+    /// <param name="cellWidth">单元格宽度（含内边距）</param>
+    /// <param name="cellHeight">单元格高度（含内边距 + 名字区）</param>
+    /// <param name="spacing">单元格之间的间距</param>
+    /// <returns>当前帧 Grid 是否可绘制（面板宽度足够放至少 1 个格子时 true；否则直接 false，不要求配对 EndGrid）</returns>
+    bool BeginGrid(const char* id, float cellWidth, float cellHeight, float spacing = Theme::Layout::GridItemSpacing);
+
+    /// <summary>
+    /// 结束 Grid 布局，必须与 BeginGrid（返回 true 时）配对
+    /// </summary>
+    void EndGrid();
+
+    /// <summary>
+    /// 底层：绘制一个 Grid 单元格（不含 Rename 分派）
+    /// 从 Grid 栈顶读 cellSize，决定是否 SameLine，然后：
+    ///   - InvisibleButton 占满 cell bb
+    ///   - 画背景（selected / hover）
+    ///   - 画图标（居中上部）
+    ///   - 画名字（居中下部，省略号截断；isRenaming == true 时留空由上层 InputText 覆盖）
+    /// 调用方必须紧随其后调用 EndGridItemFrame 配对
+    /// </summary>
+    /// <param name="icon">单元格缩略图（可空）</param>
+    /// <param name="name">ImGui ID 字符串（Grid 作用域内唯一，带 ## 更安全）</param>
+    /// <param name="displayName">显示名（Rename 态下由上层接管绘制）</param>
+    /// <param name="selected">是否选中（画背景用）</param>
+    /// <param name="isRenaming">是否处于 Rename 编辑态（为 true 时不画默认名字文本）</param>
+    GridItemFrame BeginGridItemFrame(
+        const Ref<Texture2D>& icon,
+        const char*           name,
+        const std::string&    displayName,
+        bool                  selected,
+        bool                  isRenaming);
+
+    /// <summary>
+    /// 结束 Grid 单元格：推进当前列号；达到行末时下次 BeginItem 自动换行
+    /// </summary>
+    void EndGridItemFrame();
+
+    /// <summary>
+    /// Grid 单元格 + 内联重命名：从 Grid 栈顶读 cellSize，自动 SameLine 换行；
+    /// 内部调 BeginGridItemFrame 画 cell + 把名字区作为 Rename 命中矩形上报
+    /// 命中后调用 DrawInlineInputIfEditing（Rename 态渲染 InputText）、NotifyClicked（登记 Rename 候选）
+    /// 返回 true 后必须配对调用 EndRenamableGridItem
+    /// </summary>
+    /// <typeparam name="TId">RenameController 的 ID 类型（通常 std::filesystem::path 或 UUID）</typeparam>
+    /// <typeparam name="FnCommit">改名提交回调签名 void(const std::string&)</typeparam>
+    /// <typeparam name="FnCancel">取消回调签名 void()，可选</typeparam>
+    template <typename TId, typename FnCommit, typename FnCancel = std::nullptr_t>
+    bool BeginRenamableGridItem(
+        const Ref<Texture2D>&       icon,
+        const char*                 name,
+        const std::string&          displayName,
+        const TId&                  id,
+        bool                        selected,
+        RenameController<TId>&      rename,
+        FnCommit&&                  onCommit,
+        int                         scopeTag = 0,
+        RenameClickOutcome*         outClickOutcome = nullptr,
+        FnCancel&&                  onCancel = nullptr)
+    {
+        bool isRenaming = rename.IsEditing(id, scopeTag);
+
+        GridItemFrame frame = BeginGridItemFrame(icon, name, displayName, selected, isRenaming);
+
+        // 把名字区作为 Rename 命中矩形上报，供 InputText 覆盖 + 两阶段"点击已选中名字区进入 Rename"
+        rename.SubmitHitRect(frame.NameMin, frame.NameMax);
+        rename.DrawInlineInputIfEditing(id, "##InlineRenameGrid",
+            std::forward<FnCommit>(onCommit),
+            std::forward<FnCancel>(onCancel),
+            scopeTag);
+
+        RenameClickOutcome outcome = RenameClickOutcome::None;
+        if (!isRenaming && frame.Clicked)
+        {
+            outcome = rename.NotifyClicked(id, selected, displayName, scopeTag);
+        }
+        if (outClickOutcome)
+        {
+            *outClickOutcome = outcome;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// 结束 Grid Renamable Item：对应 BeginRenamableGridItem 返回 true 时的收尾
+    /// </summary>
+    inline void EndRenamableGridItem()
+    {
+        EndGridItemFrame();
+    }
 }

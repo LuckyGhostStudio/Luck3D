@@ -53,6 +53,12 @@ namespace Lucky::UI::Theme
         // ---- 纹理预览 ----
         constexpr float TexturePreviewSize = 64.0f; // 纹理预览图尺寸
 
+        // ---- Grid 单元格（BeginGrid / BeginRenamableGridItem 使用）----
+        constexpr float GridItemPaddingX = 8.0f;    // 单元格水平内边距（图标两侧 + 文本两侧）
+        constexpr float GridItemPaddingY = 6.0f;    // 单元格垂直内边距（图标顶部 + 文本底部）
+        constexpr int   GridItemNameRows = 2;       // 文本最多几行
+        constexpr float GridItemSpacing  = 8.0f;    // 单元格之间间距
+
         // ---- 通用 ----
         constexpr float Alpha = 1.0f;                       // 全局透明度
         constexpr float DisabledAlpha = 0.60f;              // 禁用状态的透明度

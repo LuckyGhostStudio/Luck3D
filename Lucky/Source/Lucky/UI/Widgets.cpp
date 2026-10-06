@@ -571,4 +571,245 @@ namespace Lucky::UI
             ImGui::SetItemAllowOverlap();
         }
     }
+
+    // ================================================================
+    // Grid 布局原语：BeginGrid / EndGrid / BeginGridItemFrame / EndGridItemFrame
+    // ================================================================
+
+    namespace
+    {
+        /// <summary>
+        /// Grid 栈帧：BeginGrid push、EndGrid pop
+        /// Item 从栈顶读 CellWidth / CellHeight / 当前列号判断是否 SameLine 换行
+        /// </summary>
+        struct GridContext
+        {
+            float   CellWidth = 0.0f;
+            float   CellHeight = 0.0f;
+            float   Spacing = 0.0f;
+            int     ColumnCount = 0;
+            int     CurrentColumn = 0;
+        };
+        static std::vector<GridContext> s_GridStack;
+
+        /// <summary>
+        /// 在给定矩形内绘制中间对齐、按行截断（超出宽度加 "..."）的文本
+        /// 行高取 ImGui 当前字体行高；最多 maxRows 行；超出的最后一行用 "..." 截断
+        /// </summary>
+        void DrawTruncatedCenteredText(ImDrawList* dl, const ImVec2& rectMin, const ImVec2& rectMax, const char* text, int maxRows)
+        {
+            if (!text || !*text || rectMax.x <= rectMin.x || rectMax.y <= rectMin.y)
+            {
+                return;
+            }
+
+            const ImU32 color = ImGui::GetColorU32(ImGuiCol_Text);
+            const float lineH = ImGui::GetTextLineHeight();
+            const float rectW = rectMax.x - rectMin.x;
+            const char* ellipsis = "...";
+            const float ellipsisW = ImGui::CalcTextSize(ellipsis).x;
+
+            // 简化策略：首行用全文；若宽度放不下再二分找截断点加 "..."
+            // 不做换行（Grid 名字一般短，视觉上单行省略号最清晰，maxRows 保留为后续扩展）
+            (void)maxRows;
+
+            const char* textEnd = text + std::strlen(text);
+            ImVec2 fullSize = ImGui::CalcTextSize(text, textEnd);
+            if (fullSize.x <= rectW)
+            {
+                // 一行放得下，水平居中
+                ImVec2 pos((rectMin.x + rectMax.x - fullSize.x) * 0.5f, rectMin.y);
+                dl->AddText(pos, color, text, textEnd);
+                return;
+            }
+
+            // 一行放不下：二分找最长能放下的前缀，然后加 "..."
+            float budget = rectW - ellipsisW;
+            if (budget <= 0.0f)
+            {
+                // 连 "..." 都放不下：只画一个 "." 居中
+                ImVec2 pos((rectMin.x + rectMax.x - ellipsisW) * 0.5f, rectMin.y);
+                dl->AddText(pos, color, ellipsis);
+                return;
+            }
+
+            int lo = 0;
+            int hi = static_cast<int>(textEnd - text);
+            while (lo < hi)
+            {
+                int mid = (lo + hi + 1) / 2;
+                ImVec2 size = ImGui::CalcTextSize(text, text + mid);
+                if (size.x <= budget)
+                {
+                    lo = mid;
+                }
+                else
+                {
+                    hi = mid - 1;
+                }
+            }
+
+            std::string truncated;
+            truncated.append(text, text + lo);
+            truncated.append(ellipsis);
+            ImVec2 size = ImGui::CalcTextSize(truncated.c_str());
+            ImVec2 pos((rectMin.x + rectMax.x - size.x) * 0.5f, rectMin.y);
+            dl->AddText(pos, color, truncated.c_str());
+
+            // lineH 保留供后续多行扩展
+            (void)lineH;
+        }
+    }
+
+    bool BeginGrid(const char* id, float cellWidth, float cellHeight, float spacing)
+    {
+        if (cellWidth <= 0.0f || cellHeight <= 0.0f)
+        {
+            return false;
+        }
+
+        float availW = ImGui::GetContentRegionAvail().x;
+        if (availW <= 0.0f)
+        {
+            return false;
+        }
+
+        int cols = static_cast<int>((availW + spacing) / (cellWidth + spacing));
+        if (cols < 1)
+        {
+            cols = 1;   // 面板比一格还窄也至少放一个
+        }
+
+        GridContext ctx;
+        ctx.CellWidth = cellWidth;
+        ctx.CellHeight = cellHeight;
+        ctx.Spacing = spacing;
+        ctx.ColumnCount = cols;
+        ctx.CurrentColumn = 0;
+        s_GridStack.push_back(ctx);
+
+        ImGui::PushID(id);
+        return true;
+    }
+
+    void EndGrid()
+    {
+        LF_CORE_ASSERT(!s_GridStack.empty(), "EndGrid without matching BeginGrid");
+        ImGui::PopID();
+
+        // 结束前把 ImGui cursor 带到下一行（最后一行可能没走到换行点），避免外层 BeginChild 高度算错
+        GridContext& ctx = s_GridStack.back();
+        if (ctx.CurrentColumn > 0)
+        {
+            ImGui::NewLine();
+        }
+        s_GridStack.pop_back();
+    }
+
+    GridItemFrame BeginGridItemFrame(
+        const Ref<Texture2D>& icon,
+        const char*           name,
+        const std::string&    displayName,
+        bool                  selected,
+        bool                  isRenaming)
+    {
+        LF_CORE_ASSERT(!s_GridStack.empty(), "BeginGridItemFrame must be inside BeginGrid / EndGrid");
+        GridContext& ctx = s_GridStack.back();
+
+        // 1) 调度 SameLine：非当行首个 Item 时紧随上一个 Item 右侧
+        if (ctx.CurrentColumn > 0)
+        {
+            ImGui::SameLine(0.0f, ctx.Spacing);
+        }
+
+        // 2) 分配 cell bb
+        ImGui::PushID(name);
+        ImVec2 cellMin = ImGui::GetCursorScreenPos();
+        ImVec2 cellSize(ctx.CellWidth, ctx.CellHeight);
+        ImVec2 cellMax(cellMin.x + ctx.CellWidth, cellMin.y + ctx.CellHeight);
+
+        ImGui::InvisibleButton("##cell", cellSize);
+        bool isHovered = ImGui::IsItemHovered();
+        bool clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+
+        // 3) 画背景：选中态 / Hover 态
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        if (selected)
+        {
+            // 复用全局选中蓝（和 TreeNode 选中态同源）
+            const glm::vec4& selBlue = EditorPreferences::Get().GetColors().SelectionBlueColor;
+            ImU32 col = IM_COL32(
+                static_cast<int>(selBlue.r * 255.0f),
+                static_cast<int>(selBlue.g * 255.0f),
+                static_cast<int>(selBlue.b * 255.0f),
+                static_cast<int>(selBlue.a * 255.0f));
+            dl->AddRectFilled(cellMin, cellMax, col, Theme::Layout::ChildRounding);
+        }
+        else if (isHovered)
+        {
+            // Hover 用 ImGui 默认 HeaderHovered 色，视觉上和 TreeNode hover 一致
+            ImU32 col = ImGui::GetColorU32(ImGuiCol_HeaderHovered, 0.5f);
+            dl->AddRectFilled(cellMin, cellMax, col, Theme::Layout::ChildRounding);
+        }
+
+        // 4) 画图标（居中上部，图标区正方形）
+        const float padX = Theme::Layout::GridItemPaddingX;
+        const float padY = Theme::Layout::GridItemPaddingY;
+        const float textRowH = ImGui::GetTextLineHeight();
+        const float nameAreaH = textRowH * Theme::Layout::GridItemNameRows;
+        const float iconAreaH = ctx.CellHeight - padY * 2.0f - nameAreaH;
+        const float iconAreaW = ctx.CellWidth - padX * 2.0f;
+        const float iconSize = (iconAreaH < iconAreaW ? iconAreaH : iconAreaW);
+        if (iconSize > 0.0f && icon)
+        {
+            ImVec2 iconMin(
+                cellMin.x + (ctx.CellWidth - iconSize) * 0.5f,
+                cellMin.y + padY + (iconAreaH - iconSize) * 0.5f);
+            ImVec2 iconMax(iconMin.x + iconSize, iconMin.y + iconSize);
+            ImTextureID texID = GetImTextureID(icon);
+            if (texID)
+            {
+                // 和 TreeNode 的 Image 用法保持一致：OpenGL FBO 纹理 Y 向下，这里翻转 UV
+                dl->AddImage(texID, iconMin, iconMax, ImVec2(0, 1), ImVec2(1, 0));
+            }
+        }
+
+        // 5) 名字区矩形（固定位置：图标下方的整行）
+        ImVec2 nameMin(cellMin.x + padX, cellMin.y + padY + iconAreaH);
+        ImVec2 nameMax(cellMax.x - padX, cellMax.y - padY);
+
+        // 6) 非 Rename 态下画省略号截断的居中文本；Rename 态由上层 InputText 覆盖
+        if (!isRenaming)
+        {
+            // 截断 ## 及其后面的 ID 部分，只显示可见文本
+            std::string visible = displayName;
+            size_t hashPos = visible.find("##");
+            if (hashPos != std::string::npos)
+            {
+                visible.resize(hashPos);
+            }
+            DrawTruncatedCenteredText(dl, nameMin, nameMax, visible.c_str(), Theme::Layout::GridItemNameRows);
+        }
+
+        GridItemFrame frame;
+        frame.CellMin = cellMin;
+        frame.CellMax = cellMax;
+        frame.NameMin = nameMin;
+        frame.NameMax = nameMax;
+        frame.Clicked = clicked;
+        return frame;
+    }
+
+    void EndGridItemFrame()
+    {
+        LF_CORE_ASSERT(!s_GridStack.empty(), "EndGridItemFrame without matching Begin*GridItem*");
+        ImGui::PopID();
+
+        GridContext& ctx = s_GridStack.back();
+        ++ctx.CurrentColumn;
+        if (ctx.CurrentColumn >= ctx.ColumnCount)
+        {
+            ctx.CurrentColumn = 0;  // 下一次 BeginItem 的 CurrentColumn == 0，SameLine 分支不触发，自动换行
+        }
+    }
 }
