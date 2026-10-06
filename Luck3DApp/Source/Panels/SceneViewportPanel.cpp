@@ -235,6 +235,8 @@ namespace Lucky
                 UI::ShiftCursorX(8.0f);
 
                 // ---- Gizmo 操作组：Selection / Translate / Rotate / Scale（互斥、必选一个）----
+                // 外包 Segmented 容器：4 个按钮拼成"外圆内方"的分段按钮条（Unity 风格），间距对齐 EditorToolbar
+                UI::BeginSegmentedGroup("##GizmoOpsSeg", 4, 2.0f);
                 UI::BeginRadioGroup("##GizmoOps", m_GizmoType, &radioStyle);
                 {
                     UI::RadioIconItem(-1, EditorIconManager::GetSelectionIcon(), iconBtnSize, "Selection (W)");
@@ -243,6 +245,7 @@ namespace Lucky
                     UI::RadioIconItem(ImGuizmo::OPERATION::SCALE, EditorIconManager::GetScaleIcon(), iconBtnSize, "Scale (S)");
                 }
                 UI::EndRadioGroup();
+                UI::EndSegmentedGroup();
 
                 ImGui::SameLine();
                 UI::ShiftCursorX(8.0f);

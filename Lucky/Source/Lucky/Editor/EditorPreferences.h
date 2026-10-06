@@ -49,9 +49,10 @@ namespace Lucky
         glm::vec4 ToggleBgActive           = { 0.280f, 0.280f, 0.280f, 1.0f };  // 未选中：按下背景
 
         // ---- 面板局部工具栏 Toggle 按钮颜色（Scene 视口 Grid/CSM/Gizmo 组用，不含 Play/Pause 全局工具栏）----
-        // 未选中按下也用 SelectionBlueColor（点下去瞬间就显示"将要选中"的视觉反馈）
+        // 工具栏选中蓝单独一色，和全局 SelectionBlueColor 解耦；未选中按下也用它作为"将要选中"的预览反馈。
         glm::vec4 ToolbarToggleBgNormal    = { 0.345f, 0.345f, 0.345f, 1.0f };  // 未选中：常态背景 #585858
         glm::vec4 ToolbarToggleBgHovered   = { 0.431f, 0.431f, 0.431f, 1.0f };  // 未选中：Hover 背景（略亮）
+        glm::vec4 ToolbarToggleBgSelected  = { 0.275f, 0.377f, 0.486f, 1.0f };  // 选中：#46607C（工具栏专用选中蓝）
         
         glm::vec4 HeaderColor            = { 0.243f, 0.243f, 0.243f, 1.0f };    // 标题头（折叠头、树节点、可选项等）
         glm::vec4 HeaderHovered          = { 0.3f, 0.305f, 0.31f, 1.0f };       // 标题头（悬停）

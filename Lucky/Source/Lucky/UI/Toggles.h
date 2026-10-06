@@ -18,6 +18,10 @@ namespace Lucky::UI
         ImVec4 BgSelected;            // 选中：常态背景
         ImVec4 BgSelectedHovered;     // 选中：Hover 背景
         ImVec4 BgSelectedActive;      // 选中：按下背景
+
+        // 哪几个角画圆角（ImDrawFlags_RoundCornersXxx）。0 等价于 RoundCornersAll（四角圆）。
+        // 位于 BeginSegmentedGroup 作用域内的 Toggle 会被容器根据位置自动 override 此字段。
+        ImDrawFlags CornerFlags = 0;
     };
 
     /// <summary>
@@ -90,6 +94,32 @@ namespace Lucky::UI
     /// 结束 Radio 组
     /// </summary>
     void EndRadioGroup();
+
+    // ========================================================================
+    // 分段按钮容器（Segmented Group，外圆内方）
+    // ========================================================================
+
+    /// <summary>
+    /// 开始一个"分段按钮"容器：相邻 Toggle 在视觉上拼成一条"外圆内方"的按钮条，
+    /// 相邻按钮之间保留 spacing 像素的极细缝隙（Unity 风格，Pivot/Center 工具栏那种）。
+    /// 作用域内的 Toggle 原语自动按位置设置圆角：
+    ///   index 0        → 左两角圆、右两角方
+    ///   middle         → 全方
+    ///   index count-1  → 左两角方、右两角圆
+    ///   count == 1     → 全圆（退化）
+    /// Toggle 原语自动在后续 Item 之间调 SameLine(spacing)，调用方不需要自己 SameLine。
+    /// 可嵌套 BeginRadioGroup —— Radio 组会把 SameLine 让给 Segmented 容器接管。
+    /// 必须与 EndSegmentedGroup 配对使用。
+    /// </summary>
+    /// <param name="strID">ImGui ID 子作用域</param>
+    /// <param name="itemCount">组内 Toggle 总数（必须准确，EndSegmentedGroup 会 Assert）</param>
+    /// <param name="spacing">相邻按钮之间的像素间距，默认 1</param>
+    void BeginSegmentedGroup(const char* strID, int itemCount, float spacing = 1.0f);
+
+    /// <summary>
+    /// 结束分段按钮容器
+    /// </summary>
+    void EndSegmentedGroup();
 
     /// <summary>
     /// 工厂：构造"面板局部工具栏"专用的 Toggle 样式。

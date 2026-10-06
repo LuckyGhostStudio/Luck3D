@@ -152,6 +152,7 @@ namespace Lucky
             out << YAML::Key << "ToggleBgActive" << YAML::Value << m_Colors.ToggleBgActive;
             out << YAML::Key << "ToolbarToggleBgNormal" << YAML::Value << m_Colors.ToolbarToggleBgNormal;
             out << YAML::Key << "ToolbarToggleBgHovered" << YAML::Value << m_Colors.ToolbarToggleBgHovered;
+            out << YAML::Key << "ToolbarToggleBgSelected" << YAML::Value << m_Colors.ToolbarToggleBgSelected;
             out << YAML::Key << "HeaderColor" << YAML::Value << m_Colors.HeaderColor;
             out << YAML::Key << "HeaderHovered" << YAML::Value << m_Colors.HeaderHovered;
             out << YAML::Key << "HeaderActive" << YAML::Value << m_Colors.HeaderActive;
@@ -259,6 +260,7 @@ namespace Lucky
             ReadVec4(ui, "ToggleBgActive", m_Colors.ToggleBgActive);
             ReadVec4(ui, "ToolbarToggleBgNormal", m_Colors.ToolbarToggleBgNormal);
             ReadVec4(ui, "ToolbarToggleBgHovered", m_Colors.ToolbarToggleBgHovered);
+            ReadVec4(ui, "ToolbarToggleBgSelected", m_Colors.ToolbarToggleBgSelected);
             ReadVec4(ui, "HeaderColor", m_Colors.HeaderColor);
             ReadVec4(ui, "HeaderHovered", m_Colors.HeaderHovered);
             ReadVec4(ui, "HeaderActive", m_Colors.HeaderActive);

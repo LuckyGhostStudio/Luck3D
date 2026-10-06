@@ -47,14 +47,14 @@ namespace Lucky::UI
     ToggleStyle MakeToolbarToggleStyle()
     {
         const ColorSettings& c = EditorPreferences::Get().GetColors();
-        const ImVec4 selBlue = ToImVec4(c.SelectionBlueColor);
+        const ImVec4 toolbarSel = ToImVec4(c.ToolbarToggleBgSelected);
         return ToggleStyle{
             ToImVec4(c.ToolbarToggleBgNormal),      // 未选中：灰
             ToImVec4(c.ToolbarToggleBgHovered),     // 未选中：悬浮稍亮
-            selBlue,                                // 未选中：按下用选中蓝（即将选中的预览反馈）
-            selBlue,                                // 选中：三态全蓝
-            selBlue,
-            selBlue,
+            toolbarSel,                             // 未选中：按下用工具栏选中蓝（即将选中的预览反馈）
+            toolbarSel,                             // 选中：三态全蓝
+            toolbarSel,
+            toolbarSel,
         };
     }
 
@@ -104,12 +104,68 @@ namespace Lucky::UI
     }
 
     // ========================================================================
+    // Segmented 容器栈（相邻 Toggle 自动拼成"外圆内方"的按钮条）
+    // ========================================================================
+
+    namespace
+    {
+        struct SegmentedGroupContext
+        {
+            int ItemCount = 0;          // Begin 声明的 Item 总数
+            int CurrentIndex = 0;       // 已画 Item 数（下一个 Item 的 index）
+            float Spacing = 1.0f;       // 相邻 Item 间水平像素间距
+        };
+
+        static std::vector<SegmentedGroupContext> s_SegmentedGroupStack;
+    }
+
+    /// <summary>
+    /// 若当前位于 Segmented 容器内：根据 Item 位置 override style.CornerFlags，
+    /// 第 2 个及之后的 Item 先调 SameLine(spacing)，然后推进 CurrentIndex。
+    /// </summary>
+    static void ApplySegmentedContext(ToggleStyle& style)
+    {
+        if (s_SegmentedGroupStack.empty())
+        {
+            return;
+        }
+        SegmentedGroupContext& ctx = s_SegmentedGroupStack.back();
+        const int i = ctx.CurrentIndex;
+        const int n = ctx.ItemCount;
+
+        if (n <= 1)
+        {
+            style.CornerFlags = ImDrawFlags_RoundCornersAll;
+        }
+        else if (i == 0)
+        {
+            style.CornerFlags = ImDrawFlags_RoundCornersLeft;
+        }
+        else if (i == n - 1)
+        {
+            style.CornerFlags = ImDrawFlags_RoundCornersRight;
+        }
+        else
+        {
+            style.CornerFlags = ImDrawFlags_RoundCornersNone;
+        }
+
+        if (i > 0)
+        {
+            ImGui::SameLine(0.0f, ctx.Spacing);
+        }
+
+        ++ctx.CurrentIndex;
+    }
+
+    // ========================================================================
     // 第 1 层：Toggle 原语
     // ========================================================================
 
     bool ToggleIconButton(const char* strID, const Ref<Texture2D>& icon, bool& value, const ImVec2& size, const char* tooltip, const ToggleStyle* style)
     {
         ToggleStyle s = style ? *style : GetDefaultToggleStyle();
+        ApplySegmentedContext(s);
 
         ImGui::PushID(strID);
 
@@ -120,10 +176,10 @@ namespace Lucky::UI
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-        // 画按钮背景矩形（根据 selected/hovered/active 挑色）
+        // 画按钮背景矩形（根据 selected/hovered/active 挑色，CornerFlags 控制哪几个角圆）
         ImVec4 bgColor = PickToggleBgColor(value, hovered, active, s);
         ImVec2 rectMax = ImVec2(cursorStart.x + size.x, cursorStart.y + size.y);
-        drawList->AddRectFilled(cursorStart, rectMax, ImGui::ColorConvertFloat4ToU32(bgColor), Theme::Layout::FrameRounding);
+        drawList->AddRectFilled(cursorStart, rectMax, ImGui::ColorConvertFloat4ToU32(bgColor), Theme::Layout::FrameRounding, s.CornerFlags);
 
         // 画图标：直接撑满按钮区，和原生 ImageButton + framePadding=0 行为一致。
         // 图标 PNG 的比例由调用方的 size 匹配（如 Play.png 57x32 对应 50x28 按钮），避免变形。
@@ -151,19 +207,51 @@ namespace Lucky::UI
     bool ToggleTextButton(const char* label, bool& value, const ImVec2& size, const char* tooltip, const ToggleStyle* style)
     {
         ToggleStyle s = style ? *style : GetDefaultToggleStyle();
+        ApplySegmentedContext(s);
 
-        PushToggleButtonColors(value, s);
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
+        // 计算按钮尺寸（size 为 0 时按文本自动测算 + FramePadding）；文本尺寸只量 "##" 之前的可见部分
+        const ImVec2 textSize = ImGui::CalcTextSize(label, nullptr, true);
+        const ImVec2 framePadding = ImGui::GetStyle().FramePadding;
+        ImVec2 realSize = size;
+        if (realSize.x <= 0.0f)
+        {
+            realSize.x = textSize.x + framePadding.x * 2.0f;
+        }
+        if (realSize.y <= 0.0f)
+        {
+            realSize.y = textSize.y + framePadding.y * 2.0f;
+        }
 
-        bool clicked = ImGui::Button(label, size);
+        ImGui::PushID(label);
 
-        ImGui::PopStyleVar();
-        ImGui::PopStyleColor(3);
+        ImVec2 cursorStart = ImGui::GetCursorScreenPos();
+        bool clicked = ImGui::InvisibleButton("##btn", realSize);
+        bool hovered = ImGui::IsItemHovered();
+        bool active = ImGui::IsItemActive();
 
-        if (tooltip && ImGui::IsItemHovered())
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+        // 画按钮背景（含 CornerFlags 控制的部分圆角）
+        ImVec4 bgColor = PickToggleBgColor(value, hovered, active, s);
+        ImVec2 rectMax = ImVec2(cursorStart.x + realSize.x, cursorStart.y + realSize.y);
+        drawList->AddRectFilled(cursorStart, rectMax, ImGui::ColorConvertFloat4ToU32(bgColor), Theme::Layout::FrameRounding, s.CornerFlags);
+
+        // 画文本（居中）；取 label 到 "##" 之前作为显示字符串
+        const char* visibleEnd = label;
+        while (visibleEnd[0] != '\0' && !(visibleEnd[0] == '#' && visibleEnd[1] == '#'))
+        {
+            ++visibleEnd;
+        }
+        float textX = cursorStart.x + (realSize.x - textSize.x) * 0.5f;
+        float textY = cursorStart.y + (realSize.y - textSize.y) * 0.5f;
+        drawList->AddText(ImVec2(textX, textY), ImGui::GetColorU32(ImGuiCol_Text), label, visibleEnd);
+
+        if (tooltip && hovered)
         {
             ImGui::SetTooltip("%s", tooltip);
         }
+
+        ImGui::PopID();
 
         if (clicked)
         {
@@ -175,6 +263,7 @@ namespace Lucky::UI
     bool ToggleIconTextButton(const char* strID, const Ref<Texture2D>& icon, const char* label, bool& value, const ImVec2& size, const char* tooltip, const ToggleStyle* style)
     {
         ToggleStyle s = style ? *style : GetDefaultToggleStyle();
+        ApplySegmentedContext(s);
 
         constexpr float iconToTextGap = 6.0f;
         constexpr float horizontalPadding = 8.0f;
@@ -202,11 +291,11 @@ namespace Lucky::UI
         bool hovered = ImGui::IsItemHovered();
         bool active = ImGui::IsItemActive();
 
-        // 绘制背景矩形
+        // 绘制背景矩形（CornerFlags 控制哪几个角圆）
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         ImVec4 bgColor = PickToggleBgColor(value, hovered, active, s);
         ImVec2 rectMax = ImVec2(cursorStart.x + realSize.x, cursorStart.y + realSize.y);
-        drawList->AddRectFilled(cursorStart, rectMax, ImGui::ColorConvertFloat4ToU32(bgColor), Theme::Layout::FrameRounding);
+        drawList->AddRectFilled(cursorStart, rectMax, ImGui::ColorConvertFloat4ToU32(bgColor), Theme::Layout::FrameRounding, s.CornerFlags);
 
         // 绘制图标（左侧，垂直居中）
         if (icon)
@@ -262,7 +351,9 @@ namespace Lucky::UI
     {
         LF_CORE_ASSERT(!s_RadioGroupStack.empty(), "RadioXxxItem called outside BeginRadioGroup");
         RadioGroupContext& ctx = s_RadioGroupStack.back();
-        if (ctx.ItemCount > 0)
+        // 嵌套在 SegmentedGroup 内时 SameLine 由 Segmented 容器接管，Radio 不做
+        const bool inSegmented = !s_SegmentedGroupStack.empty();
+        if (ctx.ItemCount > 0 && !inSegmented)
         {
             ImGui::SameLine(0.0f, ctx.Style.ItemSpacing);
         }
@@ -355,5 +446,29 @@ namespace Lucky::UI
             RadioIconItem(desc.Value, desc.Icon ? *desc.Icon : Ref<Texture2D>(), itemSize, desc.Tooltip);
         }
         EndRadioGroup();
+    }
+
+    // ========================================================================
+    // 分段按钮容器（Segmented Group）
+    // ========================================================================
+
+    void BeginSegmentedGroup(const char* strID, int itemCount, float spacing)
+    {
+        SegmentedGroupContext ctx;
+        ctx.ItemCount = itemCount;
+        ctx.CurrentIndex = 0;
+        ctx.Spacing = spacing;
+        s_SegmentedGroupStack.push_back(ctx);
+
+        ImGui::PushID(strID);
+    }
+
+    void EndSegmentedGroup()
+    {
+        LF_CORE_ASSERT(!s_SegmentedGroupStack.empty(), "EndSegmentedGroup without matching BeginSegmentedGroup");
+        const SegmentedGroupContext& ctx = s_SegmentedGroupStack.back();
+        LF_CORE_ASSERT(ctx.CurrentIndex == ctx.ItemCount, "SegmentedGroup declared {0} items but got {1}", ctx.ItemCount, ctx.CurrentIndex);
+        ImGui::PopID();
+        s_SegmentedGroupStack.pop_back();
     }
 }

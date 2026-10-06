@@ -71,8 +71,10 @@ namespace Lucky
         const float cursorY = (totalHeight - kSceneStateButtonHeight) * 0.5f;
         ImGui::SetCursorPosY(cursorY);
 
-        // ---- Play 按钮：Toggle IsPlaying ----
-        // isPlaying 是从 SceneManager 推导的本地副本，用临时 bool 吞掉 Toggle 的内部翻转，
+        // ---- Playback 分段按钮条：Play / Pause（将来加 Step 只需把 count 改 3 并添加一个 Toggle）----
+        UI::BeginSegmentedGroup("##Playback", 2, kButtonSpacing);
+
+        // Play：isPlaying 是从 SceneManager 推导的本地副本，用临时 bool 吞掉 Toggle 的内部翻转，
         // 真正的播放/停止判断仍走原始 isPlaying。
         bool playingLocal = isPlaying;
         if (UI::ToggleIconButton("##Play", EditorIconManager::GetPlayIcon(), playingLocal, playSize))
@@ -92,11 +94,7 @@ namespace Lucky
             }
         }
 
-        ImGui::SameLine(0.0f, kButtonSpacing);
-        ImGui::SetCursorPosY(cursorY);
-
-        // ---- Pause 按钮：Toggle PauseArmed ----
-        // ToggleIconButton 内部已自动翻转 m_PauseArmed，不要再手动翻转一次。
+        // Pause：ToggleIconButton 内部已自动翻转 m_PauseArmed，不要再手动翻转一次。
         if (UI::ToggleIconButton("##Pause", EditorIconManager::GetPauseIcon(), m_PauseArmed, pauseSize))
         {
             if (isPlaying)
@@ -104,6 +102,8 @@ namespace Lucky
                 SceneManager::SetScenePaused(m_PauseArmed);
             }
         }
+
+        UI::EndSegmentedGroup();
 
         ImGui::End();
 
