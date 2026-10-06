@@ -37,6 +37,10 @@ namespace Lucky
         // ---- 工具条图标 ----
         Ref<Texture2D> PlayIcon;
         Ref<Texture2D> PauseIcon;
+        Ref<Texture2D> SelectionIcon;
+        Ref<Texture2D> TranslationIcon;
+        Ref<Texture2D> RotationIcon;
+        Ref<Texture2D> ScaleIcon;
     };
 
     static EditorIconData s_IconData;
@@ -87,6 +91,10 @@ namespace Lucky
         // ---- 加载工具条图标 ----
         s_IconData.PlayIcon = LoadIcon("Toolbar/Play.png");
         s_IconData.PauseIcon = LoadIcon("Toolbar/Pause.png");
+        s_IconData.SelectionIcon = LoadIcon("Toolbar/Selection.png");
+        s_IconData.TranslationIcon = LoadIcon("Toolbar/Translation.png");
+        s_IconData.RotationIcon = LoadIcon("Toolbar/Rotation.png");
+        s_IconData.ScaleIcon = LoadIcon("Toolbar/Scale.png");
 
         // ---- 加载资产类型图标 ----
         s_IconData.AssetTypeIcons[AssetType::Material]  = LoadIcon("Asset/Material.png");
@@ -208,5 +216,25 @@ namespace Lucky
     const Ref<Texture2D>& EditorIconManager::GetPauseIcon()
     {
         return s_IconData.PauseIcon;
+    }
+
+    const Ref<Texture2D>& EditorIconManager::GetSelectionIcon()
+    {
+        return s_IconData.SelectionIcon;
+    }
+
+    const Ref<Texture2D>& EditorIconManager::GetTranslationIcon()
+    {
+        return s_IconData.TranslationIcon;
+    }
+
+    const Ref<Texture2D>& EditorIconManager::GetRotationIcon()
+    {
+        return s_IconData.RotationIcon;
+    }
+
+    const Ref<Texture2D>& EditorIconManager::GetScaleIcon()
+    {
+        return s_IconData.ScaleIcon;
     }
 }

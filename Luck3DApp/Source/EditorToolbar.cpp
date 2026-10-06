@@ -5,6 +5,7 @@
 #include "Lucky/Scene/Scene.h"
 #include "Lucky/Scene/SceneManager.h"
 
+#include "Lucky/UI/Toggles.h"
 #include "Lucky/UI/Widgets.h"
 #include <imgui/imgui.h>
 
@@ -14,45 +15,9 @@ namespace Lucky
 {
     namespace
     {
-        const ImVec4 kBtnBgNormal = ImVec4(0.220f, 0.220f, 0.220f, 1.00f);
-        const ImVec4 kBtnBgHoveredNormal = ImVec4(0.280f, 0.280f, 0.280f, 1.00f);
-        const ImVec4 kBtnBgActiveNormal = kBtnBgHoveredNormal;
-
-        const ImVec4 kBtnBgHighlight = ImVec4(0.200f, 0.302f, 0.452f, 1.00f);
-        const ImVec4 kBtnBgHoveredHighlight = ImVec4(0.200f, 0.302f, 0.502f, 1.00f);
-        const ImVec4 kBtnBgActiveHighlight = kBtnBgHoveredHighlight;
-
         constexpr float kSceneStateButtonHeight = 28.0f;    // Play / Pause 按钮高度
         constexpr float kSceneStateButtonWidth = 50.0f;     // Play / Pause 按钮宽度
         constexpr float kButtonSpacing = 2.0f;
-
-        /// <summary>
-        /// 绘制一个图标 Toggle 按钮：图标 tint 始终为白色，通过按钮背景色区分激活/未激活
-        /// </summary>
-        bool DrawToggleIconButton(const Ref<Texture2D>& icon, bool highlighted, const ImVec2& size)
-        {
-            if (highlighted)
-            {
-                ImGui::PushStyleColor(ImGuiCol_Button, kBtnBgHighlight);
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kBtnBgHoveredHighlight);
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive, kBtnBgActiveHighlight);
-            }
-            else
-            {
-                ImGui::PushStyleColor(ImGuiCol_Button, kBtnBgNormal);
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kBtnBgHoveredNormal);
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive, kBtnBgActiveNormal);
-            }
-
-            // 关闭 FrameBorderSize：全局主题设置 FrameBorderSize = 1，会让 ImageButton 在 bb 边缘画一圈
-            // 半透明 Border，与工具条深色底色混合后视觉上"吞掉"最外 1px，使按钮显得比实际尺寸更小
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
-            bool clicked = UI::ImageButtonFlipped(icon, size, 0);
-            ImGui::PopStyleVar();
-
-            ImGui::PopStyleColor(3);
-            return clicked;
-        }
     }
 
     float EditorToolbar::GetHeight()
@@ -107,8 +72,10 @@ namespace Lucky
         ImGui::SetCursorPosY(cursorY);
 
         // ---- Play 按钮：Toggle IsPlaying ----
-        ImGui::PushID("##Play");
-        if (DrawToggleIconButton(EditorIconManager::GetPlayIcon(), isPlaying, playSize))
+        // isPlaying 是从 SceneManager 推导的本地副本，用临时 bool 吞掉 Toggle 的内部翻转，
+        // 真正的播放/停止判断仍走原始 isPlaying。
+        bool playingLocal = isPlaying;
+        if (UI::ToggleIconButton("##Play", EditorIconManager::GetPlayIcon(), playingLocal, playSize))
         {
             if (!isPlaying)
             {
@@ -124,22 +91,19 @@ namespace Lucky
                 m_PauseArmed = false;   // Stop 时清零预暂停位（对齐 Unity）
             }
         }
-        ImGui::PopID();
 
         ImGui::SameLine(0.0f, kButtonSpacing);
         ImGui::SetCursorPosY(cursorY);
 
         // ---- Pause 按钮：Toggle PauseArmed ----
-        ImGui::PushID("##Pause");
-        if (DrawToggleIconButton(EditorIconManager::GetPauseIcon(), m_PauseArmed, pauseSize))
+        // ToggleIconButton 内部已自动翻转 m_PauseArmed，不要再手动翻转一次。
+        if (UI::ToggleIconButton("##Pause", EditorIconManager::GetPauseIcon(), m_PauseArmed, pauseSize))
         {
-            m_PauseArmed = !m_PauseArmed;
             if (isPlaying)
             {
                 SceneManager::SetScenePaused(m_PauseArmed);
             }
         }
-        ImGui::PopID();
 
         ImGui::End();
 

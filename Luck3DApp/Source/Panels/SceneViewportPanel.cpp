@@ -17,7 +17,10 @@
 
 #include "Lucky/Asset/AssetManager.h"
 
+#include "Lucky/Editor/EditorIconManager.h"
+
 #include "Lucky/UI/ScopedGuards.h"
+#include "Lucky/UI/Toggles.h"
 #include "Lucky/UI/UICore.h"
 #include "Lucky/UI/Widgets.h"
 
@@ -208,80 +211,58 @@ namespace Lucky
 
     void SceneViewportPanel::OnGUI()
     {
-        float toolBarHeight = 34.0f;   // 工具栏高度
-        
+        constexpr float toolBarHeight = 34.0f;
+        constexpr float buttonSize = 28.0f;
+        const ImVec2 iconBtnSize(buttonSize, buttonSize);
+
+        // 面板局部工具栏专用样式：灰底 + 悬浮稍亮 + 按下/选中蓝
+        const UI::ToggleStyle toolbarStyle = UI::MakeToolbarToggleStyle();
+        UI::RadioGroupStyle radioStyle;
+        radioStyle.Items = toolbarStyle;
+
         {
-            UI::ScopedColor bgColor(ImGuiCol_ChildBg, { 0.235f, 0.235f, 0.235f, 1.0f });    // 工具栏背景色
+            UI::ScopedColor bgColor(ImGuiCol_ChildBg, { 0.235f, 0.235f, 0.235f, 1.0f });
             ImGui::BeginChild("ToolBar", { 0, toolBarHeight }, false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
             {
                 UI::ShiftCursor(4.0f, 4.0f);
-            
+
+                // ---- Gizmo 坐标系下拉（Local / World） ----
                 ImGui::SetNextItemWidth(90.0f);
-            
                 const char* gizmoModes[] = { "Local", "World" };
                 UI::DropdownList(m_GizmoMode, gizmoModes, IM_ARRAYSIZE(gizmoModes));
-            
+
                 ImGui::SameLine();
-            
-                UI::ShiftCursorX(2.0f);
-         
-                // TODO 封装 UI::CheckButton()
-            
-                float buttonSize = 28.0f;
-                static bool checked = m_ShowGrid;
-            
-                ImVec4 color = { 0.275f, 0.377f, 0.486f, 1.0f };
-                ImVec4 hoveredColor = { 0.404f, 0.404f, 0.404f, 1.0f };
-                ImVec4 activeColor = { 0.404f, 0.404f, 0.404f, 1.0f };
+                UI::ShiftCursorX(8.0f);
 
-                if (checked)
+                // ---- Gizmo 操作组：Selection / Translate / Rotate / Scale（互斥、必选一个）----
+                UI::BeginRadioGroup("##GizmoOps", m_GizmoType, &radioStyle);
                 {
-                    color = { 0.275f, 0.377f, 0.486f, 1.0f };       // 蓝
-                    hoveredColor = { 0.275f, 0.377f, 0.486f, 1.0f };    
-                    activeColor = { 0.275f, 0.377f, 0.486f, 1.0f };
+                    UI::RadioIconItem(-1, EditorIconManager::GetSelectionIcon(), iconBtnSize, "Selection (W)");
+                    UI::RadioIconItem(ImGuizmo::OPERATION::TRANSLATE, EditorIconManager::GetTranslationIcon(), iconBtnSize, "Translate (G)");
+                    UI::RadioIconItem(ImGuizmo::OPERATION::ROTATE, EditorIconManager::GetRotationIcon(), iconBtnSize, "Rotate (R)");
+                    UI::RadioIconItem(ImGuizmo::OPERATION::SCALE, EditorIconManager::GetScaleIcon(), iconBtnSize, "Scale (S)");
                 }
-                else
-                {
-                    color = { 0.345f, 0.345f, 0.345f, 1.0f };       // 灰
-                    hoveredColor = { 0.404f, 0.404f, 0.404f, 1.0f };
-                    activeColor = { 0.404f, 0.404f, 0.404f, 1.0f };
-                }
-            
-                UI::ScopedColor buttonColor(ImGuiCol_Button, color);
-                UI::ScopedColor buttonHoveredColor(ImGuiCol_ButtonHovered, hoveredColor);
-                UI::ScopedColor buttonActiveColor(ImGuiCol_ButtonActive, activeColor);
-                UI::ScopedStyle buttonBorderSize(ImGuiStyleVar_FrameBorderSize, 0.0f);
-                if (ImGui::Button("Grid", { 0, buttonSize }))
-                {
-                    checked = !checked;
-                
-                    m_ShowGrid = !m_ShowGrid;
-                }
+                UI::EndRadioGroup();
 
-                // ---- CSM 级联调试勾选按钮 ----
+                ImGui::SameLine();
+                UI::ShiftCursorX(8.0f);
+
+                // ---- Grid 开关 ----
+                UI::ToggleTextButton("Grid", m_ShowGrid, { 0.0f, buttonSize }, nullptr, &toolbarStyle);
+
                 ImGui::SameLine();
                 UI::ShiftCursorX(2.0f);
 
+                // ---- CSM 级联调试开关 ----
                 auto debugPass = m_SceneRenderer->GetPipeline().GetPass<DebugVisualizePass>();
                 bool csmChecked = debugPass && debugPass->GetMode() == DebugVisualizeMode::CSMCascades;
-
-                ImVec4 csmColor        = csmChecked ? ImVec4{ 0.275f, 0.377f, 0.486f, 1.0f } : ImVec4{ 0.345f, 0.345f, 0.345f, 1.0f };
-                ImVec4 csmHoveredColor = csmChecked ? ImVec4{ 0.275f, 0.377f, 0.486f, 1.0f } : ImVec4{ 0.404f, 0.404f, 0.404f, 1.0f };
-                ImVec4 csmActiveColor  = csmChecked ? ImVec4{ 0.275f, 0.377f, 0.486f, 1.0f } : ImVec4{ 0.404f, 0.404f, 0.404f, 1.0f };
-
-                UI::ScopedColor csmButtonColor(ImGuiCol_Button, csmColor);
-                UI::ScopedColor csmButtonHoveredColor(ImGuiCol_ButtonHovered, csmHoveredColor);
-                UI::ScopedColor csmButtonActiveColor(ImGuiCol_ButtonActive, csmActiveColor);
-                if (ImGui::Button("CSM", { 0, buttonSize }))
+                bool csmBefore = csmChecked;
+                if (UI::ToggleTextButton("CSM", csmChecked, { 0.0f, buttonSize }, "Toggle CSM Cascade Visualization\nRed=C0  Green=C1  Blue=C2  Yellow=C3", &toolbarStyle))
                 {
                     if (debugPass)
                     {
-                        debugPass->SetMode(csmChecked ? DebugVisualizeMode::None : DebugVisualizeMode::CSMCascades);
+                        debugPass->SetMode(csmBefore ? DebugVisualizeMode::None : DebugVisualizeMode::CSMCascades);
                     }
-                }
-                if (ImGui::IsItemHovered())
-                {
-                    ImGui::SetTooltip("Toggle CSM Cascade Visualization\nRed=C0  Green=C1  Blue=C2  Yellow=C3");
                 }
             }
             ImGui::EndChild();
@@ -480,6 +461,9 @@ namespace Lucky
             // Gizmo 快捷键
             switch (e.GetKeyCode())
             {
+            case Key::W:
+                m_GizmoType = -1;                               // Selection：不显示操纵手柄
+                break;
             case Key::G:
                 m_GizmoType = ImGuizmo::OPERATION::TRANSLATE;   // 平移
                 break;

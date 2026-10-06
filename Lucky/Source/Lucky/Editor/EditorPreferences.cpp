@@ -146,6 +146,12 @@ namespace Lucky
             out << YAML::Key << "ButtonColor" << YAML::Value << m_Colors.ButtonColor;
             out << YAML::Key << "ButtonHovered" << YAML::Value << m_Colors.ButtonHovered;
             out << YAML::Key << "ButtonActive" << YAML::Value << m_Colors.ButtonActive;
+            out << YAML::Key << "SelectionBlueColor" << YAML::Value << m_Colors.SelectionBlueColor;
+            out << YAML::Key << "ToggleBgNormal" << YAML::Value << m_Colors.ToggleBgNormal;
+            out << YAML::Key << "ToggleBgHovered" << YAML::Value << m_Colors.ToggleBgHovered;
+            out << YAML::Key << "ToggleBgActive" << YAML::Value << m_Colors.ToggleBgActive;
+            out << YAML::Key << "ToolbarToggleBgNormal" << YAML::Value << m_Colors.ToolbarToggleBgNormal;
+            out << YAML::Key << "ToolbarToggleBgHovered" << YAML::Value << m_Colors.ToolbarToggleBgHovered;
             out << YAML::Key << "HeaderColor" << YAML::Value << m_Colors.HeaderColor;
             out << YAML::Key << "HeaderHovered" << YAML::Value << m_Colors.HeaderHovered;
             out << YAML::Key << "HeaderActive" << YAML::Value << m_Colors.HeaderActive;
@@ -247,6 +253,12 @@ namespace Lucky
             ReadVec4(ui, "ButtonColor", m_Colors.ButtonColor);
             ReadVec4(ui, "ButtonHovered", m_Colors.ButtonHovered);
             ReadVec4(ui, "ButtonActive", m_Colors.ButtonActive);
+            ReadVec4(ui, "SelectionBlueColor", m_Colors.SelectionBlueColor);
+            ReadVec4(ui, "ToggleBgNormal", m_Colors.ToggleBgNormal);
+            ReadVec4(ui, "ToggleBgHovered", m_Colors.ToggleBgHovered);
+            ReadVec4(ui, "ToggleBgActive", m_Colors.ToggleBgActive);
+            ReadVec4(ui, "ToolbarToggleBgNormal", m_Colors.ToolbarToggleBgNormal);
+            ReadVec4(ui, "ToolbarToggleBgHovered", m_Colors.ToolbarToggleBgHovered);
             ReadVec4(ui, "HeaderColor", m_Colors.HeaderColor);
             ReadVec4(ui, "HeaderHovered", m_Colors.HeaderHovered);
             ReadVec4(ui, "HeaderActive", m_Colors.HeaderActive);

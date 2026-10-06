@@ -37,6 +37,21 @@ namespace Lucky
         glm::vec4 ButtonColor            = { 0.32f, 0.32f, 0.32f, 1.0f };       // 按钮
         glm::vec4 ButtonHovered          = { 0.4039f, 0.4039f, 0.4039f, 1.0f }; // 按钮（悬停）
         glm::vec4 ButtonActive           = { 0.275f, 0.376f, 0.486f, 1.0f };    // 按钮（激活）
+
+        // ---- 选中态颜色（全局抽象）----
+        // 所有需要表达"选中"语义的 UI 元素（Hierarchy 节点、Toggle 按钮、将来其他地方）统一引用。
+        // 未来若增加其他选中语义（如警告选中橙），在此处并列添加新字段。
+        glm::vec4 SelectionBlueColor       = { 0.2f, 0.302f, 0.452f, 1.0f };    // 选中蓝（Hierarchy 节点选中、Toggle 选中态）
+
+        // ---- 通用 Toggle 按钮颜色（EditorToolbar 的 Play/Pause 等用；选中态始终用 SelectionBlueColor）----
+        glm::vec4 ToggleBgNormal           = { 0.220f, 0.220f, 0.220f, 1.0f };  // 未选中：常态背景
+        glm::vec4 ToggleBgHovered          = { 0.280f, 0.280f, 0.280f, 1.0f };  // 未选中：Hover 背景
+        glm::vec4 ToggleBgActive           = { 0.280f, 0.280f, 0.280f, 1.0f };  // 未选中：按下背景
+
+        // ---- 面板局部工具栏 Toggle 按钮颜色（Scene 视口 Grid/CSM/Gizmo 组用，不含 Play/Pause 全局工具栏）----
+        // 未选中按下也用 SelectionBlueColor（点下去瞬间就显示"将要选中"的视觉反馈）
+        glm::vec4 ToolbarToggleBgNormal    = { 0.345f, 0.345f, 0.345f, 1.0f };  // 未选中：常态背景 #585858
+        glm::vec4 ToolbarToggleBgHovered   = { 0.431f, 0.431f, 0.431f, 1.0f };  // 未选中：Hover 背景（略亮）
         
         glm::vec4 HeaderColor            = { 0.243f, 0.243f, 0.243f, 1.0f };    // 标题头（折叠头、树节点、可选项等）
         glm::vec4 HeaderHovered          = { 0.3f, 0.305f, 0.31f, 1.0f };       // 标题头（悬停）

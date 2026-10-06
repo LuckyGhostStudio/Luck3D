@@ -97,6 +97,26 @@ namespace Lucky
         /// 获取暂停按钮图标
         /// </summary>
         static const Ref<Texture2D>& GetPauseIcon();
+
+        /// <summary>
+        /// 获取选择模式按钮图标（Scene 视口 Gizmo 工具栏，表示不显示任何操纵手柄）
+        /// </summary>
+        static const Ref<Texture2D>& GetSelectionIcon();
+
+        /// <summary>
+        /// 获取平移操纵按钮图标（Scene 视口 Gizmo 工具栏）
+        /// </summary>
+        static const Ref<Texture2D>& GetTranslationIcon();
+
+        /// <summary>
+        /// 获取旋转操纵按钮图标（Scene 视口 Gizmo 工具栏）
+        /// </summary>
+        static const Ref<Texture2D>& GetRotationIcon();
+
+        /// <summary>
+        /// 获取缩放操纵按钮图标（Scene 视口 Gizmo 工具栏）
+        /// </summary>
+        static const Ref<Texture2D>& GetScaleIcon();
     };
 
     // ======== 组件图标解析器 ========

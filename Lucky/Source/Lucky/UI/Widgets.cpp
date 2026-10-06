@@ -7,6 +7,7 @@
 #include "UICore.h"
 
 #include "Lucky/Editor/EditorIconManager.h"
+#include "Lucky/Editor/EditorPreferences.h"
 
 #include <imgui/imgui_internal.h>
 
@@ -111,9 +112,11 @@ namespace Lucky::UI
         if (selected)
         {
             flags |= ImGuiTreeNodeFlags_Selected;
-            
-            color = { 0.2f, 0.302f, 0.452f, 1.0f };         // 蓝色
-            hoveredColor = { 0.2f, 0.302f, 0.502f, 1.0f };
+
+            // 统一引用全局选中蓝（和 Toggle 选中态同源）
+            const glm::vec4& selBlue = EditorPreferences::Get().GetColors().SelectionBlueColor;
+            color = { selBlue.r, selBlue.g, selBlue.b, selBlue.a };
+            hoveredColor = { selBlue.r, selBlue.g, selBlue.b, selBlue.a };
         }
         else
         {
