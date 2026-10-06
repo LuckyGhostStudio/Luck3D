@@ -25,6 +25,18 @@ namespace Lucky
         uint32_t VertexCount;   // 顶点数量
         uint32_t MaterialIndex; // 材质索引
     };
+
+    /// <summary>
+    /// 轴对齐包围盒（局部空间）
+    /// </summary>
+    struct AABB
+    {
+        glm::vec3 Min{ 0.0f };
+        glm::vec3 Max{ 0.0f };
+
+        glm::vec3 GetCenter() const { return (Min + Max) * 0.5f; }
+        glm::vec3 GetExtents() const { return (Max - Min) * 0.5f; }
+    };
     
     class Mesh : public Asset
     {
@@ -92,6 +104,12 @@ namespace Lucky
         const std::vector<SubMesh>& GetSubMeshes() const { return m_SubMeshes; }
         std::vector<SubMesh>& GetSubMeshes() { return m_SubMeshes; }
 
+        /// <summary>
+        /// 获取局部空间轴对齐包围盒
+        /// 首次调用时遍历顶点计算并缓存；Mesh 构造后顶点不可变，缓存永久有效
+        /// </summary>
+        const AABB& GetBoundingBox() const;
+
     private:
         std::vector<Vertex> m_Vertices;			// 顶点列表
         std::vector<uint32_t> m_VertexIndices;	// 顶点索引列表 
@@ -105,5 +123,8 @@ namespace Lucky
         uint32_t m_SubMeshCount = 0;		// 子网格数
         
         std::vector<SubMesh> m_SubMeshes;   // 子网格列表
+
+        mutable AABB m_BoundingBox{};           // 局部空间 AABB，惰性计算
+        mutable bool m_BoundingBoxValid = false;
     };
 }

@@ -166,4 +166,34 @@ namespace Lucky
     {
         m_VertexBuffer->SetData(data, size);
     }
+
+    const AABB& Mesh::GetBoundingBox() const
+    {
+        if (m_BoundingBoxValid)
+        {
+            return m_BoundingBox;
+        }
+
+        if (m_Vertices.empty())
+        {
+            m_BoundingBox.Min = glm::vec3(0.0f);
+            m_BoundingBox.Max = glm::vec3(0.0f);
+            m_BoundingBoxValid = true;
+            return m_BoundingBox;
+        }
+
+        glm::vec3 minPos = m_Vertices[0].Position;
+        glm::vec3 maxPos = m_Vertices[0].Position;
+        for (size_t i = 1; i < m_Vertices.size(); ++i)
+        {
+            const glm::vec3& p = m_Vertices[i].Position;
+            minPos = glm::min(minPos, p);
+            maxPos = glm::max(maxPos, p);
+        }
+
+        m_BoundingBox.Min = minPos;
+        m_BoundingBox.Max = maxPos;
+        m_BoundingBoxValid = true;
+        return m_BoundingBox;
+    }
 }

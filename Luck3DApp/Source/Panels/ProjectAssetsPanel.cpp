@@ -9,6 +9,8 @@
 #include "Lucky/Editor/EditorIconManager.h"
 #include "Lucky/Editor/DragDropPayloads.h"
 #include "Lucky/Editor/DragDropContext.h"
+#include "Lucky/Editor/Preview/AssetPreviewCache.h"
+#include "Lucky/Renderer/Texture.h"
 #include "Lucky/Project/Project.h"
 #include "Lucky/Scene/SelectionManager.h"
 #include "Lucky/Scene/Scene.h"
@@ -336,8 +338,20 @@ namespace Lucky
         
         bool isDirectory = entry.is_directory();
 
-        // 获取图标
-        const Ref<Texture2D>& icon = isDirectory ? EditorIconManager::GetFolderIcon(false) : EditorIconManager::GetAssetTypeIcon(GetAssetTypeFromPath(path));
+        // 获取图标：目录用文件夹图标；非目录优先用资产缩略图，命中则显示预览，否则回退到静态类型图标
+        Ref<Texture2D> icon;
+        if (isDirectory)
+        {
+            icon = EditorIconManager::GetFolderIcon(false);
+        }
+        else
+        {
+            icon = GetThumbnail(path);
+            if (!icon)
+            {
+                icon = EditorIconManager::GetAssetTypeIcon(GetAssetTypeFromPath(path));
+            }
+        }
         
         // 提前获取资产 Handle（使用 Project::MakeRelative 反算相对项目根的相对路径，与 AssetRegistry 存储格式一致）
         AssetHandle assetHandle;
@@ -655,6 +669,31 @@ namespace Lucky
 
     Ref<Texture2D> ProjectAssetsPanel::GetThumbnail(const std::filesystem::path& filepath)
     {
+        AssetType type = GetAssetTypeFromPath(filepath);
+
+        // Texture2D 直接返回资产自身：最快最直观
+        if (type == AssetType::Texture2D)
+        {
+            AssetHandle handle = AssetManager::GetAssetHandle(Project::GetActive()->MakeRelative(filepath));
+            if (!handle.IsValid())
+            {
+                return nullptr;
+            }
+            return AssetManager::GetAsset<Texture2D>(handle);
+        }
+
+        // Material / Mesh 走预览缓存
+        if (type == AssetType::Material || type == AssetType::Mesh)
+        {
+            AssetHandle handle = AssetManager::GetAssetHandle(Project::GetActive()->MakeRelative(filepath));
+            if (!handle.IsValid())
+            {
+                return nullptr;
+            }
+            return AssetPreviewCache::GetOrRender(handle, type);
+        }
+
+        // 其他类型：无缩略图，由调用方 fallback 到静态类型图标
         return nullptr;
     }
 

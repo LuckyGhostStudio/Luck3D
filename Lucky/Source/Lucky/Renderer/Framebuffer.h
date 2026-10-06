@@ -130,6 +130,11 @@ namespace Lucky
         }
 
         /// <summary>
+        /// 返回帧缓冲区本身的 OpenGL 对象 ID（供需要原生 glBindFramebuffer / glBlitFramebuffer 的边界场景使用）
+        /// </summary>
+        uint32_t GetRendererID() const { return m_RendererID; }
+
+        /// <summary>
         /// 返回帧缓冲区规范
         /// </summary>
         /// <returns>帧缓冲区规范</returns>

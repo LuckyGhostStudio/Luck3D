@@ -32,6 +32,8 @@
 #include "Lucky/Editor/AssetInspectorRegistry.h"
 #include "Lucky/Editor/AssetInspectors.h"
 #include "Lucky/Editor/ComponentContextMenuRegistry.h"
+#include "Lucky/Editor/Preview/AssetPreviewRenderer.h"
+#include "Lucky/Editor/Preview/AssetPreviewCache.h"
 
 #include <filesystem>
 
@@ -59,6 +61,11 @@ namespace Lucky
 
         // 初始化图标管理器（在创建面板之前）
         EditorIconManager::Init();
+
+        // 资产预览系统：离屏渲染 Material / Mesh 缩略图并缓存
+        // 依赖 Renderer::Init 已完成（更外层 Application 初始化阶段）
+        AssetPreviewRenderer::Init();
+        AssetPreviewCache::Init();
 
         // 组件注册表：集中注册所有组件的 Copy / Serialize / Draw / Icon / AddMenu 元信息
         // 必须在 EditorIconManager::Init 之后，因为 IconFn 内会读取图标
@@ -179,6 +186,10 @@ namespace Lucky
 
         ComponentContextMenuRegistry::Clear();
         ComponentRegistry::Clear();
+
+        // 资产预览系统反序释放：Cache 持有的 Texture2D 走自身析构，Renderer 内部 SceneRenderer 卸下
+        AssetPreviewCache::Shutdown();
+        AssetPreviewRenderer::Shutdown();
 
         EditorIconManager::Shutdown();
     }

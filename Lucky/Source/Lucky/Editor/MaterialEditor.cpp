@@ -6,6 +6,7 @@
 
 #include "Lucky/Asset/AssetManager.h"
 #include "Lucky/Serialization/MaterialSerializer.h"
+#include "Lucky/Editor/Preview/AssetPreviewCache.h"
 
 #include "Lucky/Project/Project.h"
 
@@ -155,6 +156,9 @@ namespace Lucky
                         std::string absolutePath = Project::GetActive()->ResolveAbsolute(filepath).string();
                         MaterialSerializer::SerializeToFile(material, absolutePath);
                         material->ClearDirty();
+
+                        // 材质内容已变更，使预览缓存失效，下次资产面板显示时自动重渲一张
+                        AssetPreviewCache::Invalidate(material->GetHandle());
 
                         // 保存 Registry（序列化时可能注册了新的纹理资产）
                         AssetManager::SaveRegistry();
