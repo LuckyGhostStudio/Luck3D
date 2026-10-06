@@ -89,6 +89,7 @@ namespace Lucky
             //subMesh.Name = mesh->mName.C_Str();
             subMesh.IndexOffset = indexOffset;
             subMesh.IndexCount = static_cast<uint32_t>(indices.size()) - indexOffset;
+            subMesh.VertexCount = mesh->mNumVertices;   // 本 SubMesh 在合并后顶点流中的顶点数
             subMesh.MaterialIndex = mesh->mMaterialIndex;
             subMeshes.push_back(subMesh);
         }
@@ -183,8 +184,12 @@ namespace Lucky
         if (options.FlipUVs)           flags |= aiProcess_FlipUVs;
         if (options.CalculateNormals)  flags |= aiProcess_GenSmoothNormals;
         if (options.CalculateTangents) flags |= aiProcess_CalcTangentSpace;
-        flags |= aiProcess_JoinIdenticalVertices;   // 合并重复顶点
-        flags |= aiProcess_OptimizeMeshes;          // 优化网格
+        flags |= aiProcess_JoinIdenticalVertices;       // 合并完全相同的顶点
+        flags |= aiProcess_OptimizeMeshes;              // 合并可合并的子网格
+        flags |= aiProcess_ImproveCacheLocality;        // 顶点缓存局部性优化（Tipsify）
+        flags |= aiProcess_RemoveRedundantMaterials;    // 合并重复材质并移除未被引用的材质（如 OBJ 的占位 DefaultMaterial）
+        flags |= aiProcess_FindDegenerates;             // 识别退化三角形（三点共线/重合）
+        flags |= aiProcess_FindInvalidData;             // 清理 NaN、零法线等无效数据
     
         const aiScene* scene = importer.ReadFile(filepath, flags);
     
