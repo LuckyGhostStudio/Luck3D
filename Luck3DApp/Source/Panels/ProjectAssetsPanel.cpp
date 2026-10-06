@@ -50,7 +50,12 @@ namespace Lucky
         // 顶部工具栏（刷新按钮）
         DrawToolbar();
 
-        if (ImGui::BeginTable("##ProjectAssets Table", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadInnerX))
+        // Table 必须给固定 outer_size.y：否则表格按内容自然撑开，内部 BeginChild {0,-24} 的"距底部"
+        // 语义会退化为 0，导致下方工具栏被挤出面板下边界
+        float availHeight = ImGui::GetContentRegionAvail().y;
+        if (ImGui::BeginTable("##ProjectAssets Table", 2,
+                              ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadInnerX,
+                              ImVec2(0.0f, availHeight)))
         {
             float panelWidth = ImGui::GetContentRegionAvail().x;
             m_TreePanelWidth = panelWidth * 0.3f;
@@ -60,7 +65,8 @@ namespace Lucky
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
 
-            // 左侧：目录树
+            // 左侧：目录树（深色背景 #383838）
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0x38, 0x38, 0x38, 0xFF));
             ImGui::BeginChild("##DirectoryTree", { 0, 0 });
             {
                 DrawDirectoryTreeNode(m_RootNode);
@@ -75,35 +81,36 @@ namespace Lucky
                 }
             }
             ImGui::EndChild();
+            ImGui::PopStyleColor();
 
             ImGui::TableSetColumnIndex(1);
 
-            // 右侧：内容区（上部）+ 底部工具栏 两段子窗口
-            ImGui::BeginChild("##ContentArea", { 0, 0 });
+            // 右侧内容区：直接拆成 "资产列表" + "底部工具栏" 两个独立子窗口
+            // 不再外套一层 ##ContentArea，避免滚动条包住工具栏；资产列表自带滚动条，工具栏固定在底部
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0x33, 0x33, 0x33, 0xFF));
+            ImGui::BeginChild("##Content", { 0, -s_BottomToolbarHeight });
             {
-                // 内容区：留出底部工具栏高度
-                ImGui::BeginChild("##Content", { 0, -s_BottomToolbarHeight });
-                {
-                    DrawContentArea();
+                DrawContentArea();
 
-                    // 点击鼠标 && 鼠标悬停在该窗口（点击空白位置）
-                    if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered())
-                    {
-                        SelectionManager::Deselect();
-                        m_Rename.CancelAll();
-                        CancelPendingCreate();
-                    }
-                }
-                ImGui::EndChild();
-
-                // 底部工具栏：固定高度，右端对齐 SliderFloat 控制缩略图尺寸
-                ImGui::BeginChild("##BottomToolbar", { 0, s_BottomToolbarHeight });
+                // 点击鼠标 && 鼠标悬停在该窗口（点击空白位置）
+                if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered())
                 {
-                    DrawBottomToolbar();
+                    SelectionManager::Deselect();
+                    m_Rename.CancelAll();
+                    CancelPendingCreate();
                 }
-                ImGui::EndChild();
             }
             ImGui::EndChild();
+            ImGui::PopStyleColor();
+
+            // 底部工具栏（深色 #404040，固定高度，右端对齐 SliderFloat 控制缩略图尺寸）
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0x40, 0x40, 0x40, 0xFF));
+            ImGui::BeginChild("##BottomToolbar", { 0, s_BottomToolbarHeight });
+            {
+                DrawBottomToolbar();
+            }
+            ImGui::EndChild();
+            ImGui::PopStyleColor();
 
             ImGui::EndTable();
         }
@@ -179,13 +186,21 @@ namespace Lucky
 
     void ProjectAssetsPanel::DrawToolbar()
     {
-        // 刷新按钮（等价于 Ctrl+R，入队到帧末执行）
-        if (UI::Button("Refresh"))
-        {
-            EnqueueAction([this]() { OnRefreshRequested(); });
-        }
+        // 顶部工具栏独立子窗口，便于设置独立背景色 #3C3C3C
+        // 高度 = 一个按钮行 + 分隔线 + 上下 padding
+        float toolbarHeight = ImGui::GetFrameHeightWithSpacing() + 4.0f;
 
-        UI::Draw::HorizontalLine();
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0x3C, 0x3C, 0x3C, 0xFF));
+        ImGui::BeginChild("##TopToolbar", { 0, toolbarHeight });
+        {
+            // 刷新按钮（等价于 Ctrl+R，入队到帧末执行）
+            if (UI::Button("Refresh"))
+            {
+                EnqueueAction([this]() { OnRefreshRequested(); });
+            }
+        }
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
     }
 
     void ProjectAssetsPanel::DrawBottomToolbar()
@@ -315,9 +330,8 @@ namespace Lucky
     {
         // 单元格尺寸 = 图标尺寸 + 内边距 + 名字区（固定行数）
         float textRowH = ImGui::GetTextLineHeight();
-        float cellW = iconSize + Theme::Layout::GridItemPaddingX * 2.0f;
-        float cellH = iconSize + Theme::Layout::GridItemPaddingY * 2.0f
-                      + textRowH * static_cast<float>(Theme::Layout::GridItemNameRows);
+        float cellW = iconSize + UI::Theme::Layout::GridItemPaddingX * 2.0f;
+        float cellH = iconSize + UI::Theme::Layout::GridItemPaddingY * 2.0f + textRowH * static_cast<float>(UI::Theme::Layout::GridItemNameRows);
 
         if (!UI::BeginGrid("##ProjectsGrid", cellW, cellH))
         {

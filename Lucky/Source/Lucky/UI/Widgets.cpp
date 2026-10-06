@@ -581,6 +581,8 @@ namespace Lucky::UI
         /// <summary>
         /// Grid 栈帧：BeginGrid push、EndGrid pop
         /// Item 从栈顶读 CellWidth / CellHeight / 当前列号判断是否 SameLine 换行
+        /// ItemSavedXxx 用于 BeginGridItemFrame 结束时抓取 ImGui 布局状态，EndGridItemFrame 恢复，
+        /// 使 Begin/End 之间任何控件（如 Rename InputText）产生的 ItemSize 副作用不污染 Grid SameLine
         /// </summary>
         struct GridContext
         {
@@ -589,6 +591,10 @@ namespace Lucky::UI
             float   Spacing = 0.0f;
             int     ColumnCount = 0;
             int     CurrentColumn = 0;
+
+            ImVec2  ItemSavedCursorPos{};
+            ImVec2  ItemSavedCursorPosPrevLine{};
+            ImVec2  ItemSavedCursorMaxPos{};
         };
         static std::vector<GridContext> s_GridStack;
 
@@ -797,15 +803,35 @@ namespace Lucky::UI
         frame.NameMin = nameMin;
         frame.NameMax = nameMax;
         frame.Clicked = clicked;
+
+        // 快照 ImGui 布局状态：InvisibleButton 已走完 ItemSize，此时 cursor 处于"cell 结束位置"
+        // Begin/End 之间若有控件产生 ItemSize（典型如 Rename 态的 InputText），会污染 CursorPosPrevLine
+        // 导致下一次 SameLine 偏到 InputText 顶部而非 cell 顶部 —— EndGridItemFrame 会用这个快照恢复
+        ImGuiWindow* layoutWindow = ImGui::GetCurrentWindow();
+        ctx.ItemSavedCursorPos         = layoutWindow->DC.CursorPos;
+        ctx.ItemSavedCursorPosPrevLine = layoutWindow->DC.CursorPosPrevLine;
+        ctx.ItemSavedCursorMaxPos      = layoutWindow->DC.CursorMaxPos;
+
         return frame;
     }
 
     void EndGridItemFrame()
     {
         LF_CORE_ASSERT(!s_GridStack.empty(), "EndGridItemFrame without matching Begin*GridItem*");
-        ImGui::PopID();
 
         GridContext& ctx = s_GridStack.back();
+
+        // 恢复 Begin 结束时的布局状态，覆盖掉 Begin/End 之间任何控件（如 InputText）产生的 cursor 推进
+        // CursorMaxPos 用 max 合并：若内部控件曾把 MaxPos 推更远（比如 Rename InputText 临时越界），
+        // Grid 的 cell 已经占满 cellH，取较大值不影响滚动区域
+        ImGuiWindow* layoutWindow = ImGui::GetCurrentWindow();
+        layoutWindow->DC.CursorPos         = ctx.ItemSavedCursorPos;
+        layoutWindow->DC.CursorPosPrevLine = ctx.ItemSavedCursorPosPrevLine;
+        layoutWindow->DC.CursorMaxPos.x    = ImMax(layoutWindow->DC.CursorMaxPos.x, ctx.ItemSavedCursorMaxPos.x);
+        layoutWindow->DC.CursorMaxPos.y    = ImMax(layoutWindow->DC.CursorMaxPos.y, ctx.ItemSavedCursorMaxPos.y);
+
+        ImGui::PopID();
+
         ++ctx.CurrentColumn;
         if (ctx.CurrentColumn >= ctx.ColumnCount)
         {
