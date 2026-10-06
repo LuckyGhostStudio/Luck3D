@@ -211,7 +211,8 @@ namespace Lucky
         constexpr static float s_IconSizeMin        = 16.0f;    // Slider 最小值 = 列表布局锚点
         constexpr static float s_IconSizeMax        = 128.0f;   // Grid 最大图标尺寸
         constexpr static float s_ListThresholdEps   = 0.5f;     // 浮点容差：m_IconSize <= kMin + eps 判定列表
-        constexpr static float s_BottomToolbarHeight = 24.0f;   // 底部工具栏固定高度
+        constexpr static float s_BottomToolbarHeight = 34.0f;   // 底部工具栏固定高度（对齐 Scene 面板 Toolbar）
+        constexpr static float s_TopToolbarHeight    = 34.0f;   // 顶部工具栏固定高度（对齐 Scene 面板 Toolbar）
     private:
         std::filesystem::path m_AssetsDirectory;    // Assets 根目录
         std::filesystem::path m_CurrentDirectory;   // 当前浏览目录

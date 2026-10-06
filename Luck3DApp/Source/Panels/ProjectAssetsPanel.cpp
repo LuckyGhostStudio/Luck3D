@@ -4,6 +4,7 @@
 #include "Lucky/UI/Widgets.h"
 #include "Lucky/UI/ScopedGuards.h"
 #include "Lucky/UI/Controls.h"
+#include "Lucky/UI/UICore.h"
 
 #include "Lucky/Asset/AssetManager.h"
 #include "Lucky/Editor/EditorIconManager.h"
@@ -87,6 +88,11 @@ namespace Lucky
 
             // 右侧内容区：直接拆成 "资产列表" + "底部工具栏" 两个独立子窗口
             // 不再外套一层 ##ContentArea，避免滚动条包住工具栏；资产列表自带滚动条，工具栏固定在底部
+            // 两者之间的 ItemSpacing.y 清零：Content 高度 = cell_h - 底部工具栏高，再加上默认 ItemSpacing.y
+            // 会撑开 cell 让 Table 产生多余滚动条，严格贴紧更稳
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
+                                ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
+
             ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0x33, 0x33, 0x33, 0xFF));
             ImGui::BeginChild("##Content", { 0, -s_BottomToolbarHeight });
             {
@@ -104,13 +110,17 @@ namespace Lucky
             ImGui::PopStyleColor();
 
             // 底部工具栏（深色 #404040，固定高度，右端对齐 SliderFloat 控制缩略图尺寸）
+            // NoScrollbar + NoScrollWithMouse：工具栏不滚动，避免 Slider 被挤出可视区
             ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0x40, 0x40, 0x40, 0xFF));
-            ImGui::BeginChild("##BottomToolbar", { 0, s_BottomToolbarHeight });
+            ImGui::BeginChild("##BottomToolbar", { 0, s_BottomToolbarHeight }, false,
+                              ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
             {
                 DrawBottomToolbar();
             }
             ImGui::EndChild();
             ImGui::PopStyleColor();
+
+            ImGui::PopStyleVar();   // ItemSpacing
 
             ImGui::EndTable();
         }
@@ -186,25 +196,27 @@ namespace Lucky
 
     void ProjectAssetsPanel::DrawToolbar()
     {
-        // 顶部工具栏独立子窗口，便于设置独立背景色 #3C3C3C
-        // 高度 = 一个按钮行 + 分隔线 + 上下 padding
-        float toolbarHeight = ImGui::GetFrameHeightWithSpacing() + 4.0f;
-
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0x3C, 0x3C, 0x3C, 0xFF));
-        ImGui::BeginChild("##TopToolbar", { 0, toolbarHeight });
+        // 顶部工具栏独立子窗口（深色 #3C3C3C）：参考 SceneViewportPanel::OnGUI 的 Toolbar 做法
+        // NoScrollbar + NoScrollWithMouse：工具栏内容不滚动；ShiftCursor 做左上内边距
+        UI::ScopedColor bgColor(ImGuiCol_ChildBg, { 0x3C / 255.0f, 0x3C / 255.0f, 0x3C / 255.0f, 1.0f });
+        ImGui::BeginChild("##TopToolbar", { 0, s_TopToolbarHeight }, false,
+                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
         {
-            // 刷新按钮（等价于 Ctrl+R，入队到帧末执行）
+            UI::ShiftCursor(4.0f, 4.0f);
+
             if (UI::Button("Refresh"))
             {
                 EnqueueAction([this]() { OnRefreshRequested(); });
             }
         }
         ImGui::EndChild();
-        ImGui::PopStyleColor();
     }
 
     void ProjectAssetsPanel::DrawBottomToolbar()
     {
+        // 内部左上内边距（对齐 Scene 面板 Toolbar 的 ShiftCursor(4,4) 做法）
+        UI::ShiftCursor(4.0f, 4.0f);
+
         // 右端对齐 Slider：固定宽度，距右边界留一段 margin
         constexpr float sliderWidth = 140.0f;
         constexpr float rightMargin = 8.0f;

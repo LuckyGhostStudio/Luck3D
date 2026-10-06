@@ -728,37 +728,12 @@ namespace Lucky::UI
             ImGui::SameLine(0.0f, ctx.Spacing);
         }
 
-        // 2) 分配 cell bb
+        // 2) 预先算出图标区 / 名字区矩形（画背景前就要知道，否则选中/Hover 高亮位置错）
         ImGui::PushID(name);
         ImVec2 cellMin = ImGui::GetCursorScreenPos();
         ImVec2 cellSize(ctx.CellWidth, ctx.CellHeight);
         ImVec2 cellMax(cellMin.x + ctx.CellWidth, cellMin.y + ctx.CellHeight);
 
-        ImGui::InvisibleButton("##cell", cellSize);
-        bool isHovered = ImGui::IsItemHovered();
-        bool clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
-
-        // 3) 画背景：选中态 / Hover 态
-        ImDrawList* dl = ImGui::GetWindowDrawList();
-        if (selected)
-        {
-            // 复用全局选中蓝（和 TreeNode 选中态同源）
-            const glm::vec4& selBlue = EditorPreferences::Get().GetColors().SelectionBlueColor;
-            ImU32 col = IM_COL32(
-                static_cast<int>(selBlue.r * 255.0f),
-                static_cast<int>(selBlue.g * 255.0f),
-                static_cast<int>(selBlue.b * 255.0f),
-                static_cast<int>(selBlue.a * 255.0f));
-            dl->AddRectFilled(cellMin, cellMax, col, Theme::Layout::ChildRounding);
-        }
-        else if (isHovered)
-        {
-            // Hover 用 ImGui 默认 HeaderHovered 色，视觉上和 TreeNode hover 一致
-            ImU32 col = ImGui::GetColorU32(ImGuiCol_HeaderHovered, 0.5f);
-            dl->AddRectFilled(cellMin, cellMax, col, Theme::Layout::ChildRounding);
-        }
-
-        // 4) 画图标（居中上部，图标区正方形）
         const float padX = Theme::Layout::GridItemPaddingX;
         const float padY = Theme::Layout::GridItemPaddingY;
         const float textRowH = ImGui::GetTextLineHeight();
@@ -766,12 +741,72 @@ namespace Lucky::UI
         const float iconAreaH = ctx.CellHeight - padY * 2.0f - nameAreaH;
         const float iconAreaW = ctx.CellWidth - padX * 2.0f;
         const float iconSize = (iconAreaH < iconAreaW ? iconAreaH : iconAreaW);
+        ImVec2 iconMin(
+            cellMin.x + (ctx.CellWidth - iconSize) * 0.5f,
+            cellMin.y + padY + (iconAreaH - iconSize) * 0.5f);
+        ImVec2 iconMax(iconMin.x + iconSize, iconMin.y + iconSize);
+
+        ImVec2 nameMin(cellMin.x + padX, cellMin.y + padY + iconAreaH);
+        ImVec2 nameMax(cellMax.x - padX, cellMax.y - padY);
+
+        // 3) Rename 态下屏蔽 InvisibleButton 的鼠标交互，避免其抢占 g.HoveredId 使 InputText 失焦
+        //    详见 Detail::PushRenameEditingItemFlag / PopRenameEditingItemFlagAndAllowOverlap 的说明
+        if (isRenaming)
+        {
+            Detail::PushRenameEditingItemFlag();
+        }
+
+        ImGui::InvisibleButton("##cell", cellSize);
+        bool isHovered = ImGui::IsItemHovered();
+        bool clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+
+        if (isRenaming)
+        {
+            Detail::PopRenameEditingItemFlagAndAllowOverlap();
+        }
+
+        // 4) 画背景：Unity 风格
+        //    - 选中：图标区浅蓝 tint 覆盖 + 名字区蓝色矩形背景
+        //    - Hover：图标区外描一个浅灰边框（不填充），不画名字高亮
+        //    - 普通：不画任何背景（父窗口的深色底直接透出）
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        if (selected)
+        {
+            const glm::vec4& selBlue = EditorPreferences::Get().GetColors().SelectionBlueColor;
+            // 名字区：全不透明选中蓝
+            ImU32 nameBg = IM_COL32(
+                static_cast<int>(selBlue.r * 255.0f),
+                static_cast<int>(selBlue.g * 255.0f),
+                static_cast<int>(selBlue.b * 255.0f),
+                static_cast<int>(selBlue.a * 255.0f));
+            dl->AddRectFilled(nameMin, nameMax, nameBg, Theme::Layout::ChildRounding);
+
+            // 图标区：浅蓝 tint（半透明覆盖在图标上）
+            if (!isRenaming)
+            {
+                ImU32 iconTint = IM_COL32(
+                    static_cast<int>(selBlue.r * 255.0f),
+                    static_cast<int>(selBlue.g * 255.0f),
+                    static_cast<int>(selBlue.b * 255.0f),
+                    static_cast<int>(selBlue.a * 70.0f));
+                // 图标区外扩一点点内边距，视觉上形成"图标被蓝色框住"的感觉
+                ImVec2 tintMin(iconMin.x - 2.0f, iconMin.y - 2.0f);
+                ImVec2 tintMax(iconMax.x + 2.0f, iconMax.y + 2.0f);
+                dl->AddRectFilled(tintMin, tintMax, iconTint, Theme::Layout::ChildRounding);
+            }
+        }
+        else if (isHovered)
+        {
+            // 图标区边框 Hover 反馈，不填充，保持 Unity 的轻盈感
+            ImU32 col = ImGui::GetColorU32(ImGuiCol_HeaderHovered, 0.8f);
+            ImVec2 outlineMin(iconMin.x - 2.0f, iconMin.y - 2.0f);
+            ImVec2 outlineMax(iconMax.x + 2.0f, iconMax.y + 2.0f);
+            dl->AddRect(outlineMin, outlineMax, col, Theme::Layout::ChildRounding, 0, 1.0f);
+        }
+
+        // 5) 画图标（居中上部）
         if (iconSize > 0.0f && icon)
         {
-            ImVec2 iconMin(
-                cellMin.x + (ctx.CellWidth - iconSize) * 0.5f,
-                cellMin.y + padY + (iconAreaH - iconSize) * 0.5f);
-            ImVec2 iconMax(iconMin.x + iconSize, iconMin.y + iconSize);
             ImTextureID texID = GetImTextureID(icon);
             if (texID)
             {
@@ -779,10 +814,6 @@ namespace Lucky::UI
                 dl->AddImage(texID, iconMin, iconMax, ImVec2(0, 1), ImVec2(1, 0));
             }
         }
-
-        // 5) 名字区矩形（固定位置：图标下方的整行）
-        ImVec2 nameMin(cellMin.x + padX, cellMin.y + padY + iconAreaH);
-        ImVec2 nameMax(cellMax.x - padX, cellMax.y - padY);
 
         // 6) 非 Rename 态下画省略号截断的居中文本；Rename 态由上层 InputText 覆盖
         if (!isRenaming)
