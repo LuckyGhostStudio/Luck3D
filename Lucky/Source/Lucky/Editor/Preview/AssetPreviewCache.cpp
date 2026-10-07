@@ -7,6 +7,7 @@
 #include "Lucky/Renderer/Framebuffer.h"
 #include "Lucky/Renderer/Material.h"
 #include "Lucky/Renderer/Mesh.h"
+#include "Lucky/Scene/Scene.h"
 
 #include <glad/glad.h>
 
@@ -78,7 +79,7 @@ namespace Lucky
         {
             return s_Null;
         }
-        if (type != AssetType::Material && type != AssetType::Mesh)
+        if (type != AssetType::Material && type != AssetType::Mesh && type != AssetType::Scene)
         {
             return s_Null;
         }
@@ -96,10 +97,16 @@ namespace Lucky
             Ref<Material> material = AssetManager::GetAsset<Material>(handle);
             srcFB = AssetPreviewRenderer::RenderMaterial(material);
         }
-        else // Mesh
+        else if (type == AssetType::Mesh)
         {
             Ref<Mesh> mesh = AssetManager::GetAsset<Mesh>(handle);
             srcFB = AssetPreviewRenderer::RenderMesh(mesh);
+        }
+        else // Scene
+        {
+            // 活动场景就在 AssetManager 缓存里，GetAsset 拿到的是编辑中的同一个实例
+            Ref<Scene> scene = AssetManager::GetAsset<Scene>(handle);
+            srcFB = AssetPreviewRenderer::RenderScene(scene);
         }
 
         if (!srcFB)

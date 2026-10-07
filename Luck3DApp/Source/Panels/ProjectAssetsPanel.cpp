@@ -982,8 +982,8 @@ namespace Lucky
             return AssetManager::GetAsset<Texture2D>(handle);
         }
 
-        // Material / Mesh ×ßÔ¤ÀÀ»º´æ
-        if (type == AssetType::Material || type == AssetType::Mesh)
+        // Material / Mesh / Scene ×ßÔ¤ÀÀ»º´æ
+        if (type == AssetType::Material || type == AssetType::Mesh || type == AssetType::Scene)
         {
             AssetHandle handle = AssetManager::GetAssetHandle(Project::GetActive()->MakeRelative(filepath));
             if (!handle.IsValid())

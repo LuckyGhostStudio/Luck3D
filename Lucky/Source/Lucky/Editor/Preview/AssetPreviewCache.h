@@ -20,7 +20,7 @@ namespace Lucky
 
         /// <summary>
         /// 获取（或按需渲染）指定资产的预览纹理
-        /// 仅支持 AssetType::Material / AssetType::Mesh，其他类型返回空 Ref
+        /// 仅支持 AssetType::Material / AssetType::Mesh / AssetType::Scene，其他类型返回空 Ref
         /// </summary>
         /// <param name="handle">资产 Handle，无效时返回空 Ref</param>
         /// <param name="type">资产类型（由上层传入，避免重复查询 AssetManager）</param>
@@ -29,7 +29,7 @@ namespace Lucky
 
         /// <summary>
         /// 使指定资产的预览失效，下次 Get 时重新渲染并 Blit
-        /// Material 保存 / Material 属性改动 / Mesh 替换 / 资产删除移动都应调用
+        /// Material 保存 / Material 属性改动 / Mesh 替换 / Scene 保存 / 资产删除移动都应调用
         /// </summary>
         /// <param name="handle">资产 Handle</param>
         static void Invalidate(AssetHandle handle);

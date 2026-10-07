@@ -437,8 +437,11 @@ namespace Lucky
         
         const std::string& filepath = AssetManager::GetAssetFilePath(scene->GetHandle());
         std::string absolutePath = Project::GetActive()->ResolveAbsolute(filepath).string();
-        
+
         SceneSerializer::Serialize(scene, absolutePath);
+
+        // 磁盘内容已更新，场景缩略图下次浏览时重新渲染
+        AssetPreviewCache::Invalidate(scene->GetHandle());
     }
 
     void EditorLayer::SerializeScene(Ref<Scene> scene, const std::filesystem::path& filepath)

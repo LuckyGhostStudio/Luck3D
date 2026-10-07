@@ -5,6 +5,7 @@
 #include "SelectionManager.h"
 
 #include "Lucky/Asset/AssetManager.h"
+#include "Lucky/Editor/Preview/AssetPreviewCache.h"
 #include "Lucky/Project/Project.h"
 #include "Lucky/Utils/PlatformUtils.h"
 
@@ -210,6 +211,9 @@ namespace Lucky
             LF_CORE_ERROR("SceneManager::SaveSceneAs - Failed to create scene asset: '{0}'.", normalizedPath);
             return false;
         }
+
+        // 另存到的文件内容已更新；若该路径此前已有预览缓存（覆盖已有场景文件的情况）则使其失效
+        AssetPreviewCache::Invalidate(newHandle);
 
         // 更新场景名（与新文件名保持一致）
         s_ActiveScene->SetName(path.stem().string());

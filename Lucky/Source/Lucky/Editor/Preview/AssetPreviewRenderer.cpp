@@ -9,6 +9,9 @@
 #include "Lucky/Renderer/CameraRenderData.h"
 #include "Lucky/Renderer/LightRenderData.h"
 
+#include "Lucky/Scene/Scene.h"
+#include "Lucky/Scene/Components/Components.h"
+
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace Lucky
@@ -19,6 +22,7 @@ namespace Lucky
         constexpr float    s_PreviewFovDeg = 30.0f;     // 预览相机 FOV
         constexpr float    s_MaterialFillRatio = 1.1f;  // 材质球填充系数（相机距离 = 半径/sin(FOV/2) × 系数，越大球越小）
         constexpr float    s_MeshFillRatio = 1.28f;     // 网格预览填充系数（同上，越大模型占框越小）
+        constexpr float    s_SceneFillRatio = 1.15f;    // 场景预览填充系数（同上；场景内容通常比单网格更满，系数略收）
 
         struct PreviewData
         {
@@ -50,6 +54,22 @@ namespace Lucky
             s_Data->FixedCamera.FOV = fovDeg;
             s_Data->FixedCamera.AspectRatio = 1.0f;
             s_Data->FixedCamera.NearClip = 0.01f;
+        }
+
+        /// <summary>
+        /// 把一个世界空间点并入包围盒；首次并入时用该点初始化 Min/Max
+        /// </summary>
+        void MergeBoundsPoint(AABB& bounds, bool& initialized, const glm::vec3& point)
+        {
+            if (!initialized)
+            {
+                bounds.Min = point;
+                bounds.Max = point;
+                initialized = true;
+                return;
+            }
+            bounds.Min = glm::min(bounds.Min, point);
+            bounds.Max = glm::max(bounds.Max, point);
         }
     }
 
@@ -136,6 +156,165 @@ namespace Lucky
         Ref<Mesh> target = mesh;
         s_Data->Renderer->SubmitMesh(glm::mat4(1.0f), target, materials);
         s_Data->Renderer->EndScene();
+
+        return s_Data->Renderer->GetFramebuffer();
+    }
+
+    const Ref<Framebuffer>& AssetPreviewRenderer::RenderScene(const Ref<Scene>& scene)
+    {
+        static Ref<Framebuffer> s_Null;
+        if (!scene || !s_Data)
+        {
+            return s_Null;
+        }
+
+        // 刚反序列化的场景还没跑过世界推进，先补一遍 Transform 层级更新，
+        // 否则 GetWorldTransform 全是未计算的旧值
+        scene->UpdateTransformHierarchy();
+
+        // ---- 收集场景光源（预览渲染器没有 Shadow Pass，阴影参数不收集）----
+        LightRenderData lightData;
+        {
+            auto lightView = scene->GetAllEntitiesWith<TransformComponent, LightComponent>();
+            for (auto entity : lightView)
+            {
+                auto [transform, light] = lightView.get<TransformComponent, LightComponent>(entity);
+
+                switch (light.Type)
+                {
+                    case LightType::Directional:
+                    {
+                        if (lightData.DirectionalLightCount >= s_MaxDirectionalLights)
+                        {
+                            break;
+                        }
+                        DirectionalLightData& dirLight = lightData.DirectionalLights[lightData.DirectionalLightCount];
+                        dirLight.Direction = transform.GetWorldForward();
+                        dirLight.Color = light.Color;
+                        dirLight.Intensity = light.Intensity;
+                        lightData.DirectionalLightCount++;
+                        break;
+                    }
+                    case LightType::Point:
+                    {
+                        if (lightData.PointLightCount >= s_MaxPointLights)
+                        {
+                            break;
+                        }
+                        PointLightData& pointLight = lightData.PointLights[lightData.PointLightCount];
+                        pointLight.Position = transform.GetWorldPosition();
+                        pointLight.Color = light.Color;
+                        pointLight.Intensity = light.Intensity;
+                        pointLight.Range = light.Range;
+                        lightData.PointLightCount++;
+                        break;
+                    }
+                    case LightType::Spot:
+                    {
+                        if (lightData.SpotLightCount >= s_MaxSpotLights)
+                        {
+                            break;
+                        }
+                        SpotLightData& spotLight = lightData.SpotLights[lightData.SpotLightCount];
+                        spotLight.Position = transform.GetWorldPosition();
+                        spotLight.Direction = transform.GetWorldForward();
+                        spotLight.Color = light.Color;
+                        spotLight.Intensity = light.Intensity;
+                        spotLight.Range = light.Range;
+                        spotLight.InnerCutoff = glm::cos(glm::radians(light.InnerCutoffAngle));
+                        spotLight.OuterCutoff = glm::cos(glm::radians(light.OuterCutoffAngle));
+                        lightData.SpotLightCount++;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 场景没灯时回退到固定布光，否则缩略图全黑
+        if (lightData.DirectionalLightCount == 0 && lightData.PointLightCount == 0 && lightData.SpotLightCount == 0)
+        {
+            lightData = s_Data->FixedLight;
+        }
+
+        // ---- 可渲染内容的世界包围盒：Mesh 贡献变换后的 AABB 角点，Sprite 贡献世界位置点 ----
+        AABB sceneBounds;
+        bool hasBounds = false;
+
+        auto meshView = scene->GetAllEntitiesWith<TransformComponent, MeshFilterComponent, MeshRendererComponent>();
+        for (auto entity : meshView)
+        {
+            auto [transform, meshFilter, meshRenderer] = meshView.get<TransformComponent, MeshFilterComponent, MeshRendererComponent>(entity);
+            if (!meshFilter.Mesh)
+            {
+                continue;
+            }
+
+            const AABB& localBounds = meshFilter.Mesh->GetBoundingBox();
+            const glm::mat4& world = transform.GetWorldTransform();
+            for (int corner = 0; corner < 8; ++corner)
+            {
+                glm::vec3 localCorner(
+                    (corner & 1) ? localBounds.Max.x : localBounds.Min.x,
+                    (corner & 2) ? localBounds.Max.y : localBounds.Min.y,
+                    (corner & 4) ? localBounds.Max.z : localBounds.Min.z);
+                MergeBoundsPoint(sceneBounds, hasBounds, glm::vec3(world * glm::vec4(localCorner, 1.0f)));
+            }
+        }
+
+        auto spriteView = scene->GetAllEntitiesWith<TransformComponent, SpriteRendererComponent>();
+        for (auto entity : spriteView)
+        {
+            MergeBoundsPoint(sceneBounds, hasBounds, spriteView.get<TransformComponent>(entity).GetWorldPosition());
+        }
+
+        // 空场景兜底：在原点附近渲一张纯背景
+        glm::vec3 center(0.0f);
+        float radius = 0.5f;
+        if (hasBounds)
+        {
+            center = sceneBounds.GetCenter();
+            radius = glm::length(sceneBounds.Max - sceneBounds.Min) * 0.5f;
+            if (radius < 0.001f)
+            {
+                radius = 0.5f;  // 退化包围盒兜底，防止除零
+            }
+        }
+        float distance = radius / std::sin(glm::radians(s_PreviewFovDeg * 0.5f)) * s_SceneFillRatio;
+        BuildFixedCamera(center, distance);
+
+        // ---- 渲染：用场景自己的环境设置（天空盒进缩略图）----
+        // 只读场景数据，不走 Scene::RenderSceneImpl：那里的 IBL 重生成会改写全局 IBL 纹理，污染主视口
+        s_Data->Renderer->SetEnvironmentSettings(scene->GetEnvironmentSettings());
+
+        s_Data->Renderer->BeginScene(s_Data->FixedCamera, lightData);
+        for (auto entity : meshView)
+        {
+            auto [transform, meshFilter, meshRenderer] = meshView.get<TransformComponent, MeshFilterComponent, MeshRendererComponent>(entity);
+            Ref<Mesh> mesh = meshFilter.Mesh;   // SubmitMesh 第二参是非 const 引用，必须本地变量承接
+            if (!mesh)
+            {
+                continue;
+            }
+            s_Data->Renderer->SubmitMesh(transform.GetWorldTransform(), mesh, meshRenderer.Materials);
+        }
+        for (auto entity : spriteView)
+        {
+            auto [transform, sprite] = spriteView.get<TransformComponent, SpriteRendererComponent>(entity);
+            s_Data->Renderer->SubmitSprite(
+                transform.GetWorldTransform(),
+                sprite.Texture,
+                sprite.Color,
+                sprite.FlipX,
+                sprite.FlipY,
+                sprite.UVRect,
+                sprite.TilingFactor,
+                sprite.Material,
+                sprite.SortingOrder);
+        }
+        s_Data->Renderer->EndScene();
+
+        // 还原共享渲染器的默认环境：这个场景的天空盒不能泄漏到后续的材质 / 网格预览
+        s_Data->Renderer->SetEnvironmentSettings(EnvironmentSettings{});
 
         return s_Data->Renderer->GetFramebuffer();
     }
