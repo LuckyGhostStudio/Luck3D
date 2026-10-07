@@ -5,6 +5,39 @@
 namespace Lucky::UI
 {
     /// <summary>
+    /// 编辑器字体槽位：与 ImGuiLayer::OnAttach 中 AddFont 的加载顺序一一对应
+    /// </summary>
+    enum class EditorFont : int
+    {
+        Bold = 0,       // 粗体
+        Regular = 1,    // 默认正文字体
+        Small = 2       // 小号字体（Grid 单元格名字等次要文本）
+    };
+
+    /// <summary>
+    /// 取编辑器字体指针；槽位未加载时回退到默认字体
+    /// </summary>
+    inline ImFont* GetEditorFont(EditorFont font)
+    {
+        ImFontAtlas* atlas = ImGui::GetIO().Fonts;
+        int idx = static_cast<int>(font);
+        if (idx >= 0 && idx < atlas->Fonts.Size)
+        {
+            return atlas->Fonts[idx];
+        }
+        ImFont* fallback = ImGui::GetIO().FontDefault;
+        return fallback ? fallback : atlas->Fonts[0];
+    }
+
+    /// <summary>
+    /// 指定字体的行高（即其字号像素），用于不切换当前字体时的布局计算
+    /// </summary>
+    inline float GetEditorFontLineHeight(EditorFont font)
+    {
+        return GetEditorFont(font)->FontSize;
+    }
+
+    /// <summary>
     /// RAII 样式变量管理：自动配对 PushStyleVar / PopStyleVar
     /// </summary>
     class ScopedStyle

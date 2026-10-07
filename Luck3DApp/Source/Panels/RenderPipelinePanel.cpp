@@ -61,7 +61,7 @@ namespace Lucky
                     
                     // 分组名
                     {
-                        UI::ScopedFont boldFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO 封装 Fonts
+                        UI::ScopedFont boldFont(UI::GetEditorFont(UI::EditorFont::Bold));
                         UI::ShiftCursorX(4.0f);
                         ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "%s", group.c_str());
                     }

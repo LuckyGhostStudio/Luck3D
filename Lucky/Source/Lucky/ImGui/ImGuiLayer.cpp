@@ -49,9 +49,12 @@ namespace Lucky
         
         float fontSize = 20.0f * app.GetWindow().GetDPI() / s_StandardDPI;
         io.Fonts->AddFontFromFileTTF("Resources/Fonts/Opensans/OpenSans-Bold.ttf", fontSize);   // 添加粗体（0号）
-        
+
         // 默认字体 添加 TTF 字体
         io.FontDefault = io.Fonts->AddFontFromFileTTF("Resources/Fonts/Opensans/OpenSans-Regular.ttf", fontSize);   // 1号
+
+        // 小号字体（2号）：Grid 单元格名字等次要文本，字号按 Theme 中比例缩放
+        io.Fonts->AddFontFromFileTTF("Resources/Fonts/Opensans/OpenSans-Regular.ttf", fontSize * UI::Theme::Layout::GridNameFontScale);
 
         if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         {

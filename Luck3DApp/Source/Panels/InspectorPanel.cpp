@@ -220,7 +220,7 @@ namespace Lucky
             }
 
             {
-                UI::ScopedFont boldFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO ·â×° Fonts
+                UI::ScopedFont boldFont(UI::GetEditorFont(UI::EditorFont::Bold));
                 ImGui::TextUnformatted(desc.Name.c_str());
             }
 

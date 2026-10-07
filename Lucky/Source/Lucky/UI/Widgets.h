@@ -683,6 +683,7 @@ namespace Lucky::UI
 
     /// <summary>
     /// 开始一个 Grid 布局：维护列数、换行时机、单元格尺寸
+    /// 水平间距按行宽动态均分（space-evenly），行间距固定为一行文字高
     /// 用法：
     ///   if (UI::BeginGrid("##Projects", cellW, cellH)) {
     ///       for (auto& e : entries) { UI::BeginRenamableGridItem(...); ... UI::EndRenamableGridItem(); }
@@ -693,7 +694,8 @@ namespace Lucky::UI
     /// <param name="id">ImGui ID（和同窗口其他控件隔离）</param>
     /// <param name="cellWidth">单元格宽度（含内边距）</param>
     /// <param name="cellHeight">单元格高度（含内边距 + 名字区）</param>
-    /// <param name="spacing">单元格之间的间距</param>
+    /// <param name="spacing">基准间距：只用于决定列数；实际水平间距按行宽动态均分
+    /// （剩余宽度摊成 cols+1 条等宽间隙，两侧边距与格子间距相等，整行铺满）</param>
     /// <returns>当前帧 Grid 是否可绘制（面板宽度足够放至少 1 个格子时 true；否则直接 false，不要求配对 EndGrid）</returns>
     bool BeginGrid(const char* id, float cellWidth, float cellHeight, float spacing = Theme::Layout::GridItemSpacing);
 

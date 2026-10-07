@@ -17,6 +17,7 @@
 
 #include "Lucky/UI/Widgets.h"
 #include "Lucky/UI/Theme.h"
+#include "Lucky/UI/ScopedGuards.h"
 
 #include "Lucky/Core/Events/KeyEvent.h"
 #include "Lucky/Core/Input/Input.h"
@@ -294,7 +295,7 @@ namespace Lucky
         
         const Ref<Texture2D>& icon = EditorIconManager::GetAssetTypeIcon(AssetType::Scene);
         
-        ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO ·â×° Fonts
+        ImGui::PushFont(UI::GetEditorFont(UI::EditorFont::Bold));
         bool opened = UI::BeginTreeNode(icon, strSceneID.c_str(), true);
         ImGui::PopFont();
         

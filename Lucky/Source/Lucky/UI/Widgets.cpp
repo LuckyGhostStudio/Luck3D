@@ -47,7 +47,7 @@ namespace Lucky::UI
             ImGui::SameLine();
             ShiftCursorX(Theme::Layout::ComponentHeaderIconSpacing);
             {
-                ScopedFont boldFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO 封装 Fonts
+                ScopedFont boldFont(GetEditorFont(EditorFont::Bold));
                 ImGui::TextUnformatted(label);
             }
         
@@ -75,8 +75,8 @@ namespace Lucky::UI
         ScopedStyle frameRounding(ImGuiStyleVar_FrameRounding, 0.0f);
         ScopedStyle framePadding(ImGuiStyleVar_FramePadding, { 6.0f, 6.0f });
         
-        ScopedFont boldFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO 封装 Fonts
-        
+        ScopedFont boldFont(GetEditorFont(EditorFont::Bold));
+
         ShiftCursorY(Theme::Layout::ItemSpacingY);   // 向下偏移，增加与上方内容的间距
         bool opened = ImGui::TreeNodeEx(label, flags);
         if (opened)
@@ -686,22 +686,35 @@ namespace Lucky::UI
             cols = 1;   // 面板比一格还窄也至少放一个
         }
 
+        // 水平间距按行宽动态均分：剩余宽度摊成 cols+1 条等宽间隙（左缘 + 中间 + 右缘），
+        // 整行铺满且两侧边距与格子间距相等；spacing 参数只作为决定列数的基准间距。
+        // 左缘那条间隙由下方 Indent 落到每一行行首。
+        float actualSpacing = (availW - static_cast<float>(cols) * cellWidth) / static_cast<float>(cols + 1);
+        actualSpacing = ImMax(actualSpacing, 0.0f);   // availW 比一格还窄（被钳到 1 列）时防御负值
+
         GridContext ctx;
         ctx.CellWidth = cellWidth;
         ctx.CellHeight = cellHeight;
-        ctx.Spacing = spacing;
+        ctx.Spacing = actualSpacing;
         ctx.ColumnCount = cols;
         ctx.CurrentColumn = 0;
         s_GridStack.push_back(ctx);
 
         ImGui::PushID(id);
+        ImGui::Indent(actualSpacing);
+        // Grid 作用域换用小号字体：名字文本与行高都按小字号走
+        ImGui::PushFont(GetEditorFont(EditorFont::Small));
+        // 行间距固定为小字体一行文字高（与单元格名字区高度一致）
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
+                            ImVec2(ImGui::GetStyle().ItemSpacing.x, ImGui::GetTextLineHeight()));
+        // 首行上方的固定间距
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + Theme::Layout::GridTopPadding);
         return true;
     }
 
     void EndGrid()
     {
         LF_CORE_ASSERT(!s_GridStack.empty(), "EndGrid without matching BeginGrid");
-        ImGui::PopID();
 
         // 结束前把 ImGui cursor 带到下一行（最后一行可能没走到换行点），避免外层 BeginChild 高度算错
         GridContext& ctx = s_GridStack.back();
@@ -709,6 +722,10 @@ namespace Lucky::UI
         {
             ImGui::NewLine();
         }
+        ImGui::Unindent(ctx.Spacing);   // 配对 BeginGrid 的 Indent（行首左缘间隙）
+        ImGui::PopStyleVar();           // 配对 BeginGrid 压入的行间距
+        ImGui::PopFont();               // 配对 BeginGrid 压入的小号字体
+        ImGui::PopID();
         s_GridStack.pop_back();
     }
 
@@ -820,7 +837,10 @@ namespace Lucky::UI
             {
                 visible.resize(hashPos);
             }
-            DrawTruncatedCenteredText(dl, nameMin, nameMax, visible.c_str(), Theme::Layout::GridItemNameRows);
+            // 文本绘制区相对名字区内缩：截断后的长文本两端与名字区边缘（选中蓝框）留出间距
+            ImVec2 textMin(nameMin.x + Theme::Layout::GridItemNameTextPadX, nameMin.y);
+            ImVec2 textMax(nameMax.x - Theme::Layout::GridItemNameTextPadX, nameMax.y);
+            DrawTruncatedCenteredText(dl, textMin, textMax, visible.c_str(), Theme::Layout::GridItemNameRows);
         }
 
         GridItemFrame frame;

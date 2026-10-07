@@ -308,7 +308,7 @@ namespace Lucky
 
         if (isRoot)
         {
-            ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);    // TODO 封装 Fonts
+            ImGui::PushFont(UI::GetEditorFont(UI::EditorFont::Bold));
         }
 
         // 拷贝一份路径，避免 Rebuild 后 node 引用悬空（延迟执行的 lambda 需要）
@@ -405,7 +405,8 @@ namespace Lucky
     void ProjectAssetsPanel::DrawContentArea_Grid(float iconSize)
     {
         // 单元格尺寸 = 图标尺寸 + 内边距 + 图标到名字的 gap + 名字区（固定行数）
-        float textRowH = ImGui::GetTextLineHeight();
+        // 名字区按 Grid 作用域内的小号字体行高算（BeginGrid 里 PushFont 小字体，两者必须一致）
+        float textRowH = UI::GetEditorFontLineHeight(UI::EditorFont::Small);
         float cellW = iconSize + UI::Theme::Layout::GridItemPaddingX * 2.0f;
         float cellH = iconSize + UI::Theme::Layout::GridItemPaddingY * 2.0f
                       + UI::Theme::Layout::GridItemIconToNameGap
