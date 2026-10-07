@@ -14,14 +14,26 @@
 
 namespace Lucky
 {
-    void InspectorHeader::Draw(const Ref<Texture2D>& icon, const std::string& displayName, const char* typeLabel, const char* popupId)
+    void InspectorHeader::Draw(const Ref<Texture2D>& icon, const std::string& displayName, const char* typeLabel, const char* popupId, UI::GridIconKind iconKind)
     {
         UI::ShiftCursor(8.0f, 8.0f);
 
-        // 图标（左侧大图，UV Y 翻转以匹配 OpenGL 纹理方向）
+        // 图标（左侧 50x50 框）
         if (icon && icon->GetRendererID() != 0)
         {
-            UI::ImageFlipped(icon, ImVec2(50, 50));
+            constexpr float iconFrameSize = 50.0f;
+            if (iconKind == UI::GridIconKind::Content)
+            {
+                // 内容预览：等比居中、永不放大（与资产面板 Grid 同一套适配规则）；Dummy 占位推进布局
+                ImVec2 frameMin = ImGui::GetCursorScreenPos();
+                UI::DrawContentIcon(ImGui::GetWindowDrawList(), icon, frameMin, iconFrameSize);
+                ImGui::Dummy(ImVec2(iconFrameSize, iconFrameSize));
+            }
+            else
+            {
+                // 符号图标：满框拉伸，UV Y 翻转以匹配 OpenGL 纹理方向
+                UI::ImageFlipped(icon, ImVec2(iconFrameSize, iconFrameSize));
+            }
             ImGui::SameLine();
 
             UI::ShiftCursorX(8.0f);

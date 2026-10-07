@@ -4,6 +4,9 @@
 #include "Lucky/Editor/MaterialEditor.h"
 #include "Lucky/Editor/EditorIconManager.h"
 #include "Lucky/Editor/InspectorHeader.h"
+#include "Lucky/Editor/Preview/AssetPreviewCache.h"
+
+#include "Lucky/UI/Widgets.h"
 
 #include "Lucky/Asset/AssetManager.h"
 #include "Lucky/Renderer/Material.h"
@@ -16,6 +19,44 @@
 
 namespace Lucky
 {
+    /// <summary>
+    /// Header 图标：纹理 + 内容类别（内容类别决定框内缩放策略，见 GridIconKind）
+    /// </summary>
+    struct HeaderIcon
+    {
+        Ref<Texture2D> Texture;
+        UI::GridIconKind Kind = UI::GridIconKind::Symbolic;
+    };
+
+    /// <summary>
+    /// 取 Header 图标：可预览资产（纹理 / 材质 / 网格 / 场景）优先用真实缩略图（Content），
+    /// 与资产面板共用 AssetPreviewCache；取不到或不支持的类型回退静态类型图标（Symbolic）
+    /// </summary>
+    static HeaderIcon GetHeaderIcon(AssetHandle handle, AssetType type)
+    {
+        // 纹理资产原图即预览
+        if (type == AssetType::Texture2D)
+        {
+            Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(handle);
+            if (texture)
+            {
+                return { texture, UI::GridIconKind::Content };
+            }
+        }
+
+        // 材质 / 网格 / 场景走预览缓存
+        if (type == AssetType::Material || type == AssetType::Mesh || type == AssetType::Scene)
+        {
+            const Ref<Texture2D>& preview = AssetPreviewCache::GetOrRender(handle, type);
+            if (preview)
+            {
+                return { preview, UI::GridIconKind::Content };
+            }
+        }
+
+        return { EditorIconManager::GetAssetTypeIcon(type), UI::GridIconKind::Symbolic };
+    }
+
     /// <summary>
     /// 绘制所有 AssetInspector Header：图标 + "名称 (AssetType)" + 设置按钮
     /// </summary>
@@ -33,8 +74,8 @@ namespace Lucky
             displayName = "<Unnamed>";
         }
 
-        const Ref<Texture2D>& icon = EditorIconManager::GetAssetTypeIcon(type);
-        InspectorHeader::Draw(icon, displayName, AssetTypeToString(type), "AssetSettings");
+        HeaderIcon icon = GetHeaderIcon(handle, type);
+        InspectorHeader::Draw(icon.Texture, displayName, AssetTypeToString(type), "AssetSettings", icon.Kind);
     }
     
     void MaterialInspector::Draw(AssetHandle handle)
@@ -83,5 +124,10 @@ namespace Lucky
     void ShaderInspector::Draw(AssetHandle handle)
     {
         DrawAssetHeader(handle, std::string(), AssetType::Shader);
+    }
+
+    void ScriptInspector::Draw(AssetHandle handle)
+    {
+        DrawAssetHeader(handle, std::string(), AssetType::Script);
     }
 }

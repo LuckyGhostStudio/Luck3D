@@ -740,6 +740,36 @@ namespace Lucky::UI
         s_GridStack.pop_back();
     }
 
+    void DrawContentIcon(ImDrawList* dl, const Ref<Texture2D>& texture, const ImVec2& frameMin, float frameSize, ImU32 tintCol)
+    {
+        if (!dl || !texture)
+        {
+            return;
+        }
+
+        ImTextureID texID = GetImTextureID(texture);
+        if (!texID)
+        {
+            return;
+        }
+
+        // 内容适配：等比居中、永不放大（大内容等比缩进框）；尺寸非法时回退满框
+        ImVec2 drawSize(frameSize, frameSize);
+        float origW = static_cast<float>(texture->GetWidth());
+        float origH = static_cast<float>(texture->GetHeight());
+        if (origW > 0.0f && origH > 0.0f)
+        {
+            float scale = ImMin(1.0f, frameSize / ImMax(origW, origH));
+            drawSize = ImVec2(origW * scale, origH * scale);
+        }
+
+        ImVec2 iconMin(
+            frameMin.x + (frameSize - drawSize.x) * 0.5f,
+            frameMin.y + (frameSize - drawSize.y) * 0.5f);
+        ImVec2 iconMax(iconMin.x + drawSize.x, iconMin.y + drawSize.y);
+        dl->AddImage(texID, iconMin, iconMax, ImVec2(0, 1), ImVec2(1, 0), tintCol);
+    }
+
     GridItemFrame BeginGridItemFrame(
         const Ref<Texture2D>& icon,
         const char*           name,
@@ -777,23 +807,6 @@ namespace Lucky::UI
             cellMin.x + (ctx.CellWidth - frameSize) * 0.5f,
             cellMin.y + padY + (iconAreaH - frameSize) * 0.5f);
 
-        // 实际绘制尺寸：Symbolic 满框拉伸；Content 等比居中、永不放大（大内容等比缩进框）
-        ImVec2 drawSize(frameSize, frameSize);
-        if (iconKind == GridIconKind::Content && icon)
-        {
-            float origW = static_cast<float>(icon->GetWidth());
-            float origH = static_cast<float>(icon->GetHeight());
-            if (origW > 0.0f && origH > 0.0f)
-            {
-                float scale = ImMin(1.0f, frameSize / ImMax(origW, origH));
-                drawSize = ImVec2(origW * scale, origH * scale);
-            }
-        }
-        ImVec2 iconMin(
-            frameMin.x + (frameSize - drawSize.x) * 0.5f,
-            frameMin.y + (frameSize - drawSize.y) * 0.5f);
-        ImVec2 iconMax(iconMin.x + drawSize.x, iconMin.y + drawSize.y);
-
         // 名字区在图标下方留出 gap 的空隙后开始
         ImVec2 nameMin(cellMin.x + padX, cellMin.y + padY + iconAreaH + gap);
         ImVec2 nameMax(cellMax.x - padX, cellMax.y - padY);
@@ -826,33 +839,40 @@ namespace Lucky::UI
             dl->AddRectFilled(nameMin, nameMax, nameBg, Theme::Layout::ChildRounding);
         }
 
-        // 5) 画图标（居中上部）：选中 / Hover 态通过 Image 的 tint_col 参数对图标本身染色
-        //    tint_col 和图标 alpha 相乘，透明像素依然透明 —— 这是 Unity 风格"只染图标本身，不填背景"的正确做法
-        if (drawSize.x > 0.0f && drawSize.y > 0.0f && icon)
+        // 5) 画图标（居中上部）：选中态通过 tintCol 对图标本身染色
+        //    tintCol 和图标 alpha 相乘，透明像素依然透明 —— 这是 Unity 风格"只染图标本身，不填背景"的正确做法
+        if (icon)
         {
-            ImTextureID texID = GetImTextureID(icon);
-            if (texID)
+            // Hover 态不单独染色 —— 维持 selected / unselected 的本来颜色（选中则偏蓝、未选中则原样）
+            ImU32 tintCol = IM_COL32_WHITE;
+            if (selected && !isRenaming)
             {
-                // Hover 态不单独染色 —— 维持 selected / unselected 的本来颜色（选中则偏蓝、未选中则原样）
-                ImU32 tintCol = IM_COL32_WHITE;
-                if (selected && !isRenaming)
-                {
-                    // 选中态：图标 RGB 轻微偏浅蓝，alpha 保持 full
-                    const glm::vec4& selBlue = EditorPreferences::Get().GetColors().SelectionBlueColor;
-                    // 原色 80% + 选中蓝 20%，比之前更淡
-                    constexpr float mix = 0.2f;
-                    float r = 1.0f * (1.0f - mix) + selBlue.r * mix;
-                    float g = 1.0f * (1.0f - mix) + selBlue.g * mix;
-                    float b = 1.0f * (1.0f - mix) + selBlue.b * mix;
-                    tintCol = IM_COL32(
-                        static_cast<int>(r * 255.0f),
-                        static_cast<int>(g * 255.0f),
-                        static_cast<int>(b * 255.0f),
-                        255);
-                }
+                // 选中态：图标 RGB 轻微偏浅蓝（原色 80% + 选中蓝 20%），alpha 保持 full
+                const glm::vec4& selBlue = EditorPreferences::Get().GetColors().SelectionBlueColor;
+                constexpr float mix = 0.2f;
+                float r = 1.0f * (1.0f - mix) + selBlue.r * mix;
+                float g = 1.0f * (1.0f - mix) + selBlue.g * mix;
+                float b = 1.0f * (1.0f - mix) + selBlue.b * mix;
+                tintCol = IM_COL32(
+                    static_cast<int>(r * 255.0f),
+                    static_cast<int>(g * 255.0f),
+                    static_cast<int>(b * 255.0f),
+                    255);
+            }
 
-                // 和 TreeNode 的 Image 用法保持一致：OpenGL FBO 纹理 Y 向下，这里翻转 UV
-                dl->AddImage(texID, iconMin, iconMax, ImVec2(0, 1), ImVec2(1, 0), tintCol);
+            if (iconKind == GridIconKind::Content)
+            {
+                // 内容预览：等比居中、永不放大（适配规则收在 DrawContentIcon，与 Inspector Header 预览共用）
+                DrawContentIcon(dl, icon, frameMin, frameSize, tintCol);
+            }
+            else
+            {
+                // Symbolic：满框拉伸；UV 按 OpenGL 纹理行序翻转
+                ImTextureID texID = GetImTextureID(icon);
+                if (texID)
+                {
+                    dl->AddImage(texID, frameMin, ImVec2(frameMin.x + frameSize, frameMin.y + frameSize), ImVec2(0, 1), ImVec2(1, 0), tintCol);
+                }
             }
         }
 

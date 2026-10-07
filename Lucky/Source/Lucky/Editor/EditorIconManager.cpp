@@ -34,7 +34,7 @@ namespace Lucky
         Ref<Texture2D> FolderEmptyIconLarge;
         Ref<Texture2D> FileIconLarge;
 
-        // ---- 资产类型图标（128 大尺寸版；只覆盖有资源的类型，Material/Mesh/Texture2D/Scene 走真实预览）----
+        // ---- 资产类型图标（128 大尺寸版；只覆盖有资源的类型，Mesh/Texture2D/Scene 走真实预览）----
         std::unordered_map<AssetType, Ref<Texture2D>> AssetTypeIconsLarge;
 
         // ---- 拖拽图标 ----
@@ -121,7 +121,10 @@ namespace Lucky
         s_IconData.AssetTypeIcons[AssetType::Shader]    = LoadIcon("Asset/Shader.png");
         s_IconData.AssetTypeIcons[AssetType::Script]    = LoadIcon("Asset/Script.png");
 
-        // ---- 资产类型图标（128 大尺寸版；Material/Mesh/Texture2D/Scene 走真实预览，无需大图）----
+        // ---- 资产类型图标（128 大尺寸版）----
+        // Material 大图供 Pending Create 占位使用（占位阶段资产尚未落盘，没有可预览内容，只能显示静态图标）；
+        // Mesh/Texture2D/Scene 走真实预览，无需大图
+        s_IconData.AssetTypeIconsLarge[AssetType::Material] = LoadIcon("Asset/Material128.png");
         s_IconData.AssetTypeIconsLarge[AssetType::Shader] = LoadIcon("Asset/Shader128.png");
         s_IconData.AssetTypeIconsLarge[AssetType::Script] = LoadIcon("Asset/Script128.png");
 

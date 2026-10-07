@@ -694,6 +694,18 @@ namespace Lucky::UI
     };
 
     /// <summary>
+    /// 在指定正方形框内绘制内容预览图：等比居中、永不放大（大内容等比缩进框）
+    /// Grid 单元格的 Content 图标与 Inspector Header 预览共用同一套适配规则；
+    /// UV 按 OpenGL 纹理行序翻转
+    /// </summary>
+    /// <param name="dl">目标 DrawList</param>
+    /// <param name="texture">内容纹理（为空时不画）</param>
+    /// <param name="frameMin">框左上角（屏幕坐标）</param>
+    /// <param name="frameSize">框边长（正方形）</param>
+    /// <param name="tintCol">染色（默认不透明原色）</param>
+    void DrawContentIcon(ImDrawList* dl, const Ref<Texture2D>& texture, const ImVec2& frameMin, float frameSize, ImU32 tintCol = IM_COL32_WHITE);
+
+    /// <summary>
     /// 开始一个 Grid 布局：维护列数、换行时机、单元格尺寸
     /// 水平间距按行宽动态均分（space-evenly），行间距固定为一行文字高
     /// 用法：

@@ -48,4 +48,13 @@ namespace Lucky
     public:
         static void Draw(AssetHandle handle);
     };
+
+    /// <summary>
+    /// ½Å±¾×Ê²ú Inspector
+    /// </summary>
+    class ScriptInspector
+    {
+    public:
+        static void Draw(AssetHandle handle);
+    };
 }

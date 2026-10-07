@@ -80,6 +80,7 @@ namespace Lucky
         AssetInspectorRegistry::Register(AssetType::Texture2D, &Texture2DInspector::Draw);
         AssetInspectorRegistry::Register(AssetType::Scene,     &SceneInspector::Draw);
         AssetInspectorRegistry::Register(AssetType::Shader,    &ShaderInspector::Draw);
+        AssetInspectorRegistry::Register(AssetType::Script,    &ScriptInspector::Draw);
 
         // 初始化 SceneManager：作为当前活动场景的唯一真源
         // 面板通过 Subscribe 订阅切换事件，无需再手动 SetScene
