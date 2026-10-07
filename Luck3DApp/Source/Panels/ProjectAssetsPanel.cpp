@@ -622,6 +622,7 @@ namespace Lucky
 
         // 图标：目录 → 文件夹图标；非目录 → 缩略图优先，fallback 到静态类型图标
         Ref<Texture2D> icon;
+        UI::GridIconKind iconKind = UI::GridIconKind::Symbolic;
         if (isDirectory)
         {
             icon = EditorIconManager::GetFolderIcon(false);
@@ -629,7 +630,12 @@ namespace Lucky
         else
         {
             icon = GetThumbnail(path);
-            if (!icon)
+            if (icon)
+            {
+                // 真实预览（纹理原图 / 材质网格的渲染预览）：等比居中不放大
+                iconKind = UI::GridIconKind::Content;
+            }
+            else
             {
                 icon = EditorIconManager::GetAssetTypeIcon(GetAssetTypeFromPath(path));
             }
@@ -673,7 +679,9 @@ namespace Lucky
                     }
                 },
                 /*scopeTag*/ kScopeContent,
-                &clickOutcome))
+                &clickOutcome,
+                /*onCancel*/ nullptr,
+                iconKind))
         {
             // 共用交互 helper 必须在 Grid Item 关闭前执行，这样 BeginDragDropSource / BeginPopupContextItem
             // 关联的 LastItemData 还是 Grid 的 InvisibleButton

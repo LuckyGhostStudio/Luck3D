@@ -6,6 +6,7 @@
 
 #include <imgui/imgui.h>
 
+#include <cstdint>
 #include <cstring>
 #include <string>
 #include <type_traits>
@@ -682,6 +683,15 @@ namespace Lucky::UI
     };
 
     /// <summary>
+    /// Grid 单元格图标的内容类别：决定图标在图标区（所有 GridItem 等大的正方形框）内的缩放策略
+    /// </summary>
+    enum class GridIconKind : uint8_t
+    {
+        Symbolic,   // 符号图标（文件夹 / 静态类型图标）：允许放大，满框拉伸
+        Content     // 内容预览（纹理原图 / 材质与网格的渲染预览）：等比居中，永不放大，最大满框
+    };
+
+    /// <summary>
     /// 开始一个 Grid 布局：维护列数、换行时机、单元格尺寸
     /// 水平间距按行宽动态均分（space-evenly），行间距固定为一行文字高
     /// 用法：
@@ -718,12 +728,14 @@ namespace Lucky::UI
     /// <param name="displayName">显示名（Rename 态下由上层接管绘制）</param>
     /// <param name="selected">是否选中（画背景用）</param>
     /// <param name="isRenaming">是否处于 Rename 编辑态（为 true 时不画默认名字文本）</param>
+    /// <param name="iconKind">图标内容类别（缩放策略见 GridIconKind）</param>
     GridItemFrame BeginGridItemFrame(
         const Ref<Texture2D>& icon,
         const char*           name,
         const std::string&    displayName,
         bool                  selected,
-        bool                  isRenaming);
+        bool                  isRenaming,
+        GridIconKind          iconKind = GridIconKind::Symbolic);
 
     /// <summary>
     /// 结束 Grid 单元格：推进当前列号；达到行末时下次 BeginItem 自动换行
@@ -739,6 +751,7 @@ namespace Lucky::UI
     /// <typeparam name="TId">RenameController 的 ID 类型（通常 std::filesystem::path 或 UUID）</typeparam>
     /// <typeparam name="FnCommit">改名提交回调签名 void(const std::string&)</typeparam>
     /// <typeparam name="FnCancel">取消回调签名 void()，可选</typeparam>
+    /// <param name="iconKind">图标内容类别（缩放策略见 GridIconKind），默认 Symbolic 满框拉伸</param>
     template <typename TId, typename FnCommit, typename FnCancel = std::nullptr_t>
     bool BeginRenamableGridItem(
         const Ref<Texture2D>&       icon,
@@ -750,11 +763,12 @@ namespace Lucky::UI
         FnCommit&&                  onCommit,
         int                         scopeTag = 0,
         RenameClickOutcome*         outClickOutcome = nullptr,
-        FnCancel&&                  onCancel = nullptr)
+        FnCancel&&                  onCancel = nullptr,
+        GridIconKind                iconKind = GridIconKind::Symbolic)
     {
         bool isRenaming = rename.IsEditing(id, scopeTag);
 
-        GridItemFrame frame = BeginGridItemFrame(icon, name, displayName, selected, isRenaming);
+        GridItemFrame frame = BeginGridItemFrame(icon, name, displayName, selected, isRenaming, iconKind);
 
         // 把名字区作为 Rename 命中矩形上报，供 InputText 覆盖 + 两阶段"点击已选中名字区进入 Rename"
         rename.SubmitHitRect(frame.NameMin, frame.NameMax);

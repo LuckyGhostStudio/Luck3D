@@ -734,7 +734,8 @@ namespace Lucky::UI
         const char*           name,
         const std::string&    displayName,
         bool                  selected,
-        bool                  isRenaming)
+        bool                  isRenaming,
+        GridIconKind          iconKind)
     {
         LF_CORE_ASSERT(!s_GridStack.empty(), "BeginGridItemFrame must be inside BeginGrid / EndGrid");
         GridContext& ctx = s_GridStack.back();
@@ -759,11 +760,28 @@ namespace Lucky::UI
         // iconAreaH 要扣掉 gap，否则 nameMin.y 下移后 nameMax 会压扁
         const float iconAreaH = ctx.CellHeight - padY * 2.0f - nameAreaH - gap;
         const float iconAreaW = ctx.CellWidth - padX * 2.0f;
-        const float iconSize = (iconAreaH < iconAreaW ? iconAreaH : iconAreaW);
+        // 图标区（所有 GridItem 等大的正方形框）居中位置
+        const float frameSize = (iconAreaH < iconAreaW ? iconAreaH : iconAreaW);
+        ImVec2 frameMin(
+            cellMin.x + (ctx.CellWidth - frameSize) * 0.5f,
+            cellMin.y + padY + (iconAreaH - frameSize) * 0.5f);
+
+        // 实际绘制尺寸：Symbolic 满框拉伸；Content 等比居中、永不放大（大内容等比缩进框）
+        ImVec2 drawSize(frameSize, frameSize);
+        if (iconKind == GridIconKind::Content && icon)
+        {
+            float origW = static_cast<float>(icon->GetWidth());
+            float origH = static_cast<float>(icon->GetHeight());
+            if (origW > 0.0f && origH > 0.0f)
+            {
+                float scale = ImMin(1.0f, frameSize / ImMax(origW, origH));
+                drawSize = ImVec2(origW * scale, origH * scale);
+            }
+        }
         ImVec2 iconMin(
-            cellMin.x + (ctx.CellWidth - iconSize) * 0.5f,
-            cellMin.y + padY + (iconAreaH - iconSize) * 0.5f);
-        ImVec2 iconMax(iconMin.x + iconSize, iconMin.y + iconSize);
+            frameMin.x + (frameSize - drawSize.x) * 0.5f,
+            frameMin.y + (frameSize - drawSize.y) * 0.5f);
+        ImVec2 iconMax(iconMin.x + drawSize.x, iconMin.y + drawSize.y);
 
         // 名字区在图标下方留出 gap 的空隙后开始
         ImVec2 nameMin(cellMin.x + padX, cellMin.y + padY + iconAreaH + gap);
@@ -799,7 +817,7 @@ namespace Lucky::UI
 
         // 5) 画图标（居中上部）：选中 / Hover 态通过 Image 的 tint_col 参数对图标本身染色
         //    tint_col 和图标 alpha 相乘，透明像素依然透明 —— 这是 Unity 风格"只染图标本身，不填背景"的正确做法
-        if (iconSize > 0.0f && icon)
+        if (drawSize.x > 0.0f && drawSize.y > 0.0f && icon)
         {
             ImTextureID texID = GetImTextureID(icon);
             if (texID)
