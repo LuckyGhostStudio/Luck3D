@@ -2,7 +2,7 @@ Assets:
   - Handle: 1367921351893954327
     Type: Material
     FilePath: Assets/Internal/Materials/Default-Material.lmat
-  - Handle: 4455977123936041385
+  - Handle: 2360573760872238419
     Type: Material
     FilePath: Assets/Internal/Materials/Default-Skybox.lmat
   - Handle: 9799267234869336321
@@ -215,7 +215,7 @@ Assets:
   - Handle: 2841066732529632287
     Type: Scene
     FilePath: Assets/Scenes/ModelTest.luck3d
-  - Handle: 346564696727262175
+  - Handle: 15711410802227437025
     Type: Scene
     FilePath: Assets/Scenes/New Scene.luck3d
   - Handle: 404110828512862357

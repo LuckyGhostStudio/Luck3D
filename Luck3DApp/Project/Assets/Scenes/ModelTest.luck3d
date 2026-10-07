@@ -1,0 +1,28 @@
+Scene: ModelTest
+Handle: 2841066732529632287
+EnvironmentSettings:
+  SkyboxMaterial: 4455977123936041385
+  AmbientSource: 0
+  AmbientColor: [0.211999997, 0.226999998, 0.259000003]
+  DiffuseIntensity: 1
+  SpecularIntensity: 1
+  ReflectionResolution: 128
+RootEntityOrder: [6480975009752584573]
+Entities:
+  - Entity: 6480975009752584573
+    NameComponent:
+      Name: Cube
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 1
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 1367921351893954327

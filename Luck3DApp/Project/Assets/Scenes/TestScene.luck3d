@@ -1,0 +1,105 @@
+Scene: TestScene
+Handle: 5762758435241330624
+EnvironmentSettings:
+  SkyboxMaterial: 4455977123936041385
+  AmbientSource: 0
+  AmbientColor: [0.211999997, 0.226999998, 0.259000003]
+  DiffuseIntensity: 1
+  SpecularIntensity: 1
+  ReflectionResolution: 128
+RootEntityOrder: [17448375426817433729, 9808636861776487564, 6564378287897444717, 12506980158201593011, 2836823107901241236]
+Entities:
+  - Entity: 17448375426817433729
+    NameComponent:
+      Name: Camera
+    TransformComponent:
+      Position: [-0.799850881, 1.40621054, 2.87686181]
+      Rotation: [-0.221302539, -0.0813748091, -0.0185342729, 0.971627414]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    CameraComponent:
+      Projection: 0
+      PerspectiveFOV: 45
+      PerspectiveNear: 0.00999999978
+      PerspectiveFar: 1000
+      OrthographicSize: 10
+      OrthographicNear: -1
+      OrthographicFar: 1000
+      Primary: true
+      FixedAspectRatio: false
+  - Entity: 9808636861776487564
+    NameComponent:
+      Name: Plane
+    TransformComponent:
+      Position: [0, -2.98023224e-08, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [5.23599958, 5.23599958, 5.23599958]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 2
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 1367921351893954327
+  - Entity: 6564378287897444717
+    NameComponent:
+      Name: Sphere
+    TransformComponent:
+      Position: [-0.409760773, 0.580756068, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 6198692392249733516
+  - Entity: 12506980158201593011
+    NameComponent:
+      Name: Directional Light
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0.406246752, -0.249812275, 0.116489381, 0.871198952]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    LightComponent:
+      Type: 0
+      Color: [1, 1, 1]
+      Intensity: 1
+      Shadows: 1
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1
+      CascadeCount: 4
+      ShadowDistance: 150
+      ShadowMapResolution: 2048
+      CascadeSplits: [0.0670000017, 0.200000003, 0.467000008, 1]
+  - Entity: 2836823107901241236
+    NameComponent:
+      Name: Sphere (1)
+    TransformComponent:
+      Position: [0.922256649, 0.702011406, -0.111511298]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 16490249094191433778
