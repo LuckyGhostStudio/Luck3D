@@ -3,6 +3,12 @@
 一个基于 C++ 和 imgui 的 3D 游戏引擎。
 持续更新中...
 
+## 编辑器预览
+
+![编辑器主界面](Screenshots/editor-overview.jpg)
+
+![Inspector 组件与材质编辑](Screenshots/editor-inspector.jpg)
+
 ## 构建指南
 
 ### 前置条件
