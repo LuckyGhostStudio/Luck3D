@@ -8,6 +8,171 @@ Assets:
   - Handle: 9799267234869336321
     Type: Material
     FilePath: Assets/Internal/Materials/Sprite-Default.lmat
+  - Handle: 11294131155899249021
+    Type: Material
+    FilePath: Assets/Materials/BookStore.lmat
+  - Handle: 6817841364725400870
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R0M0.lmat
+  - Handle: 740575326616709622
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R0M1.lmat
+  - Handle: 10406711320138405613
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R0M2.lmat
+  - Handle: 768563473466445350
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R0M3.lmat
+  - Handle: 15334311533171722697
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R0M4.lmat
+  - Handle: 1473736182841944190
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R0M5.lmat
+  - Handle: 5064775436404298691
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R0M6.lmat
+  - Handle: 5336384234004735634
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R1M0.lmat
+  - Handle: 16094154871972819169
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R1M1.lmat
+  - Handle: 2048234722214905799
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R1M2.lmat
+  - Handle: 5596514116159393137
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R1M3.lmat
+  - Handle: 12597499097300061444
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R1M4.lmat
+  - Handle: 152459120488118658
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R1M5.lmat
+  - Handle: 8236661771478522344
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R1M6.lmat
+  - Handle: 6075087935593930741
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R2M0.lmat
+  - Handle: 5289438297010912317
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R2M1.lmat
+  - Handle: 14065988241529472467
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R2M2.lmat
+  - Handle: 5612962032353247260
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R2M3.lmat
+  - Handle: 4848810985407759029
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R2M4.lmat
+  - Handle: 10729936668282995204
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R2M5.lmat
+  - Handle: 15706618728868502223
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R2M6.lmat
+  - Handle: 5749423539944661579
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R3M0.lmat
+  - Handle: 12985077251649207192
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R3M1.lmat
+  - Handle: 11510627731282328324
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R3M2.lmat
+  - Handle: 7798751030460555576
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R3M3.lmat
+  - Handle: 7835116342893810679
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R3M4.lmat
+  - Handle: 9880344144553995949
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R3M5.lmat
+  - Handle: 18131253451777458053
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R3M6.lmat
+  - Handle: 4887650942737764732
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R4M0.lmat
+  - Handle: 8442983296593619228
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R4M1.lmat
+  - Handle: 12746679908997081317
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R4M2.lmat
+  - Handle: 10903809275430991577
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R4M3.lmat
+  - Handle: 11673510748629246777
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R4M4.lmat
+  - Handle: 5656398303958048726
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R4M5.lmat
+  - Handle: 4792793176321953931
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R4M6.lmat
+  - Handle: 16025408004875987887
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R5M0.lmat
+  - Handle: 5682592323071508868
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R5M1.lmat
+  - Handle: 12622582967641333975
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R5M2.lmat
+  - Handle: 7880690706364761385
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R5M3.lmat
+  - Handle: 833158986590567741
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R5M4.lmat
+  - Handle: 764854443805297276
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R5M5.lmat
+  - Handle: 3710555964583081363
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R5M6.lmat
+  - Handle: 18180424371950149734
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R6M0.lmat
+  - Handle: 16029489057987171513
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R6M1.lmat
+  - Handle: 17455970391041452410
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R6M2.lmat
+  - Handle: 13625146385598174959
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R6M3.lmat
+  - Handle: 15503998888545150847
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R6M4.lmat
+  - Handle: 14140872347819643740
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R6M5.lmat
+  - Handle: 11410487533279191938
+    Type: Material
+    FilePath: Assets/Materials/PBRGrid/Mat_R6M6.lmat
+  - Handle: 10913551899665050780
+    Type: Material
+    FilePath: Assets/Materials/Room.lmat
+  - Handle: 6198692392249733516
+    Type: Material
+    FilePath: Assets/Materials/RoughnessTest/Roughness0.lmat
+  - Handle: 16490249094191433778
+    Type: Material
+    FilePath: Assets/Materials/RoughnessTest/Roughness1.lmat
+  - Handle: 13285103563495608940
+    Type: Material
+    FilePath: Assets/Materials/Town.lmat
+  - Handle: 13517344591667070217
+    Type: Material
+    FilePath: Assets/Materials/Window.lmat
   - Handle: 12074619104075454074
     Type: Mesh
     FilePath: Assets/Meshes/Builtin/Capsule.lmesh
@@ -26,6 +191,9 @@ Assets:
   - Handle: 15371708753497768302
     Type: Mesh
     FilePath: Assets/Meshes/Hornet.lmesh
+  - Handle: 12822961378577965160
+    Type: Mesh
+    FilePath: Assets/Meshes/LowPolyRoom.lmesh
   - Handle: 12698453817255054734
     Type: Texture2D
     FilePath: Assets/Models/Hornet.png
@@ -44,12 +212,21 @@ Assets:
   - Handle: 11280466415807244023
     Type: Texture2D
     FilePath: Assets/Models/Railgun.png
-  - Handle: 15051957251215211046
+  - Handle: 2841066732529632287
+    Type: Scene
+    FilePath: Assets/Scenes/ModelTest.luck3d
+  - Handle: 346564696727262175
     Type: Scene
     FilePath: Assets/Scenes/New Scene.luck3d
+  - Handle: 404110828512862357
+    Type: Scene
+    FilePath: Assets/Scenes/PBRGridTest.luck3d
   - Handle: 12097578753374292115
     Type: Scene
     FilePath: Assets/Scenes/ScriptTest.luck3d
+  - Handle: 5762758435241330624
+    Type: Scene
+    FilePath: Assets/Scenes/TestScene.luck3d
   - Handle: 4360536123742608038
     Type: Script
     FilePath: Assets/Scripts/PlayerController.cs
@@ -191,6 +368,9 @@ Assets:
   - Handle: 18415810335139356765
     Type: Texture2D
     FilePath: Assets/Textures/NormalMap.jpg
+  - Handle: 18029567166951293310
+    Type: Texture2D
+    FilePath: Assets/Textures/Palette.png
   - Handle: 11439896302473934044
     Type: Texture2D
     FilePath: Assets/Textures/Palette256Gradient.png

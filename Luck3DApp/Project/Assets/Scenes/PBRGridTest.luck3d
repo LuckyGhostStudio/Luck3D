@@ -1,0 +1,1023 @@
+Scene: PBRGridTest
+Handle: 404110828512862357
+EnvironmentSettings:
+  SkyboxMaterial: 4455977123936041385
+  AmbientSource: 0
+  AmbientColor: [0.211999997, 0.226999998, 0.259000003]
+  DiffuseIntensity: 1
+  SpecularIntensity: 1
+  ReflectionResolution: 128
+RootEntityOrder: [6139091074473064049, 6154210356857819247, 1028939920665883645]
+Entities:
+  - Entity: 6139091074473064049
+    NameComponent:
+      Name: PBRGrid
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        - Child: 10020543414540634396
+        - Child: 14170619622423859333
+        - Child: 16531862771049991662
+        - Child: 3107409351725503209
+        - Child: 5017949458528686754
+        - Child: 3463058687979789102
+        - Child: 16435215649446872385
+  - Entity: 10020543414540634396
+    NameComponent:
+      Name: Row_R0
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 6139091074473064049
+      Children:
+        - Child: 3360316259905493410
+        - Child: 11915751117540452278
+        - Child: 3045507073605316231
+        - Child: 5877055804485710721
+        - Child: 3615573544678054446
+        - Child: 13385979568380868562
+        - Child: 10975282906897778711
+  - Entity: 3360316259905493410
+    NameComponent:
+      Name: Sphere_R0M0
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 10020543414540634396
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 6817841364725400870
+  - Entity: 11915751117540452278
+    NameComponent:
+      Name: Sphere_R0M1
+    TransformComponent:
+      Position: [1.20000005, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 10020543414540634396
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 740575326616709622
+  - Entity: 3045507073605316231
+    NameComponent:
+      Name: Sphere_R0M2
+    TransformComponent:
+      Position: [2.4000001, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 10020543414540634396
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 10406711320138405613
+  - Entity: 5877055804485710721
+    NameComponent:
+      Name: Sphere_R0M3
+    TransformComponent:
+      Position: [3.5999999, 0, -2.98023224e-08]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 10020543414540634396
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 768563473466445350
+  - Entity: 3615573544678054446
+    NameComponent:
+      Name: Sphere_R0M4
+    TransformComponent:
+      Position: [4.80000019, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 10020543414540634396
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 15334311533171722697
+  - Entity: 13385979568380868562
+    NameComponent:
+      Name: Sphere_R0M5
+    TransformComponent:
+      Position: [6, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 10020543414540634396
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 1473736182841944190
+  - Entity: 10975282906897778711
+    NameComponent:
+      Name: Sphere_R0M6
+    TransformComponent:
+      Position: [7.19999981, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 10020543414540634396
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 5064775436404298691
+  - Entity: 14170619622423859333
+    NameComponent:
+      Name: Row_R1
+    TransformComponent:
+      Position: [0, 0, 1.20000005]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 6139091074473064049
+      Children:
+        - Child: 12942719605858171846
+        - Child: 15091694190253613635
+        - Child: 15385498710707480134
+        - Child: 10370657221219808090
+        - Child: 2556307281329875158
+        - Child: 3688144611283642925
+        - Child: 14942492478371270405
+  - Entity: 12942719605858171846
+    NameComponent:
+      Name: Sphere_R1M0
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 14170619622423859333
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 5336384234004735634
+  - Entity: 15091694190253613635
+    NameComponent:
+      Name: Sphere_R1M1
+    TransformComponent:
+      Position: [1.20000005, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 14170619622423859333
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 16094154871972819169
+  - Entity: 15385498710707480134
+    NameComponent:
+      Name: Sphere_R1M2
+    TransformComponent:
+      Position: [2.4000001, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 14170619622423859333
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 2048234722214905799
+  - Entity: 10370657221219808090
+    NameComponent:
+      Name: Sphere_R1M3
+    TransformComponent:
+      Position: [3.5999999, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 14170619622423859333
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 5596514116159393137
+  - Entity: 2556307281329875158
+    NameComponent:
+      Name: Sphere_R1M4
+    TransformComponent:
+      Position: [4.80000019, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 14170619622423859333
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 12597499097300061444
+  - Entity: 3688144611283642925
+    NameComponent:
+      Name: Sphere_R1M5
+    TransformComponent:
+      Position: [6, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 14170619622423859333
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 152459120488118658
+  - Entity: 14942492478371270405
+    NameComponent:
+      Name: Sphere_R1M6
+    TransformComponent:
+      Position: [7.19999981, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 14170619622423859333
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 8236661771478522344
+  - Entity: 16531862771049991662
+    NameComponent:
+      Name: Row_R2
+    TransformComponent:
+      Position: [0, 0, 2.4000001]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 6139091074473064049
+      Children:
+        - Child: 13782663888699167496
+        - Child: 16529373200276080966
+        - Child: 1615416452360722918
+        - Child: 6472318907563505073
+        - Child: 11975654502008727662
+        - Child: 12259317531680881948
+        - Child: 7987134930729669350
+  - Entity: 13782663888699167496
+    NameComponent:
+      Name: Sphere_R2M0
+    TransformComponent:
+      Position: [7.4505806e-09, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 16531862771049991662
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 6075087935593930741
+  - Entity: 16529373200276080966
+    NameComponent:
+      Name: Sphere_R2M1
+    TransformComponent:
+      Position: [1.20000005, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 16531862771049991662
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 5289438297010912317
+  - Entity: 1615416452360722918
+    NameComponent:
+      Name: Sphere_R2M2
+    TransformComponent:
+      Position: [2.4000001, -3.7252903e-09, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 16531862771049991662
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 14065988241529472467
+  - Entity: 6472318907563505073
+    NameComponent:
+      Name: Sphere_R2M3
+    TransformComponent:
+      Position: [3.5999999, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 16531862771049991662
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 5612962032353247260
+  - Entity: 11975654502008727662
+    NameComponent:
+      Name: Sphere_R2M4
+    TransformComponent:
+      Position: [4.80000019, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 16531862771049991662
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 4848810985407759029
+  - Entity: 12259317531680881948
+    NameComponent:
+      Name: Sphere_R2M5
+    TransformComponent:
+      Position: [6, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 16531862771049991662
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 10729936668282995204
+  - Entity: 7987134930729669350
+    NameComponent:
+      Name: Sphere_R2M6
+    TransformComponent:
+      Position: [7.19999981, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 16531862771049991662
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 15706618728868502223
+  - Entity: 3107409351725503209
+    NameComponent:
+      Name: Row_R3
+    TransformComponent:
+      Position: [0, 0, 3.5999999]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 6139091074473064049
+      Children:
+        - Child: 11381763554289209504
+        - Child: 4699133946193423692
+        - Child: 14922220584065235941
+        - Child: 11540865419356149339
+        - Child: 1909338287245515020
+        - Child: 15233561958285638573
+        - Child: 6300410482366963313
+  - Entity: 11381763554289209504
+    NameComponent:
+      Name: Sphere_R3M0
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 3107409351725503209
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 5749423539944661579
+  - Entity: 4699133946193423692
+    NameComponent:
+      Name: Sphere_R3M1
+    TransformComponent:
+      Position: [1.20000005, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 3107409351725503209
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 12985077251649207192
+  - Entity: 14922220584065235941
+    NameComponent:
+      Name: Sphere_R3M2
+    TransformComponent:
+      Position: [2.4000001, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 3107409351725503209
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 11510627731282328324
+  - Entity: 11540865419356149339
+    NameComponent:
+      Name: Sphere_R3M3
+    TransformComponent:
+      Position: [3.5999999, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 3107409351725503209
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 7798751030460555576
+  - Entity: 1909338287245515020
+    NameComponent:
+      Name: Sphere_R3M4
+    TransformComponent:
+      Position: [4.80000019, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 3107409351725503209
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 7835116342893810679
+  - Entity: 15233561958285638573
+    NameComponent:
+      Name: Sphere_R3M5
+    TransformComponent:
+      Position: [6, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 3107409351725503209
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 9880344144553995949
+  - Entity: 6300410482366963313
+    NameComponent:
+      Name: Sphere_R3M6
+    TransformComponent:
+      Position: [7.19999981, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 3107409351725503209
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 18131253451777458053
+  - Entity: 5017949458528686754
+    NameComponent:
+      Name: Row_R4
+    TransformComponent:
+      Position: [0, 0, 4.80000019]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 6139091074473064049
+      Children:
+        - Child: 17331944448311992907
+        - Child: 17562631480940632528
+        - Child: 6502818306579492534
+        - Child: 2080744983178663250
+        - Child: 14535105064634245215
+        - Child: 9660184463920560752
+        - Child: 8356570190323195272
+  - Entity: 17331944448311992907
+    NameComponent:
+      Name: Sphere_R4M0
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 5017949458528686754
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 4887650942737764732
+  - Entity: 17562631480940632528
+    NameComponent:
+      Name: Sphere_R4M1
+    TransformComponent:
+      Position: [1.20000005, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 5017949458528686754
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 8442983296593619228
+  - Entity: 6502818306579492534
+    NameComponent:
+      Name: Sphere_R4M2
+    TransformComponent:
+      Position: [2.4000001, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 5017949458528686754
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 12746679908997081317
+  - Entity: 2080744983178663250
+    NameComponent:
+      Name: Sphere_R4M3
+    TransformComponent:
+      Position: [3.5999999, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 5017949458528686754
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 10903809275430991577
+  - Entity: 14535105064634245215
+    NameComponent:
+      Name: Sphere_R4M4
+    TransformComponent:
+      Position: [4.80000019, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 5017949458528686754
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 11673510748629246777
+  - Entity: 9660184463920560752
+    NameComponent:
+      Name: Sphere_R4M5
+    TransformComponent:
+      Position: [6, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 5017949458528686754
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 5656398303958048726
+  - Entity: 8356570190323195272
+    NameComponent:
+      Name: Sphere_R4M6
+    TransformComponent:
+      Position: [7.19999981, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 5017949458528686754
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 4792793176321953931
+  - Entity: 3463058687979789102
+    NameComponent:
+      Name: Row_R5
+    TransformComponent:
+      Position: [0, 0, 6]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 6139091074473064049
+      Children:
+        - Child: 11455200558239843889
+        - Child: 9089431388402137129
+        - Child: 17123589150995477639
+        - Child: 6594321300493761206
+        - Child: 8973756792636342660
+        - Child: 16266871938987179897
+        - Child: 11297599253614134843
+  - Entity: 11455200558239843889
+    NameComponent:
+      Name: Sphere_R5M0
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 3463058687979789102
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 16025408004875987887
+  - Entity: 9089431388402137129
+    NameComponent:
+      Name: Sphere_R5M1
+    TransformComponent:
+      Position: [1.20000005, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 3463058687979789102
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 5682592323071508868
+  - Entity: 17123589150995477639
+    NameComponent:
+      Name: Sphere_R5M2
+    TransformComponent:
+      Position: [2.4000001, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 3463058687979789102
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 12622582967641333975
+  - Entity: 6594321300493761206
+    NameComponent:
+      Name: Sphere_R5M3
+    TransformComponent:
+      Position: [3.5999999, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 3463058687979789102
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 7880690706364761385
+  - Entity: 8973756792636342660
+    NameComponent:
+      Name: Sphere_R5M4
+    TransformComponent:
+      Position: [4.80000019, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 3463058687979789102
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 833158986590567741
+  - Entity: 16266871938987179897
+    NameComponent:
+      Name: Sphere_R5M5
+    TransformComponent:
+      Position: [6, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 3463058687979789102
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 764854443805297276
+  - Entity: 11297599253614134843
+    NameComponent:
+      Name: Sphere_R5M6
+    TransformComponent:
+      Position: [7.19999981, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 3463058687979789102
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 3710555964583081363
+  - Entity: 16435215649446872385
+    NameComponent:
+      Name: Row_R6
+    TransformComponent:
+      Position: [0, 0, 7.19999981]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 6139091074473064049
+      Children:
+        - Child: 15650237977692940228
+        - Child: 10189887817560073995
+        - Child: 4349616419105227107
+        - Child: 9361002232580220578
+        - Child: 17523138241885608480
+        - Child: 10472455460445049488
+        - Child: 4316120664322029408
+  - Entity: 15650237977692940228
+    NameComponent:
+      Name: Sphere_R6M0
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 16435215649446872385
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 18180424371950149734
+  - Entity: 10189887817560073995
+    NameComponent:
+      Name: Sphere_R6M1
+    TransformComponent:
+      Position: [1.20000005, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 16435215649446872385
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 16029489057987171513
+  - Entity: 4349616419105227107
+    NameComponent:
+      Name: Sphere_R6M2
+    TransformComponent:
+      Position: [2.4000001, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 16435215649446872385
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 17455970391041452410
+  - Entity: 9361002232580220578
+    NameComponent:
+      Name: Sphere_R6M3
+    TransformComponent:
+      Position: [3.5999999, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 16435215649446872385
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 13625146385598174959
+  - Entity: 17523138241885608480
+    NameComponent:
+      Name: Sphere_R6M4
+    TransformComponent:
+      Position: [4.80000019, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 16435215649446872385
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 15503998888545150847
+  - Entity: 10472455460445049488
+    NameComponent:
+      Name: Sphere_R6M5
+    TransformComponent:
+      Position: [6, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 16435215649446872385
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 14140872347819643740
+  - Entity: 4316120664322029408
+    NameComponent:
+      Name: Sphere_R6M6
+    TransformComponent:
+      Position: [7.19999981, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 16435215649446872385
+      Children:
+        []
+    MeshFilterComponent:
+      PrimitiveType: 3
+      MeshAsset: 0
+    MeshRendererComponent:
+      Materials:
+        - AssetHandle: 11410487533279191938
+  - Entity: 6154210356857819247
+    NameComponent:
+      Name: Directional Light
+    TransformComponent:
+      Position: [0.761631846, 1.71285951, -1.21886563]
+      Rotation: [0.406246752, -0.249812275, 0.116489381, 0.871198952]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    LightComponent:
+      Type: 0
+      Color: [1, 1, 1]
+      Intensity: 1
+      Shadows: 1
+      ShadowBias: 0.000300000014
+      ShadowStrength: 1
+      CascadeCount: 4
+      ShadowDistance: 150
+      ShadowMapResolution: 2048
+      CascadeSplits: [0.0670000017, 0.200000003, 0.467000008, 1]
+  - Entity: 1028939920665883645
+    NameComponent:
+      Name: Camera
+    TransformComponent:
+      Position: [-1.56913555, 1.39637506, -0.473415762]
+      Rotation: [0.107049279, 0.844783843, 0.184235886, -0.490854234]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 0
+      Children:
+        []
+    CameraComponent:
+      Projection: 0
+      PerspectiveFOV: 45
+      PerspectiveNear: 0.00999999978
+      PerspectiveFar: 26.1000004
+      OrthographicSize: 10
+      OrthographicNear: -1
+      OrthographicFar: 1000
+      Primary: true
+      FixedAspectRatio: false
