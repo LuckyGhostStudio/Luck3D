@@ -146,7 +146,9 @@ namespace Lucky::UI
     void EndDragDropSource();
     
     // ---- Popup ----
-    
+    // Begin*Popup* 返回 true 期间，内容按编辑器标准字体 / 行距 / 窗口内边距绘制：
+    // popup 是独立全局 UI，不继承宿主作用域压入的字体与 ItemSpacing（如 Grid 作用域）
+
     bool BeginPopupContextWindow(const char* strID = nullptr, ImGuiPopupFlags popupFlags = 1);
     bool BeginPopupContextItem(const char* strID = nullptr, ImGuiPopupFlags popupFlags = 1);
     bool BeginPopup(const char* strID = nullptr, ImGuiPopupFlags popupFlags = 0);

@@ -464,10 +464,14 @@ namespace Lucky::UI
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingY });
         bool opened = ImGui::BeginPopupContextWindow(strID, popupFlags);
         ImGui::PopStyleVar();
-        
+
         if (opened)
         {
+            // popup 是独立全局 UI：内容统一按编辑器标准字体与行距绘制，
+            // 不继承宿主作用域可能压入的字体 / 行距（如 Grid 的小字体与单行距）
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingY });
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { Theme::Layout::ItemSpacingX, Theme::Layout::ItemSpacingY });
+            ImGui::PushFont(GetEditorFont(EditorFont::Regular));
         }
         return opened;
     }
@@ -477,10 +481,13 @@ namespace Lucky::UI
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingY });
         bool opened = ImGui::BeginPopupContextItem(strID, popupFlags);
         ImGui::PopStyleVar();
-        
+
         if (opened)
         {
+            // 同 BeginPopupContextWindow：内容按标准字体与行距绘制
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingY });
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { Theme::Layout::ItemSpacingX, Theme::Layout::ItemSpacingY });
+            ImGui::PushFont(GetEditorFont(EditorFont::Regular));
         }
         return opened;
     }
@@ -490,17 +497,21 @@ namespace Lucky::UI
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingY });
         bool opened = ImGui::BeginPopup(strID, popupFlags);
         ImGui::PopStyleVar();
-        
+
         if (opened)
         {
+            // 同 BeginPopupContextWindow：内容按标准字体与行距绘制
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { Theme::Layout::WindowPaddingX, Theme::Layout::WindowPaddingY });
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { Theme::Layout::ItemSpacingX, Theme::Layout::ItemSpacingY });
+            ImGui::PushFont(GetEditorFont(EditorFont::Regular));
         }
         return opened;
     }
-    
+
     void EndPopup()
     {
-        ImGui::PopStyleVar();
+        ImGui::PopFont();           // 配对 Begin*Popup* 压入的标准字体
+        ImGui::PopStyleVar(2);      // 配对 Begin*Popup* 压入的 WindowPadding + ItemSpacing
         ImGui::EndPopup();
     }
     
