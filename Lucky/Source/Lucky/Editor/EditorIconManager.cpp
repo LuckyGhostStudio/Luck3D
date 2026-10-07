@@ -25,7 +25,17 @@ namespace Lucky
         // ---- 通用图标 ----
         Ref<Texture2D> FolderIcon;
         Ref<Texture2D> FolderOpenIcon;
+        Ref<Texture2D> FolderEmptyIcon;          // 空文件夹
         Ref<Texture2D> FileIcon;
+
+        // ---- 通用图标（128 大尺寸版，Grid 布局等大图标场景用；缺失的回退普通版）----
+        Ref<Texture2D> FolderIconLarge;
+        Ref<Texture2D> FolderOpenIconLarge;
+        Ref<Texture2D> FolderEmptyIconLarge;
+        Ref<Texture2D> FileIconLarge;
+
+        // ---- 资产类型图标（128 大尺寸版；只覆盖有资源的类型，Material/Mesh/Texture2D/Scene 走真实预览）----
+        std::unordered_map<AssetType, Ref<Texture2D>> AssetTypeIconsLarge;
 
         // ---- 拖拽图标 ----
         Ref<Texture2D> DragDropIcon;         // 通用拖拽图标（虚线框 + 右下角 +）
@@ -77,9 +87,16 @@ namespace Lucky
         LF_CORE_INFO("EditorIconManager::Init - Loading editor icons...");
 
         // ---- 加载通用图标 ----
-        s_IconData.FolderIcon       = LoadIcon("Common/Folder.png");
-        s_IconData.FolderOpenIcon   = LoadIcon("Common/FolderOpen.png");
-        s_IconData.FileIcon         = LoadIcon("Common/File.png");
+        s_IconData.FolderIcon           = LoadIcon("Common/Folder.png");
+        s_IconData.FolderOpenIcon       = LoadIcon("Common/FolderOpen.png");
+        s_IconData.FolderEmptyIcon      = LoadIcon("Common/FolderEmpty.png");
+        s_IconData.FileIcon             = LoadIcon("Common/File.png");
+
+        // ---- 通用图标（128 大尺寸版）----
+        s_IconData.FolderIconLarge      = LoadIcon("Common/Folder128.png");
+        s_IconData.FolderOpenIconLarge  = LoadIcon("Common/FolderOpen128.png");
+        s_IconData.FolderEmptyIconLarge = LoadIcon("Common/FolderEmpty128.png");
+        s_IconData.FileIconLarge        = LoadIcon("Common/File128.png");
 
         // ---- 加载拖拽图标 ----
         s_IconData.DragDropIcon     = LoadIcon("Common/DragDrop.png");
@@ -103,6 +120,10 @@ namespace Lucky
         s_IconData.AssetTypeIcons[AssetType::Scene]     = LoadIcon("Asset/Scene.png");
         s_IconData.AssetTypeIcons[AssetType::Shader]    = LoadIcon("Asset/Shader.png");
         s_IconData.AssetTypeIcons[AssetType::Script]    = LoadIcon("Asset/Script.png");
+
+        // ---- 资产类型图标（128 大尺寸版；Material/Mesh/Texture2D/Scene 走真实预览，无需大图）----
+        s_IconData.AssetTypeIconsLarge[AssetType::Shader] = LoadIcon("Asset/Shader128.png");
+        s_IconData.AssetTypeIconsLarge[AssetType::Script] = LoadIcon("Asset/Script128.png");
 
         // ---- 加载组件图标 ----
         s_IconData.ComponentIcons[ComponentType::Transform]          = LoadIcon("Component/Transform.png");
@@ -130,12 +151,18 @@ namespace Lucky
         LF_CORE_INFO("EditorIconManager::Shutdown");
 
         s_IconData.AssetTypeIcons.clear();
+        s_IconData.AssetTypeIconsLarge.clear();
         s_IconData.ComponentIcons.clear();
         s_IconData.LightIcons.clear();
         s_IconData.EntityIcon.reset();
         s_IconData.FolderIcon.reset();
         s_IconData.FolderOpenIcon.reset();
+        s_IconData.FolderEmptyIcon.reset();
         s_IconData.FileIcon.reset();
+        s_IconData.FolderIconLarge.reset();
+        s_IconData.FolderOpenIconLarge.reset();
+        s_IconData.FolderEmptyIconLarge.reset();
+        s_IconData.FileIconLarge.reset();
         s_IconData.DragDropIcon.reset();
         s_IconData.DragRejectedIcon.reset();
         s_IconData.SettingsIcon.reset();
@@ -143,14 +170,28 @@ namespace Lucky
         s_IconData.PauseIcon.reset();
     }
 
-    const Ref<Texture2D>& EditorIconManager::GetAssetTypeIcon(AssetType type)
+    const Ref<Texture2D>& EditorIconManager::GetAssetTypeIcon(AssetType type, bool large)
     {
+        if (large)
+        {
+            auto itLarge = s_IconData.AssetTypeIconsLarge.find(type);
+            if (itLarge != s_IconData.AssetTypeIconsLarge.end() && itLarge->second)
+            {
+                return itLarge->second;
+            }
+        }
+
         auto it = s_IconData.AssetTypeIcons.find(type);
         if (it != s_IconData.AssetTypeIcons.end() && it->second)
         {
             return it->second;
         }
 
+        // 未知类型回退通用文件图标（large 优先 128 版）
+        if (large && s_IconData.FileIconLarge)
+        {
+            return s_IconData.FileIconLarge;
+        }
         return s_IconData.FileIcon;
     }
 
@@ -183,8 +224,34 @@ namespace Lucky
         return s_IconData.EntityIcon;
     }
 
-    const Ref<Texture2D>& EditorIconManager::GetFolderIcon(bool isOpen)
+    const Ref<Texture2D>& EditorIconManager::GetFolderIcon(bool isOpen, bool isEmpty, bool large)
     {
+        // 空文件夹优先空图标（不分开合状态）；128 版缺失回退普通空图标，再缺失落回普通文件夹图标
+        if (isEmpty)
+        {
+            if (large && s_IconData.FolderEmptyIconLarge)
+            {
+                return s_IconData.FolderEmptyIconLarge;
+            }
+            if (s_IconData.FolderEmptyIcon)
+            {
+                return s_IconData.FolderEmptyIcon;
+            }
+        }
+
+        // 128 大尺寸版（缺失回退普通版）
+        if (large)
+        {
+            if (isOpen && s_IconData.FolderOpenIconLarge)
+            {
+                return s_IconData.FolderOpenIconLarge;
+            }
+            if (!isOpen && s_IconData.FolderIconLarge)
+            {
+                return s_IconData.FolderIconLarge;
+            }
+        }
+
         if (isOpen && s_IconData.FolderOpenIcon)
         {
             return s_IconData.FolderOpenIcon;

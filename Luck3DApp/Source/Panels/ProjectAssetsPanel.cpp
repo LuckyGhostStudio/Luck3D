@@ -303,8 +303,8 @@ namespace Lucky
 
         bool isCurrentDir = (m_CurrentDirectory == node.FullPath);
 
-        const Ref<Texture2D>& folderClosedIcon = EditorIconManager::GetFolderIcon(false);
-        const Ref<Texture2D>& folderOpenIcon = EditorIconManager::GetFolderIcon(true);
+        const Ref<Texture2D>& folderClosedIcon = EditorIconManager::GetFolderIcon(false, node.IsEmpty);
+        const Ref<Texture2D>& folderOpenIcon = EditorIconManager::GetFolderIcon(true, node.IsEmpty);
 
         if (isRoot)
         {
@@ -444,8 +444,9 @@ namespace Lucky
             case PendingCreateKind::Scene:    pendingAssetType = AssetType::Scene;    break;
             default:                                                                  break;
         }
+        // 新建文件夹必为空目录，用空图标
         const Ref<Texture2D>& pendingIcon = (m_PendingCreate.Kind == PendingCreateKind::Folder)
-            ? EditorIconManager::GetFolderIcon(false)
+            ? EditorIconManager::GetFolderIcon(false, /*isEmpty*/ true)
             : EditorIconManager::GetAssetTypeIcon(pendingAssetType);
 
         // TreeNode ID：InitialName + "##pending"（保证与真实资产项 ID 隔离，不冲突）
@@ -501,9 +502,10 @@ namespace Lucky
             case PendingCreateKind::Scene:    pendingAssetType = AssetType::Scene;    break;
             default:                                                                  break;
         }
+        // 新建文件夹必为空目录，用空图标；Grid 大图标场景用 128 版本资源
         const Ref<Texture2D>& pendingIcon = (m_PendingCreate.Kind == PendingCreateKind::Folder)
-            ? EditorIconManager::GetFolderIcon(false)
-            : EditorIconManager::GetAssetTypeIcon(pendingAssetType);
+            ? EditorIconManager::GetFolderIcon(false, /*isEmpty*/ true, /*large*/ true)
+            : EditorIconManager::GetAssetTypeIcon(pendingAssetType, /*large*/ true);
 
         std::string pendingStrID = m_PendingCreate.InitialName + "##pending_create_grid";
 
@@ -544,18 +546,23 @@ namespace Lucky
         
         bool isDirectory = entry.is_directory();
 
-        // 获取图标：目录用文件夹图标；非目录优先用资产缩略图，命中则显示预览，否则回退到静态类型图标
+        // 获取图标：目录用文件夹图标（空目录用空图标）；非目录在列表模式下只有纹理显示内容缩略图，
+        // 其余类型直接用静态类型图标（小图标尺寸下 3D 渲染预览没有辨识度，不值得渲染）
         Ref<Texture2D> icon;
         if (isDirectory)
         {
-            icon = EditorIconManager::GetFolderIcon(false);
+            icon = EditorIconManager::GetFolderIcon(false, std::filesystem::is_empty(path));
         }
         else
         {
-            icon = GetThumbnail(path);
+            AssetType type = GetAssetTypeFromPath(path);
+            if (type == AssetType::Texture2D)
+            {
+                icon = GetThumbnail(path);
+            }
             if (!icon)
             {
-                icon = EditorIconManager::GetAssetTypeIcon(GetAssetTypeFromPath(path));
+                icon = EditorIconManager::GetAssetTypeIcon(type);
             }
         }
         
@@ -620,12 +627,13 @@ namespace Lucky
 
         bool isDirectory = entry.is_directory();
 
-        // 图标：目录 → 文件夹图标；非目录 → 缩略图优先，fallback 到静态类型图标
+        // 图标：目录 → 文件夹图标（空目录用空图标）；非目录 → 缩略图优先，fallback 到静态类型图标
+        // Grid 大图标场景统一用 128 版本资源（缺失自动回退普通版）
         Ref<Texture2D> icon;
         UI::GridIconKind iconKind = UI::GridIconKind::Symbolic;
         if (isDirectory)
         {
-            icon = EditorIconManager::GetFolderIcon(false);
+            icon = EditorIconManager::GetFolderIcon(false, std::filesystem::is_empty(path), /*large*/ true);
         }
         else
         {
@@ -637,7 +645,7 @@ namespace Lucky
             }
             else
             {
-                icon = EditorIconManager::GetAssetTypeIcon(GetAssetTypeFromPath(path));
+                icon = EditorIconManager::GetAssetTypeIcon(GetAssetTypeFromPath(path), /*large*/ true);
             }
         }
 
@@ -939,6 +947,8 @@ namespace Lucky
         
         if (std::filesystem::exists(path) && std::filesystem::is_directory(path))
         {
+            node.IsEmpty = std::filesystem::is_empty(path);
+
             for (auto& entry : std::filesystem::directory_iterator(path))
             {
                 if (entry.is_directory())

@@ -31,8 +31,9 @@ namespace Lucky
         /// 获取资产类型图标
         /// </summary>
         /// <param name="type">资产类型</param>
+        /// <param name="large">是否优先使用 128 大尺寸版本（Grid 布局等大图标场景；缺失时回退普通版）</param>
         /// <returns>对应的图标纹理，未知类型返回通用文件图标</returns>
-        static const Ref<Texture2D>& GetAssetTypeIcon(AssetType type);
+        static const Ref<Texture2D>& GetAssetTypeIcon(AssetType type, bool large = false);
 
         // ======== 组件图标 ========
 
@@ -64,8 +65,10 @@ namespace Lucky
         /// 获取文件夹图标
         /// </summary>
         /// <param name="isOpen">是否为打开状态</param>
+        /// <param name="isEmpty">文件夹是否为空（空文件夹使用空图标，不分开合状态）</param>
+        /// <param name="large">是否优先使用 128 大尺寸版本（缺失时回退普通版）</param>
         /// <returns>文件夹图标纹理</returns>
-        static const Ref<Texture2D>& GetFolderIcon(bool isOpen = false);
+        static const Ref<Texture2D>& GetFolderIcon(bool isOpen = false, bool isEmpty = false, bool large = false);
 
         /// <summary>
         /// 获取通用文件图标

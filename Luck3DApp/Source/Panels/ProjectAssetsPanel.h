@@ -19,6 +19,7 @@ namespace Lucky
         std::string Name;                           // 目录名
         std::filesystem::path FullPath;             // 完整路径
         std::vector<DirectoryNode> SubDirectories;  // 子目录
+        bool IsEmpty = false;                       // 目录是否为空（无任何条目），建树时一并算好
     };
 
     /// <summary>
