@@ -25,8 +25,8 @@ namespace Lucky
         static GLuint s_HelperFBO = 0;      // Blit 用的辅助 FBO，常驻复用
 
         /// <summary>
-        /// 把源 FBO 的 Color Attachment 0 Blit 到目标 Texture2D（Y 翻转）
-        /// Y 翻转通过 dstY0 > dstY1 实现，使目标纹理像素行序与 ImGui 常规纹理一致
+        /// 把源 FBO 的 Color Attachment 0 Blit 到目标 Texture2D（同向拷贝，不做翻转）
+        /// SceneRenderer 的 FBO 输出行序与 UI 绘制（AddImage UV (0,1)-(1,0)）的约定一致；
         /// 辅助 FBO 常驻一张，复用 attach 不同目标纹理
         /// </summary>
         void BlitFramebufferToTexture(const Ref<Framebuffer>& src, const Ref<Texture2D>& dst, uint32_t size)
@@ -44,10 +44,9 @@ namespace Lucky
             glBindFramebuffer(GL_READ_FRAMEBUFFER, srcFB);
             glReadBuffer(GL_COLOR_ATTACHMENT0);
 
-            // Y 翻转：dstY0 = size, dstY1 = 0
             glBlitFramebuffer(
                 0, 0, static_cast<GLint>(size), static_cast<GLint>(size),
-                0, static_cast<GLint>(size), static_cast<GLint>(size), 0,
+                0, 0, static_cast<GLint>(size), static_cast<GLint>(size),
                 GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
             // 解绑辅助 FBO 的目标纹理，避免下次 attach 时读到脏引用

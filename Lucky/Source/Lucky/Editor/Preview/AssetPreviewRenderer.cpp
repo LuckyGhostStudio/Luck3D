@@ -16,6 +16,9 @@ namespace Lucky
     namespace
     {
         constexpr uint32_t s_PreviewSize = 128;
+        constexpr float    s_PreviewFovDeg = 30.0f;     // 预览相机 FOV
+        constexpr float    s_MaterialFillRatio = 1.1f;  // 材质球填充系数（相机距离 = 半径/sin(FOV/2) × 系数，越大球越小）
+        constexpr float    s_MeshFillRatio = 1.28f;     // 网格预览填充系数（同上，越大模型占框越小）
 
         struct PreviewData
         {
@@ -28,13 +31,15 @@ namespace Lucky
         static Scope<PreviewData> s_Data;
 
         /// <summary>
-        /// 按目标中心点和相机距离构造 FixedCamera（相机在 target + Z 方向偏移，朝 target 看）
+        /// 按目标中心点和相机距离构造 FixedCamera：相机位于目标左上前方，朝目标看
         /// 预览全部用透视投影，FOV 固定 30°
         /// </summary>
         void BuildFixedCamera(const glm::vec3& target, float distance)
         {
-            constexpr float fovDeg = 30.0f;
-            glm::vec3 camPos = target + glm::vec3(0.0f, 0.0f, distance);
+            constexpr float fovDeg = s_PreviewFovDeg;
+            // 方位：左上前方，俯角约 31°（对齐 Unity 资产预览的斜俯视角度）
+            const glm::vec3 viewDir = glm::normalize(glm::vec3(-1.0f, 0.85f, 1.0f));
+            glm::vec3 camPos = target + viewDir * distance;
             glm::mat4 view = glm::lookAt(camPos, target, glm::vec3(0.0f, 1.0f, 0.0f));
             glm::mat4 proj = glm::perspective(glm::radians(fovDeg), 1.0f, 0.01f, distance * 10.0f);
 
@@ -64,15 +69,15 @@ namespace Lucky
 
         s_Data->Renderer = CreateRef<SceneRenderer>();
         s_Data->Renderer->Init(spec);
-        s_Data->Renderer->SetClearColor(glm::vec4(0.2f, 0.2f, 0.2f, 1.0f));
+        s_Data->Renderer->SetClearColor(glm::vec4(0.322f, 0.322f, 0.322f, 1.0f));   // 预览背景 #525252
 
         // 球体网格（Material 预览用）
         s_Data->SphereMesh = MeshFactory::CreateSphere();
 
-        // 固定布光：一盏方向光（右上 45 度）
+        // 固定布光：一盏方向光（左上方来、俯角偏平，球的右下部留出明显背光阴影，对齐 Unity 预览观感）
         s_Data->FixedLight.DirectionalLightCount = 1;
         DirectionalLightData& mainLight = s_Data->FixedLight.DirectionalLights[0];
-        mainLight.Direction = glm::normalize(glm::vec3(-0.3f, -1.0f, -0.5f));
+        mainLight.Direction = glm::normalize(glm::vec3(0.75f, -0.9f, -0.35f));
         mainLight.Color = glm::vec3(1.0f);
         mainLight.Intensity = 1.2f;
 
@@ -96,8 +101,9 @@ namespace Lucky
             return s_Null;
         }
 
-        // 球体半径 0.5，相机距离 1.5 单位能完整框住
-        BuildFixedCamera(glm::vec3(0.0f), 1.5f);
+        // 球体半径 0.5，按填充系数换算相机距离（半径 / sin(FOV/2) × 系数）
+        float distance = 0.5f / std::sin(glm::radians(s_PreviewFovDeg * 0.5f)) * s_MaterialFillRatio;
+        BuildFixedCamera(glm::vec3(0.0f), distance);
 
         s_Data->Renderer->BeginScene(s_Data->FixedCamera, s_Data->FixedLight);
         std::vector<Ref<Material>> materials = { material };
@@ -122,7 +128,7 @@ namespace Lucky
         {
             radius = 0.5f;     // 退化 Mesh 兜底，防止除零
         }
-        float distance = radius / std::sin(glm::radians(s_Data->FixedCamera.FOV) * 0.5f) * 1.3f;
+        float distance = radius / std::sin(glm::radians(s_Data->FixedCamera.FOV) * 0.5f) * s_MeshFillRatio;
         BuildFixedCamera(bounds.GetCenter(), distance);
 
         s_Data->Renderer->BeginScene(s_Data->FixedCamera, s_Data->FixedLight);
