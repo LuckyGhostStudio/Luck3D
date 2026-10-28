@@ -9,6 +9,10 @@
 
 ![Inspector 组件与材质编辑](Screenshots/editor-inspector.jpg)
 
+## 架构图
+
+![引擎架构图](Screenshots/architecture.png)
+
 ## 构建指南
 
 ### 前置条件
